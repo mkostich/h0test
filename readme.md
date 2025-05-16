@@ -13,21 +13,20 @@ mkdir test1
 cd test1
 
 ## copy h0test.1.R to working directory:
-base_dir='/projects/compsci/jgeorge/kostim/resources'
-rsync ${base_dir}/scripts/mk_protools/h0test/h0test.1.R ./
+rsync /path/to/h0test/h0test.1.R ./
 
 ## configure for this experiment:
 vi h0test.1.R
 
 ## invoke R instance with required packages (limma and edgeR):
-container="${base_dir}/containers/msproteomics_r.20250325a.sif"
+container='/projects/compsci/jgeorge/kostim/resources/containers/msproteomics_r.20250325a.sif'
 apptainer exec $container R
 
 ## in R:
 rm(list=ls())
 source("./h0test.1.R")
-source("/projects/compsci/jgeorge/kostim/resources/scripts/mk_protools/h0test/h0test.2.R")
-source("/projects/compsci/jgeorge/kostim/resources/scripts/mk_protools/h0test/h0test.3.R")
+source("/path/to/h0test/h0test.2.R")
+source("/path/to/h0test/h0test.3.R")
 q()
 ```
   
@@ -37,7 +36,8 @@ q()
 
 - R, with limma and edgeR packages
 - Developed and tested with R 4.4.2, limma 3.62.2, and edgeR 4.4.2
-- Dependencies available in this apptainer container: `/projects/compsci/jgeorge/kostim/resources/containers/msproteomics_r.20250325a.sif`
+- Dependencies available in this apptainer container:<br/>
+  `/projects/compsci/jgeorge/kostim/resources/containers/msproteomics_r.20250325a.sif`
 
 ---
 
@@ -134,7 +134,7 @@ RESULT_MID_OUT <- ".results"    ## prefix for output results file
 SUFFIX_OUT <- ".tsv"            ## suffix for output files
 
 ## dependency:
-SRC_TEST <- "/projects/compsci/jgeorge/kostim/resources/scripts/mk_protools/h0test/h0test.0.R"
+SRC_TEST <- "/path/to/h0test/h0test.0.R"
 
 ## misc:
 PROBS <- c(0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0)
@@ -296,8 +296,7 @@ environment before the scripts are sourced:
 ## bash: 
 
 ## copy h0test.1.R to working directory:
-base_dir='/projects/compsci/jgeorge/kostim/resources'
-rsync ${base_dir}/scripts/mk_protools/h0test/h0test.1.R ./
+rsync /path/to/h0test/h0test.1.R ./
 
 ## configure script for this experiment:
 vi h0tune.1.R            
@@ -313,7 +312,7 @@ Perform each run in a separate subdirectory:
 cd 0
 
 ## invoke R instance with required packages (limma and edgeR):
-container="${base_dir}/containers/msproteomics_r.20250325a.sif"
+container='/projects/compsci/jgeorge/kostim/resources/containers/msproteomics_r.20250325a.sif'
 apptainer exec $container R
 ```
 
@@ -325,8 +324,8 @@ In R, for each run:
 rm(list=ls())
 
 script1 <- "../h0tune.1.R"
-script2 <- "/projects/compsci/jgeorge/kostim/resources/scripts/mk_protools/h0test/h0test.2.R"
-script3 <- "/projects/compsci/jgeorge/kostim/resources/scripts/mk_protools/h0test/h0test.3.R"
+script2 <- "/path/to/h0test/h0test.2.R"
+script3 <- "/path/to/h0test/h0test.3.R"
 
 out_file <- "0.age_strain.tune.tsv"
 TEST_TERM <- "age:strain"
