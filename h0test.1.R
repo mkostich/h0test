@@ -58,16 +58,19 @@ FEAT_ID_COL <- "gene_id"                      ## feats[, FEAT_ID_COL] == rowname
 OBS_COL <- "assay_id"                         ## unique id for observations; meta[, OBS_COL] == colnames(exprs)
 SAMPLE_COL <- "sample_id"                     ## id for samples in meta; not unique if tech reps;
 
-## tunable options:
-NORM_METHOD <- "quantile"       ## in c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")
-NORM_QUANTILE <- 0.75           ## for quantile normalization; 0.5 is median; 0.75 is upper quartile;
-TRANSFORM_METHOD <- "log2"      ## in c('log2', 'log10', 'none')
-N_SAMPLES_MIN <- 2              ## min samples/feature w/ feature expression > 0 to keep feature
-N_FEATURES_MIN <- 1000          ## min features/sample w/ expression > 0 to keep sample
-IMPUTE_METHOD <- "sample_lod"   ## in c("unif_global_lod", "unif_sample_lod", "sample_lod", "rnorm_feature")
-IMPUTE_QUANTILE <- 0.0          ## quantile for unif_ imputation methods
-IMPUTE_SCALE <- 1               ## for rnorm_feature, adjustment on sd of distribution [1: no change];
-TEST_METHOD <- "trend"          ## in c("voom", "trend")
+## tunable options: defaults are usually ok, except:
+##   for dia: usually works ok: RLE:unif_sample_lod:0.05 for NORM_METHOD:IMPUTE_METHOD:IMPUTE_QUANTILE
+##   for dda: usually works ok: quantile:0.75:unif_sample_lod:0 for NORM_METHOD:NORM_QUANTILE:IMPUTE_METHOD:IMPUTE_QUANTILE
+
+NORM_METHOD <- "quantile"            ## in c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")
+NORM_QUANTILE <- 0.75                ## for quantile normalization; 0.5 is median; 0.75 is upper quartile;
+TRANSFORM_METHOD <- "log2"           ## in c('log2', 'log10', 'none')
+N_SAMPLES_MIN <- 2                   ## min samples/feature w/ feature expression > 0 to keep feature
+N_FEATURES_MIN <- 1000               ## min features/sample w/ expression > 0 to keep sample
+IMPUTE_METHOD <- "unif_sample_lod"   ## in c("unif_global_lod", "unif_sample_lod", "sample_lod", "rnorm_feature")
+IMPUTE_QUANTILE <- 0.01              ## quantile for unif_ imputation methods
+IMPUTE_SCALE <- 1                    ## for rnorm_feature, adjustment on sd of distribution [1: no change];
+TEST_METHOD <- "trend"               ## in c("voom", "trend")
 
 ## output file naming:
 LOG_FILE <- "log.txt"           ## log file path; or "" for log to console                 
