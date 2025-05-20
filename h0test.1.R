@@ -40,7 +40,7 @@ FEATURE_FILE_IN <- "feats.tsv"                ## feature annotation .tsv; row fe
 META_FILE_IN <- "meta.tsv"                    ## sample annotation .tsv; row observations
 DIR_OUT="."                                   ## output directory
 
-## formula for testing:
+## formula for testing: actual formula can have '+' and ':'; not tested w/ e.g. '*' yet.
 FRM <- ~ age + strain + gender + age:strain   ## formula with variable of interest and covariates
 TEST_TERM <- "age:strain"                     ## term in FRM on which test is to be performed
 PERMUTE_VAR <- ""                             ## variable to permute; "" for no permutation (normal execution)
