@@ -11,7 +11,7 @@
 ## this script:
 ##   a) filter features and samples at biosample level;
 ##   b) like ...1.R, adds filter related stats to feats[, N_SAMPLES_EXPR_COL], 
-##        feats[, MEDIAN_RAW_COL], and meta[, N_FEATURES_EXPR_COL];
+##        feats[, MEDIAN_RAW_COL], and samps[, N_FEATURES_EXPR_COL];
 ##   c) impute;
 ##   d) test;
 
@@ -21,27 +21,27 @@
 f.msg("copying variables")
 exprs <- exprs2
 feats <- feats2
-meta <- meta2
+samps <- samps2
 
 f.log("filtering at sample level")
 
 f.msg("before filtering features", nrow(exprs), "features, and", ncol(exprs), "observations")
-filter_list <- f.filter_features(exprs, meta, feats, n_samples_min=N_SAMPLES_MIN)
+filter_list <- f.filter_features(exprs, samps, feats, n_samples_min=N_SAMPLES_MIN)
 exprs <- filter_list$exprs
-meta <- filter_list$meta
+samps <- filter_list$samps
 feats <- filter_list$feats
 f.msg("after filtering features", nrow(exprs), "features, and", ncol(exprs), "observations")
 if(!all(rownames(exprs) == feats[, FEAT_ID_COL, drop=T])) f.err("!all(rownames(exprs) == feats[, FEAT_ID_COL])")
-if(!all(colnames(exprs) == meta[, SAMPLE_COL, drop=T])) f.err("!all(colnames(exprs) == meta[, SAMPLE_COL])")
+if(!all(colnames(exprs) == samps[, SAMPLE_COL, drop=T])) f.err("!all(colnames(exprs) == samps[, SAMPLE_COL])")
 
 f.msg("before filtering samples", nrow(exprs), "features, and", ncol(exprs), "observations")
-filter_list <- f.filter_samples(exprs, meta, feats, n_features_min=N_FEATURES_MIN)
+filter_list <- f.filter_samples(exprs, samps, feats, n_features_min=N_FEATURES_MIN)
 exprs <- filter_list$exprs
-meta <- filter_list$meta
+samps <- filter_list$samps
 feats <- filter_list$feats
 f.msg("after filtering samples", nrow(exprs), "features, and", ncol(exprs), "observations")
 if(!all(rownames(exprs) == feats[, FEAT_ID_COL, drop=T])) f.err("!all(rownames(exprs) == feats[, FEAT_ID_COL])")
-if(!all(colnames(exprs) == meta[, SAMPLE_COL, drop=T])) f.err("!all(colnames(exprs) == meta[, SAMPLE_COL])")
+if(!all(colnames(exprs) == samps[, SAMPLE_COL, drop=T])) f.err("!all(colnames(exprs) == samps[, SAMPLE_COL])")
 
 
 ###############################################################################
@@ -58,8 +58,8 @@ feats[, MEDIAN_RAW_COL] <- m
 rm(m)
 
 n <- f.features_per_sample(exprs)
-if(!all(names(n) == meta[, SAMPLE_COL])) f.err("!all(names(n) == meta[, SAMPLE_COL])")
-meta[, N_FEATURES_EXPR_COL] <- n
+if(!all(names(n) == samps[, SAMPLE_COL])) f.err("!all(names(n) == samps[, SAMPLE_COL])")
+samps[, N_FEATURES_EXPR_COL] <- n
 f.msg("features per sample:", round(quantile(n, probs=PROBS, na.rm=T)))
 rm(n)
 
@@ -67,7 +67,7 @@ f.msg("N features: ", nrow(exprs), "; N observations: ", ncol(exprs))
 f.msg("signal distribution: ", quantile(c(exprs), probs=PROBS, na.rm=T))
 f.msg("min(exprs):", min(c(exprs), na.rm=T), "; mean(exprs):", mean(c(exprs), na.rm=T))
 f.msg("num NAs: ", sum(is.na(c(exprs))))
-f.save_main(exprs, feats, meta, DIR_OUT, "5.filtered", SUFFIX_OUT)
+f.save_main(exprs, feats, samps, DIR_OUT, "5.filtered", SUFFIX_OUT)
 
 
 ###############################################################################
@@ -98,8 +98,8 @@ f.quantile(c(exprs), probs=PROBS, digits=3)
 f.msg("after imputing, min(exprs):", min(c(exprs), na.rm=T), "; mean(exprs):", mean(c(exprs), na.rm=T))
 f.msg("after imputing, num NAs: ", sum(is.na(c(exprs))))
 if(!all(rownames(exprs) == feats[, FEAT_ID_COL, drop=T])) f.err("!all(rownames(exprs) == feats[, FEAT_ID_COL])")
-if(!all(colnames(exprs) == meta[, SAMPLE_COL, drop=T])) f.err("!all(colnames(exprs) == meta[, SAMPLE_COL])")
-f.save_main(exprs, feats, meta, DIR_OUT, "6.imputed", SUFFIX_OUT)
+if(!all(colnames(exprs) == samps[, SAMPLE_COL, drop=T])) f.err("!all(colnames(exprs) == samps[, SAMPLE_COL])")
+f.save_main(exprs, feats, samps, DIR_OUT, "6.imputed", SUFFIX_OUT)
 
 
 ###############################################################################
@@ -111,9 +111,9 @@ if(any(duplicated(feats[, FEAT_ID_COL, drop=T]))) f.err("any(duplicated(feats[, 
 rownames(feats) <- feats[, FEAT_ID_COL, drop=T]
 
 if(TEST_METHOD %in% "voom") {
-  tbl <- f.test_voom(exprs, meta, FRM, TEST_TERM, normalize.method="none")
+  tbl <- f.test_voom(exprs, samps, FRM, TEST_TERM, normalize.method="none")
 } else if(TEST_METHOD %in% "trend") {
-  tbl <- f.test_trend(exprs, meta, FRM, TEST_TERM)
+  tbl <- f.test_trend(exprs, samps, FRM, TEST_TERM)
 } else if(TEST_METHOD %in% "none") {
   f.msg("skipping testing: TEST_METHOD %in% 'none'")
 } else f.err("unexpected TEST_METHOD:", TEST_METHOD)

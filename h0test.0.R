@@ -25,11 +25,11 @@
 ## 
 ## f.save_tsv(dat, file_out, row.names=T, col.names=T)
 ## 
-## f.filter_features(exprs, meta, feats, n_samples_min=2)
-##   return(list(exprs=exprs, meta=meta, feats=feats))
+## f.filter_features(exprs, samps, feats, n_samples_min=2)
+##   return(list(exprs=exprs, samps=samps, feats=feats))
 ##
-## f.filter_samples(exprs, meta, feats, n_features_min=1000)
-##   return(list(exprs=exprs, meta=meta, feats=feats))
+## f.filter_samples(exprs, samps, feats, n_features_min=1000)
+##   return(list(exprs=exprs, samps=samps, feats=feats))
 ## 
 ## f.samples_per_feature(exprs)
 ##   return(n)
@@ -90,10 +90,10 @@
 ## f.impute_rnorm_feature(exprs, scale.=1)
 ##   return(exprs)
 ## 
-## f.test_voom <- function(exprs, meta, frm, test_var, normalize.method="none")
+## f.test_voom <- function(exprs, samps, frm, test_var, normalize.method="none")
 ##   return(tbl)
 ## 
-## f.test_trend <- function(exprs, meta, frm, test_var)
+## f.test_trend <- function(exprs, samps, frm, test_var)
 ##   return(tbl)
 
 
@@ -143,7 +143,7 @@ f.save_tsv <- function(dat, file_out, row.names=T, col.names=T) {
 
 ## filter features based on number of expressing samples:
 
-f.filter_features <- function(exprs, meta, feats, n_samples_min=2) {
+f.filter_features <- function(exprs, samps, feats, n_samples_min=2) {
   if(!is.matrix(exprs)) f.err("f.filter_features: !is.matrix(exprs)")
 
   f <- function(v) {
@@ -158,10 +158,10 @@ f.filter_features <- function(exprs, meta, feats, n_samples_min=2) {
   feats <- feats[i, ]
   f.msg("features filtered: nrow(exprs):", nrow(exprs), "; ncol(exprs):", ncol(exprs))
 
-  return(list(exprs=exprs, meta=meta, feats=feats))
+  return(list(exprs=exprs, samps=samps, feats=feats))
 }
 
-f.filter_samples <- function(exprs, meta, feats, n_features_min=1000) {
+f.filter_samples <- function(exprs, samps, feats, n_features_min=1000) {
   if(!is.matrix(exprs)) f.err("f.filter_samples: !is.matrix(exprs)")
 
   f <- function(v) {
@@ -173,10 +173,10 @@ f.filter_samples <- function(exprs, meta, feats, n_features_min=1000) {
 
   f.msg("filtering", sum(!i), "samples, keeping", sum(i))
   exprs <- exprs[, i]
-  meta <- meta[i, ]
+  samps <- samps[i, ]
   f.msg("samples filtered: nrow(exprs):", nrow(exprs), "; ncol(exprs):", ncol(exprs))
 
-  return(list(exprs=exprs, meta=meta, feats=feats))
+  return(list(exprs=exprs, samps=samps, feats=feats))
 }
 
 
@@ -224,7 +224,7 @@ f.features_per_sample <- function(exprs) {
 ## inter-sample edger (tmm) normalization;
 ##   normalized cpm values using edger norm factors
 ##   method in c("TMM", "TMMwsp", "RLE", "upperquartile", "none")
-##   returns list with elements: exprs, meta, feats
+##   returns list with elements: exprs, samps, feats
 
 f.normalize_edger <- function(exprs, method="TMM", p=0.75) {
   if(!is.matrix(exprs)) f.err("f.normalize_edger: !is.matrix(exprs)")
@@ -387,15 +387,15 @@ f.impute_rnorm_feature <- function(exprs, scale.=1) {
 ## hypothesis testing:
  
 ## can use quantile normalization here:
-f.test_voom <- function(exprs, meta, frm, test_term, normalize.method="none") {
+f.test_voom <- function(exprs, samps, frm, test_term, normalize.method="none") {
   if(!is.matrix(exprs)) f.err("f.test_voom: !is.matrix(exprs)")
   i <- apply(exprs, 1, function(v) any(is.na(v)))
   exprs <- exprs[!i, ]
-  design <- model.matrix(frm, data=meta)
+  design <- model.matrix(frm, data=samps)
   obj <- limma::voom(exprs, design, plot=F, normalize.method=normalize.method)
   fit <- limma::lmFit(obj, design)
   fit <- limma::eBayes(fit, trend=F)
-  cols <- colnames(model.matrix(as.formula(paste("~0 + ", test_term)), data=meta))
+  cols <- colnames(model.matrix(as.formula(paste("~0 + ", test_term)), data=samps))
   cols <- cols[cols %in% colnames(design)]
   i <- colnames(design) %in% cols
   tbl <- limma::topTable(fit, coef=which(i), number=Inf)
@@ -404,12 +404,12 @@ f.test_voom <- function(exprs, meta, frm, test_term, normalize.method="none") {
   return(tbl)
 }
 
-f.test_trend <- function(exprs, meta, frm, test_term) {
+f.test_trend <- function(exprs, samps, frm, test_term) {
   if(!is.matrix(exprs)) f.err("f.test_trend: !is.matrix(exprs)")
-  design <- model.matrix(frm, data=meta)
+  design <- model.matrix(frm, data=samps)
   fit <- limma::lmFit(exprs, design)
   fit <- limma::eBayes(fit, trend=T)
-  cols <- colnames(model.matrix(as.formula(paste("~0 + ", test_term)), data=meta))
+  cols <- colnames(model.matrix(as.formula(paste("~0 + ", test_term)), data=samps))
   cols <- cols[cols %in% colnames(design)]
   i <- colnames(design) %in% cols
   tbl <- limma::topTable(fit, coef=which(i), number=Inf)

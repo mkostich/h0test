@@ -12,14 +12,14 @@
 ##   a) normalize exprs
 ##   b) transform (e.g. log2) exprs (if not done as part of normalize)
 ##   c) combine technical replicate observations; reduces number of columns
-##        in exprs and number of rows in meta; exprs, meta, and feats in sync;
+##        in exprs and number of rows in samps; exprs, samps, and feats in sync;
 
 ###############################################################################
 ## normalize:
 
 f.msg("copying variables")
 exprs2 <- exprs1
-meta2 <- meta1
+samps2 <- samps1
 feats2 <- feats1
 
 f.log("normalizing data")
@@ -44,7 +44,7 @@ if(NORM_METHOD %in% c("TMM", "TMMwsp", "RLE", "upperquartile")) {
 } else f.err("unexpected NORM_METHOD:", NORM_METHOD)
 
 if(!all(rownames(exprs2) == feats2[, FEAT_ID_COL, drop=T])) f.err("!all(rownames(exprs2) == feats2[, FEAT_ID_COL])")
-if(!all(colnames(exprs2) == meta2[, OBS_COL, drop=T])) f.err("!all(colnames(exprs2) == meta2[, OBS_COL])")
+if(!all(colnames(exprs2) == samps2[, OBS_COL, drop=T])) f.err("!all(colnames(exprs2) == samps2[, OBS_COL])")
 
 f.msg("after normalization, N features: ", nrow(exprs2), "; N observations: ", ncol(exprs2))
 f.msg("after normalization, signal distribution:")
@@ -67,8 +67,8 @@ if(!(NORM_METHOD %in% "vsn" || TRANSFORM_METHOD %in% "none")) {
   if(!all(rownames(exprs2) == feats2[, FEAT_ID_COL, drop=T])) {
     f.err("!all(rownames(exprs2) == feats2[, FEAT_ID_COL])")
   } 
-  if(!all(colnames(exprs2) == meta2[, OBS_COL, drop=T])) {
-    f.err("!all(colnames(exprs2) == meta2[, OBS_COL])")
+  if(!all(colnames(exprs2) == samps2[, OBS_COL, drop=T])) {
+    f.err("!all(colnames(exprs2) == samps2[, OBS_COL])")
   } 
 } else f.msg("skipping transformation: NORM_METHOD %in% 'vsn' || TRANSFORM_METHOD %in% 'none'")
 
@@ -80,7 +80,7 @@ f.msg("signal distribution: ")
 f.quantile(c(exprs2), probs=PROBS, digits=3)
 f.msg("min(exprs2):", min(c(exprs2), na.rm=T), "; mean(exprs2):", mean(c(exprs2), na.rm=T))
 f.msg("num NAs: ", sum(is.na(c(exprs2))))
-f.save_main(exprs2, feats2, meta2, DIR_OUT, "3.normalized", SUFFIX_OUT)
+f.save_main(exprs2, feats2, samps2, DIR_OUT, "3.normalized", SUFFIX_OUT)
 
 
 ###############################################################################
@@ -88,21 +88,21 @@ f.save_main(exprs2, feats2, meta2, DIR_OUT, "3.normalized", SUFFIX_OUT)
 
 f.log("combining technical replicates")
 
-if(!all(colnames(exprs2) == meta2[, OBS_COL, drop=T])) f.err("!all(colnames(exprs2)==meta2[, OBS_COL])")
-if(!all(meta2$obs_f == colnames(exprs2))) f.err("!all(meta2$obs_f == colnames(exprs2))")
+if(!all(colnames(exprs2) == samps2[, OBS_COL, drop=T])) f.err("!all(colnames(exprs2)==samps2[, OBS_COL])")
+if(!all(samps2$obs_f == colnames(exprs2))) f.err("!all(samps2$obs_f == colnames(exprs2))")
 
 f <- function(v, s) tapply(v, s, median, na.rm=T)
-exprs2 <- t(apply(exprs2, 1, f, meta2[, SAMPLE_COL, drop=T]))
+exprs2 <- t(apply(exprs2, 1, f, samps2[, SAMPLE_COL, drop=T]))
 rm(f)
-meta2 <- meta2[!duplicated(meta2[, SAMPLE_COL, drop=T]), ]
-meta2[, OBS_COL] <- NULL
-if(!all(meta2[, SAMPLE_COL, drop=T] %in% colnames(exprs2))) {
-  f.err("!all(meta2[, SAMPLE_COL] %in% colnames(exprs2))")
+samps2 <- samps2[!duplicated(samps2[, SAMPLE_COL, drop=T]), ]
+samps2[, OBS_COL] <- NULL
+if(!all(samps2[, SAMPLE_COL, drop=T] %in% colnames(exprs2))) {
+  f.err("!all(samps2[, SAMPLE_COL] %in% colnames(exprs2))")
 }
 
-exprs2 <- exprs2[, meta2[, SAMPLE_COL, drop=T]]
+exprs2 <- exprs2[, samps2[, SAMPLE_COL, drop=T]]
 if(!all(rownames(exprs2) == feats2[, FEAT_ID_COL, drop=T])) f.err("!all(rownames(exprs2) == feats2[, FEAT_ID_COL])")
-if(!all(colnames(exprs2) == meta2[, SAMPLE_COL, drop=T])) f.err("!all(colnames(exprs2) == meta2[, SAMPLE_COL])")
+if(!all(colnames(exprs2) == samps2[, SAMPLE_COL, drop=T])) f.err("!all(colnames(exprs2) == samps2[, SAMPLE_COL])")
 
 ## SAVE 3: collapse
 f.msg("N features: ", nrow(exprs2), "; N observations: ", ncol(exprs2))
@@ -110,5 +110,5 @@ f.msg("signal distribution: ")
 f.quantile(c(exprs2), probs=PROBS, digits=3)
 f.msg("min(exprs2):", min(c(exprs2), na.rm=T), "; mean(exprs2):", mean(c(exprs2), na.rm=T))
 f.msg("num NAs: ", sum(is.na(c(exprs2))))
-f.save_main(exprs2, feats2, meta2, DIR_OUT, "4.combined", SUFFIX_OUT)
+f.save_main(exprs2, feats2, samps2, DIR_OUT, "4.combined", SUFFIX_OUT)
 

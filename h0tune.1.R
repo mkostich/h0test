@@ -22,21 +22,21 @@
 ## this script:
 ##   a) CUSTOMIZE: configure variables
 ##   b) define functions
-##   c) read data (exprs), sample metadata (meta), and feature metadata (feats);
-##        exprs is numeric matrix, meta and feats are data frames; 
+##   c) read data (exprs), sample metadata (samps), and feature metadata (feats);
+##        exprs is numeric matrix, samps and feats are data frames; 
 ##        rownames(exprs) == feats[, FEAT_ID_COL]
-##        colnames(exprs) == meta[, OBS_COL]
-##   d) configure types and levels of covariates in meta;
+##        colnames(exprs) == samps[, OBS_COL]
+##   d) configure types and levels of covariates in samps;
 ##   e) add feature and sample metadata used for filtering:
 ##         i) samples per feature added as feats[, N_SAMPLES_EXPR_COL];
 ##        ii) median feature expression in expressing samples added as feats[, MEDIAN_RAW_COL];
-##       iii) features per sample added as meta[, N_FEATURES_EXPR_COL];
+##       iii) features per sample added as samps[, N_FEATURES_EXPR_COL];
 ##   f) prefilter features and samples:
 ##         i) prefilter features: n_expressing_samples >= 1; 
 ##        ii) prefilter samples: n_expressed_features >= 1;
 ##   g) permute PERMUTE_COL, if PERMUTE_COL != ""
 ##   Note: does not save anything to disk, but does define:
-##     f.save_main(exprs, feats, meta, output_dir, prefix, suffix)
+##     f.save_main(exprs, feats, samps, output_dir, prefix, suffix)
 
 ###############################################################################
 ## CONFIGURE THIS: variable initialization:
@@ -48,50 +48,50 @@
 ##     TEST_TERM, PERMUTE_VAR, NORM_METHOD, NORM_QUANTILE, 
 ##       IMPUTE_METHOD, IMPUTE_SCALE, TEST_METHOD;
 
-DIR_IN="/flashscratch/kostim/ps3/carter_glyco/2" ## where DATA_FILE_IN, FETURE_FILE_IN, and SAMPLE_FILE_IN live
-DATA_FILE_IN <- "exprs_glyco_20250508c.tsv"      ## lfq normalized quant matrix .tsv; row features, column samples
-FEATURE_FILE_IN <- "feats_glyco_20250508c.tsv"   ## feature annotation .tsv; row features
-SAMPLE_FILE_IN <- "meta_glyco_20250508c.tsv"       ## sample annotation .tsv; row samples
+DIR_IN="."                                       ## where DATA_FILE_IN, FETURE_FILE_IN, and SAMPLE_FILE_IN live
+DATA_FILE_IN <- "expression.tsv"                 ## lfq normalized quant matrix .tsv; row features, column samples
+FEATURE_FILE_IN <- "features.tsv"                ## feature annotation .tsv; row features
+SAMPLE_FILE_IN <- "samples.tsv"                  ## sample annotation .tsv; row samples
 DIR_OUT="."                                      ## output directory
 
 ## formula for testing:
 FRM <- ~ age + strain + gender + age:strain      ## formula with variable of interest and covariates
-## TEST_TERM <- "age:strain"                        ## term in FRM on which test is to be performed
-## PERMUTE_VAR <- ""                                ## variable to permute; "" for no permutation (normal execution)
+## TEST_TERM <- "age:strain"                     ## term in FRM on which test is to be performed
+## PERMUTE_VAR <- ""                             ## variable to permute; "" for no permutation (normal execution)
 SAMPLE_FACTORS <- list(
   age=c("4mo", "12mo", "24mo"),
   strain=c("B6", "129", "A_J", "Balbc_J", "CAST", "NOD", "NZO", "PWK", "WSB"),
   gender=c("Male", "Female")
 )
 
-## meta and feats column names:
+## samps and feats column names:
 N_SAMPLES_EXPR_COL <- "n_samps_expr"             ## new col; n samples expressing feature
 MEDIAN_RAW_COL <- "median_raw"                   ## new col; median feature expression in expressing samples
 N_FEATURES_EXPR_COL <- "n_feats_expr"            ## new col; n features express
 FEAT_ID_COL <- "MasterProteinAccessions"         ## feats[, FEAT_ID_COL] == rownames(exprs)
-OBS_COL <- "obs_f"                               ## unique id for observations in meta
-SAMPLE_COL <- "sample"                           ## unique id for samples in meta
+OBS_COL <- "obs_f"                               ## unique id for observations in samps
+SAMPLE_COL <- "sample"                           ## unique id for samples in samps
 
 ## tunable parameters:
-## NORM_METHOD <- "quantile"       ## in c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")
-## NORM_QUANTILE <- 0.75           ## for quantile normalization; 0.5 is median; 0.75 is upper quartile;
-TRANSFORM_METHOD <- "log2"      ## in c('log2', 'log10', 'none')
-N_SAMPLES_MIN <- 2              ## min samples/feature w/ feature expression > 0 to keep feature
-N_FEATURES_MIN <- 1000          ## min features/sample w/ expression > 0 to keep sample
-## IMPUTE_METHOD <- "sample_lod"   ## in c("unif_global_lod", "unif_sample_lod", "sample_lod", "rnorm_feature")
-## IMPUTE_SCALE <- 1               ## for rnorm_feature, adjustment on sd of distribution [1: no change];
-## TEST_METHOD <- "voom"           ## in c("voom", "trend")
+## NORM_METHOD <- "quantile"      ## in c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")
+## NORM_QUANTILE <- 0.75          ## for quantile normalization; 0.5 is median; 0.75 is upper quartile;
+TRANSFORM_METHOD <- "log2"        ## in c('log2', 'log10', 'none')
+N_SAMPLES_MIN <- 2                ## min samples/feature w/ feature expression > 0 to keep feature
+N_FEATURES_MIN <- 1000            ## min features/sample w/ expression > 0 to keep sample
+## IMPUTE_METHOD <- "sample_lod"  ## in c("unif_global_lod", "unif_sample_lod", "sample_lod", "rnorm_feature")
+## IMPUTE_SCALE <- 1              ## for rnorm_feature, adjustment on sd of distribution [1: no change];
+## TEST_METHOD <- "voom"          ## in c("voom", "trend")
 
 ## output file naming:
-LOG_FILE <- "log.txt"           ## log file path; or "" for log to console                 
-DATA_MID_OUT <- ".expression"   ## midfix for output expression files
-FEATURE_MID_OUT <- ".features"  ## midfix for output feature files
-SAMPLE_MID_OUT <- ".samples"      ## midfix for output metadata file
-RESULT_MID_OUT <- ".results"    ## prefix for output results file
-SUFFIX_OUT <- ".tsv"            ## suffix for output files
+LOG_FILE <- "log.txt"             ## log file path; or "" for log to console                 
+DATA_MID_OUT <- ".expression"     ## midfix for output expression files
+FEATURE_MID_OUT <- ".features"    ## midfix for output feature metadata files
+SAMPLE_MID_OUT <- ".samples"      ## midfix for output sample metadata files
+RESULT_MID_OUT <- ".results"      ## prefix for output results file
+SUFFIX_OUT <- ".tsv"              ## suffix for output files
 
 ## required helper:
-SRC_TEST="/projects/compsci/jgeorge/kostim/resources/scripts/mk_protools/h0test/h0test.0.R" 
+SRC_TEST="~/opt/h0test/h0test.0.R" 
 
 ## misc:
 PROBS <- c(0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0)
@@ -105,7 +105,7 @@ options(width=WIDTH)
 setwd(DIR_OUT)
 source(SRC_TEST)
 
-f.save_main <- function(exprs, feats, meta, output_dir, prefix, suffix) {
+f.save_main <- function(exprs, feats, samps, output_dir, prefix, suffix) {
   cat("file saving turned off\n")
   return(NULL)
   file_out <- paste0(output_dir, "/", prefix, DATA_MID_OUT, suffix)
@@ -118,7 +118,7 @@ f.save_main <- function(exprs, feats, meta, output_dir, prefix, suffix) {
 
   file_out <- paste0(output_dir, "/", prefix, SAMPLE_MID_OUT, suffix)
   f.log("writing sample metadata to", file_out)
-  f.save_tsv(meta, file_out)
+  f.save_tsv(samps, file_out)
 }
 
 f.quantile <- function(v, probs=PROBS, digits=3, na.rm=T) {
@@ -147,23 +147,23 @@ rm(trms)
 
 f.log("reading data")
 feats1 <- read.table(paste(DIR_IN, FEATURE_FILE_IN, sep="/"), header=T, sep="\t", quote="", as.is=T)
-meta1 <- read.table(paste(DIR_IN, SAMPLE_FILE_IN, sep="/"), header=T, sep="\t", quote="", as.is=T)
+samps1 <- read.table(paste(DIR_IN, SAMPLE_FILE_IN, sep="/"), header=T, sep="\t", quote="", as.is=T)
 exprs1 <- read.table(paste(DIR_IN, DATA_FILE_IN, sep="/"), header=T, sep="\t", quote="", as.is=T)
 exprs1 <- as.matrix(exprs1)
 
 if(!(typeof(exprs1) %in% "double")) f.err("!(typeof(exprs1) %in% 'double')")
 if(!all(rownames(exprs1) == feats1[, FEAT_ID_COL, drop=T])) f.err("!all(rownames(exprs1)==feats1[,FEAT_ID_COL])")
-if(!all(colnames(exprs1) == meta1[, OBS_COL, drop=T])) f.err("!all(colnames(exprs1)==meta1[, OBS_COL])")
+if(!all(colnames(exprs1) == samps1[, OBS_COL, drop=T])) f.err("!all(colnames(exprs1)==samps1[, OBS_COL])")
 
 
 ###############################################################################
 ## set up types and levels of covariates:
 
 for(nom in c(N_SAMPLES_EXPR_COL, MEDIAN_RAW_COL, N_FEATURES_EXPR_COL)) {
-  if(nom %in% names(meta1)) f.err("nom %in% names(meta1); nom:", nom)
+  if(nom %in% names(samps1)) f.err("nom %in% names(samps1); nom:", nom)
 }
 for(nom in c(OBS_COL, SAMPLE_COL)) {
-  if(!(nom %in% names(meta1))) f.err("!(nom %in% names(meta1)); nom:", nom)
+  if(!(nom %in% names(samps1))) f.err("!(nom %in% names(samps1)); nom:", nom)
 }
 if(!(FEAT_ID_COL %in% names(feats1))) f.err("!(FEAT_ID_COL %in% names(feats1))")
 
@@ -174,24 +174,24 @@ vars <- gsub("[\\:\\*\\-]", "+", vars)
 vars <- unlist(strsplit(vars, split="\\+"))
 vars <- sort(unique(vars))
 
-## make sure all needed variables in meta:
-if(!all(vars %in% names(meta1))) f.err("!all(vars %in% names(meta1))")
+## make sure all needed variables in samps:
+if(!all(vars %in% names(samps1))) f.err("!all(vars %in% names(samps1))")
 if(!all(names(SAMPLE_FACTORS) %in% vars)) f.err("!all(names(SAMPLE_FACTORS) %in% vars)")
 
 f.msg("subsetting metadata")
-meta1 <- meta1[, c(OBS_COL, SAMPLE_COL, vars)]
+samps1 <- samps1[, c(OBS_COL, SAMPLE_COL, vars)]
 rm(vars)
 
 f.msg("setting factor levels")
 
 for(nom in names(SAMPLE_FACTORS)) {
   ## check for potential misconfiguration first:
-  if(!(nom %in% names(meta1))) f.err("!(nom %in% names(meta1)); nom:", nom)
+  if(!(nom %in% names(samps1))) f.err("!(nom %in% names(samps1)); nom:", nom)
   lvls1 <- SAMPLE_FACTORS[[nom]]
-  lvls2 <- sort(unique(as.character(meta1[[nom]])))
+  lvls2 <- sort(unique(as.character(samps1[[nom]])))
   if(!all(lvls1 %in% lvls2)) f.err("!all(lvls1 %in% lvls2) for nom:", nom)
   if(!all(lvls2 %in% lvls1)) f.err("!all(lvls2 %in% lvls1) for nom:", nom)
-  meta1[[nom]] <- factor(as.character(meta1[[nom]]), levels=SAMPLE_FACTORS[[nom]])
+  samps1[[nom]] <- factor(as.character(samps1[[nom]]), levels=SAMPLE_FACTORS[[nom]])
 }
 
 
@@ -208,8 +208,8 @@ feats1[, MEDIAN_RAW_COL] <- m
 rm(m)
 
 n <- f.features_per_sample(exprs1)
-if(!all(names(n) == meta1[, OBS_COL, drop=T])) f.err("!all(names(n) == meta1[, OBS_COL])")
-meta1[, N_FEATURES_EXPR_COL] <- n
+if(!all(names(n) == samps1[, OBS_COL, drop=T])) f.err("!all(names(n) == samps1[, OBS_COL])")
+samps1[, N_FEATURES_EXPR_COL] <- n
 
 n <- apply(exprs1, 1, function(v) sum(v > 0, na.rm=T))
 f.msg("samples per feature:")
@@ -226,7 +226,7 @@ f.msg("signal distribution:")
 f.quantile(c(exprs1), probs=PROBS, digits=0) 
 f.msg("min(exprs1):", min(c(exprs1), na.rm=T), "; mean(exprs1):", mean(c(exprs1), na.rm=T))
 f.msg("num NAs: ", sum(is.na(c(exprs1))))
-f.save_main(exprs1, feats1, meta1, DIR_OUT, "1.initial", SUFFIX_OUT)
+f.save_main(exprs1, feats1, samps1, DIR_OUT, "1.initial", SUFFIX_OUT)
 
 
 ###############################################################################
@@ -235,20 +235,20 @@ f.save_main(exprs1, feats1, meta1, DIR_OUT, "1.initial", SUFFIX_OUT)
 f.log("prefilter features and samples")
 
 f.msg("before filtering features", nrow(exprs1), "features, and", ncol(exprs1), "observations")
-filter_list <- f.filter_features(exprs1, meta1, feats1, n_samples_min=1)
+filter_list <- f.filter_features(exprs1, samps1, feats1, n_samples_min=1)
 exprs1 <- filter_list$exprs
-meta1 <- filter_list$meta
+samps1 <- filter_list$samps
 feats1 <- filter_list$feats
 f.msg("after filtering features", nrow(exprs1), "features, and", ncol(exprs1), "observations")
 
-filter_list <- f.filter_samples(exprs1, meta1, feats1, n_features_min=1)
+filter_list <- f.filter_samples(exprs1, samps1, feats1, n_features_min=1)
 exprs1 <- filter_list$exprs
-meta1 <- filter_list$meta
+samps1 <- filter_list$samps
 feats1 <- filter_list$feats
 f.msg("after filtering samples", nrow(exprs1), "features, and", ncol(exprs1), "observations")
 
 if(!all(rownames(exprs1) == feats1[, FEAT_ID_COL, drop=T])) f.err("!all(rownames(exprs1) == feats1[, FEAT_ID_COL])")
-if(!all(colnames(exprs1) == meta1[, OBS_COL, drop=T])) f.err("!all(colnames(exprs1) == meta1[, OBS_COL])")
+if(!all(colnames(exprs1) == samps1[, OBS_COL, drop=T])) f.err("!all(colnames(exprs1) == samps1[, OBS_COL])")
 
 
 ###############################################################################
@@ -256,14 +256,14 @@ if(!all(colnames(exprs1) == meta1[, OBS_COL, drop=T])) f.err("!all(colnames(expr
 
 if(!(PERMUTE_VAR %in% "")) {
   f.msg("permuting", PERMUTE_VAR)
-  tmp <- meta1[!duplicated(meta1[, SAMPLE_COL]), c(SAMPLE_COL, PERMUTE_VAR), drop=T]
+  tmp <- samps1[!duplicated(samps1[, SAMPLE_COL]), c(SAMPLE_COL, PERMUTE_VAR), drop=T]
   rownames(tmp) <- tmp[, SAMPLE_COL]
   tmp[, PERMUTE_VAR] <- sample(tmp[, PERMUTE_VAR, drop=T], nrow(tmp), replace=F)
-  meta1[, PERMUTE_VAR] <- tmp[meta1[, SAMPLE_COL], PERMUTE_VAR, drop=T]
+  samps1[, PERMUTE_VAR] <- tmp[samps1[, SAMPLE_COL], PERMUTE_VAR, drop=T]
 } else f.msg("skipping permutation; PERMUTE_VAR %in% ''")
 
 if(!all(rownames(exprs1) == feats1[, FEAT_ID_COL, drop=T])) f.err("!all(rownames(exprs1) == feats1[, FEAT_ID_COL])")
-if(!all(colnames(exprs1) == meta1[, OBS_COL, drop=T])) f.err("!all(colnames(exprs1) == meta1[, OBS_COL])")
+if(!all(colnames(exprs1) == samps1[, OBS_COL, drop=T])) f.err("!all(colnames(exprs1) == samps1[, OBS_COL])")
 
-f.save_main(exprs1, feats1, meta1, DIR_OUT, "2.prepped", SUFFIX_OUT)
+f.save_main(exprs1, feats1, samps1, DIR_OUT, "2.prepped", SUFFIX_OUT)
 

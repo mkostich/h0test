@@ -8,14 +8,17 @@
 ```
 ## bash: 
 
+## install under ~/opt/h0test:
+mkdir -p ~/opt
+cd ~/opt
+git clone https://github.com/mkostich/h0test
+
 ## make a working directory, just for this:
 mkdir test1
 cd test1
 
-## copy h0test.1.R to working directory:
-rsync /path/to/h0test/h0test.1.R ./
-
-## configure for this experiment:
+## copy h0test.1.R to working directory, and configure for this experiment:
+rsync ~/opt/h0test/h0test.1.R ./
 vi h0test.1.R
 
 ## invoke R instance with required packages (limma and edgeR):
@@ -25,8 +28,8 @@ apptainer exec $container R
 ## in R:
 rm(list=ls())
 source("./h0test.1.R")
-source("/path/to/h0test/h0test.2.R")
-source("/path/to/h0test/h0test.3.R")
+source("~/opt/h0test/h0test.2.R")
+source("~/opt/h0test/h0test.3.R")
 q()
 ```
   
@@ -38,14 +41,15 @@ q()
 - Developed and tested with R 4.4.2, limma 3.62.2, and edgeR 4.4.2
 - Dependencies available in this apptainer container:<br/>
   `/projects/compsci/jgeorge/kostim/resources/containers/msproteomics_r.20250325a.sif`
+- Should work on Linux, Mac, or Windows
 
 ---
 
 ## Process
 
 1. Prefilter for all `NA` or all `0` rows (features) or columns (observations)
-2. Normalize, and if not part of normalization, transform (e.g. `log2`)
-3. Combine technical replicates (median)
+2. Normalize, and if not part of normalization, transform (default: `log2`)
+3. Combine technical replicates (take median)
 4. Filter features and samples based on `number of values > 0`
 5. Impute missing values
 6. Test hypotheses, etc.
@@ -56,27 +60,29 @@ q()
 
 - h0test.0.R: collection of generic functions;
 - h0test.1.R: entrypoint; configure this;
-    read data -> configure metadata -> prefilter -> permute (if requested)
+    read data -> configure sample metadata -> prefilter -> permute (if requested)
 - h0test.2.R: normalize -> transform (e.g. log2) -> combine technical replicates
 - h0test.3.R: filter data -> impute missing values -> h0 testing
-
+- h0tune.1.R: used in place of h0test.1.R when tuning parameters (beta)
 ---
 
 ## Inputs
 
-Inputs are three tab-delimited text files in directory `DIR_IN`:
-- `exprs.tsv`: LFQ (e.g. MaxLFQ) normalized numeric expression data; 
-  - feature rows; observation columns;
-  - `rownames(exprs) == feats[, FEAT_ID_COL]`
-  - `colnames(exprs) == meta[, OBS_COL]`
-  - `DIR_IN`, `FEAT_ID_COL` and `OBS_COL` are configured in `h0test.1.R`
-- `feats.tsv`: feature metadata, with unique key `FEAT_ID_COL`
-- `meta.tsv`: observation metadata, with:
+Inputs are three tab-delimited text files in directory `DIR_IN`. The names of 
+the files can be configured using parameters `FEATURE_FILE_IN`, 
+`SAMPLE_FILE_IN`, and `DATA_FILE_IN`:
+
+- `features.tsv`: feature metadata, with unique key `FEAT_ID_COL`
+- `samples.tsv`: observation metadata, with:
   - `OBS_COL`: unique key; technical replicate identifier
   - `SAMPLE_COL`: biosample identifier
   - need separate columns `OBS_COL` and `SAMPLE_COL`, even if no technical replicates
-  - all variables referred to in the formula specified by `FRM`
-
+  - all variables referred to in the formula specified by configuration variable `FRM`
+- `expression.tsv`: LFQ (e.g. MaxLFQ) normalized numeric expression data; 
+  - feature rows; observation columns;
+  - `rownames(exprs) == features[, FEAT_ID_COL]`
+  - `colnames(exprs) == samples[, OBS_COL]`
+  - `DIR_IN`, `FEAT_ID_COL` and `OBS_COL` configured in `h0test.1.R`
 ---
 
 ## Configuration
@@ -85,9 +91,9 @@ Runs are configured by editing the h0test.1.R file:
 
 ```
 DIR_IN <- "."                         ## where DATA_FILE_IN, FETURE_FILE_IN, and SAMPLE_FILE_IN live
-DATA_FILE_IN <- "expression.tsv"      ## .tsv lfq normalized quant matrix; row features, column observations
 FEATURE_FILE_IN <- "features.tsv"     ## feature annotation .tsv; row features
-SAMPLE_FILE_IN <- "samples.tsv"         ## sample annotation .tsv; row observations
+SAMPLE_FILE_IN <- "samples.tsv"       ## sample annotation .tsv; row observations
+DATA_FILE_IN <- "expression.tsv"      ## .tsv lfq normalized quant matrix; row features, column observations
 DIR_OUT="."                           ## output directory
 
 ## formula for testing: actual formula can have '+' and ':'; not tested w/ e.g. '*' yet.
@@ -96,7 +102,7 @@ TEST_TERM <- "age:strain"                     ## term in FRM on which test is to
 PERMUTE_VAR <- ""                             ## variable to permute; "" for no permutation (normal execution)
 ## PERMUTE_VAR <- "age"                       ## e.g. permute the 'age' variable prior to h0 testing
 
-## set levels of factor variables in meta; 
+## set levels of factor variables in samples; 
 ##   works for character and logical variables; 
 ##   also works for integer or numeric variables, if you want to treat as categorical;
 ##   first level of each factor treated as reference level:
@@ -106,13 +112,13 @@ SAMPLE_FACTORS <- list(
   gender=c("Male", "Female")
 )  
 
-## meta and feats column names (new cols are introduced by the code):
+## samples and features column names (new cols are introduced by the code):
 N_SAMPLES_EXPR_COL <- "n_samps_expr"          ## new col; n samples expressing feature
 MEDIAN_RAW_COL <- "median_raw"                ## new col; median feature expression in expressing samples
 N_FEATURES_EXPR_COL <- "n_feats_expr"         ## new col; n features express
-FEAT_ID_COL <- "accession"                    ## feats[, FEAT_ID_COL] == rownames(exprs)
-OBS_COL <- "assay_id"                         ## unique id for observations; meta[, OBS_COL] == colnames(exprs)
-SAMPLE_COL <- "sample_id"                     ## id for samples in meta; not unique if tech reps (>1 obs/sample)
+FEAT_ID_COL <- "accession"                    ## features[, FEAT_ID_COL] == rownames(exprs)
+OBS_COL <- "assay_id"                         ## unique id for observations; samples[, OBS_COL] == colnames(exprs)
+SAMPLE_COL <- "sample_id"                     ## id for samples in samples; not unique if tech reps (>1 obs/sample)
 
 ## tunable options: defaults are usually ok, except:
 ##   for dia: usually works ok: RLE:unif_sample_lod:0.05 for NORM_METHOD:IMPUTE_METHOD:IMPUTE_QUANTILE
@@ -128,12 +134,12 @@ IMPUTE_SCALE <- 1                    ## for rnorm_feature, adjustment on sd of d
 TEST_METHOD <- "trend"               ## in c("voom", "trend")
 
 ## output file naming:
-LOG_FILE <- "log.txt"           ## log file path; or "" for log to console
-DATA_MID_OUT <- ".expression"   ## midfix for output expression files
-FEATURE_MID_OUT <- ".features"  ## midfix for output feature files
-SAMPLE_MID_OUT <- ".samples"      ## midfix for output metadata file
-RESULT_MID_OUT <- ".results"    ## prefix for output results file
-SUFFIX_OUT <- ".tsv"            ## suffix for output files
+LOG_FILE <- "log.txt"                ## log file path; or "" for log to console
+FEATURE_MID_OUT <- ".features"       ## midfix for output feature metadata files
+SAMPLE_MID_OUT <- ".samples"         ## midfix for output sample metadata file
+DATA_MID_OUT <- ".expression"        ## midfix for output expression files
+RESULT_MID_OUT <- ".results"         ## prefix for output results file
+SUFFIX_OUT <- ".tsv"                 ## suffix for output files
 
 ## dependency:
 SRC_TEST <- "/path/to/h0test/h0test.0.R"
@@ -325,9 +331,9 @@ In R, for each run:
 
 rm(list=ls())
 
-script1 <- "../h0tune.1.R"
-script2 <- "/path/to/h0test/h0test.2.R"
-script3 <- "/path/to/h0test/h0test.3.R"
+script1 <- "./h0tune.1.R"
+script2 <- "~/opt/h0test/h0test.2.R"
+script3 <- "~/opt/h0test/h0test.3.R"
 
 out_file <- "0.age_strain.tune.tsv"
 TEST_TERM <- "age:strain"
@@ -335,7 +341,7 @@ PERMUTE_VAR <- ""         ## to run on permuted data, set PERMUTE_VAR to e.g. "a
 ## PERMUTE_VAR <- "age"   ## e.g. to run on data where 'age' variable has been randomized/permuted
 
 set.seed((Sys.getpid() + round((as.numeric(Sys.time()) * 100))) %% 1000)
-source(script1)           ## configure vars; load data; prefilter; permute if req'd; prep exprs1, meta1, feats1; 
+source(script1)           ## configure vars; load data; prefilter; permute if req'd; prep exprs1, samps1, feats1; 
 out <- NULL
 IMPUTE_SCALE <- 1
 NORM_QUANTILE <- 0.75
@@ -347,12 +353,12 @@ for(NORM_METHOD in c("vsn", "cpm", "q50", "q75", "qquantile", "TMM", "TMMwsp", "
     NORM_METHOD <- "quantile"
     NORM_QUANTILE <- 0.75
   } else if(NORM_METHOD %in% "upperquartile") NORM_QUANTILE <- 0.75
-  source(script2)     ## normalize/transform; combine tech reps; exprs2, meta2, feats2 from exprs1, meta1, feats1
+  source(script2)     ## normalize/transform; combine tech reps; exprs2, samps2, feats2 from exprs1, samps1, feats1
   for(TEST_METHOD in c("voom", "trend")) {
     for(IMPUTE_METHOD in c("unif_global_lod", "unif_sample_lod", "sample_lod", "rnorm_feature")) {
       if(IMPUTE_METHOD %in% c("unif_global_lod", "unif_sample_lod")) {
         for(IMPUTE_QUANTILE in c(0, 0.01, 0.05, 0.1, 0.25)) {
-          source(script3)  ## filter -> impute -> test -> tbl; from exprs2, meta2, feats2
+          source(script3)  ## filter -> impute -> test -> tbl; from exprs2, samps2, feats2
           out_i <- data.frame(norm=NORM_METHOD, norm_quant=NORM_QUANTILE, impute=IMPUTE_METHOD, imp_quant=IMPUTE_QUANTILE, 
             scale=IMPUTE_SCALE, test=TEST_METHOD, perm=PERMUTE_VAR, nhits=sum(tbl$adj.P.Val < 0.05), ntrys=nrow(tbl), 
             time=format(Sys.time(), "%H:%M:%S"), stringsAsFactors=F)
@@ -361,7 +367,7 @@ for(NORM_METHOD in c("vsn", "cpm", "q50", "q75", "qquantile", "TMM", "TMMwsp", "
         }
       } else if(IMPUTE_METHOD %in% c("rnorm_feature")) {
         for(IMPUTE_SCALE in c(1, 0.5, 0.25, 0.1)) {
-          source(script3)  ## filter -> impute -> test -> tbl; from exprs2, meta2, feats2
+          source(script3)  ## filter -> impute -> test -> tbl; from exprs2, samps2, feats2
           out_i <- data.frame(norm=NORM_METHOD, norm_quant=NORM_QUANTILE, impute=IMPUTE_METHOD, imp_quant=IMPUTE_QUANTILE, 
             scale=IMPUTE_SCALE, test=TEST_METHOD, perm=PERMUTE_VAR, nhits=sum(tbl$adj.P.Val < 0.05), ntrys=nrow(tbl), 
             time=format(Sys.time(), "%H:%M:%S"), stringsAsFactors=F)
@@ -369,7 +375,7 @@ for(NORM_METHOD in c("vsn", "cpm", "q50", "q75", "qquantile", "TMM", "TMMwsp", "
           print(out); flush.console()
         }
       } else if(IMPUTE_METHOD %in% c("sample_lod")) {
-        source(script3)  ## filter -> impute -> test -> tbl; from exprs2, meta2, feats2
+        source(script3)  ## filter -> impute -> test -> tbl; from exprs2, samps2, feats2
         out_i <- data.frame(norm=NORM_METHOD, norm_quant=NORM_QUANTILE, impute=IMPUTE_METHOD, imp_quant=IMPUTE_QUANTILE, 
           scale=IMPUTE_SCALE, test=TEST_METHOD, perm=PERMUTE_VAR, nhits=sum(tbl$adj.P.Val < 0.05), ntrys=nrow(tbl), 
           time=format(Sys.time(), "%H:%M:%S"), stringsAsFactors=F)
