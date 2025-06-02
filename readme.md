@@ -84,10 +84,10 @@ Inputs are three tab-delimited text files in directory `DIR_IN`:
 Runs are configured by editing the h0test.1.R file:
 
 ```
-DIR_IN <- "."                         ## where DATA_FILE_IN, FETURE_FILE_IN, and META_FILE_IN live
+DIR_IN <- "."                         ## where DATA_FILE_IN, FETURE_FILE_IN, and SAMPLE_FILE_IN live
 DATA_FILE_IN <- "expression.tsv"      ## .tsv lfq normalized quant matrix; row features, column observations
 FEATURE_FILE_IN <- "features.tsv"     ## feature annotation .tsv; row features
-META_FILE_IN <- "samples.tsv"         ## sample annotation .tsv; row observations
+SAMPLE_FILE_IN <- "samples.tsv"         ## sample annotation .tsv; row observations
 DIR_OUT="."                           ## output directory
 
 ## formula for testing: actual formula can have '+' and ':'; not tested w/ e.g. '*' yet.
@@ -100,7 +100,7 @@ PERMUTE_VAR <- ""                             ## variable to permute; "" for no 
 ##   works for character and logical variables; 
 ##   also works for integer or numeric variables, if you want to treat as categorical;
 ##   first level of each factor treated as reference level:
-META_FACTORS <- list(
+SAMPLE_FACTORS <- list(
   age=c("4", "12", "24"),                     ## if don't factorize age, treated as continuous numeric
   strain=c("B6", "A_J", "Balbc_J", "CAST", "NZO"),
   gender=c("Male", "Female")
@@ -131,7 +131,7 @@ TEST_METHOD <- "trend"               ## in c("voom", "trend")
 LOG_FILE <- "log.txt"           ## log file path; or "" for log to console
 DATA_MID_OUT <- ".expression"   ## midfix for output expression files
 FEATURE_MID_OUT <- ".features"  ## midfix for output feature files
-META_MID_OUT <- ".samples"      ## midfix for output metadata file
+SAMPLE_MID_OUT <- ".samples"      ## midfix for output metadata file
 RESULT_MID_OUT <- ".results"    ## prefix for output results file
 SUFFIX_OUT <- ".tsv"            ## suffix for output files
 
@@ -151,10 +151,10 @@ Writes a series of intermediate files and final results file to output directory
 specificed by `DIR_OUT`. Each set of intermediate files consists of an 
 expression matrix file, a feature metadata file, and a sample metadata file. 
 The names of the files can be customized using `DATA_MID_OUT`, `FEATURES_MID_OUT`, 
-and `META_MID_OUT`, respectively. The common file suffix can be customized by
+and `SAMPLE_MID_OUT`, respectively. The common file suffix can be customized by
 changing `SUFFIX_OUT`.
 
-With the default settings for `DATA_MID_OUT`, `FEATURES_MID_OUT`,  `META_MID_OUT`, 
+With the default settings for `DATA_MID_OUT`, `FEATURES_MID_OUT`,  `SAMPLE_MID_OUT`, 
 and `SUFFIX_OUT`, output files in `DIR_OUT` will be:
 
 ```

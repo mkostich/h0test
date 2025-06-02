@@ -48,17 +48,17 @@
 ##     TEST_TERM, PERMUTE_VAR, NORM_METHOD, NORM_QUANTILE, 
 ##       IMPUTE_METHOD, IMPUTE_SCALE, TEST_METHOD;
 
-DIR_IN="/flashscratch/kostim/ps3/carter_glyco/2" ## where DATA_FILE_IN, FETURE_FILE_IN, and META_FILE_IN live
+DIR_IN="/flashscratch/kostim/ps3/carter_glyco/2" ## where DATA_FILE_IN, FETURE_FILE_IN, and SAMPLE_FILE_IN live
 DATA_FILE_IN <- "exprs_glyco_20250508c.tsv"      ## lfq normalized quant matrix .tsv; row features, column samples
 FEATURE_FILE_IN <- "feats_glyco_20250508c.tsv"   ## feature annotation .tsv; row features
-META_FILE_IN <- "meta_glyco_20250508c.tsv"       ## sample annotation .tsv; row samples
+SAMPLE_FILE_IN <- "meta_glyco_20250508c.tsv"       ## sample annotation .tsv; row samples
 DIR_OUT="."                                      ## output directory
 
 ## formula for testing:
 FRM <- ~ age + strain + gender + age:strain      ## formula with variable of interest and covariates
 ## TEST_TERM <- "age:strain"                        ## term in FRM on which test is to be performed
 ## PERMUTE_VAR <- ""                                ## variable to permute; "" for no permutation (normal execution)
-META_FACTORS <- list(
+SAMPLE_FACTORS <- list(
   age=c("4mo", "12mo", "24mo"),
   strain=c("B6", "129", "A_J", "Balbc_J", "CAST", "NOD", "NZO", "PWK", "WSB"),
   gender=c("Male", "Female")
@@ -86,7 +86,7 @@ N_FEATURES_MIN <- 1000          ## min features/sample w/ expression > 0 to keep
 LOG_FILE <- "log.txt"           ## log file path; or "" for log to console                 
 DATA_MID_OUT <- ".expression"   ## midfix for output expression files
 FEATURE_MID_OUT <- ".features"  ## midfix for output feature files
-META_MID_OUT <- ".samples"      ## midfix for output metadata file
+SAMPLE_MID_OUT <- ".samples"      ## midfix for output metadata file
 RESULT_MID_OUT <- ".results"    ## prefix for output results file
 SUFFIX_OUT <- ".tsv"            ## suffix for output files
 
@@ -116,7 +116,7 @@ f.save_main <- function(exprs, feats, meta, output_dir, prefix, suffix) {
   f.log("writing feature metadata to", file_out)
   f.save_tsv(feats, file_out)
 
-  file_out <- paste0(output_dir, "/", prefix, META_MID_OUT, suffix)
+  file_out <- paste0(output_dir, "/", prefix, SAMPLE_MID_OUT, suffix)
   f.log("writing sample metadata to", file_out)
   f.save_tsv(meta, file_out)
 }
@@ -147,7 +147,7 @@ rm(trms)
 
 f.log("reading data")
 feats1 <- read.table(paste(DIR_IN, FEATURE_FILE_IN, sep="/"), header=T, sep="\t", quote="", as.is=T)
-meta1 <- read.table(paste(DIR_IN, META_FILE_IN, sep="/"), header=T, sep="\t", quote="", as.is=T)
+meta1 <- read.table(paste(DIR_IN, SAMPLE_FILE_IN, sep="/"), header=T, sep="\t", quote="", as.is=T)
 exprs1 <- read.table(paste(DIR_IN, DATA_FILE_IN, sep="/"), header=T, sep="\t", quote="", as.is=T)
 exprs1 <- as.matrix(exprs1)
 
@@ -176,7 +176,7 @@ vars <- sort(unique(vars))
 
 ## make sure all needed variables in meta:
 if(!all(vars %in% names(meta1))) f.err("!all(vars %in% names(meta1))")
-if(!all(names(META_FACTORS) %in% vars)) f.err("!all(names(META_FACTORS) %in% vars)")
+if(!all(names(SAMPLE_FACTORS) %in% vars)) f.err("!all(names(SAMPLE_FACTORS) %in% vars)")
 
 f.msg("subsetting metadata")
 meta1 <- meta1[, c(OBS_COL, SAMPLE_COL, vars)]
@@ -184,14 +184,14 @@ rm(vars)
 
 f.msg("setting factor levels")
 
-for(nom in names(META_FACTORS)) {
+for(nom in names(SAMPLE_FACTORS)) {
   ## check for potential misconfiguration first:
   if(!(nom %in% names(meta1))) f.err("!(nom %in% names(meta1)); nom:", nom)
-  lvls1 <- META_FACTORS[[nom]]
+  lvls1 <- SAMPLE_FACTORS[[nom]]
   lvls2 <- sort(unique(as.character(meta1[[nom]])))
   if(!all(lvls1 %in% lvls2)) f.err("!all(lvls1 %in% lvls2) for nom:", nom)
   if(!all(lvls2 %in% lvls1)) f.err("!all(lvls2 %in% lvls1) for nom:", nom)
-  meta1[[nom]] <- factor(as.character(meta1[[nom]]), levels=META_FACTORS[[nom]])
+  meta1[[nom]] <- factor(as.character(meta1[[nom]]), levels=SAMPLE_FACTORS[[nom]])
 }
 
 

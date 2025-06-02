@@ -34,17 +34,17 @@
 ###############################################################################
 ## CONFIGURE THIS: variable initialization:
 
-DIR_IN <- "."                                 ## where DATA_FILE_IN, FETURE_FILE_IN, and META_FILE_IN live
+DIR_IN <- "."                                 ## where DATA_FILE_IN, FETURE_FILE_IN, and SAMPLE_FILE_IN live
 DATA_FILE_IN <- "exprs.tsv"                   ## lfq normalized quant matrix .tsv; row features, column observations
 FEATURE_FILE_IN <- "feats.tsv"                ## feature annotation .tsv; row features
-META_FILE_IN <- "meta.tsv"                    ## sample annotation .tsv; row observations
+SAMPLE_FILE_IN <- "meta.tsv"                    ## sample annotation .tsv; row observations
 DIR_OUT="."                                   ## output directory
 
 ## formula for testing: actual formula can have '+' and ':'; not tested w/ e.g. '*' yet.
 FRM <- ~ age + strain + gender + age:strain   ## formula with variable of interest and covariates
 TEST_TERM <- "age:strain"                     ## term in FRM on which test is to be performed
 PERMUTE_VAR <- ""                             ## variable to permute; "" for no permutation (normal execution)
-META_FACTORS <- list(
+SAMPLE_FACTORS <- list(
   age=c("4mo", "12mo", "24mo"),
   strain=c("B6", "A_J", "Balbc_J", "CAST", "NZO"),
   gender=c("Male", "Female")
@@ -76,7 +76,7 @@ TEST_METHOD <- "trend"               ## in c("voom", "trend")
 LOG_FILE <- "log.txt"           ## log file path; or "" for log to console                 
 DATA_MID_OUT <- ".expression"   ## midfix for output expression files
 FEATURE_MID_OUT <- ".features"  ## midfix for output feature files
-META_MID_OUT <- ".samples"      ## midfix for output metadata file
+SAMPLE_MID_OUT <- ".samples"      ## midfix for output metadata file
 RESULT_MID_OUT <- ".results"    ## prefix for output results file
 SUFFIX_OUT <- ".tsv"  ## suffix for output files
 
@@ -104,7 +104,7 @@ f.save_main <- function(exprs, feats, meta, output_dir, prefix, suffix) {
   f.log("writing feature metadata to", file_out)
   f.save_tsv(feats, file_out)
 
-  file_out <- paste0(output_dir, "/", prefix, META_MID_OUT, suffix)
+  file_out <- paste0(output_dir, "/", prefix, SAMPLE_MID_OUT, suffix)
   f.log("writing sample metadata to", file_out)
   f.save_tsv(meta, file_out)
 }
@@ -126,13 +126,13 @@ f.msg("DIR_IN:", DIR_IN)
 f.msg("SRC_TEST:", SRC_TEST)
 f.msg("DATA_FILE_IN:", DATA_FILE_IN)
 f.msg("FEATURE_FILE_IN:", FEATURE_FILE_IN)
-f.msg("META_FILE_IN:", META_FILE_IN)
+f.msg("SAMPLE_FILE_IN:", SAMPLE_FILE_IN)
 f.msg("DIR_OUT:", DIR_OUT)
 f.msg("FRM:", as.character(FRM))
 f.msg("TEST_TERM:", TEST_TERM)
 f.msg("PERMUTE_VAR:", PERMUTE_VAR)
-for(nom in names(META_FACTORS)) {
-  f.msg("levels for META_FACTORS", nom, ":", META_FACTORS[[nom]])
+for(nom in names(SAMPLE_FACTORS)) {
+  f.msg("levels for SAMPLE_FACTORS", nom, ":", SAMPLE_FACTORS[[nom]])
 }
 f.msg("N_SAMPLES_EXPR_COL:", N_SAMPLES_EXPR_COL)
 f.msg("MEDIAN_RAW_COL:", MEDIAN_RAW_COL)
@@ -152,7 +152,7 @@ f.msg("TEST_METHOD:", TEST_METHOD)
 f.msg("LOG_FILE:", LOG_FILE)
 f.msg("DATA_MID_OUT:", DATA_MID_OUT)
 f.msg("FEATURE_MID_OUT:", FEATURE_MID_OUT)
-f.msg("META_MID_OUT:", META_MID_OUT)
+f.msg("SAMPLE_MID_OUT:", SAMPLE_MID_OUT)
 f.msg("RESULT_MID_OUT:", RESULT_MID_OUT)
 f.msg("SUFFIX_OUT:", SUFFIX_OUT)
 f.msg("PROBS:", PROBS)
@@ -174,7 +174,7 @@ rm(trms)
 
 f.log("reading data")
 feats1 <- read.table(paste(DIR_IN, FEATURE_FILE_IN, sep="/"), header=T, sep="\t", quote="", as.is=T)
-meta1 <- read.table(paste(DIR_IN, META_FILE_IN, sep="/"), header=T, sep="\t", quote="", as.is=T)
+meta1 <- read.table(paste(DIR_IN, SAMPLE_FILE_IN, sep="/"), header=T, sep="\t", quote="", as.is=T)
 exprs1 <- read.table(paste(DIR_IN, DATA_FILE_IN, sep="/"), header=T, sep="\t", quote="", as.is=T)
 exprs1 <- as.matrix(exprs1)
 
@@ -203,7 +203,7 @@ vars <- sort(unique(vars))
 
 ## make sure all needed variables in meta:
 if(!all(vars %in% names(meta1))) f.err("!all(vars %in% names(meta1))")
-if(!all(names(META_FACTORS) %in% vars)) f.err("!all(names(META_FACTORS) %in% vars)")
+if(!all(names(SAMPLE_FACTORS) %in% vars)) f.err("!all(names(SAMPLE_FACTORS) %in% vars)")
 
 f.msg("subsetting metadata")
 meta1 <- meta1[, c(OBS_COL, SAMPLE_COL, vars)]
@@ -211,14 +211,14 @@ rm(vars)
 
 f.msg("setting factor levels")
 
-for(nom in names(META_FACTORS)) {
+for(nom in names(SAMPLE_FACTORS)) {
   ## check for potential misconfiguration first:
   if(!(nom %in% names(meta1))) f.err("!(nom %in% names(meta1)); nom:", nom)
-  lvls1 <- META_FACTORS[[nom]]
+  lvls1 <- SAMPLE_FACTORS[[nom]]
   lvls2 <- sort(unique(as.character(meta1[[nom]])))
   if(!all(lvls1 %in% lvls2)) f.err("!all(lvls1 %in% lvls2) for nom:", nom)
   if(!all(lvls2 %in% lvls1)) f.err("!all(lvls2 %in% lvls1) for nom:", nom)
-  meta1[[nom]] <- factor(as.character(meta1[[nom]]), levels=META_FACTORS[[nom]])
+  meta1[[nom]] <- factor(as.character(meta1[[nom]]), levels=SAMPLE_FACTORS[[nom]])
 }
 
 
