@@ -73,12 +73,12 @@ IMPUTE_SCALE <- 1                    ## for rnorm_feature, adjustment on sd of d
 TEST_METHOD <- "trend"               ## in c("voom", "trend")
 
 ## output file naming:
-LOG_FILE <- "log.txt"           ## log file path; or "" for log to console                 
-FEATURE_MID_OUT <- ".features"  ## midfix for output feature files
-SAMPLE_MID_OUT <- ".samples"    ## midfix for output samples file
-DATA_MID_OUT <- ".expression"   ## midfix for output expression files
-RESULT_MID_OUT <- ".results"    ## prefix for output results file
-SUFFIX_OUT <- ".tsv"            ## suffix for output files
+LOG_FILE <- "log.txt"                ## log file path; or "" for log to console                 
+FEATURE_MID_OUT <- ".features"       ## midfix for output feature files
+SAMPLE_MID_OUT <- ".samples"         ## midfix for output samples file
+DATA_MID_OUT <- ".expression"        ## midfix for output expression files
+RESULT_MID_OUT <- ".results"         ## prefix for output results file
+SUFFIX_OUT <- ".tsv"                 ## suffix for output files
 
 ## dependency:
 SRC_TEST <- "~/opt/h0test/h0test.0.R"

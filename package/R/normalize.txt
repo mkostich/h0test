@@ -1,0 +1,140 @@
+#' Normalize expression using edgeR
+#' @description
+#' `f.normalize_edger` normalizes expression using functionality from edgeR.
+#' @details Inter-observation normalization. `edgeR::calcNormFactors()` 
+#'   called under the hood.
+#' @param exprs Numeric matrix with feature rows and observation columns.
+#' @param method Character in 
+#'   `c("TMM", "TMMwsp", "RLE", "upperquartile", "none")`.
+#' @param p Numeric between `0` and `1` specifying quantile to use for method 
+#'   `upperquartile`.
+#' @return Numeric array with same shape as exprs containg normalized values 
+#'   as CPM.
+#' @examples
+#' exprs <- f.normalize_edger(exprs, method="upperquartile", p=0.75)
+
+f.normalize_edger <- function(exprs, method="TMM", p=0.75) {
+  if(!is.matrix(exprs)) f.err("f.normalize_edger: !is.matrix(exprs)")
+
+  f.log("convert NA to zero")
+  exprs[is.na(exprs)] <- 0
+
+  f.log("making edgeR object")
+  obj <- edgeR::DGEList(exprs)
+
+  f.log("edgeR::calcNormFactors")
+  obj <- edgeR::calcNormFactors(obj, method=method, p=p)
+
+  f.log("making normalized expression")
+  exprs <- edgeR::cpm(obj, normalized.lib.sizes=T, log=F, prior.count=1)
+
+  f.log("convert zero back to NA")
+  exprs[exprs == 0] <- NA
+
+  return(exprs)
+}
+
+#' Normalize expression using selected quantile as scaling factor.
+#' @description
+#' `f.normalize_quantile` normalizes expression using variant of quantile 
+#'   normalization which excludes missing values.
+#' @details Inter-observation normalization. Setting p to 0.5 is equivalent 
+#'   to median scaling with median calculated after exclusion of missing 
+#'   values. Similarly, setting p to 0.75 is upperquartile normalization 
+#'   ignoring missing values.
+#' @param exprs Numeric matrix with feature rows and observation columns.
+#' @param norm_quantile Numeric in `0:1` specifying quantile to use.
+#' @param multiplier Numeric used to scale returned values after 
+#'   dividing by selected quantile. 
+#' @return Numeric array with same shape as exprs containg normalized values.
+#' @examples
+#' exprs <- f.normalize_quantile(exprs, norm_quantile=0.5, multiplier=1e3)
+
+f.normalize_quantile <- function(exprs, norm_quantile=0.5, multiplier=1e3) {
+  if(!is.matrix(exprs)) f.err("f.normalize_quantile: !is.matrix(exprs)")
+  f <- function(v) multiplier * v / quantile(v, probs=norm_quantile, na.rm=T)
+  exprs <- apply(exprs, 2, f)
+  return(exprs)
+}
+
+#' Normalize expression using total expression in each sample.
+#' @description
+#' `f.normalize_cpm` normalizes expression using variant of CPM 
+#'   normalization which excludes missing values.
+#' @details Inter-observation normalization, based on total expression
+#'   in each observation. Makes total expression (excluding missing values)
+#'   equal in each observation.
+#' @param exprs Numeric matrix with feature rows and observation columns.
+#' @param multiplier Numeric greater than zero used to scale returned values 
+#'   after dividing by total counts in observation. For example, the default 
+#'   `multiplier=1e6` yields normalized expression as CPM (counts per million). 
+#' @return Numeric array with same shape as exprs containg normalized values.
+#' @examples
+#' exprs <- f.normalize_cpm(exprs, multiplier=1e3)
+
+f.normalize_cpm <- function(exprs, multiplier=1e6) {
+  if(!is.matrix(exprs)) f.err("f.normalize_cpm: !is.matrix(exprs)")
+  f <- function(v) multiplier * (v / sum(v, na.rm=T))
+  exprs <- apply(exprs, 2, f)
+  return(exprs)
+}
+
+#' Variance stabilizing transformation.
+#' @description
+#' `f.normalize_vsn` normalizes expression using variance stabilizing 
+#'   transformation.
+#' @details Inter-observation normalization. Under the hood, it calls 
+#'   `limma::normalizeVSN()`. Unlike most other normalization methods,
+#'   results are returned on a log2-like scale.
+#' @param exprs Numeric matrix with feature rows and observation columns.
+#' @return Numeric matrix with same shape as exprs containg normalized values.
+#' @examples
+#' exprs <- f.normalize_vsn(exprs)
+
+f.normalize_vsn <- function(exprs) {
+  if(!is.matrix(exprs)) f.err("f.normalize_vsn: !is.matrix(exprs)")
+  exprs <- limma::normalizeVSN(exprs)
+  return(exprs)
+}
+
+#' Cyclic loess normalization.
+#' @description
+#' `f.normalize_loess` normalizes expression using the cyclic-loess
+#'   algorithm.
+#' @details Inter-observation normalization using cyclic-loess results
+#'   in similar signal distributions across all samples, similar to 
+#'   `f.normalize_qquantile()`. This is a slow method, especially if
+#'   `method %in% c("affy", "pairs")`, which scale quadratically. Calls
+#'   `limma::normalizeCyclicLoess()` under the hood.
+#' @param exprs Numeric matrix with feature rows and observation columns.
+#' @param span Numeric between 0 and 1 specifying span for loess fit.
+#'   Higher numbers result in smoother (less localized) fit.
+#' @param method Character in `c("fast", "affy", "pairs")`.
+#' @return Numeric array with same shape as exprs containg normalized values.
+#' @examples
+#' exprs <- f.normalize_loess(exprs)
+
+f.normalize_loess <- function(exprs, span=0.7, method="affy") {
+  if(!is.matrix(exprs)) f.err("f.normalize_loess: !is.matrix(exprs)")
+  exprs <- limma::normalizeCyclicLoess(exprs, span=span, method=method)
+  return(exprs)
+}
+
+#' Old-school 'quantile' normalization.
+#' @description
+#' `f.normalize_qquantile` normalizes data using the 'quantile normalization'
+#'   algorithm.
+#' @details Inter-observation normalization resulting in nearly identical
+#'   signal distributions across all samples, so all quantiles in 0:1 match
+#'   across all samples. Calls `limma::normalizeQuantiles()` under the hood.
+#' @param exprs Numeric matrix with feature rows and observation columns.
+#' @return Numeric matrix with same shape as exprs containg normalized values.
+#' @examples
+#' exprs <- f.normalize_qquantile(exprs)
+
+f.normalize_qquantile <- function(exprs) {
+  if(!is.matrix(exprs)) f.err("f.normalize_qquantile: !is.matrix(exprs)")
+  exprs <- limma::normalizeQuantiles(exprs)
+  return(exprs)
+}
+
