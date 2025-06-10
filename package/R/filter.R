@@ -4,20 +4,32 @@
 #'    feature.
 #' @details Feature considered expressed if exprs > 0; NAs count as no 
 #'   expression.
-#' @param state A list with elements like that returned by `f.read_data()`.
+#' @param state A list with elements like that returned by `f.read_data()`:
+#' \itemize{
+#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
+#'   \item{features}{A data.frame with feature rows corresponding to rows of returned expression.}
+#'   \item{samples}{A data.frame with observation rows corresponding to columns of returned expression.}
+#' }
 #' @param config List with configuration settings.
 #' @return An updated `state` list with the following elements:
 #' \itemize{
-#'   \item{expression}{filtered numeric matrix with feature rows and observation columns.}
-#'   \item{features}{filtered data.frame with feature rows corresponding to rows of returned expression.}
-#'   \item{samples}{filtered data.frame with observation rows corresponding to columns of returned expression.}
+#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
+#'   \item{features}{A data.frame with feature rows corresponding to rows of returned expression.}
+#'   \item{samples}{A data.frame with observation rows corresponding to columns of returned expression.}
+#' }
 #' @examples
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list(log_file="", n_samples_min=2)
-#' state <- f.filter_features(state, config)
-#' exprs <- state$exprs
-#' samps <- state$samps
-#' feats <- state$feats
+#' state2 <- f.filter_features(state, config)
+#' exprs2 <- state2$exprs
+#' samps2 <- state2$samps
+#' feats2 <- state2$feats
+#'
+#' config <- list(log_file="")
+#' state2 <- f.filter_features(state, config, n_samples_min=2)
+#' exprs2 <- state2$exprs
+#' samps2 <- state2$samps
+#' feats2 <- state2$feats
 
 f.filter_features <- function(state, config, n_samples_min=NULL) {
 
@@ -47,20 +59,32 @@ f.filter_features <- function(state, config, n_samples_min=NULL) {
 #' @description
 #' `f.filter_samples` filters samples based on number of features with expression > 0
 #' @details Feature considered expressed if exprs > 0; NAs count as no expression.
-#' @param state A list with elements like that returned by `f.read_data()`.
+#' @param state A list with elements like that returned by `f.read_data()`:
+#' \itemize{
+#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
+#'   \item{features}{A data.frame with feature rows corresponding to rows of returned expression.}
+#'   \item{samples}{A data.frame with observation rows corresponding to columns of returned expression.}
+#' }
 #' @param config List with configuration settings.
 #' @return An updated `state` list with the following elements:
 #' \itemize{
-#'   \item{expression}{filtered numeric matrix with feature rows and observation columns.}
-#'   \item{features}{filtered data.frame with feature rows corresponding to rows of returned expression.}
-#'   \item{samples}{filtered data.frame with observation rows corresponding to columns of returned expression.}
+#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
+#'   \item{features}{A data.frame with feature rows corresponding to rows of returned expression.}
+#'   \item{samples}{A data.frame with observation rows corresponding to columns of returned expression.}
+#' }
 #' @examples
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list(log_file="", n_features_min=1000)
-#' state <- f.filter_features(state, config)
-#' exprs <- state$exprs
-#' samps <- state$samps
-#' feats <- state$feats
+#' state2 <- f.filter_features(state, config)
+#' exprs2 <- state2$exprs
+#' samps2 <- state2$samps
+#' feats2 <- state2$feats
+#'
+#' config <- list(log_file="")
+#' state2 <- f.filter_features(state, config, n_features_min=1000)
+#' exprs2 <- state2$exprs
+#' samps2 <- state2$samps
+#' feats2 <- state2$feats
 
 f.filter_samples <- function(state, config, n_features_min=NULL) {
 
@@ -90,7 +114,12 @@ f.filter_samples <- function(state, config, n_features_min=NULL) {
 #' @description
 #' `f.samples_per_feature` calculates the number of samples having 
 #' @details Feature considered expressed if exprs > 0; NAs count as no expression.
-#' @param state A list with elements like that returned by `f.read_data()`.
+#' @param state A list with elements like that returned by `f.read_data()`:
+#' \itemize{
+#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
+#'   \item{features}{A data.frame with feature rows corresponding to rows of returned expression.}
+#'   \item{samples}{A data.frame with observation rows corresponding to columns of returned expression.}
+#' }
 #' @param config List with configuration settings.
 #' @return A numeric vector of length nrow(exprs) with non-negative sample 
 #'   counts for each feature
@@ -122,7 +151,12 @@ f.samples_per_feature <- function(state, config) {
 #' @details 
 #' Sample considered to express feature if exprs > 0; NAs count as no expression.
 #'   Note that NAs and values <= 0 do not count toward the median.
-#' @param state A list with elements like that returned by `f.read_data()`.
+#' @param state A list with elements like that returned by `f.read_data()`:
+#' \itemize{
+#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
+#'   \item{features}{A data.frame with feature rows corresponding to rows of returned expression.}
+#'   \item{samples}{A data.frame with observation rows corresponding to columns of returned expression.}
+#' }
 #' @param config List with configuration settings.
 #' @return A numeric vector of length nrow(exprs) with median expression in 
 #'   each expressing sample
@@ -153,7 +187,12 @@ f.feature_median_expression <- function(state, config) {
 #'    each sample. 
 #' @details 
 #' Features are considered to be expressed if exprs > 0; NAs count as no expression.
-#' @param state A list with elements like that returned by `f.read_data()`.
+#' @param state A list with elements like that returned by `f.read_data()`:
+#' \itemize{
+#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
+#'   \item{features}{A data.frame with feature rows corresponding to rows of returned expression.}
+#'   \item{samples}{A data.frame with observation rows corresponding to columns of returned expression.}
+#' }
 #' @param config List with configuration settings.
 #' @return A numeric vector of length ncol(exprs) with number of features .
 #'   expressed in each sample.

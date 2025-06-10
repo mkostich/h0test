@@ -1,177 +1,76 @@
-###############################################################################
-## CONFIGURE THIS: variable initialization:
-##   After configuration, source this file and pass `config` to functions that
-##     need it.
+#' Get configuration template with mix of defaults and example values.
+#' @description
+#' `f.new_config` returns a configuration list filled with defaults and
+#'   example values. Configuration meant to be customized then passed to
+#'   other functions.
+#' @details Report written to config$log_file; if `config$log_file == ""`,
+#'   written to standard out (console or terminal). Only supports non-lists
+#'     and lists of non-lists (not lists of lists) as `config` values.
+#'   Throws error if `config$test_term` is not compatible with `config$frm`.
+#' @param config List with configuration values
+#' @return list of configuration values
+#' @examples
+#' config <- f.new_config()
+#' config$frm <- ~ age + sex + age:sex
+#' config$test_term <- "age:sex"
+#' config$sample_factors <- list(age=c("young", "old"), sex=c("female", "male"))
+#' config$feat_id_col <- "gene"
+#' config$sample_col <- "sample"
+#' config$obs_col <- "observation"
+#' f.report_config(config)
 
-config <- list(
-  dir_in=".",                          ## where DATA_FILE_IN, FETURE_FILE_IN, and SAMPLE_FILE_IN live
-  feature_file_in="features.tsv",      ## feature annotation .tsv; row features
-  sample_file_in="samples.tsv",        ## sample annotation .tsv; row observations
-  data_file_in="expression.tsv",       ## lfq normalized quant matrix .tsv; row features, column observations
-  dir_out=".",                         ## output directory
-  ## formula for testing: actual formula can have '+' and ':'; not tested w/ e.g. '*' yet.
-  frm=~age+strain+gender+age:strain,   ## formula with variable of interest and covariates
-  test_term="age:strain",              ## term in FRM on which test is to be performed
-  permute_var="",                      ## variable to permute; "" for no permutation (normal execution)
-  sample_factors=list(
-    age=c("4mo", "12mo", "24mo"),
-    strain=c("B6", "A_J", "Balbc_J"),
-    gender=c("Male", "Female")
-  ),  ## set levels of factor variables in samps
-  ## samps and feats column names (new cols are introduced by the code):
-  n_samples_expr_col="n_samps_expr",   ## new col; n samples expressing feature
-  median_raw_col="median_raw",         ## new col; median feature expression in expressing samples
-  n_features_expr_col="n_feats_expr",  ## new col; n features express
-  feat_id_col="gene_id",               ## feats[, FEAT_ID_COL] == rownames(exprs)
-  obs_col="assay_id",                  ## unique id for observations; samps[, OBS_COL] == colnames(exprs)
-  sample_col="sample_id",              ## id for samples in samps; not unique if tech reps;
-  ## output file naming:
-  log_file="log.txt",                ## log file path; or "" for log to console                 
-  feature_mid_out=".features",       ## midfix for output feature files
-  sample_mid_out=".samples",         ## midfix for output samples file
-  data_mid_out=".expression",        ## midfix for output expression files
-  result_mid_out=".results",         ## prefix for output results file
-  suffix_out=".tsv",                 ## suffix for output files  ## tunable options: defaults are usually ok, except:
-  ##   for dia: usually works ok: RLE:unif_sample_lod:0.05 for NORM_METHOD:IMPUTE_METHOD:IMPUTE_QUANTILE
-  ##   for dda: usually works ok: quantile:0.75:unif_sample_lod:0 for NORM_METHOD:NORM_QUANTILE:IMPUTE_METHOD:IMPUTE_QUANTILE
-  norm_method="quantile",            ## in c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")
-  norm_quantile=0.75,                ## for quantile normalization; 0.5 is median; 0.75 is upper quartile;
-  transform_method="log2",           ## in c('log2', 'log10', 'none')
-  n_samples_min=2,                   ## min samples/feature w/ feature expression > 0 to keep feature
-  n_features_min=1000,               ## min features/sample w/ expression > 0 to keep sample
-  impute_method="unif_sample_lod",   ## in c("unif_global_lod", "unif_sample_lod", "sample_lod", "rnorm_feature")
-  impute_quantile=0.01,              ## quantile for unif_ imputation methods
-  impute_scale=1,                    ## for rnorm_feature, adjustment on sd of distribution [1: no change];
-  test_method="trend",               ## in c("voom", "trend")
-  ## misc:
-  probs=c(0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0),
-  width=110,
-  verbose=T
-)
+f.new_config <- function() {
 
-
-###############################################################################
-## read data:
-
-f.log("reading data")
-feats1 <- read.table(paste(DIR_IN, FEATURE_FILE_IN, sep="/"), header=T, sep="\t", quote="", as.is=T)
-samps1 <- read.table(paste(DIR_IN, SAMPLE_FILE_IN, sep="/"), header=T, sep="\t", quote="", as.is=T)
-exprs1 <- read.table(paste(DIR_IN, DATA_FILE_IN, sep="/"), header=T, sep="\t", quote="", as.is=T)
-exprs1 <- as.matrix(exprs1)
-
-if(!(typeof(exprs1) %in% "double")) f.err("!(typeof(exprs1) %in% 'double')")
-if(!all(rownames(exprs1) == feats1[, FEAT_ID_COL, drop=T])) f.err("!all(rownames(exprs1)==feats1[,FEAT_ID_COL])")
-if(!all(colnames(exprs1) == samps1[, OBS_COL, drop=T])) f.err("!all(colnames(exprs1)==samps1[, OBS_COL])")
-
-
-###############################################################################
-## set up types and levels of covariates:
-
-for(nom in c(N_SAMPLES_EXPR_COL, MEDIAN_RAW_COL, N_FEATURES_EXPR_COL)) {
-  if(nom %in% names(samps1)) f.err("nom %in% names(samps1); nom:", nom)
-}
-for(nom in c(OBS_COL, SAMPLE_COL)) {
-  if(!(nom %in% names(samps1))) f.err("!(nom %in% names(samps1)); nom:", nom)
-}
-if(!(FEAT_ID_COL %in% names(feats1))) f.err("!(FEAT_ID_COL %in% names(feats1))")
-
-## variables referred to in formula:
-vars <- as.character(FRM)[2]
-vars <- gsub("[[:space:]]+", "", vars)
-vars <- gsub("[\\:\\*\\-]", "+", vars)
-vars <- unlist(strsplit(vars, split="\\+"))
-vars <- sort(unique(vars))
-
-## make sure all needed variables in samps:
-if(!all(vars %in% names(samps1))) f.err("!all(vars %in% names(samps1))")
-if(!all(names(SAMPLE_FACTORS) %in% vars)) f.err("!all(names(SAMPLE_FACTORS) %in% vars)")
-
-f.msg("subsetting sample metadata")
-samps1 <- samps1[, c(OBS_COL, SAMPLE_COL, vars)]
-rm(vars)
-
-f.msg("setting factor levels")
-
-for(nom in names(SAMPLE_FACTORS)) {
-  ## check for potential misconfiguration first:
-  if(!(nom %in% names(samps1))) f.err("!(nom %in% names(samps1)); nom:", nom)
-  lvls1 <- SAMPLE_FACTORS[[nom]]
-  lvls2 <- sort(unique(as.character(samps1[[nom]])))
-  if(!all(lvls1 %in% lvls2)) f.err("!all(lvls1 %in% lvls2) for nom:", nom)
-  if(!all(lvls2 %in% lvls1)) f.err("!all(lvls2 %in% lvls1) for nom:", nom)
-  samps1[[nom]] <- factor(as.character(samps1[[nom]]), levels=SAMPLE_FACTORS[[nom]])
+  config <- list(
+    ## input/output paths:
+    feature_file_in="features.tsv",      ## feature annotation .tsv; row features
+    sample_file_in="samples.tsv",        ## sample annotation .tsv; row observations
+    data_file_in="expression.tsv",       ## lfq normalized quant matrix .tsv; row features, column observations
+    dir_in=".",                          ## where DATA_FILE_IN, FETURE_FILE_IN, and SAMPLE_FILE_IN live
+    dir_out=".",                         ## output directory
+    ## formula for testing: actual formula can have '+' and ':'; not tested w/ e.g. '*' yet.
+    frm=~age+strain+gender+age:strain,   ## formula with variable of interest and covariates
+    test_term="age:strain",              ## term in FRM on which test is to be performed
+    permute_var="",                      ## variable to permute; "" for no permutation (normal execution)
+    sample_factors=list(                 ## set levels of factor variables in sample metadata
+      age=c("4", "12", "24"),            ## numeric treated as numeric unless levels set here, then as factor
+      strain=c("B6", "A_J", "Balbc_J"),
+      gender=c("Male", "Female")
+    ),
+    ## samps and feats column names (new cols are introduced by the code):
+    feat_id_col="gene_id",               ## feats[, FEAT_ID_COL] == rownames(exprs)
+    obs_col="assay_id",                  ## unique id for observations; samps[, OBS_COL] == colnames(exprs)
+    sample_col="sample_id",              ## id for samples in samps; not unique if tech reps;
+    n_samples_expr_col="n_samps_expr",   ## new col; n samples expressing feature
+    median_raw_col="median_raw",         ## new col; median feature expression in expressing samples
+    n_features_expr_col="n_feats_expr",  ## new col; n features express
+    ## output file naming:
+    log_file="log.txt",                  ## log file path; or "" for log to console                 
+    feature_mid_out=".features",         ## midfix for output feature files
+    sample_mid_out=".samples",           ## midfix for output samples file
+    data_mid_out=".expression",          ## midfix for output expression files
+    result_mid_out=".results",           ## prefix for output results file
+    suffix_out=".tsv",                   ## suffix for output files  ## tunable options: defaults are usually ok, except:
+    ##   for dia: usually works ok: RLE:unif_sample_lod:0.05 for NORM_METHOD:IMPUTE_METHOD:IMPUTE_QUANTILE
+    ##   for dda: usually works ok: quantile:0.75:unif_sample_lod:0 for NORM_METHOD:NORM_QUANTILE:IMPUTE_METHOD:IMPUTE_QUANTILE
+    norm_method="quantile",              ## in c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")
+    norm_quantile=0.75,                  ## for quantile normalization; 0.5 is median; 0.75 is upper quartile;
+    transform_method="log2",             ## in c('log2', 'log10', 'none')
+    n_samples_min=2,                     ## min samples/feature w/ feature expression > 0 to keep feature
+    n_features_min=1000,                 ## min features/sample w/ expression > 0 to keep sample
+    impute_method="unif_sample_lod",     ## in c("unif_global_lod", "unif_sample_lod", "sample_lod", "rnorm_feature")
+    impute_quantile=0.01,                ## quantile for unif_ imputation methods
+    impute_scale=1,                      ## for rnorm_feature, adjustment on sd of distribution [1: no change];
+    impute_granularity=0.0001,           ## granularity of imputed values for f.impute_glm_binom and f.impute_loess_logit
+    impute_span=0.25,                    ## loess span for f.impute_loess_logit 
+    test_method="trend",                 ## in c("voom", "trend")
+    ## misc:
+    probs=c(0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0),
+    width=110,
+    verbose=T
+  )
+  
+  return(config)
 }
 
-
-###############################################################################
-## add stats to sample and feature metadata: 
-
-n <- f.samples_per_feature(exprs1)
-if(!all(names(n) == feats1[, FEAT_ID_COL, drop=T])) f.err("!all(names(n) == feats1[, FEAT_ID_COL])")
-feats1[, N_SAMPLES_EXPR_COL] <- n
-
-m <- f.feature_median_expression(exprs1)
-if(!all(names(m) == feats1[, FEAT_ID_COL, drop=T])) f.err("!all(names(m) == feats1[, FEAT_ID_COL])")
-feats1[, MEDIAN_RAW_COL] <- m
-rm(m)
-
-n <- f.features_per_sample(exprs1)
-if(!all(names(n) == samps1[, OBS_COL, drop=T])) f.err("!all(names(n) == samps1[, OBS_COL])")
-samps1[, N_FEATURES_EXPR_COL] <- n
-
-n <- apply(exprs1, 1, function(v) sum(v > 0, na.rm=T))
-f.msg("samples per feature:")
-f.quantile(n, probs=PROBS, digits=0)
-
-n <- apply(exprs1, 2, function(v) sum(v > 0, na.rm=T))
-f.msg("features per sample")
-f.quantile(n, probs=PROBS, digits=0)
-rm(n)
-
-## SAVE 1: initial
-f.msg("N features: ", nrow(exprs1), "; N observations: ", ncol(exprs1))
-f.msg("signal distribution:")
-f.quantile(c(exprs1), probs=PROBS, digits=0) 
-f.msg("min(exprs1):", min(c(exprs1), na.rm=T), "; mean(exprs1):", mean(c(exprs1), na.rm=T))
-f.msg("num NAs: ", sum(is.na(c(exprs1))))
-f.save_main(exprs1, feats1, samps1, DIR_OUT, "1.initial", SUFFIX_OUT)
-
-
-###############################################################################
-## prefilter:
-
-f.log("prefilter features and samples")
-
-f.msg("before filtering features", nrow(exprs1), "features, and", ncol(exprs1), "observations")
-filter_list <- f.filter_features(exprs1, samps1, feats1, n_samples_min=1)
-exprs1 <- filter_list$exprs
-samps1 <- filter_list$samps
-feats1 <- filter_list$feats
-f.msg("after filtering features", nrow(exprs1), "features, and", ncol(exprs1), "observations")
-
-filter_list <- f.filter_samples(exprs1, samps1, feats1, n_features_min=1)
-exprs1 <- filter_list$exprs
-samps1 <- filter_list$samps
-feats1 <- filter_list$feats
-f.msg("after filtering samples", nrow(exprs1), "features, and", ncol(exprs1), "observations")
-
-if(!all(rownames(exprs1) == feats1[, FEAT_ID_COL, drop=T])) f.err("!all(rownames(exprs1) == feats1[, FEAT_ID_COL])")
-if(!all(colnames(exprs1) == samps1[, OBS_COL, drop=T])) f.err("!all(colnames(exprs1) == samps1[, OBS_COL])")
-
-
-###############################################################################
-## permute (or not):
-
-if(!(PERMUTE_VAR %in% "")) {
-  f.msg("permuting", PERMUTE_VAR)
-  tmp <- samps1[!duplicated(samps1[, SAMPLE_COL]), c(SAMPLE_COL, PERMUTE_VAR), drop=T]
-  rownames(tmp) <- tmp[, SAMPLE_COL]
-  tmp[, PERMUTE_VAR] <- sample(tmp[, PERMUTE_VAR, drop=T], nrow(tmp), replace=F)
-  samps1[, PERMUTE_VAR] <- tmp[samps1[, SAMPLE_COL], PERMUTE_VAR, drop=T]
-} else f.msg("skipping permutation; PERMUTE_VAR %in% ''")
-
-if(!all(rownames(exprs1) == feats1[, FEAT_ID_COL, drop=T])) f.err("!all(rownames(exprs1) == feats1[, FEAT_ID_COL])")
-if(!all(colnames(exprs1) == samps1[, OBS_COL, drop=T])) f.err("!all(colnames(exprs1) == samps1[, OBS_COL])")
-
-f.save_main(exprs1, feats1, samps1, DIR_OUT, "2.prepped", SUFFIX_OUT)
 

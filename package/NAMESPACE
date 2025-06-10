@@ -1,7 +1,11 @@
+export(f.new_config)
+
 export(f.report_config)
 export(f.read_data)
 export(f.preprocess_covariates)
-
+export(f.add_filter_stats)
+export(f.prefilter)
+export(f.permute)
 
 export(f.filter_features)
 export(f.filter_samples)
@@ -16,13 +20,13 @@ export(f.normalize_vsn)
 export(f.normalize_loess)
 export(f.normalize_qquantile)
 
+export(f.augment_affine)
 export(f.impute_unif_global_lod)
 export(f.impute_unif_sample_lod)
 export(f.impute_sample_lod)
 export(f.impute_rnorm_feature)
 export(f.impute_glm_binom)
 export(f.impute_loess_logit)
-export(f.augment_affine)
 export(f.impute_rf)
 export(f.impute_glmnet)
 

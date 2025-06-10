@@ -49,8 +49,8 @@ f.report_config <- function(config) {
 #' @return A list (the initial state) with the following elements:
 #'   \itemize={
 #'     item{expression}{Numeric matrix with non-negative expression values.},
-#'     item{features}{A data.frame with feature meta-data corresponding to rows of expression.},
-#'     item{samples}{A data.frame with observation meta-data corresponding to cols of expression.},
+#'     item{features}{A data.frame with feature meta-data for rows of expression.},
+#'     item{samples}{A data.frame with observation meta-data for columns of expression.}
 #'   }
 #' @examples
 #' config <- list(dir_in=".", feature_file_in="feats.tsv", 
@@ -174,16 +174,17 @@ f.set_covariate_factor_levels <- function(state, config) {
 #'   Wrapper for `f.check_covariates()`, then `f.subset_covariates()`, 
 #'     followed by `f.set_covariate_factor_levels()`. 
 #' @param state List with elements formatted like the list returned by `f.read_data()`:
-#' \itemize{
-#'   \item{exprs}{filtered numeric matrix with feature rows and observation columns.}
-#'   \item{samps}{filtered data.frame with observation rows corresponding to columns of returned exprs.}
-#'   \item{feats}{filtered data.frame with feature rows corresponding to columns of returned exprs.}
+#'   \itemize{
+#'     \item{expression}{Numeric matrix with feature rows and observation columns.}
+#'     \item{features}{A data.frame with feature rows corresponding to columns of returned exprs.}
+#'     \item{samples}{A data.frame with observation rows corresponding to columns of returned exprs.}
+#'   }
 #' @param config List with configuration values.
 #' @return A list (the processed state) with the following elements:
 #'   \itemize={
 #'     item{expression}{Numeric matrix with non-negative expression values.},
-#'     item{features}{A data.frame with feature meta-data corresponding to rows of expression.},
-#'     item{samples}{A data.frame with observation meta-data corresponding to cols of expression.},
+#'     item{features}{A data.frame with feature meta-data for rows of expression.},
+#'     item{samples}{A data.frame with observation meta-data for columns of expression.},
 #'   }
 #' @examples
 #' state <- list(expression=exprs, features=feats, samples=samps)
@@ -220,10 +221,11 @@ f.preprocess_covariates <- function(state, config) {
 #'   Wrapper for `f.samples_per_feature()`, `f.feature_median_expression()`, 
 #'     `f.features_per_sample()`. Also reports quantiles of distributions. 
 #' @param state List with elements formatted like the list returned by `f.read_data()`:
-#' \itemize{
-#'   \item{exprs}{filtered numeric matrix with feature rows and observation columns.}
-#'   \item{samps}{filtered data.frame with observation rows corresponding to columns of returned exprs.}
-#'   \item{feats}{filtered data.frame with feature rows corresponding to columns of returned exprs.}
+#'   \itemize={
+#'     item{expression}{Numeric matrix with non-negative expression values.},
+#'     item{features}{A data.frame with feature meta-data corresponding to rows of expression.},
+#'     item{samples}{A data.frame with observation meta-data corresponding to cols of expression.},
+#'   }
 #' @param config List with configuration values.
 #' @return A list (the processed state) with the following elements:
 #'   \itemize={
@@ -268,25 +270,46 @@ f.add_filter_stats <- function(state, config) {
   f.quantile(n, probs=config$probs, digits=0)
 }
 
-## SAVE 1: initial
-## f.check_state(state, config)
-## f.report_state(state, config)
-## f.save_state(state, config, "1.initial")
+#' Prefilter data
+#' @description
+#' `f.prefilter` adds filtering-related statistics to `state$features`, 
+#'   and `state$samples`.
+#' @details 
+#'   Wrapper for `f.samples_per_feature()`, `f.feature_median_expression()`, 
+#'     `f.features_per_sample()`. Also reports quantiles of distributions. 
+#' @param state List with elements formatted like the list returned by `f.read_data()`:
+#' \itemize{
+#'   \item{exprs}{filtered numeric matrix with feature rows and observation columns.}
+#'   \item{samps}{filtered data.frame with observation rows corresponding to columns of returned exprs.}
+#'   \item{feats}{filtered data.frame with feature rows corresponding to columns of returned exprs.}
+#' @param config List with configuration values.
+#' @param n_samples_min minimum number of samples per feature; numeric >= 1.
+#' @param n_features_min minimum number of features per sample; numeric >= 1.
+#' @return A list (the filtered state) with the following elements:
+#'   \itemize={
+#'     item{expression}{Numeric matrix with non-negative expression values.},
+#'     item{features}{A data.frame with feature meta-data corresponding to rows of expression.},
+#'     item{samples}{A data.frame with observation meta-data corresponding to cols of expression.},
+#'   }
+#' @examples
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="")
+#' state <- f.prefilter(state, config)
+#' exprs <- state$expression
+#' feats <- state$features
+#' samps <- state$samples
 
-###############################################################################
-## prefilter:
-
-f.prefilter <- function(state, config) {
+f.prefilter <- function(state, config, n_samples_min=1, n_features_min=1) {
   
   f.log("prefilter features and samples", config=config)
   f.msg("before filtering features:", config=config)
   f.report_state(state, config)
   
-  state <- f.filter_features(state, config, n_samples_min=1)
+  state <- f.filter_features(state, config, n_samples_min=n_samples_min)
   f.msg("after filtering features", config=config)
   f.report_state(state, config)
 
-  state <- f.filter_samples(state, config, n_features_min=1)
+  state <- f.filter_samples(state, config, n_features_min=n_features_min)
   f.msg("after filtering samples", config=config)
   f.report_state(state, config)
   
@@ -294,34 +317,47 @@ f.prefilter <- function(state, config) {
   return(state)
 }
 
-###############################################################################
-## permute (or not):
+#' Permute data
+#' @description Permute 
+#' @details If variable is NULL, uses config$permute_var instead. If variable is 
+#'   NULL and config$permute_var == "", skips permutation (normal execution).
+#' @param state List with elements formatted like the list returned by `f.read_data()`:
+#'   \itemize={
+#'     item{expression}{Numeric matrix with non-negative expression values.},
+#'     item{features}{A data.frame with feature meta-data corresponding to rows of expression.},
+#'     item{samples}{A data.frame with observation meta-data corresponding to cols of expression.},
+#'   }
+#' @param config List with configuration values.
+#' @param variable Character name of variable (column in samples) to permute.
+#' @return A list (the filtered state) with the following elements:
+#'   \itemize={
+#'     item{expression}{Numeric matrix with non-negative expression values.},
+#'     item{features}{A data.frame with feature meta-data corresponding to rows of expression.},
+#'     item{samples}{A data.frame with observation meta-data corresponding to cols of expression.},
+#'   }
+#' @examples
+#' state <- list(sample
 
-f.permute(state, config) {
+f.permute(state, config, variable=NULL) {
 
-  if(!(config$permute_var %in% "")) {
+  if(is.null(variable)) variable <- config$permute_var
   
-    f.msg("permuting", config$permute_var, config=config)
-    
-    tmp <- samps1[
-      !duplicated(samps1[, config$sample_col]), 
-      c(config$sample_col, config$permute_var), 
-      drop=T
-    ]
-    
-    rownames(tmp) <- tmp[, config$sample_col]
-    
-    tmp[, config$permute_var] <- sample(tmp[, config$permute_var, drop=T], 
-      nrow(tmp), replace=F)
-      
-    samps1[, config$permute_var] <- tmp[
-      samps1[, config$sample_col], 
-      config$permute_var, 
-      drop=T
-    ]
+  if(is.null(variable) || variable %in% "") {
+    f.msg("skipping permutation", config=config)
   } else {
-    f.msg("skipping permutation; config$permute_var %in% ''", config=config)
-  }
+    if(!(variable %in% colnames(state$samples))) {
+      f.err("!(variable %in% colnames(state$samples))", config=config)
+    }
+    f.msg("permuting", variable, config=config)
+    tmp <- state$samples[
+      !duplicated(state$samples[, config$sample_col]), 
+      c(config$sample_col, variable), 
+      drop=T
+    ]
+    rownames(tmp) <- tmp[, config$sample_col]
+    tmp[, variable] <- sample(tmp[, variable, drop=T], nrow(tmp), replace=F)
+    state$samples[, variable] <- tmp[state$samples[, config$sample_col], variable, drop=T]
+  } 
 
   f.check_state(state, config)
   return(state)
