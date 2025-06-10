@@ -5,31 +5,34 @@
 #' @details Feature considered expressed if exprs > 0; NAs count as no 
 #'   expression.
 #' @param state A list with elements like that returned by `f.read_data()`:
-#' \itemize{
-#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'   \item{features}{A data.frame with feature rows corresponding to rows of returned expression.}
-#'   \item{samples}{A data.frame with observation rows corresponding to columns of returned expression.}
-#' }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @param config List with configuration settings.
+#' @param n_samples_min Minimum number of samples expressing feature. Non-negative numeric.
 #' @return An updated `state` list with the following elements:
-#' \itemize{
-#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'   \item{features}{A data.frame with feature rows corresponding to rows of returned expression.}
-#'   \item{samples}{A data.frame with observation rows corresponding to columns of returned expression.}
-#' }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @examples
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="", n_samples_min=2)
-#' state2 <- f.filter_features(state, config)
-#' exprs2 <- state2$exprs
-#' samps2 <- state2$samps
-#' feats2 <- state2$feats
+#'   \dontrun{
+#'     state <- list(expression=exprs, features=feats, samples=samps)
+#'     config <- list(log_file="", n_samples_min=2)
+#'     state2 <- f.filter_features(state, config)
+#'     exprs2 <- state2$exprs
+#'     samps2 <- state2$samps
+#'     feats2 <- state2$feats
 #'
-#' config <- list(log_file="")
-#' state2 <- f.filter_features(state, config, n_samples_min=2)
-#' exprs2 <- state2$exprs
-#' samps2 <- state2$samps
-#' feats2 <- state2$feats
+#'     config <- list(log_file="")
+#'     state2 <- f.filter_features(state, config, n_samples_min=2)
+#'     exprs2 <- state2$exprs
+#'     samps2 <- state2$samps
+#'     feats2 <- state2$feats
+#'   } 
 
 f.filter_features <- function(state, config, n_samples_min=NULL) {
 
@@ -60,31 +63,34 @@ f.filter_features <- function(state, config, n_samples_min=NULL) {
 #' `f.filter_samples` filters samples based on number of features with expression > 0
 #' @details Feature considered expressed if exprs > 0; NAs count as no expression.
 #' @param state A list with elements like that returned by `f.read_data()`:
-#' \itemize{
-#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'   \item{features}{A data.frame with feature rows corresponding to rows of returned expression.}
-#'   \item{samples}{A data.frame with observation rows corresponding to columns of returned expression.}
-#' }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @param config List with configuration settings.
+#' @param n_features_min Minimum number of features expressed per sample. Non-negative numeric.
 #' @return An updated `state` list with the following elements:
-#' \itemize{
-#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'   \item{features}{A data.frame with feature rows corresponding to rows of returned expression.}
-#'   \item{samples}{A data.frame with observation rows corresponding to columns of returned expression.}
-#' }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @examples
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="", n_features_min=1000)
-#' state2 <- f.filter_features(state, config)
-#' exprs2 <- state2$exprs
-#' samps2 <- state2$samps
-#' feats2 <- state2$feats
+#'   \dontrun{
+#'     state <- list(expression=exprs, features=feats, samples=samps)
+#'     config <- list(log_file="", n_features_min=1000)
+#'     state2 <- f.filter_features(state, config)
+#'     exprs2 <- state2$exprs
+#'     samps2 <- state2$samps
+#'     feats2 <- state2$feats
 #'
-#' config <- list(log_file="")
-#' state2 <- f.filter_features(state, config, n_features_min=1000)
-#' exprs2 <- state2$exprs
-#' samps2 <- state2$samps
-#' feats2 <- state2$feats
+#'     config <- list(log_file="")
+#'     state2 <- f.filter_features(state, config, n_features_min=1000)
+#'     exprs2 <- state2$exprs
+#'     samps2 <- state2$samps
+#'     feats2 <- state2$feats
+#'   }
 
 f.filter_samples <- function(state, config, n_features_min=NULL) {
 
@@ -104,8 +110,8 @@ f.filter_samples <- function(state, config, n_features_min=NULL) {
   f.msg("filtering", sum(!i), "samples, keeping", sum(i), config=config)
   state$expression <- state$expression[, i]
   state$samples <- state$samples[i, ]
-  f.msg("samples filtered: nrow(exprs):", nrow(exprs), "; ncol(exprs):", 
-    ncol(exprs), config=config)
+  f.msg("samples filtered: nrow(state$expression):", nrow(state$expression), 
+    "; ncol(state$expression):", ncol(state$expression), config=config)
 
   return(state)
 }
@@ -115,18 +121,20 @@ f.filter_samples <- function(state, config, n_features_min=NULL) {
 #' `f.samples_per_feature` calculates the number of samples having 
 #' @details Feature considered expressed if exprs > 0; NAs count as no expression.
 #' @param state A list with elements like that returned by `f.read_data()`:
-#' \itemize{
-#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'   \item{features}{A data.frame with feature rows corresponding to rows of returned expression.}
-#'   \item{samples}{A data.frame with observation rows corresponding to columns of returned expression.}
-#' }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @param config List with configuration settings.
 #' @return A numeric vector of length nrow(exprs) with non-negative sample 
 #'   counts for each feature
 #' @examples
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="")
-#' n_samples <- f.samples_per_feature(state, config)
+#'   \dontrun{
+#'     state <- list(expression=exprs, features=feats, samples=samps)
+#'     config <- list(log_file="")
+#'     n_samples <- f.samples_per_feature(state, config)
+#'   }
 
 f.samples_per_feature <- function(state, config) {
 
@@ -152,27 +160,30 @@ f.samples_per_feature <- function(state, config) {
 #' Sample considered to express feature if exprs > 0; NAs count as no expression.
 #'   Note that NAs and values <= 0 do not count toward the median.
 #' @param state A list with elements like that returned by `f.read_data()`:
-#' \itemize{
-#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'   \item{features}{A data.frame with feature rows corresponding to rows of returned expression.}
-#'   \item{samples}{A data.frame with observation rows corresponding to columns of returned expression.}
-#' }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @param config List with configuration settings.
 #' @return A numeric vector of length nrow(exprs) with median expression in 
 #'   each expressing sample
 #' @examples
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="")
-#' median_expressions <- f.feature_median_expression(state, config)
+#'   \dontrun{
+#'     state <- list(expression=exprs, features=feats, samples=samps)
+#'     config <- list(log_file="")
+#'     median_expressions <- f.feature_median_expression(state, config)
+#'   }
 
 f.feature_median_expression <- function(state, config) {
 
   if(!is.matrix(state$expression)) {
-    f.err("f.feature_median_expression: !is.matrix(state$expression)", config=config)
+    f.err("f.feature_median_expression: !is.matrix(state$expression)", 
+      config=config)
   }
   
   f <- function(v) {
-    m <- median(v, na.rm=T)
+    m <- stats::median(v, na.rm=T)
     m[is.na(m)] <- 0      ## only if all(is.na(v))
     return(m)
   }
@@ -188,18 +199,20 @@ f.feature_median_expression <- function(state, config) {
 #' @details 
 #' Features are considered to be expressed if exprs > 0; NAs count as no expression.
 #' @param state A list with elements like that returned by `f.read_data()`:
-#' \itemize{
-#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'   \item{features}{A data.frame with feature rows corresponding to rows of returned expression.}
-#'   \item{samples}{A data.frame with observation rows corresponding to columns of returned expression.}
-#' }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   }
 #' @param config List with configuration settings.
 #' @return A numeric vector of length ncol(exprs) with number of features .
 #'   expressed in each sample.
 #' @examples
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="")
-#' n_features <- f.features_per_sample(state, config)
+#'   \dontrun{
+#'     state <- list(expression=exprs, features=feats, samples=samps)
+#'     config <- list(log_file="")
+#'     n_features <- f.features_per_sample(state, config)
+#'   }
 
 f.features_per_sample <- function(state, config) {
 

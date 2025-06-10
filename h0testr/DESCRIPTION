@@ -1,7 +1,7 @@
 Package: h0testr
 Version: 0.1-1
 Date: 2025-06-06
-Title: Hypothesis testing for proteomics.
+Title: Hypothesis testing for proteomics
 Author: Mitch Kostich
 Maintainer: Mitch Kostich <mitch.kostich@jax.org>
 Depends: R (>= 3.1)
@@ -13,3 +13,4 @@ Description: Toolkit providing R-based functionality for analyzing
   as function to tune workflow configuration and parameterization.
 License: GPL-3
 URL: https://github.com/TheJacksonLaboratory/h0testr
+RoxygenNote: 7.3.2

@@ -4,35 +4,37 @@
 #' @details Inter-observation normalization. `edgeR::calcNormFactors()` 
 #'   called under the hood. Returned values on a counts-per-million scale.
 #' @param state List with elements formatted like the list returned by `f.read_data()`:
-#'   \itemize{
-#'     \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'     \item{features}{A data.frame with feature rows corresponding to columns of expression.}
-#'     \item{samples}{A data.frame with observation rows corresponding to columns of expression.}
-#'   }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @param config List with configuration values.
 #' @param method Character in 
 #'   `c("TMM", "TMMwsp", "RLE", "upperquartile", "none")`.
 #' @param p Numeric between `0` and `1` specifying quantile to use for method 
 #'   `upperquartile`.
 #' @return A list (the processed state) with the following elements:
-#'   \itemize={
-#'     item{expression}{Numeric array with same shape as input expression containing CPM values.},
-#'     item{features}{A data.frame with feature meta-data corresponding to rows of expression.},
-#'     item{samples}{A data.frame with observation meta-data corresponding to cols of expression.},
-#'   }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @examples
-#' state <- list(expression=exprs)
-#' config <- list(norm_method="TMM", log_file="")
-#' state <- f.normalize_edger(state, config)
-#' norm_exprs <- state$expression
+#'   \dontrun{
+#'     state <- list(expression=exprs)
+#'     config <- list(norm_method="TMM", log_file="")
+#'     state <- f.normalize_edger(state, config)
+#'     norm_exprs <- state$expression
 #'
-#' config <- list(norm_method="upperquartile", norm_quantile=0.75, log_file="")
-#' state <- f.normalize_edger(state, config)
-#' norm_exprs <- state$expression
+#'     config <- list(norm_method="upperquartile", norm_quantile=0.75, log_file="")
+#'     state <- f.normalize_edger(state, config)
+#'     norm_exprs <- state$expression
 #' 
-#' config <- list(log_file="")
-#' state <- f.normalize_edger(state, config, method="upperquartile", p=0.75)
-#' norm_exprs <- state$expression
+#'     config <- list(log_file="")
+#'     state <- f.normalize_edger(state, config, method="upperquartile", p=0.75)
+#'     norm_exprs <- state$expression
+#'   }
 
 f.normalize_edger <- function(state, config, method=NULL, p=NULL) {
 
@@ -69,30 +71,32 @@ f.normalize_edger <- function(state, config, method=NULL, p=NULL) {
 #'   values. Similarly, setting p to 0.75 is upperquartile normalization 
 #'   ignoring missing values. 
 #' @param state List with elements formatted like the list returned by `f.read_data()`:
-#'   \itemize{
-#'     \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'     \item{features}{A data.frame with feature rows corresponding to columns of expression.}
-#'     \item{samples}{A data.frame with observation rows corresponding to columns of expression.}
-#'   }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @param config List with configuration values.
 #' @param norm_quantile Numeric in `0:1` specifying quantile to use.
 #' @param multiplier Numeric used to scale returned values after 
 #'   dividing by selected quantile. 
 #' @return A list (the processed state) with the following elements:
-#'   \itemize={
-#'     item{expression}{Numeric array with same shape as input expression containing normalized values.},
-#'     item{features}{A data.frame with feature meta-data corresponding to rows of expression.},
-#'     item{samples}{A data.frame with observation meta-data corresponding to cols of expression.},
-#'   }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @examples
-#' state <- list(expression=exprs)
-#' config <- list(log_file="", norm_quantile=0.75)
-#' state <- f.normalize_quantile(state, config)
-#' norm_exprs <- state$expression
+#'   \dontrun{
+#'     state <- list(expression=exprs)
+#'     config <- list(log_file="", norm_quantile=0.75)
+#'     state <- f.normalize_quantile(state, config)
+#'     norm_exprs <- state$expression
 #'
-#' config <- list(log_file="")
-#' state <- f.normalize_quantile(state, config, norm_quantile=0.75)
-#' norm_exprs <- state$expression
+#'     config <- list(log_file="")
+#'     state <- f.normalize_quantile(state, config, norm_quantile=0.75)
+#'     norm_exprs <- state$expression
+#'  }
 
 f.normalize_quantile <- function(state, config, norm_quantile=NULL, multiplier=1e3) {
 
@@ -101,7 +105,9 @@ f.normalize_quantile <- function(state, config, norm_quantile=NULL, multiplier=1
   }
   if(is.null(norm_quantile)) norm_quantile <- config$norm_quantile
   
-  f <- function(v) multiplier * v / quantile(v, probs=norm_quantile, na.rm=T)
+  f <- function(v) {
+    multiplier * v / stats::quantile(v, probs=norm_quantile, na.rm=T)
+  }
   state$expression <- apply(state$expression, 2, f)
   
   return(state)
@@ -115,26 +121,28 @@ f.normalize_quantile <- function(state, config, norm_quantile=NULL, multiplier=1
 #'   in each observation. Makes total expression (excluding missing values)
 #'   equal in each observation.
 #' @param state List with elements formatted like the list returned by `f.read_data()`:
-#'   \itemize{
-#'     \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'     \item{features}{A data.frame with feature rows corresponding to columns of expression.}
-#'     \item{samples}{A data.frame with observation rows corresponding to columns of expression.}
-#'   }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @param config List with configuration values.
 #' @param multiplier Numeric greater than zero used to scale returned values 
 #'   after dividing by total counts in observation. For example, the default 
 #'   `multiplier=1e6` yields normalized expression as CPM (counts per million). 
 #' @return A list (the processed state) with the following elements:
-#'   \itemize={
-#'     item{expression}{Numeric array with same shape as input expression containing normalized values.},
-#'     item{features}{A data.frame with feature meta-data corresponding to rows of expression.},
-#'     item{samples}{A data.frame with observation meta-data corresponding to cols of expression.},
-#'   }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @examples
-#' state <- list(expression=exprs)
-#' config <- list(log_file="")
-#' state <- f.normalize_cpm(state, config)
-#' norm_exprs <- state$expression
+#'   \dontrun{
+#'     state <- list(expression=exprs)
+#'     config <- list(log_file="")
+#'     state <- f.normalize_cpm(state, config)
+#'     norm_exprs <- state$expression
+#'   }
 
 f.normalize_cpm <- function(state, config, multiplier=1e6) {
 
@@ -155,23 +163,25 @@ f.normalize_cpm <- function(state, config, multiplier=1e6) {
 #'   `limma::normalizeVSN()`. Unlike most other normalization methods,
 #'   results are returned on a log2-like scale.
 #' @param state List with elements formatted like the list returned by `f.read_data()`:
-#'   \itemize{
-#'     \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'     \item{features}{A data.frame with feature rows corresponding to columns of expression.}
-#'     \item{samples}{A data.frame with observation rows corresponding to columns of expression.}
-#'   }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @param config List with configuration values.
 #' @return A list (the processed state) with the following elements:
-#'   \itemize={
-#'     item{expression}{Numeric array with same shape as input expression containing normalized values.},
-#'     item{features}{A data.frame with feature meta-data corresponding to rows of expression.},
-#'     item{samples}{A data.frame with observation meta-data corresponding to cols of expression.},
-#'   }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @examples
-#' state <- list(expression=exprs)
-#' config <- list(log_file="")
-#' state <- f.normalize_vsn(state, config)
-#' norm_exprs <- state$expression
+#'   \dontrun{
+#'     state <- list(expression=exprs)
+#'     config <- list(log_file="")
+#'     state <- f.normalize_vsn(state, config)
+#'     norm_exprs <- state$expression
+#'   }
 
 f.normalize_vsn <- function(state, config) {
 
@@ -193,26 +203,28 @@ f.normalize_vsn <- function(state, config) {
 #'   `method %in% c("affy", "pairs")`, which scale quadratically. Calls
 #'   `limma::normalizeCyclicLoess()` under the hood.
 #' @param state List with elements formatted like the list returned by `f.read_data()`:
-#'   \itemize{
-#'     \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'     \item{features}{A data.frame with feature rows corresponding to columns of expression.}
-#'     \item{samples}{A data.frame with observation rows corresponding to columns of expression.}
-#'   }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @param config List with configuration values.
 #' @param span Numeric between 0 and 1 specifying span for loess fit.
 #'   Higher numbers result in smoother (less localized) fit.
 #' @param method Character in `c("fast", "affy", "pairs")`.
 #' @return A list (the processed state) with the following elements:
-#'   \itemize={
-#'     item{expression}{Numeric array with same shape as input expression containing normalized values.},
-#'     item{features}{A data.frame with feature meta-data corresponding to rows of expression.},
-#'     item{samples}{A data.frame with observation meta-data corresponding to cols of expression.},
-#'   }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @examples
-#' state <- list(expression=exprs)
-#' config <- list(log_file="")
-#' state <- f.normalize_loess(state, config)
-#' norm_exprs <- state$expression
+#'   \dontrun{
+#'     state <- list(expression=exprs)
+#'     config <- list(log_file="")
+#'     state <- f.normalize_loess(state, config)
+#'     norm_exprs <- state$expression
+#'   }
 
 f.normalize_loess <- function(state, config, span=0.7, method="affy") {
 
@@ -232,23 +244,25 @@ f.normalize_loess <- function(state, config, span=0.7, method="affy") {
 #'   signal distributions across all samples, so all quantiles in 0:1 match
 #'   across all samples. Calls `limma::normalizeQuantiles()` under the hood.
 #' @param state List with elements formatted like the list returned by `f.read_data()`:
-#'   \itemize{
-#'     \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'     \item{features}{A data.frame with feature rows corresponding to columns of expression.}
-#'     \item{samples}{A data.frame with observation rows corresponding to columns of expression.}
-#'   }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @param config List with configuration values.
 #' @return A list (the processed state) with the following elements:
-#'   \itemize={
-#'     item{expression}{Numeric array with same shape as input expression containing normalized values.},
-#'     item{features}{A data.frame with feature meta-data corresponding to rows of expression.},
-#'     item{samples}{A data.frame with observation meta-data corresponding to cols of expression.},
-#'   }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @examples
-#' state <- list(expression=exprs)
-#' config <- list(log_file="")
-#' state <- f.normalize_qquantile(state, config)
-#' norm_exprs <- state$expression
+#'   \dontrun{
+#'     state <- list(expression=exprs)
+#'     config <- list(log_file="")
+#'     state <- f.normalize_qquantile(state, config)
+#'     norm_exprs <- state$expression
+#'   }
 
 f.normalize_qquantile <- function(state, config) {
 

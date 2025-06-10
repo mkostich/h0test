@@ -7,17 +7,18 @@
 #'   written to standard out (console or terminal). Only supports non-lists
 #'     and lists of non-lists (not lists of lists) as `config` values.
 #'   Throws error if `config$test_term` is not compatible with `config$frm`.
-#' @param config List with configuration values
 #' @return list of configuration values
 #' @examples
-#' config <- f.new_config()
-#' config$frm <- ~ age + sex + age:sex
-#' config$test_term <- "age:sex"
-#' config$sample_factors <- list(age=c("young", "old"), sex=c("female", "male"))
-#' config$feat_id_col <- "gene"
-#' config$sample_col <- "sample"
-#' config$obs_col <- "observation"
-#' f.report_config(config)
+#'   \dontrun{
+#'     config <- f.new_config()
+#'     config$frm <- ~ age + sex + age:sex
+#'     config$test_term <- "age:sex"
+#'     config$sample_factors <- list(age=c("young", "old"), sex=c("female", "male"))
+#'     config$feat_id_col <- "gene"
+#'     config$sample_col <- "sample"
+#'     config$obs_col <- "observation"
+#'     f.report_config(config)
+#'   }
 
 f.new_config <- function() {
 

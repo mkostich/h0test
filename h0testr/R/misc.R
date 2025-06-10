@@ -1,12 +1,12 @@
 f.msg <- function(..., config) {
   cat(..., "\n", file=config$log_file, append=T)
-  flush.console()
+  utils::flush.console()
 }
 
 f.log <- function(..., config) {
   cat(..., "at:", format(Sys.time(), format='%Y%m%d%H%M%S'), "\n", 
     file=config$log_file, append=T)
-  flush.console()
+  utils::flush.console()
 }
 
 f.err <- function(..., config) {
@@ -16,7 +16,7 @@ f.err <- function(..., config) {
 
 f.save_tsv <- function(dat, file_out, config, row.names=T, col.names=T) {
   tryCatch(
-    write.table(dat, file=file_out, quote=F, sep="\t", 
+    utils::write.table(dat, file=file_out, quote=F, sep="\t", 
       row.names=row.names, col.names=col.names),
       error=function(msg) f.err("write.table() error: writing to ", 
         file_out, ": ", msg$message, config=config),
@@ -26,12 +26,16 @@ f.save_tsv <- function(dat, file_out, config, row.names=T, col.names=T) {
 }
 
 f.check_state <- function(state, config) {
-  if(!all(rownames(exprs) == feats[, config$feat_id_col, drop=T])) {
-    f.err("!all(rownames(exprs) == feats[, config$feat_id_col])", 
+
+  feats <- state$features[, config$feat_id_col, drop=T]
+  if(!all(rownames(state$expression) == feats)) {
+    f.err("state$features do not match rows of state$expression", 
       config=config)
   }
-  if(!all(colnames(exprs) == samps[, config$obs_col, drop=T])) {
-    f.err("!all(colnames(exprs) == samps[, config$obs_col])", 
+  
+  samps <- state$samples[, config$obs_col, drop=T]
+  if(!all(colnames(state$expression) == samps)) {
+    f.err("state$samples do not match columns of state$expression", 
       config=config)
   }
 }
@@ -70,11 +74,14 @@ f.save_state <- function(state, config, prefix) {
   f.save_tsv(state$samps, file_out, config)
 }
 
-f.quantile <- function(v, config, digits=3, na.rm=T) {
+f.quantile <- function(v, config, probs=NULL, digits=3, na.rm=T) {
+
+  if(is.null(probs)) probs <- config$probs
+  
   if(config$log_file %in% "") {
-    print(round(quantile(v, probs=config$probs, na.rm=na.rm), digits=digits))
+    print(round(stats::quantile(v, probs=probs, na.rm=na.rm), digits=digits))
   } else {
-    capture.output(round(quantile(v, probs=config$probs, na.rm=na.rm), digits=digits), 
+    utils::capture.output(round(stats::quantile(v, probs=probs, na.rm=na.rm), digits=digits), 
       file=config$log_file, append=T)
   }
 }

@@ -9,8 +9,10 @@
 #' @param config List with configuration values
 #' @return NULL
 #' @examples
-#' config <- list(a=1, b="accorn", c=~x1+x2+x1:x2, d=list(e=1, b=FALSE))
-#' f.report_config(config)
+#'   \dontrun{
+#'     config <- list(a=1, b="accorn", c=~x1+x2+x1:x2, d=list(e=1, b=FALSE))
+#'     f.report_config(config)
+#'   }
 
 f.report_config <- function(config) {
   for(k1 in names(config)) {
@@ -47,31 +49,33 @@ f.report_config <- function(config) {
 #'   Observation metadata from `config$sample_file_in` in `config$dir_in`.
 #' @param config List with configuration values.
 #' @return A list (the initial state) with the following elements:
-#'   \itemize={
-#'     item{expression}{Numeric matrix with non-negative expression values.},
-#'     item{features}{A data.frame with feature meta-data for rows of expression.},
-#'     item{samples}{A data.frame with observation meta-data for columns of expression.}
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   }
 #' @examples
-#' config <- list(dir_in=".", feature_file_in="feats.tsv", 
-#'   sample_file_in="samps.tsv", data_file_in="exprs.tsv", log_file="")
-#' state <- f.read_data(config)
-#' exprs <- state$expression
-#' feats <- state$features
-#' samps <- state$samples
+#'   \dontrun{
+#'     config <- list(dir_in=".", feature_file_in="feats.tsv", 
+#'       sample_file_in="samps.tsv", data_file_in="exprs.tsv", log_file="")
+#'     state <- f.read_data(config)
+#'     exprs <- state$expression
+#'     feats <- state$features
+#'     samps <- state$samples
+#'   }
 
 f.read_data <- function(config) {
 
   f.log("reading data", config=config)
   
   file_path <- paste(config$dir_in, config$feature_file_in, sep="/")
-  feats <- read.table(file_path, header=T, sep="\t", quote="", as.is=T)
+  feats <- utils::read.table(file_path, header=T, sep="\t", quote="", as.is=T)
   
   file_path <- paste(config$dir_in, config$sample_file_in, sep="/")
-  samps <- read.table(file_path, header=T, sep="\t", quote="", as.is=T)
+  samps <- utils::read.table(file_path, header=T, sep="\t", quote="", as.is=T)
   
   file_path <- paste(config$dir_in, config$data_file_in, sep="/")
-  exprs <- read.table(file_path), header=T, sep="\t", quote="", as.is=T)
+  exprs <- utils::read.table(file_path, header=T, sep="\t", quote="", as.is=T)
   exprs <- as.matrix(exprs)
 
   if(!(typeof(exprs) %in% "double")) {
@@ -96,7 +100,7 @@ f.check_covariates <- function(state, config) {
     }
   }
 
-  for(nom in c(obs_col, sample_col)) {
+  for(nom in c(config$obs_col, config$sample_col)) {
     if(!(nom %in% names(state$samples))) {
       f.err("!(nom %in% names(state$samples)); nom:", nom, config=config)
     }
@@ -172,33 +176,35 @@ f.set_covariate_factor_levels <- function(state, config) {
 #'   levels according to `config$sample_factors`.
 #' @details 
 #'   Wrapper for `f.check_covariates()`, then `f.subset_covariates()`, 
-#'     followed by `f.set_covariate_factor_levels()`. 
+#'     followed by `f.set_covariate_factor_levels()`.
 #' @param state List with elements formatted like the list returned by `f.read_data()`:
-#'   \itemize{
-#'     \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'     \item{features}{A data.frame with feature rows corresponding to columns of returned exprs.}
-#'     \item{samples}{A data.frame with observation rows corresponding to columns of returned exprs.}
-#'   }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @param config List with configuration values.
 #' @return A list (the processed state) with the following elements:
-#'   \itemize={
-#'     item{expression}{Numeric matrix with non-negative expression values.},
-#'     item{features}{A data.frame with feature meta-data for rows of expression.},
-#'     item{samples}{A data.frame with observation meta-data for columns of expression.},
-#'   }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @examples
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(
-#'   feat_id_col="gene_id", 
-#'   sample_factors=list(age=c("Young", "Old"), gender=c("Male", "Female")),
-#'   obs_col="observation_id",
-#'   sample_col="sample_id",
-#'   log_file=""
-#' )
-#' state <- f.preprocess_covariates(state, config)
-#' exprs <- state$expression
-#' feats <- state$features
-#' samps <- state$samples
+#'   \dontrun{
+#'     state <- list(expression=exprs, features=feats, samples=samps)
+#'     config <- list(
+#'       feat_id_col="gene_id", 
+#'       sample_factors=list(age=c("Young", "Old"), gender=c("Male", "Female")),
+#'       obs_col="observation_id",
+#'       sample_col="sample_id",
+#'       log_file=""
+#'     )
+#'     state <- f.preprocess_covariates(state, config)
+#'     exprs <- state$expression
+#'     feats <- state$features
+#'     samps <- state$samples
+#'   }
 
 f.preprocess_covariates <- function(state, config) {
 
@@ -221,25 +227,27 @@ f.preprocess_covariates <- function(state, config) {
 #'   Wrapper for `f.samples_per_feature()`, `f.feature_median_expression()`, 
 #'     `f.features_per_sample()`. Also reports quantiles of distributions. 
 #' @param state List with elements formatted like the list returned by `f.read_data()`:
-#'   \itemize={
-#'     item{expression}{Numeric matrix with non-negative expression values.},
-#'     item{features}{A data.frame with feature meta-data corresponding to rows of expression.},
-#'     item{samples}{A data.frame with observation meta-data corresponding to cols of expression.},
-#'   }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @param config List with configuration values.
 #' @return A list (the processed state) with the following elements:
-#'   \itemize={
-#'     item{expression}{Numeric matrix with non-negative expression values.},
-#'     item{features}{A data.frame with feature meta-data corresponding to rows of expression.},
-#'     item{samples}{A data.frame with observation meta-data corresponding to cols of expression.},
-#'   }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @examples
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="")
-#' state <- f.preprocess_covariates(state, config)
-#' exprs <- state$expression
-#' feats <- state$features
-#' samps <- state$samples
+#'   \dontrun{
+#'     state <- list(expression=exprs, features=feats, samples=samps)
+#'     config <- list(log_file="")
+#'     state <- f.preprocess_covariates(state, config)
+#'     exprs <- state$expression
+#'     feats <- state$features
+#'     samps <- state$samples
+#'   }
 
 f.add_filter_stats <- function(state, config) {
 
@@ -263,11 +271,11 @@ f.add_filter_stats <- function(state, config) {
   
   n <- apply(state$expression, 1, function(v) sum(v > 0, na.rm=T))
   f.msg("samples per feature:", config=config)
-  f.quantile(n, probs=config$probs, digits=0)
+  f.quantile(n, config, digits=0)
 
   n <- apply(state$expression, 2, function(v) sum(v > 0, na.rm=T))
   f.msg("features per sample", config=config)
-  f.quantile(n, probs=config$probs, digits=0)
+  f.quantile(n, config, digits=0)
 }
 
 #' Prefilter data
@@ -278,26 +286,29 @@ f.add_filter_stats <- function(state, config) {
 #'   Wrapper for `f.samples_per_feature()`, `f.feature_median_expression()`, 
 #'     `f.features_per_sample()`. Also reports quantiles of distributions. 
 #' @param state List with elements formatted like the list returned by `f.read_data()`:
-#' \itemize{
-#'   \item{exprs}{filtered numeric matrix with feature rows and observation columns.}
-#'   \item{samps}{filtered data.frame with observation rows corresponding to columns of returned exprs.}
-#'   \item{feats}{filtered data.frame with feature rows corresponding to columns of returned exprs.}
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @param config List with configuration values.
 #' @param n_samples_min minimum number of samples per feature; numeric >= 1.
 #' @param n_features_min minimum number of features per sample; numeric >= 1.
 #' @return A list (the filtered state) with the following elements:
-#'   \itemize={
-#'     item{expression}{Numeric matrix with non-negative expression values.},
-#'     item{features}{A data.frame with feature meta-data corresponding to rows of expression.},
-#'     item{samples}{A data.frame with observation meta-data corresponding to cols of expression.},
-#'   }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @examples
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="")
-#' state <- f.prefilter(state, config)
-#' exprs <- state$expression
-#' feats <- state$features
-#' samps <- state$samples
+#'   \dontrun{
+#'     state <- list(expression=exprs, features=feats, samples=samps)
+#'     config <- list(log_file="")
+#'     state <- f.prefilter(state, config)
+#'     exprs <- state$expression
+#'     feats <- state$features
+#'     samps <- state$samples
+#'   }
 
 f.prefilter <- function(state, config, n_samples_min=1, n_features_min=1) {
   
@@ -322,23 +333,34 @@ f.prefilter <- function(state, config, n_samples_min=1, n_features_min=1) {
 #' @details If variable is NULL, uses config$permute_var instead. If variable is 
 #'   NULL and config$permute_var == "", skips permutation (normal execution).
 #' @param state List with elements formatted like the list returned by `f.read_data()`:
-#'   \itemize={
-#'     item{expression}{Numeric matrix with non-negative expression values.},
-#'     item{features}{A data.frame with feature meta-data corresponding to rows of expression.},
-#'     item{samples}{A data.frame with observation meta-data corresponding to cols of expression.},
-#'   }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @param config List with configuration values.
 #' @param variable Character name of variable (column in samples) to permute.
 #' @return A list (the filtered state) with the following elements:
-#'   \itemize={
-#'     item{expression}{Numeric matrix with non-negative expression values.},
-#'     item{features}{A data.frame with feature meta-data corresponding to rows of expression.},
-#'     item{samples}{A data.frame with observation meta-data corresponding to cols of expression.},
-#'   }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @examples
-#' state <- list(sample
+#'   \dontrun{
+#'     state <- list(expression=exprs, samples=samps)
+#'     config <- list(log_file="")
+#'     state2 <- f.permute(state, config, permute_var="age")
+#'     exprs2 <- state2$expression
+#'     samps2 <- state2$samples
+#'
+#'     config <- list(log_file="")
+#'     state2 <- f.permute(state, config, variable="age")
+#'     exprs2 <- state2$expression
+#'     samps2 <- state2$samples
+#'   }
 
-f.permute(state, config, variable=NULL) {
+f.permute <- function(state, config, variable=NULL) {
 
   if(is.null(variable)) variable <- config$permute_var
   

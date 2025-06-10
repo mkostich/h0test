@@ -8,32 +8,34 @@
 #'   to be considered missing, and have `0` in the data, do something like 
 #'   `state$expression[state$expression %in% 0] <- NA` prior to imputing.
 #' @param state A list with elements like that returned by `f.read_data()`:
-#' \itemize{
-#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'   \item{features}{A data.frame with feature rows corresponding to rows of expression.}
-#'   \item{samples}{A data.frame with observation rows corresponding to columns of expression.}
-#' }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @param config List with configuration settings.
 #' @param impute_quantile Numeric between 0 and 1 specifying 
 #'   minimum non-zero/NA expression value for each feature to use as global
 #'   LOD (limit of detection). If NULL, config$impute_quantile used.
 #' @return An updated `state` list with the following elements:
-#' \itemize{
-#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'   \item{features}{A data.frame with feature rows corresponding to rows of expression.}
-#'   \item{samples}{A data.frame with observation rows corresponding to columns of expression.}
-#' }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' Returned `state$xpression` matrix contains strictly positive numeric values.
 #' @examples
-#' exprs[exprs %in% 0] <- NA
-#' state <- list(expression=exprs)
-#' config <- list(impute_quantile=0.05, log_file="")
-#' state2 <- f.impute_unif_global_lod(state, config)
-#' exprs2 <- state2$expression
+#'   \dontrun{
+#'     exprs[exprs %in% 0] <- NA
+#'     state <- list(expression=exprs)
+#'     config <- list(impute_quantile=0.05, log_file="")
+#'     state2 <- f.impute_unif_global_lod(state, config)
+#'     exprs2 <- state2$expression
 #'
-#' config <- list(log_file="")
-#' state2 <- f.impute_unif_global_lod(state, config, impute_quantile=0.05)
-#' exprs2 <- state2$expression
+#'     config <- list(log_file="")
+#'     state2 <- f.impute_unif_global_lod(state, config, impute_quantile=0.05)
+#'     exprs2 <- state2$expression
+#'   }
 
 f.impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
 
@@ -74,31 +76,33 @@ f.impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
 #'   to be considered missing, and have `0` in the data, do something like 
 #'   `exprs[exprs %in% 0] <- NA` prior to imputing.
 #' @param state A list with elements like that returned by `f.read_data()`:
-#' \itemize{
-#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'   \item{features}{A data.frame with feature rows corresponding to rows of expression.}
-#'   \item{samples}{A data.frame with observation rows corresponding to columns of expression.}
-#' }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @param config List with configuration settings.
 #' @param impute_quantile Numeric between 0 and 1 specifying 
 #'   minimum non-zero/NA expression value in each observation to use as the
 #'   observation-specific LOD (limit of detection).
 #' @return An updated `state` list with the following elements:
-#' \itemize{
-#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'   \item{features}{A data.frame with feature rows corresponding to rows of expression.}
-#'   \item{samples}{A data.frame with observation rows corresponding to columns of expression.}
-#' }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @examples
-#' exprs[exprs %in% 0] <- NA
-#' state <- list(expression=exprs)
-#' config <- list(log_file="")
-#' state2 <- f.impute_unif_sample_lod(state, config, impute_quantile=0.01)
-#' exprs2 <- state2$expression
+#'   \dontrun{
+#'     exprs[exprs %in% 0] <- NA
+#'     state <- list(expression=exprs)
+#'     config <- list(log_file="")
+#'     state2 <- f.impute_unif_sample_lod(state, config, impute_quantile=0.01)
+#'     exprs2 <- state2$expression
 #'
-#' config <- list(impute_quantile=0.01, log_file="")
-#' state2 <- f.impute_unif_sample_lod(state, config)
-#' exprs2 <- state2$expression
+#'     config <- list(impute_quantile=0.01, log_file="")
+#'     state2 <- f.impute_unif_sample_lod(state, config)
+#'     exprs2 <- state2$expression
+#'   }
 
 f.impute_unif_sample_lod <- function(state, config, impute_quantile=0) {
 
@@ -129,24 +133,26 @@ f.impute_unif_sample_lod <- function(state, config, impute_quantile=0) {
 #'   want `0` to be considered missing, and have `0` in the data, do something 
 #'   like `exprs[exprs %in% 0] <- NA` prior to imputing.
 #' @param state A list with elements like that returned by `f.read_data()`:
-#' \itemize{
-#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'   \item{features}{A data.frame with feature rows corresponding to rows of expression.}
-#'   \item{samples}{A data.frame with observation rows corresponding to columns of expression.}
-#' }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @param config List with configuration settings.
 #' @return An updated `state` list with the following elements:
-#' \itemize{
-#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'   \item{features}{A data.frame with feature rows corresponding to rows of expression.}
-#'   \item{samples}{A data.frame with observation rows corresponding to columns of expression.}
-#' }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @examples
-#' exprs[exprs %in% 0] <- NA
-#' state <- list(expression=exprs)
-#' config <- list(log_file="")
-#' state2 <- f.impute_sample_lod(state, config)
-#' exprs2 <- state2$expression
+#'   \dontrun{
+#'     exprs[exprs %in% 0] <- NA
+#'     state <- list(expression=exprs)
+#'     config <- list(log_file="")
+#'     state2 <- f.impute_sample_lod(state, config)
+#'     exprs2 <- state2$expression
+#'   }
 
 f.impute_sample_lod <- function(state, config) {
 
@@ -175,30 +181,32 @@ f.impute_sample_lod <- function(state, config) {
 #'   gauranteed non-negative; negative draws are repeated till non-negative
 #'   drawn.
 #' @param state A list with elements like that returned by `f.read_data()`:
-#' \itemize{
-#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'   \item{features}{A data.frame with feature rows corresponding to rows of expression.}
-#'   \item{samples}{A data.frame with observation rows corresponding to columns of expression.}
-#' }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @param config List with configuration settings.
 #' @param scale. Numeric greater than zero, linearly scaling the
 #'   dispersion around the feature mean.
 #' @return An updated `state` list with the following elements:
-#' \itemize{
-#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'   \item{features}{A data.frame with feature rows corresponding to rows of expression.}
-#'   \item{samples}{A data.frame with observation rows corresponding to columns of expression.}
-#' }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @examples
-#' exprs[exprs %in% 0] <- NA
-#' state <- list(expression=exprs)
-#' config <- list(log_file="")
-#' state2 <- f.impute_rnorm_feature(state, config, scale.=1)
-#' exprs2 <- state2$expression
+#'   \dontrun{
+#'     exprs[exprs %in% 0] <- NA
+#'     state <- list(expression=exprs)
+#'     config <- list(log_file="")
+#'     state2 <- f.impute_rnorm_feature(state, config, scale.=1)
+#'     exprs2 <- state2$expression
 #'
-#' config <- list(impute_scale=1, log_file="")
-#' state2 <- f.impute_rnorm_feature(state, config)
-#' exprs2 <- state2$expression
+#'     config <- list(impute_scale=1, log_file="")
+#'     state2 <- f.impute_rnorm_feature(state, config)
+#'     exprs2 <- state2$expression
+#'   }
 
 f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 
@@ -217,7 +225,7 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
     i <- is.na(v)
     if(any(i)) {
       m <- mean(v, na.rm=T)
-      s <- sd(v, na.rm=T) * scale.
+      s <- stats::sd(v, na.rm=T) * scale.
       v[i] <- stats::rnorm(sum(i), mean=m, sd=s)
       i <- v < 0
       while(any(i)) {
@@ -243,11 +251,11 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 #'   want `0` to be considered missing, and have `0` in the data, do 
 #'   something like `exprs[exprs %in% 0] <- NA` prior to imputing. 
 #' @param state A list with elements like that returned by `f.read_data()`:
-#' \itemize{
-#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'   \item{features}{A data.frame with feature rows corresponding to rows of expression.}
-#'   \item{samples}{A data.frame with observation rows corresponding to columns of expression.}
-#' }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' It is assumed that state$expression has been previously `log2(x+1)` transformed.
 #' @param config List with configuration settings.
 #' @param gran Numeric greater than zero. Granularity of prediction 
@@ -258,24 +266,26 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 #' @param f_mid Function to use for calculating central tendency of 
 #'   feature expression across samples. 
 #' @return An updated `state` list with the following elements:
-#' \itemize{
-#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'   \item{features}{A data.frame with feature rows corresponding to rows of expression.}
-#'   \item{samples}{A data.frame with observation rows corresponding to columns of expression.}
-#' }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @examples
-#' exprs <- log2(exprs + 1)
-#' exprs[exprs %in% 0] <- NA
-#' state <- list(expression=exprs)
-#' config <- list(log_file="")
-#' state2 <- f.impute_glm_binom(state, config, impute_granularity=0.0001)
-#' exprs2 <- state2$expression
+#'   \dontrun{
+#'     exprs <- log2(exprs + 1)
+#'     exprs[exprs %in% 0] <- NA
+#'     state <- list(expression=exprs)
+#'     config <- list(log_file="")
+#'     state2 <- f.impute_glm_binom(state, config, impute_granularity=0.0001)
+#'     exprs2 <- state2$expression
 #'
-#' config <- list(gran=0.0001, log_file="")
-#' state2 <- f.impute_glm_binom(state, config)
-#' exprs2 <- state2$expression
+#'     config <- list(gran=0.0001, log_file="")
+#'     state2 <- f.impute_glm_binom(state, config)
+#'     exprs2 <- state2$expression
+#'   }
 
-f.impute_glm_binom <- function(state, config, gran=NULL, off=1, f_mid=median) {
+f.impute_glm_binom <- function(state, config, gran=NULL, off=1, f_mid=stats::median) {
 
   if(!is.matrix(state$expression)) {
     f.err("!is.matrix(state$expression)", config=config)
@@ -291,7 +301,7 @@ f.impute_glm_binom <- function(state, config, gran=NULL, off=1, f_mid=median) {
 
   fit <- stats::glm(cbind(n0, n1) ~ m, data=dat, family="binomial")
   m <- seq(from=gran, to=max(c(state$expression), na.rm=T), by=gran)
-  p <- predict(fit, newdata=data.frame(m=m), type="response")
+  p <- stats::predict(fit, newdata=data.frame(m=m), type="response")
   p[is.na(p)] <- min(p, na.rm=T)
   i_na <- is.na(c(state$expression))
   state$expression[i_na] <- sample(m, sum(i_na), replace=T, prob=p)
@@ -310,14 +320,14 @@ f.impute_glm_binom <- function(state, config, gran=NULL, off=1, f_mid=median) {
 #'   considered missing, and have `0` in the data, do something like 
 #'   `exprs[exprs %in% 0] <- NA` prior to imputing. 
 #' @param state A list with elements like that returned by `f.read_data()`:
-#' \itemize{
-#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'   \item{features}{A data.frame with feature rows corresponding to rows of expression.}
-#'   \item{samples}{A data.frame with observation rows corresponding to columns of expression.}
-#' }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' It is assumed that state$expression has been previously `log2(x+1)` transformed.
 #' @param config List with configuration settings.
-#' @param span Numeric greater than 0 and less than 1. 
+#' @param span. Numeric greater than 0 and less than 1. 
 #'   Span for loess fit.
 #' @param gran Numeric greater than zero. Granularity of prediction 
 #'   grid. Smaller values lead to less chance of duplicate imputed values.
@@ -329,25 +339,27 @@ f.impute_glm_binom <- function(state, config, gran=NULL, off=1, f_mid=median) {
 #' @param degree Numeric in `c(1, 2)`. Degree for loess fit.
 #' @param fam Character in `c("symmetric", "gaussian")`. Family for loess fit.
 #' @return An updated `state` list with the following elements:
-#' \itemize{
-#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'   \item{features}{A data.frame with feature rows corresponding to rows of expression.}
-#'   \item{samples}{A data.frame with observation rows corresponding to columns of expression.}
-#' }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' @examples
-#' exprs <- log2(exprs + 1)
-#' exprs[exprs %in% 0] <- NA
-#' state <- list(expression=exprs)
-#' config <- list(log_file="")
-#' state2 <- f.impute_loess_logit(state, config, span.=1, gran=0.0001)
-#' exprs2 <- state2$expression
+#'   \dontrun{
+#'     exprs <- log2(exprs + 1)
+#'     exprs[exprs %in% 0] <- NA
+#'     state <- list(expression=exprs)
+#'     config <- list(log_file="")
+#'     state2 <- f.impute_loess_logit(state, config, span.=1, gran=0.0001)
+#'     exprs2 <- state2$expression
 #'
-#' config <- list(span.=1, gran=0.0001, log_file="")
-#' state2 <- f.impute_loess_logit(state, config)
-#' exprs2 <- state2$expression
+#'     config <- list(span.=1, gran=0.0001, log_file="")
+#'     state2 <- f.impute_loess_logit(state, config)
+#'     exprs2 <- state2$expression
+#'  }
 
 f.impute_loess_logit <- function(state, config, span.=NULL, gran=NULL, 
-    off=1, f_mid=median, degree=1, fam="symmetric") {
+    off=1, f_mid=stats::median, degree=1, fam="symmetric") {
 
   if(!is.matrix(state$expression)) {
     f.err("!is.matrix(state$expression)", config=config)
@@ -358,9 +370,9 @@ f.impute_loess_logit <- function(state, config, span.=NULL, gran=NULL,
   m <- apply(state$expression, 1, f_mid, na.rm=T)
   m[is.na(m)] <- 0
   f <- function(v) sum(is.na(v) | v %in% 0)
-  n0 <- apply(state$expression, 1, f)                     ## n.missing
-  n1 <- ncol(state$expression) - n0                       ## n.found
-  p <- (n0 + off) / (ncol(exprs) + off)                   ## p.missing
+  n0 <- apply(state$expression, 1, f)                        ## n.missing
+  n1 <- ncol(state$expression) - n0                          ## n.found
+  p <- (n0 + off) / (ncol(state$expression) + off)           ## p.missing
   dat <- data.frame(n0=n0, n1=n1, p=p, m=m)
 
   m_new <- seq(from=gran, to=max(c(state$expression), na.rm=T), by=gran)
@@ -368,10 +380,10 @@ f.impute_loess_logit <- function(state, config, span.=NULL, gran=NULL,
   fit <- stats::loess(log(p/(1-p)) ~ m, data=dat, span=span, 
     degree=degree, family=fam)
     
-  p_hat <- predict(fit, newdata=data.frame(m=m_new))      ## on logit scale
-  p_hat[is.na(p_hat)] <- min(p_hat[p_hat > 0], na.rm=T)   ## is.na -> low p
-  p_hat = exp(p_hat) / (1 + exp(p_hat))                   ## inverse logit
-  i_na <- is.na(c(state$expression))                      ## values to be imputed
+  p_hat <- stats::predict(fit, newdata=data.frame(m=m_new))  ## on logit scale
+  p_hat[is.na(p_hat)] <- min(p_hat[p_hat > 0], na.rm=T)      ## is.na -> low p
+  p_hat = exp(p_hat) / (1 + exp(p_hat))                      ## inverse logit
+  i_na <- is.na(c(state$expression))                         ## values to be imputed
   state$expression[i_na] <- sample(m, sum(i_na), replace=T, prob=p)
 
   return(state)
@@ -410,11 +422,11 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
 #'   have `0` in the data, do something like `exprs[exprs %in% 0] <- NA` 
 #'   prior to imputing. Augmentation uses `f.aug_mult()`.
 #' @param state A list with elements like that returned by `f.read_data()`:
-#' \itemize{
-#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'   \item{features}{A data.frame with feature rows corresponding to rows of expression.}
-#'   \item{samples}{A data.frame with observation rows corresponding to columns of expression.}
-#' }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' It is assumed that state$expression has been previously `log2(x+1)` transformed.
 #' @param config List with configuration settings.
 #' @param f_imp Function to use for initial rough imputation.
@@ -427,45 +439,51 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
 #'   `0` to skip augmentation.
 #' @param verbose Logical if TRUE, emits progress messages.
 #' @return A list with the following elements:
-#' \itemize{
-#'   \item{exprs} \itemize{
-#'     \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'     \item{features}{A data.frame with feature rows corresponding to rows of returned expression.}
-#'     \item{samples}{A data.frame with observation rows corresponding to columns of returned expression.}
-#'   }
-#'   \item{log}{A data.frame logging statistics for each fit.}
-#' }
+#'   \tabular{llll}{
+#'     \code{state} \cr 
+#'       \tab A list with the following elements: \cr
+#'       \tab \code{expression} \cr 
+#'       \tab \tab \tab Numeric matrix with non-negative expression values. \cr
+#'       \tab \code{features}   \cr 
+#'       \tab \tab \tab A data.frame with feature meta-data for rows of expression. \cr
+#'       \tab \code{samples}    \cr 
+#'       \tab \tab \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{log} \cr 
+#'       \tab A data.frame logging statistics for each fit. \cr
+#'   } 
 #' @examples
-#' exprs <- log2(exprs + 1)
-#' exprs[exprs %in% 0] <- NA
-#' state <- list(expression=exprs)
-#' config <- list(log_file="")
-#' state2 <- f.impute_rf(state, config)
-#' exprs2 <- state2$expression
+#'   \dontrun{
+#'     exprs <- log2(exprs + 1)
+#'     exprs[exprs %in% 0] <- NA
+#'     state <- list(expression=exprs)
+#'     config <- list(log_file="")
+#'     state2 <- f.impute_rf(state, config)
+#'     exprs2 <- state2$expression
 #'
-#' config <- list(ntree=250, aug_steps=2, log_file="")
-#' state2 <- f.impute_rf(state, config)
-#' exprs2 <- state2$expression
+#'     config <- list(ntree=250, aug_steps=2, log_file="")
+#'     state2 <- f.impute_rf(state, config)
+#'     exprs2 <- state2$expression
+#'   }
 
 f.impute_rf <- function(state, config, f_imp=f.impute_loess_logit, ntree=100, 
     mtry=NULL, aug_mult=0.33, aug_add=0, aug_steps=3, verbose=T) {
-
+  
   if(!is.matrix(state$expression)) f.err("!is.matrix(exprs)", config=config)
-
+  
   n_miss <- apply(state$expression, 1, function(v) sum(is.na(v) | v %in% 0))
   o <- order(n_miss, decreasing=F)
   tbl <- NULL
   
   for(idx_feat in o) {
-  
+    
     if(n_miss[idx_feat] < 1) next
     f.msg("processing", rownames(state$expression)[idx_feat], config=config)
-
+    
     x_train <- f_imp(state$expression)
     x_train <- 2^x_train - 1
     x_train <- f.augment_affine(x_train, mult=aug_mult, add=aug_add, steps=aug_steps)
     x_train <- log2(x_train + 1)
-
+    
     y <- state$expression[idx_feat, , drop=T]
     i_miss <- is.na(y) | y %in% 0
     col_names_miss <- colnames(state$expression)[i_miss]
@@ -476,14 +494,15 @@ f.impute_rf <- function(state, config, f_imp=f.impute_loess_logit, ntree=100,
     
     fit <- randomForest::randomForest(x=t(x_train_i), y=y_train_i, mtry=mtry0, 
       ntree=ntree, importance=F, replace=T)
-
+    
     x_miss <- x_train[-idx_feat, which(i_miss), drop=F]
-    y_miss <- predict(fit, newdata=t(x_miss), type="response")
+    y_miss <- stats::predict(fit, newdata=t(x_miss), type="response")
+    
     if(any(y_miss < 0)) f.err("ERROR: y_miss < 0; y_miss:", y_miss, config=config)
-    exprs[idx_feat, i_miss] <- y_miss
-
+    state$expression[idx_feat, i_miss] <- y_miss
+    
     tm_stmp <- format(Sys.time(), format='%Y%m%d%H%M%S')
-    tbl_i <- data.frame(time=tm_stmp, feat=rownames(exprs)[idx_feat], 
+    tbl_i <- data.frame(time=tm_stmp, feat=rownames(state$expression)[idx_feat], 
       mtry=mtry0, n_miss=sum(i_miss), mean0=mean(y[!i_miss]), 
       mean1=mean(y_miss), pvar0=fit$rsq[1], pvar1=fit$rsq[ntree], 
       mse0=fit$mse[1], mse1=fit$mse[ntree]
@@ -492,7 +511,7 @@ f.impute_rf <- function(state, config, f_imp=f.impute_loess_logit, ntree=100,
     if(verbose) f.msg(tbl_i, config=config)
     tbl <- rbind(tbl, tbl_i)
   }
-
+  
   return(list(state=state, log=tbl))
 }
 
@@ -509,11 +528,11 @@ f.impute_rf <- function(state, config, f_imp=f.impute_loess_logit, ntree=100,
 #'   have `0` in the data, do something like `exprs[exprs %in% 0] <- NA` 
 #'   prior to imputing. Augmentation uses `f.aug_mult()`.
 #' @param state A list with elements like that returned by `f.read_data()`:
-#' \itemize{
-#'   \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'   \item{features}{A data.frame with feature rows corresponding to rows of expression.}
-#'   \item{samples}{A data.frame with observation rows corresponding to columns of expression.}
-#' }
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
 #' It is assumed that state$expression has been previously `log2(x+1)` transformed.
 #' @param config List with configuration settings.
 #' @param f_imp Function to use for initial rough imputation.
@@ -528,47 +547,53 @@ f.impute_rf <- function(state, config, f_imp=f.impute_loess_logit, ntree=100,
 #'   `0` to skip augmentation.
 #' @param verbose Logical if TRUE, emits progress messages.
 #' @return A list with the following elements:
-#' \itemize{
-#'   \item{exprs} \itemize{
-#'     \item{expression}{Numeric matrix with feature rows and observation columns.}
-#'     \item{features}{A data.frame with feature rows corresponding to rows of returned expression.}
-#'     \item{samples}{A data.frame with observation rows corresponding to columns of returned expression.}
-#'   }
-#'   \item{log}{A data.frame logging statistics for each fit.}
-#' }
+#'   \tabular{llll}{
+#'     \code{state} \cr 
+#'       \tab A list with the following elements: \cr
+#'       \tab \code{expression} \cr 
+#'       \tab \tab \tab Numeric matrix with non-negative expression values. \cr
+#'       \tab \code{features}   \cr 
+#'       \tab \tab \tab A data.frame with feature meta-data for rows of expression. \cr
+#'       \tab \code{samples}    \cr 
+#'       \tab \tab \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{log} \cr 
+#'       \tab A data.frame logging statistics for each fit. \cr
+#'   } 
 #' @examples
-#' exprs[exprs %in% 0] <- NA
-#' state <- list(expression=exprs)
-#' config <- list(log_file="")
-#' state2 <- f.impute_glmnet(state, config, impute_quantile=0.01)
-#' exprs2 <- state2$expression
+#'   \dontrun{
+#'     exprs[exprs %in% 0] <- NA
+#'     state <- list(expression=exprs)
+#'     config <- list(log_file="")
+#'     state2 <- f.impute_glmnet(state, config, impute_quantile=0.01)
+#'     exprs2 <- state2$expression
 #'
-#' state2 <- f.impute_glmnet(state, config, nfolds=3, alpha=0.5, aug_steps=2)
-#' state2 <- f.impute_glmnet(state, config)
-#' exprs2 <- state2$expression
+#'     state2 <- f.impute_glmnet(state, config, nfolds=3, alpha=0.5, aug_steps=2)
+#'     state2 <- f.impute_glmnet(state, config)
+#'     exprs2 <- state2$expression
+#'   }
 
 f.impute_glmnet <- function(state, config, f_imp=f.impute_loess_logit, 
     nfolds=5, alpha=1, measure="mae", aug_mult=0.33, aug_add=0, 
     aug_steps=3, verbose=T) {
-
+  
   if(!is.matrix(state$expression)) {
     f.err("!is.matrix(state$expression)", config=config)
   }
-
+  
   n_miss <- apply(state$expression, 1, function(v) sum(is.na(v) | v %in% 0))
   o <- order(n_miss, decreasing=F)
   tbl <- NULL
   
   for(idx_feat in o) {
-  
+    
     if(n_miss[idx_feat] < 1) next
     f.msg("processing", rownames(state$expression)[idx_feat], config=config)
-
+    
     x_train <- f_imp(state$expression)
     x_train <- 2^x_train - 1
     x_train <- f.augment_affine(x_train, mult=aug_mult, add=aug_add, steps=aug_steps)
     x_train <- log2(x_train + 1)
-
+    
     y <- state$expression[idx_feat, , drop=T]
     i_miss <- is.na(y) | y %in% 0
     col_names_miss <- colnames(state$expression)[i_miss]
@@ -576,25 +601,28 @@ f.impute_glmnet <- function(state, config, f_imp=f.impute_loess_logit,
     x_train_i <- x_train[-idx_feat, !i_miss_train, drop=F]
     y_train_i <- x_train[idx_feat, !i_miss_train, drop=T]
 
-    fit <- glmnet::cv.glmnet(x=t(x_train_i), y=y_train_i, family="gaussian", alpha=alpha, 
-      type.measure=measure, nfolds=nfolds, parallel=F)
-
+    fit <- glmnet::cv.glmnet(x=t(x_train_i), y=y_train_i, family="gaussian", 
+      alpha=alpha, type.measure=measure, nfolds=nfolds, parallel=F)
+    
     x_miss <- x_train[-idx_feat, which(i_miss), drop=F]
-    y_miss <- predict(fit, newx=t(x_miss), s=fit$lambda.1se, type="response")
+    y_miss <- stats::predict(fit, newx=t(x_miss), 
+      s=fit$lambda.1se, type="response")
+    
     if(any(y_miss < 0)) f.err("y_miss < 0; y_miss:", y_miss, config=config)
     state$expression[idx_feat, i_miss] <- y_miss
-
+    
     idx_lambda <- which(fit$lambda %in% fit$lambda.1se)[1] 
     tm_stmp <- format(Sys.time(), format='%Y%m%d%H%M%S')
-    tbl_i <- data.frame(time=tm_stmp, feat=rownames(exprs)[idx_feat], alpha=alpha, nfolds=nfolds, 
-      n_miss=sum(i_miss), mean0=mean(y[!i_miss]), mean1=mean(y_miss), 
-      cvm0=max(fit$cvm), cvm1=fit$cvm[idx_lambda], cvup0=max(fit$cvup), cvup1=fit$cvup[idx_lambda]
+    tbl_i <- data.frame(time=tm_stmp, feat=rownames(state$expression)[idx_feat], 
+      alpha=alpha, nfolds=nfolds, n_miss=sum(i_miss), mean0=mean(y[!i_miss]), 
+      mean1=mean(y_miss), cvm0=max(fit$cvm), cvm1=fit$cvm[idx_lambda], 
+      cvup0=max(fit$cvup), cvup1=fit$cvup[idx_lambda]
     )
     
     if(verbose) f.msg(tbl_i, config=config)
     tbl <- rbind(tbl, tbl_i)
   }
-
+  
   return(list(state=state, log=tbl))
 }
 
