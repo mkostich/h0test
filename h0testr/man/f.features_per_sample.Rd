@@ -17,15 +17,15 @@ f.features_per_sample(state, config)
 \item{config}{List with configuration settings.}
 }
 \value{
-A numeric vector of length ncol(exprs) with number of features .
-  expressed in each sample.
+A numeric vector of length \code{ncol(state$expression)} with 
+  number of features expressed in each sample.
 }
 \description{
-`f.features_per_sample` calculates the number of expressed features in 
-   each sample.
+Calculates the number of expressed features in each sample.
 }
 \details{
-Features are considered to be expressed if exprs > 0; NAs count as no expression.
+Features are considered to be expressed if \code{state$expression > 0}; 
+    \code{NA}s count as no expression.
 }
 \examples{
   \dontrun{

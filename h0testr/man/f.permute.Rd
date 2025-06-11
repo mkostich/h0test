@@ -7,7 +7,7 @@
 f.permute(state, config, variable = NULL)
 }
 \arguments{
-\item{state}{List with elements formatted like the list returned by `f.read_data()`:
+\item{state}{List with elements formatted like the list returned by \code{f.read_data()}:
 \tabular{ll}{
   \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
   \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -19,7 +19,7 @@ f.permute(state, config, variable = NULL)
 \item{variable}{Character name of variable (column in samples) to permute.}
 }
 \value{
-A list (the filtered state) with the following elements:
+A list (the permuted state) with the following elements:
   \tabular{ll}{
     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -27,11 +27,11 @@ A list (the filtered state) with the following elements:
   }
 }
 \description{
-Permute
+Permute observation covariate
 }
 \details{
-If variable is NULL, uses config$permute_var instead. If variable is 
-  NULL and config$permute_var == "", skips permutation (normal execution).
+If variable is \code{NULL}, uses \code{config$permute_var} instead. If variable is 
+  \code{NULL} and \code{config$permute_var == ""}, skips permutation (normal execution).
 }
 \examples{
   \dontrun{

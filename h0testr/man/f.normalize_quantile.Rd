@@ -7,7 +7,7 @@
 f.normalize_quantile(state, config, norm_quantile = NULL, multiplier = 1000)
 }
 \arguments{
-\item{state}{List with elements formatted like the list returned by `f.read_data()`:
+\item{state}{List with elements formatted like the list returned by \code{f.read_data()}:
 \tabular{ll}{
   \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
   \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -16,7 +16,7 @@ f.normalize_quantile(state, config, norm_quantile = NULL, multiplier = 1000)
 
 \item{config}{List with configuration values.}
 
-\item{norm_quantile}{Numeric in `0:1` specifying quantile to use.}
+\item{norm_quantile}{Numeric in closed interval \code{[0, 1]} specifying quantile to use.}
 
 \item{multiplier}{Numeric used to scale returned values after 
 dividing by selected quantile.}
@@ -30,14 +30,14 @@ A list (the processed state) with the following elements:
   }
 }
 \description{
-`f.normalize_quantile` normalizes expression using variant of quantile 
-  normalization which excludes missing values.
+Normalize expression using variant of quantile normalization which 
+    excludes missing values.
 }
 \details{
-Inter-observation normalization. Setting p to 0.5 is equivalent 
-  to median scaling with median calculated after exclusion of missing 
-  values. Similarly, setting p to 0.75 is upperquartile normalization 
-  ignoring missing values.
+Inter-observation normalization. Setting \code{p <- 0.5} is equivalent 
+    to median scaling with median calculated after exclusion of missing 
+    values. Similarly, setting \code{p < 0.75} is upperquartile normalization 
+    ignoring missing values.
 }
 \examples{
   \dontrun{

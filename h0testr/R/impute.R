@@ -1,13 +1,14 @@
 #' Impute missing values from between 0 and global LOD.
 #' @description
-#' `f.impute_unif_global_lod` imputes missing values by randomly drawing 
-#'   from uniform distribution below an estimated global LOD. 
+#'   Impute missing values by randomly drawing from uniform distribution 
+#'     below an estimated global LOD. 
 #' @details Imputed values are random draws from uniform distribution over the 
-#'   interval [0, LOD], where LOD is an estimate global limit of 
-#'   detection. Only NA values are considered as missing, so if you want `0` 
-#'   to be considered missing, and have `0` in the data, do something like 
-#'   `state$expression[state$expression %in% 0] <- NA` prior to imputing.
-#' @param state A list with elements like that returned by `f.read_data()`:
+#'   interval \code{[0, LOD]}, where \code{LOD} is an estimate global limit of 
+#'   detection. Only \code{NA} values are considered as missing, so if you want 
+#'   \code{0} to be considered missing, and have \code{0} in the data, do 
+#'   something like \code{state$expression[state$expression \%in\% 0] <- NA} 
+#'   prior to imputing.
+#' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -15,15 +16,15 @@
 #'   } 
 #' @param config List with configuration settings.
 #' @param impute_quantile Numeric between 0 and 1 specifying 
-#'   minimum non-zero/NA expression value for each feature to use as global
-#'   LOD (limit of detection). If NULL, config$impute_quantile used.
+#'   minimum non-zero/\code{NA} expression value for each feature to use as global
+#'   LOD (limit of detection). If \code{NULL}, \code{config$impute_quantile} used.
 #' @return An updated `state` list with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' Returned `state$xpression` matrix contains strictly positive numeric values.
+#' Returned \code{state$xpression} matrix contains strictly positive numeric values.
 #' @examples
 #'   \dontrun{
 #'     exprs[exprs %in% 0] <- NA
@@ -68,14 +69,14 @@ f.impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
 
 #' Impute missing values from between 0 and sample LOD.
 #' @description
-#' `f.impute_unif_sample_lod` imputes missing values by randomly drawing 
-#'   from uniform distribution below an estimated observation-specific LOD. 
+#'   Impute missing values by randomly drawing from uniform distribution below 
+#'     an estimated observation-specific limit of detection (LOD). 
 #' @details Imputed values are random draws from uniform distribution over the 
-#'   interval [0, LOD], where LOD is an estimate observation limit of 
-#'   detection. Only NA values are considered as missing, so if you want `0` 
-#'   to be considered missing, and have `0` in the data, do something like 
-#'   `exprs[exprs %in% 0] <- NA` prior to imputing.
-#' @param state A list with elements like that returned by `f.read_data()`:
+#'   interval \code{[0, LOD]}, where LOD is an estimate observation limit of 
+#'   detection. Only \code{NA} values are considered as missing, so if you 
+#'   want \code{0} to be considered missing, and have \code{0} in the data, do 
+#'   something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing.
+#' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -83,9 +84,9 @@ f.impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
 #'   } 
 #' @param config List with configuration settings.
 #' @param impute_quantile Numeric between 0 and 1 specifying 
-#'   minimum non-zero/NA expression value in each observation to use as the
+#'   minimum non-zero/\code{NA} expression value in each observation to use as the
 #'   observation-specific LOD (limit of detection).
-#' @return An updated `state` list with the following elements:
+#' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -126,20 +127,20 @@ f.impute_unif_sample_lod <- function(state, config, impute_quantile=0) {
 
 #' Impute missing values as the sample LOD.
 #' @description
-#' `f.impute_sample_lod` imputes missing values as the minimum observed
-#'    value in the corresponding observation.
+#'   Impute missing values as the minimum observed value in the corresponding 
+#'     observation.
 #' @details Missing values are set to an estimate observation limit of 
-#'   detection (LOD). Only NA values are considered as missing, so if you 
-#'   want `0` to be considered missing, and have `0` in the data, do something 
-#'   like `exprs[exprs %in% 0] <- NA` prior to imputing.
-#' @param state A list with elements like that returned by `f.read_data()`:
+#'   detection (LOD). Only \code{NA} values are considered as missing, so if you 
+#'   want \code{0} to be considered missing, and have \code{0} in the data, do 
+#'   something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing.
+#' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration settings.
-#' @return An updated `state` list with the following elements:
+#' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -171,16 +172,14 @@ f.impute_sample_lod <- function(state, config) {
 
 #' Impute missing values near the feature mean.
 #' @description
-#' `f.impute_rnorm_feature` imputes missing values normally distributed 
-#'   around the feature mean.
+#'   Impute missing values normally distributed around the feature mean.
 #' @details Missing values are draws from 
-#'   `normal(mean=mean(exprs[feature, ]), sd=scale.*sd(exprs[feature, ]))`. 
-#'   Only non-NA values are used in calculation of mean and sd. If you  
-#'   want `0` to be considered missing, and have `0` in the data, do something 
-#'   like `exprs[exprs %in% 0] <- NA` prior to imputing. All values are
-#'   gauranteed non-negative; negative draws are repeated till non-negative
-#'   drawn.
-#' @param state A list with elements like that returned by `f.read_data()`:
+#'   \code{normal(mean=mean(exprs[feature, ]), sd=scale.*sd(exprs[feature, ]))}. 
+#'   Only non-\code{NA} values are used in calculation of \code{mean} and 
+#'   \code{sd}. If you want \code{0} to be considered missing, and have 
+#'   \code{0} in the data, do something like \code{exprs[exprs \%in\% 0] <- NA} 
+#'   prior to imputing. All values are gauranteed non-negative.
+#' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -189,7 +188,7 @@ f.impute_sample_lod <- function(state, config) {
 #' @param config List with configuration settings.
 #' @param scale. Numeric greater than zero, linearly scaling the
 #'   dispersion around the feature mean.
-#' @return An updated `state` list with the following elements:
+#' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -242,27 +241,27 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 
 #' Impute by drawing from `p(missing|intensity)` from binomial glm.
 #' @description
-#' `f.impute_glm_binom` imputes missing values by randomly drawing
-#'   from an estimated density of `p(missing|intensity)`.
+#'   Impute missing values by randomly drawing from an estimated density 
+#'     of \code{p(missing|intensity)}.
 #' @details Impute random draws by drawing from the estimated density of 
-#'   `p(missing|intensity)`. Estimates `p(missing|intensity)` using a 
-#'   binomial glm with formula `cbind(n.missing, n.found) ~ intensity`,
-##   where intensity is assumed to be previously log transformed. If you  
-#'   want `0` to be considered missing, and have `0` in the data, do 
-#'   something like `exprs[exprs %in% 0] <- NA` prior to imputing. 
-#' @param state A list with elements like that returned by `f.read_data()`:
+#'   \code{p(missing|intensity)}. Estimates \code{p(missing|intensity)} using 
+#'   a binomial glm with formula \code{cbind(n.missing, n.found) ~ intensity},
+#'   where intensity is assumed to be previously log transformed. If you  
+#'   want \code{0} to be considered missing, and have \code{0} in the data, do 
+#'   something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. 
+#' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' It is assumed that state$expression has been previously `log2(x+1)` transformed.
+#' It is assumed that state$expression has been previously \code{log2(x+1)} transformed.
 #' @param config List with configuration settings.
 #' @param gran Numeric greater than zero. Granularity of prediction 
 #'   grid. Smaller values lead to less chance of duplicate imputed values.
 #'   Larger values require more compute time and memory.
 #' @param off Numeric offset for calculating 
-#'   `p.missing = (n.missing + off) / (n.total + off)`.
+#'   \code{p.missing = (n.missing + off) / (n.total + off)}.
 #' @param f_mid Function to use for calculating central tendency of 
 #'   feature expression across samples. 
 #' @return An updated `state` list with the following elements:
@@ -311,15 +310,15 @@ f.impute_glm_binom <- function(state, config, gran=NULL, off=1, f_mid=stats::med
 
 #' Impute by drawing from `p(missing|intensity)` estimated with loess.
 #' @description
-#' `f.impute_loess_logit` imputes missing values by randomly drawing
-#'   from an estimated density of `p(missing|intensity)`.
+#'   Impute missing values by randomly drawing from an estimated density 
+#'     of \code{p(missing|intensity)}.
 #' @details Impute random draws by drawing from the estimated density of 
-#'   `p(missing|intensity)`. Estimates `p(missing|intensity)` using a loess 
-#'   fit with form `log(p_missing/p_found) ~ intensity`, where intensity is 
-#'   assumed to be previously log transformed. If you want `0` to be 
-#'   considered missing, and have `0` in the data, do something like 
-#'   `exprs[exprs %in% 0] <- NA` prior to imputing. 
-#' @param state A list with elements like that returned by `f.read_data()`:
+#'   \code{p(missing|intensity)}. Estimates \code{p(missing|intensity)} using 
+#'   a loess fit with form \code{log(p_missing/p_found) ~ intensity}, where 
+#'   intensity is assumed to be previously log transformed. If you want 
+#'   \code{0} to be considered missing, and have \code{0} in the data, do 
+#'   something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. 
+#' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -327,18 +326,18 @@ f.impute_glm_binom <- function(state, config, gran=NULL, off=1, f_mid=stats::med
 #'   } 
 #' It is assumed that state$expression has been previously `log2(x+1)` transformed.
 #' @param config List with configuration settings.
-#' @param span. Numeric greater than 0 and less than 1. 
-#'   Span for loess fit.
+#' @param span. Span for loess fit. Numeric in the open interval \code{(0, 1)}.
 #' @param gran Numeric greater than zero. Granularity of prediction 
 #'   grid. Smaller values lead to less chance of duplicate imputed values.
 #'   Larger values require more compute time and memory.
 #' @param off Numeric offset for calculating 
-#'   `p.missing = (n.missing + off) / (n.total + off)`.
+#'   \code{p.missing = (n.missing + off) / (n.total + off)}.
 #' @param f_mid Function to use for calculating central tendency of 
 #'   feature expression across samples. 
-#' @param degree Numeric in `c(1, 2)`. Degree for loess fit.
-#' @param fam Character in `c("symmetric", "gaussian")`. Family for loess fit.
-#' @return An updated `state` list with the following elements:
+#' @param degree Numeric in set \code{c(1, 2)}. Degree for loess fit.
+#' @param fam Character in set \code{c("symmetric", "gaussian")}. Family 
+#'   for \code{loess} fit.
+#' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -409,34 +408,36 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
   return(exprs)
 }
 
-#' Impute missing values using `randomForest`.
+#' Impute missing values using \code{randomForest}.
 #' @description
-#' `f.impute_rf` imputes missing values using `randomForest`.
-#' @details Imputes missing values using a `randomForest` model trained using 
-#'   observations in which the feature was expressed. Iterates through 
+#'   Impute missing values using \code{randomForest}.
+#' @details Imputes missing values using a \code{randomForest} model trained 
+#'   using observations in which the feature was expressed. Iterates through 
 #'   features beginning with those having fewest missing values. If 
-#'   `aug_steps > 0`, augments observations with affine transormed versions.
-#'   This is meant to enable extrapolation outside of observed intensity 
-#'   range. If `aug_steps > 0`, assumes expression data have been previously
-#'   `log(x+1)` transformed. If you want `0` to be considered missing, and 
-#'   have `0` in the data, do something like `exprs[exprs %in% 0] <- NA` 
-#'   prior to imputing. Augmentation uses `f.aug_mult()`.
-#' @param state A list with elements like that returned by `f.read_data()`:
+#'   \code{aug_steps > 0}, augments observations with affine transormed 
+#'   versions. This is meant to enable extrapolation outside of observed 
+#'   intensity range. If `aug_steps > 0`, assumes expression data have been 
+#'   previously \code{log(x+1)} transformed. If you want \code{0} to be 
+#'   considered missing, and have \code{0} in the data, do something like 
+#'   \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. Augmentation uses 
+#'   \code{f.aug_mult()}.
+#' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' It is assumed that state$expression has been previously `log2(x+1)` transformed.
+#' It is assumed that state$expression has been previously \code{log2(x+1)} transformed.
 #' @param config List with configuration settings.
 #' @param f_imp Function to use for initial rough imputation.
 #' @param ntree Numeric (greater than 0) number of trees in random forest.
+#'   \code{randomForest} \code{ntree} parameter.
 #' @param mtry Numeric (greater than 0) number of features to sample at each 
-#'   node in each tree. Random forest mtry.
+#'   node in each tree. \code{randomForest} \code{mtry} parameter.
 #' @param aug_mult Numeric affine shift for training data augmentation. 
 #' @param aug_add Numeric affine shift for training data augmentation.
 #' @param aug_steps Numeric (non-negative) number of augmentation steps. Set to
-#'   `0` to skip augmentation.
+#'   \code{0} to skip augmentation.
 #' @param verbose Logical if TRUE, emits progress messages.
 #' @return A list with the following elements:
 #'   \tabular{llll}{
@@ -515,37 +516,39 @@ f.impute_rf <- function(state, config, f_imp=f.impute_loess_logit, ntree=100,
   return(list(state=state, log=tbl))
 }
 
-#' Impute missing values using `glmnet`.
+#' Impute missing values using \code{glmnet}.
 #' @description
-#' `f.impute_rf` imputes missing values using `glmnet`.
-#' @details Imputes missing values using a `glmnet::cv.glmnet` model trained 
-#'   using observations in which the feature was expressed. Iterates through 
-#'   features beginning with those having fewest missing values. If 
-#'   `aug_steps > 0`, augments observations with affine transormed versions.
-#'   This is meant to enable extrapolation outside of observed intensity 
-#'   range. If `aug_steps > 0`, assumes expression data have been previously
-#'   `log(x+1)` transformed. If you want `0` to be considered missing, and 
-#'   have `0` in the data, do something like `exprs[exprs %in% 0] <- NA` 
-#'   prior to imputing. Augmentation uses `f.aug_mult()`.
-#' @param state A list with elements like that returned by `f.read_data()`:
+#'   Impute missing values using \code{glmnet} package.
+#' @details 
+#'   Imputes missing values using a \code{glmnet::cv.glmnet} model trained 
+#'     using observations in which the feature was expressed. Iterates through 
+#'     features beginning with those having fewest missing values. If 
+#'     \code{aug_steps > 0}, augments observations with affine transormed versions.
+#'     This is meant to enable extrapolation outside of observed intensity 
+#'     range. If \code{aug_steps > 0}, assumes expression data have been previously
+#'     \code{log(x+1)} transformed. If you want \code{0} to be considered missing, 
+#'     and have \code{0} in the data, do something like 
+#'     \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. Augmentation uses 
+#'     \code{f.aug_mult()}.
+#' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' It is assumed that state$expression has been previously `log2(x+1)` transformed.
+#' It is assumed that state$expression has been previously \code{log2(x+1)} transformed.
 #' @param config List with configuration settings.
 #' @param f_imp Function to use for initial rough imputation.
 #' @param alpha Numeric (between 0 and 1) number of trees in random forest.
 #' @param nfolds Numeric (greater than or equal to 2) number of folds for 
-#'   cross-validation tuning of `lambda` value for `glmnet`.
-#' @param measure Character in `c("mae", "mse")`. Loss function used during 
-#'   cross-validation tuning of `lambda` value for `glmnet`.
+#'   cross-validation tuning of \code{lambda} value for \code{glmnet}.
+#' @param measure Character in set \code{c("mae", "mse")}. Loss function used 
+#'   during cross-validation tuning of \code{lambda} value for \code{glmnet}.
 #' @param aug_mult Numeric affine shift for training data augmentation. 
 #' @param aug_add Numeric affine shift for training data augmentation.
 #' @param aug_steps Numeric (non-negative) number of augmentation steps. Set to
-#'   `0` to skip augmentation.
-#' @param verbose Logical if TRUE, emits progress messages.
+#'   \code{0} to skip augmentation.
+#' @param verbose Logical if \code{TRUE}, emits progress messages.
 #' @return A list with the following elements:
 #'   \tabular{llll}{
 #'     \code{state} \cr 
@@ -624,5 +627,73 @@ f.impute_glmnet <- function(state, config, f_imp=f.impute_loess_logit,
   }
   
   return(list(state=state, log=tbl))
+}
+
+#' Impute missing values
+#' @description
+#'   Impute missing values in \code{state$expression} according to settings
+#'     in \code{config}.
+#' @details 
+#'   Imputes missing values using a method and parameters specified in 
+#'     \code{config}. Assumes expression data have been previously
+#'     \code{log(x+1)} transformed. If you want \code{0} to be considered missing, 
+#'     and have \code{0} in the data, do something like 
+#'     \code{exprs[exprs \%in\% 0] <- 0} prior to imputing. 
+#' @param state A list with elements like that returned by \code{f.read_data()}:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   }
+#' It is assumed that \code{state$expression} has been previously \code{log2(x+1)} transformed.
+#' @param config List with configuration settings.
+#' @return Updated \code{state} list with the following elements:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
+#' @examples
+#'   \dontrun{
+#'     exprs[exprs %in% 0] <- NA
+#'     state <- list(expression=exprs)
+#'     config <- list(log_file="")
+#'     state2 <- f.impute_glmnet(state, config, impute_quantile=0.01)
+#'     exprs2 <- state2$expression
+#'
+#'     state2 <- f.impute_glmnet(state, config, nfolds=3, alpha=0.5, aug_steps=2)
+#'     state2 <- f.impute_glmnet(state, config)
+#'     exprs2 <- state2$expression
+#'   }
+
+f.impute <- function(state, config) {
+
+  if(config$impute_method %in% "unif_global_lod") {
+    state <- f.impute_unif_global_lod(state, config)
+  } else if(config$impute_method %in% "sample_lod") {
+    state <- f.impute_sample_lod(state, config)
+  } else if(config$impute_method %in% "unif_sample_lod") {
+    state <- f.impute_unif_sample_lod(state, config)
+  } else if(config$impute_method %in% "rnorm_feature") {
+    state <- f.impute_rnorm_feature(state, config)
+  } else if(config$impute_method %in% "glm_binom") {
+    state <- f.impute_glm_binom(state, config)
+  } else if(config$impute_method %in% "loess_logit") {
+    state <- f.impute_loess_logit(state, config)
+  } else if(config$impute_method %in% "glmnet") {
+    out <- f.impute_glmnet(state, config)
+    state <- out$state
+  } else if(config$impute_method %in% "rf") {
+    out <- f.impute_rf(state, config)
+    state <- out$state
+  } else if(config$impute_method %in% "none") {
+    f.msg("skipping imputation: config$impute_method %in% 'none'", config=config)
+  } else f.err("unexpected config$impute_method:", config$impute_method, config=config)
+
+  f.check_state(state, config)
+  f.report_state(state, config)
+  f.save_state(state, config, prefix="6.imputed")
+  
+  return(state)
 }
 

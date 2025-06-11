@@ -19,7 +19,7 @@ f.filter_features(state, config, n_samples_min = NULL)
 \item{n_samples_min}{Minimum number of samples expressing feature. Non-negative numeric.}
 }
 \value{
-An updated `state` list with the following elements:
+An updated \code{state} list with the following elements:
   \tabular{ll}{
     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -27,12 +27,11 @@ An updated `state` list with the following elements:
   }
 }
 \description{
-`f.filter_features` filters features based on number of samples expressing 
-   feature.
+Filter features based on number of samples expressing feature.
 }
 \details{
-Feature considered expressed if exprs > 0; NAs count as no 
-  expression.
+Feature considered expressed if \code{state$expression > 0}; 
+  \code{NA}s count as no expression.
 }
 \examples{
   \dontrun{

@@ -19,7 +19,7 @@ f.normalize_loess(state, config, span = 0.7, method = "affy")
 \item{span}{Numeric between 0 and 1 specifying span for loess fit.
 Higher numbers result in smoother (less localized) fit.}
 
-\item{method}{Character in `c("fast", "affy", "pairs")`.}
+\item{method}{Character in \code{c("fast", "affy", "pairs")}.}
 }
 \value{
 A list (the processed state) with the following elements:
@@ -30,15 +30,14 @@ A list (the processed state) with the following elements:
   }
 }
 \description{
-`f.normalize_loess` normalizes expression using the cyclic-loess
-  algorithm.
+Normalize expression using the cyclic-loess algorithm.
 }
 \details{
 Inter-observation normalization using cyclic-loess results
-  in similar signal distributions across all samples, similar to 
-  `f.normalize_qquantile()`. This is a slow method, especially if
-  `method %in% c("affy", "pairs")`, which scale quadratically. Calls
-  `limma::normalizeCyclicLoess()` under the hood.
+    in similar signal distributions across all samples, similar to 
+    \code{f.normalize_qquantile()}. This is a slow method, especially if
+    \code{method \%in\% c("affy", "pairs")}, which scale quadratically. Calls
+    \code{limma::normalizeCyclicLoess()} under the hood.
 }
 \examples{
   \dontrun{

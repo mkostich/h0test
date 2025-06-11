@@ -2,12 +2,12 @@
 % Please edit documentation in R/test.R
 \name{f.test_voom}
 \alias{f.test_voom}
-\title{Hypothesis testing using limma voom.}
+\title{Hypothesis testing using \code{limma::voom}}
 \usage{
 f.test_voom(state, config, normalize.method = "none")
 }
 \arguments{
-\item{state}{List with elements formatted like the list returned by `f.read_data()`:
+\item{state}{List with elements formatted like the list returned by \code{f.read_data()}:
 \tabular{ll}{
   \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
   \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -17,19 +17,19 @@ f.test_voom(state, config, normalize.method = "none")
 \item{config}{List with configuration values.}
 
 \item{normalize.method}{Character in 
-`c("TMM", "TMMwsp", "RLE", "upperquartile", "none")`.}
+\code{c("TMM", "TMMwsp", "RLE", "upperquartile", "none")}.}
 }
 \value{
 A data.frame containing results of test.
 }
 \description{
-`f.test_voom` tests for differential expression using the `limma::voom()` 
-  function.
+Tests for differential expression using the \code{limma::voom()} function.
 }
 \details{
-Tests for differential expression using the `limma::voom()`. Model is fit 
-  to `frm` and an F-test is performed for whether the effect of `test_term` 
-  on `exprs` is zero.
+Tests for differential expression using the \code{limma::voom()}. 
+    Model is fit to \code{config$frm} and an F-test is performed for 
+    whether the effect of \code{config$test_term} on 
+    \code{state$expression} is zero.
 }
 \examples{
   \dontrun{

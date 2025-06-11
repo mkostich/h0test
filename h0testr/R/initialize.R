@@ -1,11 +1,11 @@
 #' Report configuration
 #' @description
-#' `f.report_config` reports configuration used for run, and checks if
-#'   `config$test_term` is compatible with `config$frm`.
-#' @details Report written to config$log_file; if `config$log_file == ""`,
+#' Reports configuration settings used for run, and checks if
+#'   \code{config$test_term} is compatible with \code{config$frm}.
+#' @details Report written to \code{config$log_file}; if \code{config$log_file == ""},
 #'   written to standard out (console or terminal). Only supports non-lists
-#'     and lists of non-lists (not lists of lists) as `config` values.
-#'   Throws error if `config$test_term` is not compatible with `config$frm`.
+#'     and lists of non-lists (not lists of lists) as \code{config} values.
+#'   Throws error if \code{config$test_term} is not compatible with \code{config$frm}.
 #' @param config List with configuration values
 #' @return NULL
 #' @examples
@@ -41,12 +41,11 @@ f.report_config <- function(config) {
 
 #' Read data
 #' @description
-#' `f.read_data` reads expression data, feature metadata, and observation 
-#'   metadata.
+#' Reads expression data, feature metadata, and observation metadata files.
 #' @details 
-#'   Expression data from `config$data_file_in` in `config$dir_in`.
-#'   Feature metadata from `config$feature_file_in` in `config$dir_in`.
-#'   Observation metadata from `config$sample_file_in` in `config$dir_in`.
+#'   Expression data from \code{config$data_file_in} in \code{config$dir_in}.
+#'   Feature metadata from \code{config$feature_file_in} in \code{config$dir_in}.
+#'   Observation metadata from \code{config$sample_file_in} in \code{config$dir_in}.
 #' @param config List with configuration values.
 #' @return A list (the initial state) with the following elements:
 #'   \tabular{ll}{
@@ -94,13 +93,14 @@ f.read_data <- function(config) {
 
 f.check_covariates <- function(state, config) {
 
-  for(nom in c("n_samples_expr_col", "median_raw_col", "n_features_expr_col")) {
+  noms <- c(config$n_samples_expr_col, config$median_raw_col, config$n_features_expr_col)
+  for(nom in noms) {
     if(nom %in% names(state$samples)) {
       f.err("nom %in% names(state$samples); nom:", nom, config=config)
     }
   }
 
-  for(nom in c(config$obs_col, config$sample_col)) {
+  for(nom in c(config$obs_id_col, config$sample_id_col)) {
     if(!(nom %in% names(state$samples))) {
       f.err("!(nom %in% names(state$samples)); nom:", nom, config=config)
     }
@@ -111,7 +111,7 @@ f.check_covariates <- function(state, config) {
   }
 }
 
-## uses config$sample_factors, config$obs_col, and config$sample_col:
+## uses config$sample_factors, config$obs_id_col, and config$sample_id_col:
 
 f.subset_covariates <- function(state, config) {
 
@@ -132,7 +132,7 @@ f.subset_covariates <- function(state, config) {
   }
   
   f.msg("subsetting sample metadata", config=config)
-  state$samples <- state$samples[, c(config$obs_col, config$sample_col, vars)]
+  state$samples <- state$samples[, c(config$obs_id_col, config$sample_id_col, vars)]
   
   return(state)
 }
@@ -170,14 +170,14 @@ f.set_covariate_factor_levels <- function(state, config) {
 
 #' Preprocess covariates
 #' @description
-#' `f.preprocess_covariates` checks covariates referred to in
-#'   `config$frm` are in `state$samples`, subsets only the needed
-#'   variables into `state$samples`, and sets covariate factor 
-#'   levels according to `config$sample_factors`.
+#'   Check covariates referred to in
+#'     \code{config$frm} are in \code{state$samples}, subsets only the needed
+#'     variables into \code{state$samples}, and sets covariate factor 
+#'     levels according to \code{config$sample_factors}.
 #' @details 
-#'   Wrapper for `f.check_covariates()`, then `f.subset_covariates()`, 
-#'     followed by `f.set_covariate_factor_levels()`.
-#' @param state List with elements formatted like the list returned by `f.read_data()`:
+#'   Wrapper for \code{f.check_covariates()}, then \code{f.subset_covariates()}, 
+#'     followed by \code{f.set_covariate_factor_levels()}.
+#' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -196,11 +196,14 @@ f.set_covariate_factor_levels <- function(state, config) {
 #'     config <- list(
 #'       feat_id_col="gene_id", 
 #'       sample_factors=list(age=c("Young", "Old"), gender=c("Male", "Female")),
-#'       obs_col="observation_id",
-#'       sample_col="sample_id",
+#'       obs_id_col="observation_id",
+#'       sample_id_col="sample_id",
 #'       log_file=""
 #'     )
-#'     state <- f.preprocess_covariates(state, config)
+#'     out <- f.preprocess_covariates(state, config)
+#'     config <- out$config
+#'     cat("obs_col", config$obs_col, "\n")
+#'     state <- out$state
 #'     exprs <- state$expression
 #'     feats <- state$features
 #'     samps <- state$samples
@@ -211,22 +214,24 @@ f.preprocess_covariates <- function(state, config) {
   f.log("preprocessing covariates", config=config)
 
   f.check_covariates(state, config)
+  config$obs_col <- config$obs_id_col   ## as soon as confirm obs_id_col exists
+  
   state <- f.subset_covariates(state, config)
   state <- f.set_covariate_factor_levels(state, config)
   
-  return(state)
+  return(list(state=state, config=config))
 }
 
 ###############################################################################
 
 #' Add filter statistics
 #' @description
-#' `f.add_filter_stats` adds filtering-related statistics to `state$features`, 
-#'   and `state$samples`.
+#'   Adds filtering-related statistics to \code{state$features}, 
+#'     and \code{state$samples}.
 #' @details 
 #'   Wrapper for `f.samples_per_feature()`, `f.feature_median_expression()`, 
 #'     `f.features_per_sample()`. Also reports quantiles of distributions. 
-#' @param state List with elements formatted like the list returned by `f.read_data()`:
+#' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -280,12 +285,12 @@ f.add_filter_stats <- function(state, config) {
 
 #' Prefilter data
 #' @description
-#' `f.prefilter` adds filtering-related statistics to `state$features`, 
-#'   and `state$samples`.
+#'   Adds filtering-related statistics to \code{state$features}, 
+#'     and \code{state$samples}.
 #' @details 
-#'   Wrapper for `f.samples_per_feature()`, `f.feature_median_expression()`, 
-#'     `f.features_per_sample()`. Also reports quantiles of distributions. 
-#' @param state List with elements formatted like the list returned by `f.read_data()`:
+#'   Wrapper for \code{f.samples_per_feature()}, \code{f.feature_median_expression()}, 
+#'     \code{f.features_per_sample()}. Also reports quantiles of distributions. 
+#' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -329,10 +334,10 @@ f.prefilter <- function(state, config, n_samples_min=1, n_features_min=1) {
 }
 
 #' Permute data
-#' @description Permute 
-#' @details If variable is NULL, uses config$permute_var instead. If variable is 
-#'   NULL and config$permute_var == "", skips permutation (normal execution).
-#' @param state List with elements formatted like the list returned by `f.read_data()`:
+#' @description Permute observation covariate 
+#' @details If variable is \code{NULL}, uses \code{config$permute_var} instead. If variable is 
+#'   \code{NULL} and \code{config$permute_var == ""}, skips permutation (normal execution).
+#' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -340,7 +345,7 @@ f.prefilter <- function(state, config, n_samples_min=1, n_features_min=1) {
 #'   } 
 #' @param config List with configuration values.
 #' @param variable Character name of variable (column in samples) to permute.
-#' @return A list (the filtered state) with the following elements:
+#' @return A list (the permuted state) with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -372,21 +377,63 @@ f.permute <- function(state, config, variable=NULL) {
     }
     f.msg("permuting", variable, config=config)
     tmp <- state$samples[
-      !duplicated(state$samples[, config$sample_col]), 
-      c(config$sample_col, variable), 
+      !duplicated(state$samples[, config$sample_id_col]), 
+      c(config$sample_id_col, variable), 
       drop=T
     ]
-    rownames(tmp) <- tmp[, config$sample_col]
+    rownames(tmp) <- tmp[, config$sample_id_col]
     tmp[, variable] <- sample(tmp[, variable, drop=T], nrow(tmp), replace=F)
-    state$samples[, variable] <- tmp[state$samples[, config$sample_col], variable, drop=T]
+    state$samples[, variable] <- tmp[state$samples[, config$sample_id_col], variable, drop=T]
   } 
 
   f.check_state(state, config)
   return(state)
 }
 
-## SAVE 2: prepped
-## f.check_state(state, config)
-## f.report_state(state, config)
-## f.save_state(state, config, "2.prepped")
+#' Load data
+#' @description 
+#'   Load data and metadata from files, format, and save initial copies 
+#' @details Loads data from files specified in \code{config}. Prefilter uninformative rows
+#'   and columns. Permute variable if requested. Save final copies.
+#' @param config List with configuration values.
+#' @return A list (the initial state) with the following elements:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
+#' @examples
+#'   \dontrun{
+#'     config <- f.new_config()
+#'     config$feature_file_in <- "features.tsv"   ## feature annotation .tsv; row features
+#'     config$sample_file_in <- "samples.tsv"     ## sample annotation .tsv; row observations
+#'     config$data_file_in <- "expression.tsv"    ## lfq normalized quant matrix .tsv; row features, column observations
+#'     config$feat_id_col <- "gene_id"            ## feats[, FEAT_ID_COL] == rownames(exprs)
+#'     config$obs_id_col <- "assay_id"            ## unique id for observations; initial samps[, obs_id_col] == colnames(exprs)
+#'     config$sample_id_col <- "sample_id"        ## 
+#'     out <- f.load_data(config)
+#'     state <- out$state
+#'     f.do_stuff(state, config)
+#'   }
+
+f.load_data <- function(config) {
+
+  f.report_config(config)
+  
+  state <- f.read_data(config)
+  state <- f.preprocess_covariates(state, config)
+  f.add_filter_stats(state, config)
+  f.check_state(state, config)
+  f.report_state(state, config)
+  f.save_state(state, config, prefix="1.initial")
+
+  f.prefilter(state, config)
+  f.permute(state, config)
+
+  f.check_state(state, config)
+  f.report_state(state, config)
+  f.save_state(state, config, prefix="2.prepped")
+
+  return(list(state=state, config=config))
+}
 

@@ -7,7 +7,7 @@
 f.preprocess_covariates(state, config)
 }
 \arguments{
-\item{state}{List with elements formatted like the list returned by `f.read_data()`:
+\item{state}{List with elements formatted like the list returned by \code{f.read_data()}:
 \tabular{ll}{
   \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
   \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -25,14 +25,14 @@ A list (the processed state) with the following elements:
   }
 }
 \description{
-`f.preprocess_covariates` checks covariates referred to in
-  `config$frm` are in `state$samples`, subsets only the needed
-  variables into `state$samples`, and sets covariate factor 
-  levels according to `config$sample_factors`.
+Check covariates referred to in
+    \code{config$frm} are in \code{state$samples}, subsets only the needed
+    variables into \code{state$samples}, and sets covariate factor 
+    levels according to \code{config$sample_factors}.
 }
 \details{
-Wrapper for `f.check_covariates()`, then `f.subset_covariates()`, 
-    followed by `f.set_covariate_factor_levels()`.
+Wrapper for \code{f.check_covariates()}, then \code{f.subset_covariates()}, 
+    followed by \code{f.set_covariate_factor_levels()}.
 }
 \examples{
   \dontrun{
@@ -40,11 +40,14 @@ Wrapper for `f.check_covariates()`, then `f.subset_covariates()`,
     config <- list(
       feat_id_col="gene_id", 
       sample_factors=list(age=c("Young", "Old"), gender=c("Male", "Female")),
-      obs_col="observation_id",
-      sample_col="sample_id",
+      obs_id_col="observation_id",
+      sample_id_col="sample_id",
       log_file=""
     )
-    state <- f.preprocess_covariates(state, config)
+    out <- f.preprocess_covariates(state, config)
+    config <- out$config
+    cat("obs_col", config$obs_col, "\n")
+    state <- out$state
     exprs <- state$expression
     feats <- state$features
     samps <- state$samples

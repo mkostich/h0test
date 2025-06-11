@@ -7,7 +7,7 @@
 f.samples_per_feature(state, config)
 }
 \arguments{
-\item{state}{A list with elements like that returned by `f.read_data()`:
+\item{state}{A list with elements like that returned by \code{f.read_data()}:
 \tabular{ll}{
   \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
   \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -17,14 +17,15 @@ f.samples_per_feature(state, config)
 \item{config}{List with configuration settings.}
 }
 \value{
-A numeric vector of length nrow(exprs) with non-negative sample 
-  counts for each feature
+A numeric vector of length \code{nrow(state$expression)} with non-negative sample 
+  counts for each feature.
 }
 \description{
-`f.samples_per_feature` calculates the number of samples having
+Calculates the number of samples expressing each feature
 }
 \details{
-Feature considered expressed if exprs > 0; NAs count as no expression.
+Feature considered expressed if \code{state$expression > 0}; 
+  \code{NA}s count as no expression.
 }
 \examples{
   \dontrun{

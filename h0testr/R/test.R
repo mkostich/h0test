@@ -1,12 +1,12 @@
-#' Hypothesis testing using limma voom.
+#' Hypothesis testing using \code{limma::voom}
 #' @description
-#' `f.test_voom` tests for differential expression using the `limma::voom()` 
-#'   function.
+#'   Tests for differential expression using the \code{limma::voom()} function.
 #' @details
-#' Tests for differential expression using the `limma::voom()`. Model is fit 
-#'   to `frm` and an F-test is performed for whether the effect of `test_term` 
-#'   on `exprs` is zero. 
-#' @param state List with elements formatted like the list returned by `f.read_data()`:
+#'   Tests for differential expression using the \code{limma::voom()}. 
+#'     Model is fit to \code{config$frm} and an F-test is performed for 
+#'     whether the effect of \code{config$test_term} on 
+#'     \code{state$expression} is zero. 
+#' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -14,7 +14,7 @@
 #'   } 
 #' @param config List with configuration values.
 #' @param normalize.method Character in 
-#'   `c("TMM", "TMMwsp", "RLE", "upperquartile", "none")`.
+#'   \code{c("TMM", "TMMwsp", "RLE", "upperquartile", "none")}.
 #' @return A data.frame containing results of test.
 #' @examples
 #'   \dontrun{
@@ -51,23 +51,23 @@ f.test_voom <- function(state, config, normalize.method="none") {
   return(tbl)
 }
 
-#' Hypothesis testing using limma trend.
+#' Hypothesis testing using \code{limma} trend.
 #' @description
-#' `f.test_trend` tests for differential expression using the `limma` 
+#'   Test for differential expression using the \code{limma} 
 #'   package trend approach.
 #' @details
-#' Tests for differential expression using the `limma` pakcage by running 
-#'   `lmFit()`, then `eBayes()`, then `topTable()`. Model is fit 
-#'   to `frm` and an F-test is performed for whether the effect of `test_term` 
-#'   on `exprs` is zero. 
-#' @param state List with elements formatted like the list returned by `f.read_data()`:
+#'   Tests for differential expression using the \code{limma} pakcage by running 
+#'     \code{lmFit()}, then \code{eBayes()}, then \code{topTable()}. Model is fit 
+#'     to \code{config$frm} and an F-test is performed for whether the effect of 
+#'     \code{config$test_term} on \code{state$expression} is zero. 
+#' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values.
-#' @return A data.frame containing results of test.
+#' @return A \code{data.frame} containing results of test.
 #' @examples
 #'   \dontrun{
 #'     state <- list(expression=exprs, features=feats, samples=samps)
@@ -98,3 +98,80 @@ f.test_trend <- function(state, config) {
   return(tbl)
 }
 
+#' Hypothesis testing
+#' @description
+#'   Test hypotheses using .
+#' @details
+#'   Tests for differential expression using method specified in config. 
+#' @param state List with elements formatted like the list returned by `f.read_data()`:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
+#' @param config List with configuration values.
+#' @return A data.frame containing results of test.
+#' @examples
+#'   \dontrun{
+#'     state <- list(expression=exprs, features=feats, samples=samps)
+#'     config <- list(frm=~age+sex+age:sex, test_term="age:sex", test_method="trend")
+#'     tbl <- f.test(state, config)
+#'     head(tbl)
+#'   }
+
+f.test <- function(state, config) {
+
+  if(config$test_method %in% "voom") {
+    tbl <- f.test_voom(state, config)
+  } else if(config$test_method %in% "trend") {
+    tbl <- f.test_trend(state, config)
+  } else if(config$test_method %in% "none") {
+    f.msg("skipping testing: TEST_METHOD %in% 'none'", config=config)
+    return(NULL)
+  } else f.err("unexpected TEST_METHOD:", config$test_method, config=config)
+
+  if(!all(rownames(tbl) %in% rownames(state$features))) {
+    f.err("!all(rownames(tbl) %in% rownames(state$features))", config=config)
+  }
+  
+  tbl <- cbind(state$features[rownames(tbl), ], tbl)
+  rownames(tbl) <- NULL
+  
+  file_out <- paste0(config$dir_out, "/", "7", config$result_mid_out, config$suffix_out)
+  f.log("writing results to", file_out, config=config)
+  f.save_tsv(tbl, file_out)
+  
+  return(tbl)
+}
+
+#' Run a basic workflow
+#' @description
+#'   Run a basic workflow: 
+#'     \code{f.load_data -> f.normalize -> f.combine_reps -> f.filter -> f.impute -> f.test}.
+#' @details
+#'   Run a basic workflow: 
+#'     \code{f.load_data -> f.normalize -> f.combine_reps -> f.filter -> f.impute -> f.test}.
+#' @param config List with configuration values.
+#' @return A list with the following elements:
+#'   \tabular{ll}{
+#'     \code{state}  \cr \tab A list with elements \code{$expression}, \code{$features}, and \code{$samples}. \cr
+#'     \code{config} \cr \tab A list with configuration settings. \cr
+#'     \code{tbl}    \cr \tab A data.frame containing results of test.. \cr
+#'   }
+#' @examples
+#'   \dontrun{
+#'     state <- list(expression=exprs, features=feats, samples=samps)
+#'     config <- list(frm=~age+sex+age:sex, test_term="age:sex", test_method="trend")
+#'     tbl <- f.test(state, config)
+#'     head(tbl)
+#'   }
+
+f.run <- function(config) {
+  out <- f.load_data(config)
+  out <- f.normalize(out$state, out$config)
+  out <- f.combine_reps(out$state, out$config)
+  out <- f.filter(out$state, out$config)
+  out <- f.impute(out$state, out$config)
+  tbl <- f.test(out$state, out$config)
+  return(list(state=out$state, config=out$config, tbl=tbl))
+}

@@ -7,7 +7,7 @@
 f.filter_samples(state, config, n_features_min = NULL)
 }
 \arguments{
-\item{state}{A list with elements like that returned by `f.read_data()`:
+\item{state}{A list with elements like that returned by \code{f.read_data()}:
 \tabular{ll}{
   \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
   \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -19,7 +19,7 @@ f.filter_samples(state, config, n_features_min = NULL)
 \item{n_features_min}{Minimum number of features expressed per sample. Non-negative numeric.}
 }
 \value{
-An updated `state` list with the following elements:
+An updated \code{state} list with the following elements:
   \tabular{ll}{
     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -27,10 +27,11 @@ An updated `state` list with the following elements:
   }
 }
 \description{
-`f.filter_samples` filters samples based on number of features with expression > 0
+Filters samples based on number of features with \code{state$expression > 0}.
 }
 \details{
-Feature considered expressed if exprs > 0; NAs count as no expression.
+Feature considered expressed if \code{state$expression > 0}; \code{NA}s 
+    count as no expression.
 }
 \examples{
   \dontrun{

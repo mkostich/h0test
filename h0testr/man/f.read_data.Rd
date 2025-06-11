@@ -18,13 +18,12 @@ A list (the initial state) with the following elements:
   }
 }
 \description{
-`f.read_data` reads expression data, feature metadata, and observation 
-  metadata.
+Reads expression data, feature metadata, and observation metadata files.
 }
 \details{
-Expression data from `config$data_file_in` in `config$dir_in`.
-  Feature metadata from `config$feature_file_in` in `config$dir_in`.
-  Observation metadata from `config$sample_file_in` in `config$dir_in`.
+Expression data from \code{config$data_file_in} in \code{config$dir_in}.
+  Feature metadata from \code{config$feature_file_in} in \code{config$dir_in}.
+  Observation metadata from \code{config$sample_file_in} in \code{config$dir_in}.
 }
 \examples{
   \dontrun{

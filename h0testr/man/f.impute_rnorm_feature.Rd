@@ -7,7 +7,7 @@
 f.impute_rnorm_feature(state, config, scale. = NULL)
 }
 \arguments{
-\item{state}{A list with elements like that returned by `f.read_data()`:
+\item{state}{A list with elements like that returned by \code{f.read_data()}:
 \tabular{ll}{
   \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
   \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -20,7 +20,7 @@ f.impute_rnorm_feature(state, config, scale. = NULL)
 dispersion around the feature mean.}
 }
 \value{
-An updated `state` list with the following elements:
+An updated \code{state} list with the following elements:
   \tabular{ll}{
     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -28,17 +28,15 @@ An updated `state` list with the following elements:
   }
 }
 \description{
-`f.impute_rnorm_feature` imputes missing values normally distributed 
-  around the feature mean.
+Impute missing values normally distributed around the feature mean.
 }
 \details{
 Missing values are draws from 
-  `normal(mean=mean(exprs[feature, ]), sd=scale.*sd(exprs[feature, ]))`. 
-  Only non-NA values are used in calculation of mean and sd. If you  
-  want `0` to be considered missing, and have `0` in the data, do something 
-  like `exprs[exprs %in% 0] <- NA` prior to imputing. All values are
-  gauranteed non-negative; negative draws are repeated till non-negative
-  drawn.
+  \code{normal(mean=mean(exprs[feature, ]), sd=scale.*sd(exprs[feature, ]))}. 
+  Only non-\code{NA} values are used in calculation of \code{mean} and 
+  \code{sd}. If you want \code{0} to be considered missing, and have 
+  \code{0} in the data, do something like \code{exprs[exprs \%in\% 0] <- NA} 
+  prior to imputing. All values are gauranteed non-negative.
 }
 \examples{
   \dontrun{

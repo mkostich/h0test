@@ -7,7 +7,7 @@
 f.impute_unif_sample_lod(state, config, impute_quantile = 0)
 }
 \arguments{
-\item{state}{A list with elements like that returned by `f.read_data()`:
+\item{state}{A list with elements like that returned by \code{f.read_data()}:
 \tabular{ll}{
   \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
   \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -17,11 +17,11 @@ f.impute_unif_sample_lod(state, config, impute_quantile = 0)
 \item{config}{List with configuration settings.}
 
 \item{impute_quantile}{Numeric between 0 and 1 specifying 
-minimum non-zero/NA expression value in each observation to use as the
+minimum non-zero/\code{NA} expression value in each observation to use as the
 observation-specific LOD (limit of detection).}
 }
 \value{
-An updated `state` list with the following elements:
+An updated \code{state} list with the following elements:
   \tabular{ll}{
     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -29,15 +29,15 @@ An updated `state` list with the following elements:
   }
 }
 \description{
-`f.impute_unif_sample_lod` imputes missing values by randomly drawing 
-  from uniform distribution below an estimated observation-specific LOD.
+Impute missing values by randomly drawing from uniform distribution below 
+    an estimated observation-specific limit of detection (LOD).
 }
 \details{
 Imputed values are random draws from uniform distribution over the 
-  interval [0, LOD], where LOD is an estimate observation limit of 
-  detection. Only NA values are considered as missing, so if you want `0` 
-  to be considered missing, and have `0` in the data, do something like 
-  `exprs[exprs %in% 0] <- NA` prior to imputing.
+  interval \code{[0, LOD]}, where LOD is an estimate observation limit of 
+  detection. Only \code{NA} values are considered as missing, so if you 
+  want \code{0} to be considered missing, and have \code{0} in the data, do 
+  something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing.
 }
 \examples{
   \dontrun{

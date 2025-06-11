@@ -7,7 +7,7 @@
 f.impute_sample_lod(state, config)
 }
 \arguments{
-\item{state}{A list with elements like that returned by `f.read_data()`:
+\item{state}{A list with elements like that returned by \code{f.read_data()}:
 \tabular{ll}{
   \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
   \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -17,7 +17,7 @@ f.impute_sample_lod(state, config)
 \item{config}{List with configuration settings.}
 }
 \value{
-An updated `state` list with the following elements:
+An updated \code{state} list with the following elements:
   \tabular{ll}{
     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -25,14 +25,14 @@ An updated `state` list with the following elements:
   }
 }
 \description{
-`f.impute_sample_lod` imputes missing values as the minimum observed
-   value in the corresponding observation.
+Impute missing values as the minimum observed value in the corresponding 
+    observation.
 }
 \details{
 Missing values are set to an estimate observation limit of 
-  detection (LOD). Only NA values are considered as missing, so if you 
-  want `0` to be considered missing, and have `0` in the data, do something 
-  like `exprs[exprs %in% 0] <- NA` prior to imputing.
+  detection (LOD). Only \code{NA} values are considered as missing, so if you 
+  want \code{0} to be considered missing, and have \code{0} in the data, do 
+  something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing.
 }
 \examples{
   \dontrun{

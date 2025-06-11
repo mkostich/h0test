@@ -2,7 +2,7 @@
 % Please edit documentation in R/impute.R
 \name{f.impute_rf}
 \alias{f.impute_rf}
-\title{Impute missing values using `randomForest`.}
+\title{Impute missing values using \code{randomForest}.}
 \usage{
 f.impute_rf(
   state,
@@ -17,29 +17,30 @@ f.impute_rf(
 )
 }
 \arguments{
-\item{state}{A list with elements like that returned by `f.read_data()`:
+\item{state}{A list with elements like that returned by \code{f.read_data()}:
   \tabular{ll}{
     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
   } 
-It is assumed that state$expression has been previously `log2(x+1)` transformed.}
+It is assumed that state$expression has been previously \code{log2(x+1)} transformed.}
 
 \item{config}{List with configuration settings.}
 
 \item{f_imp}{Function to use for initial rough imputation.}
 
-\item{ntree}{Numeric (greater than 0) number of trees in random forest.}
+\item{ntree}{Numeric (greater than 0) number of trees in random forest.
+\code{randomForest} \code{ntree} parameter.}
 
 \item{mtry}{Numeric (greater than 0) number of features to sample at each 
-node in each tree. Random forest mtry.}
+node in each tree. \code{randomForest} \code{mtry} parameter.}
 
 \item{aug_mult}{Numeric affine shift for training data augmentation.}
 
 \item{aug_add}{Numeric affine shift for training data augmentation.}
 
 \item{aug_steps}{Numeric (non-negative) number of augmentation steps. Set to
-`0` to skip augmentation.}
+\code{0} to skip augmentation.}
 
 \item{verbose}{Logical if TRUE, emits progress messages.}
 }
@@ -59,18 +60,19 @@ A list with the following elements:
   }
 }
 \description{
-`f.impute_rf` imputes missing values using `randomForest`.
+Impute missing values using \code{randomForest}.
 }
 \details{
-Imputes missing values using a `randomForest` model trained using 
-  observations in which the feature was expressed. Iterates through 
+Imputes missing values using a \code{randomForest} model trained 
+  using observations in which the feature was expressed. Iterates through 
   features beginning with those having fewest missing values. If 
-  `aug_steps > 0`, augments observations with affine transormed versions.
-  This is meant to enable extrapolation outside of observed intensity 
-  range. If `aug_steps > 0`, assumes expression data have been previously
-  `log(x+1)` transformed. If you want `0` to be considered missing, and 
-  have `0` in the data, do something like `exprs[exprs %in% 0] <- NA` 
-  prior to imputing. Augmentation uses `f.aug_mult()`.
+  \code{aug_steps > 0}, augments observations with affine transormed 
+  versions. This is meant to enable extrapolation outside of observed 
+  intensity range. If `aug_steps > 0`, assumes expression data have been 
+  previously \code{log(x+1)} transformed. If you want \code{0} to be 
+  considered missing, and have \code{0} in the data, do something like 
+  \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. Augmentation uses 
+  \code{f.aug_mult()}.
 }
 \examples{
   \dontrun{

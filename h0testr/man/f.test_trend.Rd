@@ -2,12 +2,12 @@
 % Please edit documentation in R/test.R
 \name{f.test_trend}
 \alias{f.test_trend}
-\title{Hypothesis testing using limma trend.}
+\title{Hypothesis testing using \code{limma} trend.}
 \usage{
 f.test_trend(state, config)
 }
 \arguments{
-\item{state}{List with elements formatted like the list returned by `f.read_data()`:
+\item{state}{List with elements formatted like the list returned by \code{f.read_data()}:
 \tabular{ll}{
   \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
   \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -17,17 +17,17 @@ f.test_trend(state, config)
 \item{config}{List with configuration values.}
 }
 \value{
-A data.frame containing results of test.
+A \code{data.frame} containing results of test.
 }
 \description{
-`f.test_trend` tests for differential expression using the `limma` 
+Test for differential expression using the \code{limma} 
   package trend approach.
 }
 \details{
-Tests for differential expression using the `limma` pakcage by running 
-  `lmFit()`, then `eBayes()`, then `topTable()`. Model is fit 
-  to `frm` and an F-test is performed for whether the effect of `test_term` 
-  on `exprs` is zero.
+Tests for differential expression using the \code{limma} pakcage by running 
+    \code{lmFit()}, then \code{eBayes()}, then \code{topTable()}. Model is fit 
+    to \code{config$frm} and an F-test is performed for whether the effect of 
+    \code{config$test_term} on \code{state$expression} is zero.
 }
 \examples{
   \dontrun{

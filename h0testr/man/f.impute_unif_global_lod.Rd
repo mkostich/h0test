@@ -7,7 +7,7 @@
 f.impute_unif_global_lod(state, config, impute_quantile = NULL)
 }
 \arguments{
-\item{state}{A list with elements like that returned by `f.read_data()`:
+\item{state}{A list with elements like that returned by \code{f.read_data()}:
 \tabular{ll}{
   \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
   \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -17,8 +17,8 @@ f.impute_unif_global_lod(state, config, impute_quantile = NULL)
 \item{config}{List with configuration settings.}
 
 \item{impute_quantile}{Numeric between 0 and 1 specifying 
-minimum non-zero/NA expression value for each feature to use as global
-LOD (limit of detection). If NULL, config$impute_quantile used.}
+minimum non-zero/\code{NA} expression value for each feature to use as global
+LOD (limit of detection). If \code{NULL}, \code{config$impute_quantile} used.}
 }
 \value{
 An updated `state` list with the following elements:
@@ -27,18 +27,19 @@ An updated `state` list with the following elements:
     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
   } 
-Returned `state$xpression` matrix contains strictly positive numeric values.
+Returned \code{state$xpression} matrix contains strictly positive numeric values.
 }
 \description{
-`f.impute_unif_global_lod` imputes missing values by randomly drawing 
-  from uniform distribution below an estimated global LOD.
+Impute missing values by randomly drawing from uniform distribution 
+    below an estimated global LOD.
 }
 \details{
 Imputed values are random draws from uniform distribution over the 
-  interval [0, LOD], where LOD is an estimate global limit of 
-  detection. Only NA values are considered as missing, so if you want `0` 
-  to be considered missing, and have `0` in the data, do something like 
-  `state$expression[state$expression %in% 0] <- NA` prior to imputing.
+  interval \code{[0, LOD]}, where \code{LOD} is an estimate global limit of 
+  detection. Only \code{NA} values are considered as missing, so if you want 
+  \code{0} to be considered missing, and have \code{0} in the data, do 
+  something like \code{state$expression[state$expression \%in\% 0] <- NA} 
+  prior to imputing.
 }
 \examples{
   \dontrun{

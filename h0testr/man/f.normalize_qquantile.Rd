@@ -7,7 +7,7 @@
 f.normalize_qquantile(state, config)
 }
 \arguments{
-\item{state}{List with elements formatted like the list returned by `f.read_data()`:
+\item{state}{List with elements formatted like the list returned by \code{f.read_data()}:
 \tabular{ll}{
   \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
   \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -25,13 +25,12 @@ A list (the processed state) with the following elements:
   }
 }
 \description{
-`f.normalize_qquantile` normalizes data using the 'quantile normalization'
-  algorithm.
+Normalize expression values using the 'quantile normalization' algorithm.
 }
 \details{
 Inter-observation normalization resulting in nearly identical
-  signal distributions across all samples, so all quantiles in 0:1 match
-  across all samples. Calls `limma::normalizeQuantiles()` under the hood.
+    signal distributions across all samples, so all quantiles in \code{0:1} match
+    across all samples. Calls \code{limma::normalizeQuantiles()} under the hood.
 }
 \examples{
   \dontrun{

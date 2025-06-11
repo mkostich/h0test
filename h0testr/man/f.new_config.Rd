@@ -10,15 +10,15 @@ f.new_config()
 list of configuration values
 }
 \description{
-`f.new_config` returns a configuration list filled with defaults and
-  example values. Configuration meant to be customized then passed to
-  other functions.
+Returns a configuration list filled with defaults and
+    example values. Configuration meant to be customized then passed to
+    other functions.
 }
 \details{
-Report written to config$log_file; if `config$log_file == ""`,
+Report written to \code{config$log_file}; if \code{config$log_file == ""},
   written to standard out (console or terminal). Only supports non-lists
-    and lists of non-lists (not lists of lists) as `config` values.
-  Throws error if `config$test_term` is not compatible with `config$frm`.
+    and lists of non-lists (not lists of lists) as \code{config} values.
+  Throws error if \code{config$test_term} is not compatible with \code{config$frm}.
 }
 \examples{
   \dontrun{
@@ -27,7 +27,7 @@ Report written to config$log_file; if `config$log_file == ""`,
     config$test_term <- "age:sex"
     config$sample_factors <- list(age=c("young", "old"), sex=c("female", "male"))
     config$feat_id_col <- "gene"
-    config$sample_col <- "sample"
+    config$sample_id_col <- "sample"
     config$obs_col <- "observation"
     f.report_config(config)
   }

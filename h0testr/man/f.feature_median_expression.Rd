@@ -7,7 +7,7 @@
 f.feature_median_expression(state, config)
 }
 \arguments{
-\item{state}{A list with elements like that returned by `f.read_data()`:
+\item{state}{A list with elements like that returned by \code{f.read_data()}:
 \tabular{ll}{
   \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
   \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -17,16 +17,17 @@ f.feature_median_expression(state, config)
 \item{config}{List with configuration settings.}
 }
 \value{
-A numeric vector of length nrow(exprs) with median expression in 
-  each expressing sample
+A numeric vector of length \code{nrow(state$expression)} with median expression in 
+  each expressing sample.
 }
 \description{
-`f.feature_median_expression` calculates the median expression of each 
-  feature in each expressing sample.
+Calculates the median expression of each feature in each expressing sample.
 }
 \details{
-Sample considered to express feature if exprs > 0; NAs count as no expression.
-  Note that NAs and values <= 0 do not count toward the median.
+Sample considered to express feature if \code{state$expression > 0}; 
+    \code{NA}s count as no expression.
+    Note that \code{NA}s and values less than or equal to zero do not count 
+      toward the median.
 }
 \examples{
   \dontrun{

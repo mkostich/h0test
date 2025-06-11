@@ -7,7 +7,7 @@
 f.normalize_cpm(state, config, multiplier = 1e+06)
 }
 \arguments{
-\item{state}{List with elements formatted like the list returned by `f.read_data()`:
+\item{state}{List with elements formatted like the list returned by \code{f.read_data()}:
 \tabular{ll}{
   \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
   \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -18,7 +18,7 @@ f.normalize_cpm(state, config, multiplier = 1e+06)
 
 \item{multiplier}{Numeric greater than zero used to scale returned values 
 after dividing by total counts in observation. For example, the default 
-`multiplier=1e6` yields normalized expression as CPM (counts per million).}
+\code{multiplier=1e6} yields normalized expression as CPM (counts per million).}
 }
 \value{
 A list (the processed state) with the following elements:
@@ -29,13 +29,12 @@ A list (the processed state) with the following elements:
   }
 }
 \description{
-`f.normalize_cpm` normalizes expression using variant of CPM 
-  normalization which excludes missing values.
+Normalize expression using variant of CPM normalization which excludes missing values.
 }
 \details{
 Inter-observation normalization, based on total expression
-  in each observation. Makes total expression (excluding missing values)
-  equal in each observation.
+    in each observation. Makes total expression (excluding missing values)
+    equal in each observation.
 }
 \examples{
   \dontrun{

@@ -16,7 +16,7 @@ f.impute_loess_logit(
 )
 }
 \arguments{
-\item{state}{A list with elements like that returned by `f.read_data()`:
+\item{state}{A list with elements like that returned by \code{f.read_data()}:
   \tabular{ll}{
     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -26,25 +26,25 @@ It is assumed that state$expression has been previously `log2(x+1)` transformed.
 
 \item{config}{List with configuration settings.}
 
-\item{span.}{Numeric greater than 0 and less than 1. 
-Span for loess fit.}
+\item{span.}{Span for loess fit. Numeric in the open interval \code{(0, 1)}.}
 
 \item{gran}{Numeric greater than zero. Granularity of prediction 
 grid. Smaller values lead to less chance of duplicate imputed values.
 Larger values require more compute time and memory.}
 
 \item{off}{Numeric offset for calculating 
-`p.missing = (n.missing + off) / (n.total + off)`.}
+\code{p.missing = (n.missing + off) / (n.total + off)}.}
 
 \item{f_mid}{Function to use for calculating central tendency of 
 feature expression across samples.}
 
-\item{degree}{Numeric in `c(1, 2)`. Degree for loess fit.}
+\item{degree}{Numeric in set \code{c(1, 2)}. Degree for loess fit.}
 
-\item{fam}{Character in `c("symmetric", "gaussian")`. Family for loess fit.}
+\item{fam}{Character in set \code{c("symmetric", "gaussian")}. Family 
+for \code{loess} fit.}
 }
 \value{
-An updated `state` list with the following elements:
+An updated \code{state} list with the following elements:
   \tabular{ll}{
     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -52,16 +52,16 @@ An updated `state` list with the following elements:
   }
 }
 \description{
-`f.impute_loess_logit` imputes missing values by randomly drawing
-  from an estimated density of `p(missing|intensity)`.
+Impute missing values by randomly drawing from an estimated density 
+    of \code{p(missing|intensity)}.
 }
 \details{
 Impute random draws by drawing from the estimated density of 
-  `p(missing|intensity)`. Estimates `p(missing|intensity)` using a loess 
-  fit with form `log(p_missing/p_found) ~ intensity`, where intensity is 
-  assumed to be previously log transformed. If you want `0` to be 
-  considered missing, and have `0` in the data, do something like 
-  `exprs[exprs %in% 0] <- NA` prior to imputing.
+  \code{p(missing|intensity)}. Estimates \code{p(missing|intensity)} using 
+  a loess fit with form \code{log(p_missing/p_found) ~ intensity}, where 
+  intensity is assumed to be previously log transformed. If you want 
+  \code{0} to be considered missing, and have \code{0} in the data, do 
+  something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing.
 }
 \examples{
   \dontrun{

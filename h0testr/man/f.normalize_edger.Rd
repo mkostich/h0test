@@ -2,12 +2,12 @@
 % Please edit documentation in R/normalize.R
 \name{f.normalize_edger}
 \alias{f.normalize_edger}
-\title{Normalize expression using edgeR}
+\title{Normalize expression using \code{edgeR}}
 \usage{
 f.normalize_edger(state, config, method = NULL, p = NULL)
 }
 \arguments{
-\item{state}{List with elements formatted like the list returned by `f.read_data()`:
+\item{state}{List with elements formatted like the list returned by \code{f.read_data()}:
 \tabular{ll}{
   \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
   \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -16,11 +16,11 @@ f.normalize_edger(state, config, method = NULL, p = NULL)
 
 \item{config}{List with configuration values.}
 
-\item{method}{Character in 
-`c("TMM", "TMMwsp", "RLE", "upperquartile", "none")`.}
+\item{method}{Character in set
+\code{c("TMM", "TMMwsp", "RLE", "upperquartile", "none")}.}
 
-\item{p}{Numeric between `0` and `1` specifying quantile to use for method 
-`upperquartile`.}
+\item{p}{Numeric in closed interval \code{[0, 1]} specifying quantile to use for method 
+\code{upperquartile}.}
 }
 \value{
 A list (the processed state) with the following elements:
@@ -31,10 +31,10 @@ A list (the processed state) with the following elements:
   }
 }
 \description{
-`f.normalize_edger` normalizes expression using functionality from edgeR.
+Normalize expression using functionality from \code{edgeR} package.
 }
 \details{
-Inter-observation normalization. `edgeR::calcNormFactors()` 
+Inter-observation normalization. \code{edgeR::calcNormFactors()} 
   called under the hood. Returned values on a counts-per-million scale.
 }
 \examples{

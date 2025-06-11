@@ -10,14 +10,14 @@ f.report_config(config)
 \item{config}{List with configuration values}
 }
 \description{
-`f.report_config` reports configuration used for run, and checks if
-  `config$test_term` is compatible with `config$frm`.
+Reports configuration settings used for run, and checks if
+  \code{config$test_term} is compatible with \code{config$frm}.
 }
 \details{
-Report written to config$log_file; if `config$log_file == ""`,
+Report written to \code{config$log_file}; if \code{config$log_file == ""},
   written to standard out (console or terminal). Only supports non-lists
-    and lists of non-lists (not lists of lists) as `config` values.
-  Throws error if `config$test_term` is not compatible with `config$frm`.
+    and lists of non-lists (not lists of lists) as \code{config} values.
+  Throws error if \code{config$test_term} is not compatible with \code{config$frm}.
 }
 \examples{
   \dontrun{
