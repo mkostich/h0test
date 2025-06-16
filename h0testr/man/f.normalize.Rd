@@ -14,7 +14,12 @@ f.normalize(state, config)
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration values.}
+\item{config}{List with configuration values. Uses the following keys:
+\tabular{ll}{
+  \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+  \code{norm_method}     \cr \tab In \code{c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")}. \cr
+  \code{norm_quantile}   \cr \tab Quantile (numeric between 0 and 1) for \code{norm_method \%in\% c("quantile", "upperquartile")}. \cr
+}}
 }
 \value{
 A list (the processed state) with the following elements:
@@ -48,7 +53,7 @@ Inter-observation normalization using any of the methods available in this packa
     exprs2 <- state2$expression
 
     state <- list(expression=exprs)
-    config <- list(norm_method="cpm", multiplier=1e3, log_file="")
+    config <- list(norm_method="cpm", log_file="")
     out <- f.normalize(state, config)
     config2 <- out$config
     state2 <- out$state

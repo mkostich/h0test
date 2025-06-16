@@ -7,7 +7,17 @@
 f.read_data(config)
 }
 \arguments{
-\item{config}{List with configuration values.}
+\item{config}{List with configuration values. Requires the following keys:
+\tabular{ll}{
+  \code{log_file}  \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+  \code{dir_in}    \cr \tab Path to directory where input files located (character). \cr
+  \code{feature_file_in} \cr \tab Name of file with feature metadata; assumed in \code{dir_in}. \cr
+  \code{sample_file_in}  \cr \tab Name of file with observation metadata; assumed in \code{dir_in}. \cr
+  \code{data_file_in}    \cr \tab Name of file with signal data; assumed in \code{dir_in}. \cr
+  \code{feat_id_col}     \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+  \code{obs_id_col}      \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
+  \code{sample_id_col}   \cr \tab Name of column (character) in \code{sample_file_in} with unique sample labels. \cr
+}}
 }
 \value{
 A list (the initial state) with the following elements:

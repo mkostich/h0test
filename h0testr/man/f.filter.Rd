@@ -14,7 +14,13 @@ f.filter(state, config)
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration settings.}
+\item{config}{List with configuration values. Uses the following keys:
+\tabular{ll}{
+  \code{log_file}       \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+  \code{n_samples_expr_col}  \cr \tab Name (character) of new column in feature metadata to hold number of expressing samples.
+  \code{median_raw_col}      \cr \tab Name (character) of new column in feature metadata to hold median expression in expressing samples.
+  \code{n_features_expr_col} \cr \tab Name (character) of new column in sample metadata to hold number of expressed features.
+}}
 }
 \value{
 A list with elements like that returned by `f.read_data()`:

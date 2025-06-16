@@ -7,7 +7,7 @@
 f.run(config)
 }
 \arguments{
-\item{config}{List with configuration values.}
+\item{config}{List with configuration values like those returned by \code{f.new_config()}.}
 }
 \value{
 A list with the following elements:

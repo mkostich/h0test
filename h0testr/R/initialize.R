@@ -6,7 +6,7 @@
 #'   written to standard out (console or terminal). Only supports non-lists
 #'     and lists of non-lists (not lists of lists) as \code{config} values.
 #'   Throws error if \code{config$test_term} is not compatible with \code{config$frm}.
-#' @param config List with configuration values
+#' @param config List with configuration values.
 #' @return NULL
 #' @examples
 #'   \dontrun{
@@ -46,7 +46,17 @@ f.report_config <- function(config) {
 #'   Expression data from \code{config$data_file_in} in \code{config$dir_in}.
 #'   Feature metadata from \code{config$feature_file_in} in \code{config$dir_in}.
 #'   Observation metadata from \code{config$sample_file_in} in \code{config$dir_in}.
-#' @param config List with configuration values.
+#' @param config List with configuration values. Requires the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}  \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+#'     \code{dir_in}    \cr \tab Path to directory where input files located (character). \cr
+#'     \code{feature_file_in} \cr \tab Name of file with feature metadata; assumed in \code{dir_in}. \cr
+#'     \code{sample_file_in}  \cr \tab Name of file with observation metadata; assumed in \code{dir_in}. \cr
+#'     \code{data_file_in}    \cr \tab Name of file with signal data; assumed in \code{dir_in}. \cr
+#'     \code{feat_id_col}     \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+#'     \code{obs_id_col}      \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
+#'     \code{sample_id_col}   \cr \tab Name of column (character) in \code{sample_file_in} with unique sample labels. \cr
+#'   }
 #' @return A list (the initial state) with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -191,7 +201,14 @@ f.set_covariate_factor_levels <- function(state, config) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values.
+#' @param config List with configuration values. Requires the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+#'     \code{sample_factors}  \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
+#'     \code{feat_id_col}     \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+#'     \code{obs_id_col}      \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
+#'     \code{sample_id_col}   \cr \tab Name of column (character) in \code{sample_file_in} with unique sample labels. \cr
+#'   }
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -237,15 +254,20 @@ f.preprocess_covariates <- function(state, config) {
 #'   Adds filtering-related statistics to \code{state$features}, 
 #'     and \code{state$samples}.
 #' @details 
-#'   Wrapper for `f.samples_per_feature()`, `f.feature_median_expression()`, 
-#'     `f.features_per_sample()`. Also reports quantiles of distributions. 
+#'   Wrapper for \code{f.samples_per_feature()}, \code{f.feature_median_expression()}, 
+#'     \code{f.features_per_sample()}. Also reports quantiles of distributions. 
 #' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values.
+#' @param config List with configuration values. Requires the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}       \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+#'     \code{feat_id_col}    \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+#'     \code{obs_col}        \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{expression}. \cr
+#'   }
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -306,7 +328,12 @@ f.add_filter_stats <- function(state, config) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values.
+#' @param config List with configuration values. Requires the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}       \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+#'     \code{feat_id_col}    \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+#'     \code{obs_col}        \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{expression}. \cr
+#'   }
 #' @param n_samples_min minimum number of samples per feature; numeric >= 1.
 #' @param n_features_min minimum number of features per sample; numeric >= 1.
 #' @return A list (the filtered state) with the following elements:
@@ -353,7 +380,12 @@ f.prefilter <- function(state, config, n_samples_min=1, n_features_min=1) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values.
+#' @param config List with configuration values. Requires the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}       \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+#'     \code{feat_id_col}    \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+#'     \code{sample_id_col}  \cr \tab Name of column (character) in \code{sample_file_in} with unique sample identifiers. \cr
+#'   }
 #' @param variable Character name of variable (column in samples) to permute.
 #' @return A list (the permuted state) with the following elements:
 #'   \tabular{ll}{
@@ -405,7 +437,17 @@ f.permute <- function(state, config, variable=NULL) {
 #'   Load data and metadata from files, format, and save initial copies 
 #' @details Loads data from files specified in \code{config}. Prefilter uninformative rows
 #'   and columns. Permute variable if requested. Save final copies.
-#' @param config List with configuration values.
+#' @param config List with configuration values. Requires the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}  \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+#'     \code{dir_in}    \cr \tab Path to directory where input files located (character). \cr
+#'     \code{feature_file_in} \cr \tab Name of file with feature metadata; assumed in \code{dir_in}. \cr
+#'     \code{sample_file_in}  \cr \tab Name of file with observation metadata; assumed in \code{dir_in}. \cr
+#'     \code{data_file_in}    \cr \tab Name of file with signal data; assumed in \code{dir_in}. \cr
+#'     \code{feat_id_col}     \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+#'     \code{obs_id_col}      \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
+#'     \code{sample_id_col}   \cr \tab Name of column (character) in \code{sample_file_in} with unique sample labels. \cr
+#'   }
 #' @return A list (the initial state) with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with expression values. \cr

@@ -14,7 +14,11 @@ f.impute_rnorm_feature(state, config, scale. = NULL)
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration settings.}
+\item{config}{List with configuration values. Uses the following keys:
+\tabular{ll}{
+  \code{log_file}      \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+  \code{impute_scale}  \cr \tab Factor (numeric) rescaling variance of normal distribution from which draws are made. See details.
+}}
 
 \item{scale.}{Numeric greater than zero, linearly scaling the
 dispersion around the feature mean.}

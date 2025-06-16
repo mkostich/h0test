@@ -14,7 +14,11 @@ f.filter_samples(state, config, n_features_min = NULL)
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration settings.}
+\item{config}{List with configuration values. Uses the following keys:
+\tabular{ll}{
+  \code{log_file}       \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+  \code{n_features_min} \cr \tab Minimum number (non-negative numeric) of features expressed in observation to keep observation.
+}}
 
 \item{n_features_min}{Minimum number of features expressed per sample. Non-negative numeric.}
 }

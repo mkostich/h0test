@@ -7,7 +7,7 @@
 f.report_config(config)
 }
 \arguments{
-\item{config}{List with configuration values}
+\item{config}{List with configuration values.}
 }
 \description{
 Reports configuration settings used for run, and checks if

@@ -14,7 +14,10 @@ f.feature_median_expression(state, config)
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration settings.}
+\item{config}{List with configuration values. Uses the following keys:
+\tabular{ll}{
+  \code{log_file}       \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+}}
 }
 \value{
 A numeric vector of length \code{nrow(state$expression)} with median expression in 

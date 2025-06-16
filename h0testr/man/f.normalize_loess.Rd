@@ -14,7 +14,10 @@ f.normalize_loess(state, config, span = 0.7, method = "affy")
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration values.}
+\item{config}{List with configuration values. Uses the following keys:
+\tabular{ll}{
+  \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+}}
 
 \item{span}{Numeric between 0 and 1 specifying span for loess fit.
 Higher numbers result in smoother (less localized) fit.}

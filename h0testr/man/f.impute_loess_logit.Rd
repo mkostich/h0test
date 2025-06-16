@@ -24,7 +24,12 @@ f.impute_loess_logit(
   } 
 It is assumed that state$expression has been previously `log2(x+1)` transformed.}
 
-\item{config}{List with configuration settings.}
+\item{config}{List with configuration values. Uses the following keys:
+\tabular{ll}{
+  \code{log_file}            \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+  \code{impute_granularity}  \cr \tab Numeric greater than zero. Determines granularity of imputation. Smaller values lead to finer grain.
+  \code{impute_span}         \cr \tab Span (numeric between zero and 1) for \code{loess} fit.
+}}
 
 \item{span.}{Span for loess fit. Numeric in the open interval \code{(0, 1)}.}
 

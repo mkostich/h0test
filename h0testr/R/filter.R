@@ -3,13 +3,17 @@
 #'   Filter features based on number of samples expressing feature.
 #' @details Feature considered expressed if \code{state$expression > 0}; 
 #'   \code{NA}s count as no expression.
-#' @param state A list with elements like that returned by `f.read_data()`:
+#' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration settings.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}      \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+#'     \code{n_samples_min} \cr \tab Minimum number (non-negative numeric) of samples expressing feature to keep feature.
+#'   }
 #' @param n_samples_min Minimum number of samples expressing feature. Non-negative numeric.
 #' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
@@ -69,7 +73,11 @@ f.filter_features <- function(state, config, n_samples_min=NULL) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration settings.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}       \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+#'     \code{n_features_min} \cr \tab Minimum number (non-negative numeric) of features expressed in observation to keep observation.
+#'   }
 #' @param n_features_min Minimum number of features expressed per sample. Non-negative numeric.
 #' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
@@ -132,7 +140,10 @@ f.filter_samples <- function(state, config, n_features_min=NULL) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration settings.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}       \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+#'   }
 #' @return A numeric vector of length \code{nrow(state$expression)} with non-negative sample 
 #'   counts for each feature.
 #' @examples
@@ -172,7 +183,10 @@ f.samples_per_feature <- function(state, config) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration settings.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}       \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+#'   }
 #' @return A numeric vector of length \code{nrow(state$expression)} with median expression in 
 #'   each expressing sample.
 #' @examples
@@ -211,7 +225,10 @@ f.feature_median_expression <- function(state, config) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   }
-#' @param config List with configuration settings.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}       \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+#'   }
 #' @return A numeric vector of length \code{ncol(state$expression)} with 
 #'   number of features expressed in each sample.
 #' @examples
@@ -250,7 +267,13 @@ f.features_per_sample <- function(state, config) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   }
-#' @param config List with configuration settings.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}       \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+#'     \code{n_samples_expr_col}  \cr \tab Name (character) of new column in feature metadata to hold number of expressing samples. \cr
+#'     \code{median_raw_col}      \cr \tab Name (character) of new column in feature metadata to hold median expression in expressing samples. \cr
+#'     \code{n_features_expr_col} \cr \tab Name (character) of new column in sample metadata to hold number of expressed features. \cr
+#'   }
 #' @return A list with elements like that returned by `f.read_data()`:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr

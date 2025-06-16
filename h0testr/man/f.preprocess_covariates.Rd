@@ -14,7 +14,14 @@ f.preprocess_covariates(state, config)
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration values.}
+\item{config}{List with configuration values. Requires the following keys:
+\tabular{ll}{
+  \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+  \code{sample_factors}  \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
+  \code{feat_id_col}     \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+  \code{obs_id_col}      \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
+  \code{sample_id_col}   \cr \tab Name of column (character) in \code{sample_file_in} with unique sample labels. \cr
+}}
 }
 \value{
 A list (the processed state) with the following elements:

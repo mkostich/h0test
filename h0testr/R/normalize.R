@@ -9,7 +9,12 @@
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+#'     \code{norm_method}     \cr \tab Normalization method in \code{c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")}. \cr
+#'     \code{norm_quantile}   \cr \tab Quantile to use for \code{norm_method \%in\% c("quantile", "upperquartile")}. \cr
+#'   }
 #' @param method Character in set
 #'   \code{c("TMM", "TMMwsp", "RLE", "upperquartile", "none")}.
 #' @param p Numeric in closed interval \code{[0, 1]} specifying quantile to use for method 
@@ -77,7 +82,11 @@ f.normalize_edger <- function(state, config, method=NULL, p=NULL) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+#'     \code{norm_quantile}   \cr \tab Quantile to use for \code{norm_method \%in\% c("quantile", "upperquartile")}. \cr
+#'   }
 #' @param norm_quantile Numeric in closed interval \code{[0, 1]} specifying quantile to use.
 #' @param multiplier Numeric used to scale returned values after 
 #'   dividing by selected quantile. 
@@ -127,7 +136,10 @@ f.normalize_quantile <- function(state, config, norm_quantile=NULL, multiplier=1
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+#'   }
 #' @param multiplier Numeric greater than zero used to scale returned values 
 #'   after dividing by total counts in observation. For example, the default 
 #'   \code{multiplier=1e6} yields normalized expression as CPM (counts per million). 
@@ -169,7 +181,10 @@ f.normalize_cpm <- function(state, config, multiplier=1e6) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+#'   }
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -209,7 +224,10 @@ f.normalize_vsn <- function(state, config) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+#'   }
 #' @param span Numeric between 0 and 1 specifying span for loess fit.
 #'   Higher numbers result in smoother (less localized) fit.
 #' @param method Character in \code{c("fast", "affy", "pairs")}.
@@ -250,7 +268,10 @@ f.normalize_loess <- function(state, config, span=0.7, method="affy") {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+#'   }
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -287,7 +308,12 @@ f.normalize_qquantile <- function(state, config) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+#'     \code{norm_method}     \cr \tab In \code{c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")}. \cr
+#'     \code{norm_quantile}   \cr \tab Quantile (numeric between 0 and 1) for \code{norm_method \%in\% c("quantile", "upperquartile")}. \cr
+#'   }
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -311,7 +337,7 @@ f.normalize_qquantile <- function(state, config) {
 #'     exprs2 <- state2$expression
 #'
 #'     state <- list(expression=exprs)
-#'     config <- list(norm_method="cpm", multiplier=1e3, log_file="")
+#'     config <- list(norm_method="cpm", log_file="")
 #'     out <- f.normalize(state, config)
 #'     config2 <- out$config
 #'     state2 <- out$state
@@ -359,7 +385,11 @@ f.normalize <- function(state, config) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}      \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+#'     \code{sample_id_col} \cr \tab Column in observation metadata with unique sample ids. \cr
+#'   }
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr

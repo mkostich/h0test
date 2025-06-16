@@ -14,7 +14,11 @@
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration settings.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}         \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+#'     \code{impute_quantile}  \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD).
+#'   }
 #' @param impute_quantile Numeric between 0 and 1 specifying 
 #'   minimum non-zero/\code{NA} expression value for each feature to use as global
 #'   LOD (limit of detection). If \code{NULL}, \code{config$impute_quantile} used.
@@ -82,7 +86,11 @@ f.impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration settings.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}         \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+#'     \code{impute_quantile}  \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD).
+#'   }
 #' @param impute_quantile Numeric between 0 and 1 specifying 
 #'   minimum non-zero/\code{NA} expression value in each observation to use as the
 #'   observation-specific LOD (limit of detection).
@@ -139,7 +147,10 @@ f.impute_unif_sample_lod <- function(state, config, impute_quantile=0) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration settings.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}         \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+#'   }
 #' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -185,7 +196,11 @@ f.impute_sample_lod <- function(state, config) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration settings.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}      \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+#'     \code{impute_scale}  \cr \tab Factor (numeric) rescaling variance of normal distribution from which draws are made. See details.
+#'   }
 #' @param scale. Numeric greater than zero, linearly scaling the
 #'   dispersion around the feature mean.
 #' @return An updated \code{state} list with the following elements:
@@ -256,7 +271,11 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' It is assumed that state$expression has been previously \code{log2(x+1)} transformed.
-#' @param config List with configuration settings.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}            \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+#'     \code{impute_granularity}  \cr \tab Numeric greater than zero. Determines granularity of imputation. Smaller values lead to finer grain.
+#'   }
 #' @param gran Numeric greater than zero. Granularity of prediction 
 #'   grid. Smaller values lead to less chance of duplicate imputed values.
 #'   Larger values require more compute time and memory.
@@ -308,7 +327,7 @@ f.impute_glm_binom <- function(state, config, gran=NULL, off=1, f_mid=stats::med
   return(state)
 }
 
-#' Impute by drawing from `p(missing|intensity)` estimated with loess.
+#' Impute by drawing from \code{p(missing|intensity)} estimated with loess.
 #' @description
 #'   Impute missing values by randomly drawing from an estimated density 
 #'     of \code{p(missing|intensity)}.
@@ -324,8 +343,13 @@ f.impute_glm_binom <- function(state, config, gran=NULL, off=1, f_mid=stats::med
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' It is assumed that state$expression has been previously `log2(x+1)` transformed.
-#' @param config List with configuration settings.
+#' It is assumed that state$expression has been previously \code{log2(x+1)} transformed.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}            \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+#'     \code{impute_granularity}  \cr \tab Numeric greater than zero. Determines granularity of imputation. Smaller values lead to finer grain.
+#'     \code{impute_span}         \cr \tab Span (numeric between zero and 1) for \code{loess} fit.
+#'   }
 #' @param span. Span for loess fit. Numeric in the open interval \code{(0, 1)}.
 #' @param gran Numeric greater than zero. Granularity of prediction 
 #'   grid. Smaller values lead to less chance of duplicate imputed values.
@@ -416,7 +440,7 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
 #'   features beginning with those having fewest missing values. If 
 #'   \code{aug_steps > 0}, augments observations with affine transormed 
 #'   versions. This is meant to enable extrapolation outside of observed 
-#'   intensity range. If `aug_steps > 0`, assumes expression data have been 
+#'   intensity range. If \code{aug_steps > 0}, assumes expression data have been 
 #'   previously \code{log(x+1)} transformed. If you want \code{0} to be 
 #'   considered missing, and have \code{0} in the data, do something like 
 #'   \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. Augmentation uses 
@@ -428,7 +452,10 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' It is assumed that state$expression has been previously \code{log2(x+1)} transformed.
-#' @param config List with configuration settings.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}   \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+#'   }
 #' @param f_imp Function to use for initial rough imputation.
 #' @param ntree Numeric (greater than 0) number of trees in random forest.
 #'   \code{randomForest} \code{ntree} parameter.
@@ -537,7 +564,10 @@ f.impute_rf <- function(state, config, f_imp=f.impute_loess_logit, ntree=100,
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' It is assumed that state$expression has been previously \code{log2(x+1)} transformed.
-#' @param config List with configuration settings.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}            \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+#'   }
 #' @param f_imp Function to use for initial rough imputation.
 #' @param alpha Numeric (between 0 and 1) number of trees in random forest.
 #' @param nfolds Numeric (greater than or equal to 2) number of folds for 
@@ -646,7 +676,15 @@ f.impute_glmnet <- function(state, config, f_imp=f.impute_loess_logit,
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   }
 #' It is assumed that \code{state$expression} has been previously \code{log2(x+1)} transformed.
-#' @param config List with configuration settings.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}           \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+#'     \code{impute_method}      \cr \tab In \code{c("unif_global_lod","unif_sample_lod","sample_lod","rnorm_feature","glm_binom","loess_logit","glmnet","rf","none")} \cr
+#'     \code{impute_quantile}    \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD). \cr
+#'     \code{impute_scale}       \cr \tab Factor (numeric) rescaling variance of normal distribution from which draws are made for \code{impute_method \%in\% "rnorm"}. \cr
+#'     \code{impute_granularity} \cr \tab Numeric greater than zero. Determines granularity of imputation. Smaller values lead to finer grain. \cr
+#'     \code{impute_span}        \cr \tab Span (numeric between zero and 1) for \code{loess} fit. \cr
+#'   }
 #' @return Updated \code{state} list with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr

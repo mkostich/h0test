@@ -14,7 +14,11 @@ f.impute_unif_global_lod(state, config, impute_quantile = NULL)
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration settings.}
+\item{config}{List with configuration values. Uses the following keys:
+\tabular{ll}{
+  \code{log_file}         \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+  \code{impute_quantile}  \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD).
+}}
 
 \item{impute_quantile}{Numeric between 0 and 1 specifying 
 minimum non-zero/\code{NA} expression value for each feature to use as global

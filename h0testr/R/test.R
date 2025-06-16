@@ -12,7 +12,10 @@
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}            \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+#'   }
 #' @param normalize.method Character in 
 #'   \code{c("TMM", "TMMwsp", "RLE", "upperquartile", "none")}.
 #' @return A data.frame containing results of test.
@@ -66,7 +69,10 @@ f.test_voom <- function(state, config, normalize.method="none") {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}            \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+#'   }
 #' @return A \code{data.frame} containing results of test.
 #' @examples
 #'   \dontrun{
@@ -109,7 +115,10 @@ f.test_trend <- function(state, config) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values.
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{log_file}            \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+#'   }
 #' @return A data.frame containing results of test.
 #' @examples
 #'   \dontrun{
@@ -154,7 +163,7 @@ f.test <- function(state, config) {
 #'     \code{f.load_data -> config$run_order -> f.test}, where 
 #'       \code{config$run_order} is vector of functions which are run in
 #'       the specified order.
-#' @param config List with configuration values.
+#' @param config List with configuration values like those returned by \code{f.new_config()}.
 #' @return A list with the following elements:
 #'   \tabular{ll}{
 #'     \code{state}  \cr \tab A list with elements \code{$expression}, \code{$features}, and \code{$samples}. \cr

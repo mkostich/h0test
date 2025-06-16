@@ -26,7 +26,10 @@ f.impute_glmnet(
   } 
 It is assumed that state$expression has been previously \code{log2(x+1)} transformed.}
 
-\item{config}{List with configuration settings.}
+\item{config}{List with configuration values. Uses the following keys:
+\tabular{ll}{
+  \code{log_file}            \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+}}
 
 \item{f_imp}{Function to use for initial rough imputation.}
 

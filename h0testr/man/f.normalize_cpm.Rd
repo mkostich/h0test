@@ -14,7 +14,10 @@ f.normalize_cpm(state, config, multiplier = 1e+06)
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration values.}
+\item{config}{List with configuration values. Uses the following keys:
+\tabular{ll}{
+  \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+}}
 
 \item{multiplier}{Numeric greater than zero used to scale returned values 
 after dividing by total counts in observation. For example, the default 

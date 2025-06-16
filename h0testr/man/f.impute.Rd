@@ -15,7 +15,15 @@ f.impute(state, config)
   }
 It is assumed that \code{state$expression} has been previously \code{log2(x+1)} transformed.}
 
-\item{config}{List with configuration settings.}
+\item{config}{List with configuration values. Uses the following keys:
+\tabular{ll}{
+  \code{log_file}           \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+  \code{impute_method}      \cr \tab In \code{c("unif_global_lod","unif_sample_lod","sample_lod","rnorm_feature","glm_binom","loess_logit","glmnet","rf","none")}
+  \code{impute_quantile}    \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD).
+  \code{impute_scale}       \cr \tab Factor (numeric) rescaling variance of normal distribution from which draws are made for \code{impute_method \%in\% "rnorm"}.
+  \code{impute_granularity} \cr \tab Numeric greater than zero. Determines granularity of imputation. Smaller values lead to finer grain.
+  \code{impute_span}        \cr \tab Span (numeric between zero and 1) for \code{loess} fit.
+}}
 }
 \value{
 Updated \code{state} list with the following elements:
