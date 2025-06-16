@@ -79,7 +79,7 @@ f.test_voom <- function(state, config, normalize.method="none") {
 f.test_trend <- function(state, config) {
 
   if(!is.matrix(state$expression)) {
-    f.err("f.test_trend: !is.matrix(state$expression)")
+    f.err("f.test_trend: !is.matrix(state$expression)", config=config)
   }
   
   design <- stats::model.matrix(config$frm, data=state$samples)
@@ -92,8 +92,8 @@ f.test_trend <- function(state, config) {
   i <- colnames(design) %in% cols
   tbl <- limma::topTable(fit, coef=which(i), number=Inf)
   
-  f.msg("tested", nrow(state$expression), "genes")
-  f.msg("found", sum(tbl$adj.P.Val < 0.05, na.rm=T), "hits")
+  f.msg("tested", nrow(state$expression), "genes", config=config)
+  f.msg("found", sum(tbl$adj.P.Val < 0.05, na.rm=T), "hits", config=config)
   
   return(tbl)
 }
@@ -129,7 +129,8 @@ f.test <- function(state, config) {
     f.msg("skipping testing: TEST_METHOD %in% 'none'", config=config)
     return(NULL)
   } else f.err("unexpected TEST_METHOD:", config$test_method, config=config)
-
+  
+  rownames(state$features) <- state$features[[config$feat_id_col]]
   if(!all(rownames(tbl) %in% rownames(state$features))) {
     f.err("!all(rownames(tbl) %in% rownames(state$features))", config=config)
   }
@@ -146,11 +147,13 @@ f.test <- function(state, config) {
 
 #' Run a basic workflow
 #' @description
-#'   Run a basic workflow: 
-#'     \code{f.load_data -> f.normalize -> f.combine_reps -> f.filter -> f.impute -> f.test}.
+#'   Run a basic workflow according to: 
+#'     \code{config$run_order}.
 #' @details
 #'   Run a basic workflow: 
-#'     \code{f.load_data -> f.normalize -> f.combine_reps -> f.filter -> f.impute -> f.test}.
+#'     \code{f.load_data -> config$run_order -> f.test}, where 
+#'       \code{config$run_order} is vector of functions which are run in
+#'       the specified order.
 #' @param config List with configuration values.
 #' @return A list with the following elements:
 #'   \tabular{ll}{
@@ -160,18 +163,28 @@ f.test <- function(state, config) {
 #'   }
 #' @examples
 #'   \dontrun{
-#'     state <- list(expression=exprs, features=feats, samples=samps)
 #'     config <- list(frm=~age+sex+age:sex, test_term="age:sex", test_method="trend")
-#'     tbl <- f.test(state, config)
+#'     config$run_order <- c("normalize", "combine_reps", "filter", "impute")
+#'     output <- f.run(config)
+#'     tbl <- output$tbl
 #'     head(tbl)
 #'   }
 
 f.run <- function(config) {
+
+  f.log_block("starting f.load_data", config=config)
   out <- f.load_data(config)
-  out <- f.normalize(out$state, out$config)
-  out <- f.combine_reps(out$state, out$config)
-  out <- f.filter(out$state, out$config)
-  out <- f.impute(out$state, out$config)
+  
+  for(f in config$run_order) {
+    f <- paste0("f.", f)
+    f.log_block("starting", f, config=config)
+    f <- get(f)
+    out <- f(out$state, out$config)
+  }
+  
+  f.log_block("starting f.test", config=out$config)
   tbl <- f.test(out$state, out$config)
+  
   return(list(state=out$state, config=out$config, tbl=tbl))
 }
+

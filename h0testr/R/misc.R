@@ -9,6 +9,11 @@ f.log <- function(..., config) {
   utils::flush.console()
 }
 
+f.log_block <- function(..., config) {
+  f.msg("", config=config)
+  f.log(..., config=config)
+}
+
 f.err <- function(..., config) {
   f.log("ERROR:", ..., config=config)
   stop("Stopping", call.=F)
@@ -33,6 +38,7 @@ f.check_state <- function(state, config) {
       config=config)
   }
   
+  if(config$obs_col %in% "") config$obs_col <- config$obs_id_col
   samps <- state$samples[, config$obs_col, drop=T]
   if(!all(colnames(state$expression) == samps)) {
     f.err("state$samples do not match columns of state$expression", 
@@ -42,18 +48,18 @@ f.check_state <- function(state, config) {
 
 f.report_state <- function(state, config) {
 
-  f.msg("N features: ", nrow(state$exprssion), 
-    "; N observations: ", ncol(state$exprssion), config=config)
+  f.msg("N features: ", nrow(state$expression), 
+    "; N observations: ", ncol(state$expression), config=config)
     
   f.msg("signal distribution:", config=config)
   
-  f.quantile(c(state$exprssion), config, digits=0) 
+  f.quantile(c(state$expression), config, digits=0) 
   
-  f.msg("min(state$exprssion):", min(c(state$exprssion), na.rm=T), 
-    "; mean(state$exprssion):", mean(c(state$exprssion), na.rm=T), 
+  f.msg("min(state$expression):", min(c(state$expression), na.rm=T), 
+    "; mean(state$expression):", mean(c(state$expression), na.rm=T), 
     config=config)
     
-  f.msg("num NAs: ", sum(is.na(c(state$exprssion))), config=config)
+  f.msg("num NAs: ", sum(is.na(c(state$expression))), config=config)
 }
 
 f.save_state <- function(state, config, prefix) {
@@ -61,7 +67,7 @@ f.save_state <- function(state, config, prefix) {
   file_out <- paste0(config$dir_out, "/", prefix, 
     config$data_mid_out, config$suffix_out)
   f.log("writing expression data to", file_out, config=config)
-  f.save_tsv(state$exprs, file_out, config)
+  f.save_tsv(state$expression, file_out, config)
 
   file_out <- paste0(config$dir_out, "/", prefix, 
     config$feature_mid_out, config$suffix_out)

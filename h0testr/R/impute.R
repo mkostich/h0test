@@ -694,6 +694,6 @@ f.impute <- function(state, config) {
   f.report_state(state, config)
   f.save_state(state, config, prefix="6.imputed")
   
-  return(state)
+  return(list(state=state, config=config))
 }
 

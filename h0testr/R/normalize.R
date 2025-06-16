@@ -385,11 +385,13 @@ f.combine_reps <- function(state, config) {
   state$expression <- t(apply(state$expression, 1, f, sample_ids))
   state$samples <- state$samples[!duplicated(sample_ids), ]
   state$samples[, config$obs_id_col] <- NULL                  ## !!!!!
-  if(!all(state$samples[, config$sample_id_col, drop=T] %in% colnames(state$expression))) {
+  sample_ids <- state$samples[, config$sample_id_col, drop=T]
+  if(!all(sample_ids %in% colnames(state$expression))) {
     f.err("!all(samples[, config$sample_id_col] %in% colnames(expression))", config=config)
-  }
-  
+  }  
   state$expression <- state$expression[, sample_ids]
+  config$obs_col <- config$sample_id_col
+
   f.check_state(state, config)
   f.report_state(state, config)
   f.save_state(state, config, prefix="4.combined")

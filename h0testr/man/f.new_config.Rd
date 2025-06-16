@@ -28,7 +28,8 @@ Report written to \code{config$log_file}; if \code{config$log_file == ""},
     config$sample_factors <- list(age=c("young", "old"), sex=c("female", "male"))
     config$feat_id_col <- "gene"
     config$sample_id_col <- "sample"
-    config$obs_col <- "observation"
+    config$obs_id_col <- "observation"
+    config$log_file <- "/path/to/log.txt"
     f.report_config(config)
   }
 }

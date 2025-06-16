@@ -16,7 +16,8 @@
 #'     config$sample_factors <- list(age=c("young", "old"), sex=c("female", "male"))
 #'     config$feat_id_col <- "gene"
 #'     config$sample_id_col <- "sample"
-#'     config$obs_col <- "observation"
+#'     config$obs_id_col <- "observation"
+#'     config$log_file <- "/path/to/log.txt"
 #'     f.report_config(config)
 #'   }
 
@@ -39,15 +40,14 @@ f.new_config <- function() {
     ),
     ## samps and feats column names (new cols are introduced by the code):
     feat_id_col="gene_id",               ## feats[, feat_id_col] == rownames(exprs)
-    obs_id_col="assay_id",               ## unique id for initial observations, which may be tech reps
+    obs_id_col="observation_id",         ## unique id for initial observations, which may be tech reps
     sample_id_col="sample_id",           ## id for samples in samps; not unique if tech reps;
-    obs_col="",                          ## FIX: for internal use; leave ""; samps[, obs_col] == colnames(exprs) throughout
-    ## FIX: sample_col="sample_id",      ## id for samples in samps; not unique if tech reps;
+    obs_col="",                          ## for internal use; leave ""; samps[, obs_col] == colnames(exprs) throughout
     n_samples_expr_col="n_samps_expr",   ## new col; n samples expressing feature
     median_raw_col="median_raw",         ## new col; median feature expression in expressing samples
     n_features_expr_col="n_feats_expr",  ## new col; n features express
     ## output file naming:
-    log_file="log.txt",                  ## log file path; or "" for log to console                 
+    log_file="",                         ## log file path (character); or "" for log to console                 
     feature_mid_out=".features",         ## midfix for output feature files
     sample_mid_out=".samples",           ## midfix for output samples file
     data_mid_out=".expression",          ## midfix for output expression files
@@ -65,7 +65,8 @@ f.new_config <- function() {
     impute_granularity=0.0001,           ## granularity of imputed values for f.impute_glm_binom and f.impute_loess_logit
     impute_span=0.25,                    ## loess span for f.impute_loess_logit 
     test_method="trend",                 ## in c("voom", "trend")
-    ## misc:
+    ## misc; run_order character vector with elements from {"normalize", "combine_reps", "filter", "impute"}:
+    run_order=c("normalize", "combine_reps", "filter", "impute"),
     probs=c(0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0),
     width=110,
     verbose=T

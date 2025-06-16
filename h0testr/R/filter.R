@@ -111,8 +111,12 @@ f.filter_samples <- function(state, config, n_features_min=NULL) {
   f.msg("filtering", sum(!i), "samples, keeping", sum(i), config=config)
   state$expression <- state$expression[, i]
   state$samples <- state$samples[i, ]
-  f.msg("samples filtered: nrow(state$expression):", nrow(state$expression), 
-    "; ncol(state$expression):", ncol(state$expression), config=config)
+  f.msg(
+    "n_features_min:", n_features_min, 
+    "; samples filtered: nrow(state$expression):", nrow(state$expression), 
+    "; ncol(state$expression):", ncol(state$expression), 
+    config=config
+  )
 
   return(state)
 }
@@ -267,14 +271,9 @@ f.features_per_sample <- function(state, config) {
 
 f.filter <- function(state, config) {
 
-  out <- f.filter_features(state, config)
-  state <- out$state
-  config <- out$config
-  
-  out <- f.filter_samples(state, config)
-  state <- out$state
-  config <- out$config
-  
+  state <- f.filter_features(state, config)
+  state <- f.filter_samples(state, config)
+
   n <- f.samples_per_feature(state, config)
   state$features[, config$n_samples_expr_col] <- n
   

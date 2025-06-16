@@ -19,7 +19,7 @@ f.report_config <- function(config) {
     v1 <- config[[k1]]
     if(is.list(v1)) {
       for(k2 in names(v1)) {
-        f.msg(k1, ":", k2, ":", paste(as.character(v1), sep=", "), config=config)
+        f.msg(k1, ":", k2, ":", paste(as.character(v1[[k2]]), sep=", "), config=config)
       }
     } else f.msg(k1, ":", paste(as.character(v1), sep=", "), config=config)
   }
@@ -81,6 +81,7 @@ f.read_data <- function(config) {
     f.err("!(typeof(exprs) %in% 'double')", config=config)
   }
   
+  f.log("checking initial state", config=config)
   state <- list(expression=exprs, features=feats, samples=samps)
   f.check_state(state, config)
   
@@ -108,6 +109,13 @@ f.check_covariates <- function(state, config) {
 
   if(!(config$feat_id_col %in% names(state$features))) {
     f.err("!(config$feat_id_col %in% names(state$features))", config=config)
+  }
+  
+  if(any(duplicated(state$features[[config$feat_id_col]]))) {
+    f.err("any(duplicated(state$features[[config$feat_id_col]]))")
+  }
+  if(any(duplicated(state$samples[[config$obs_id_col]]))) {
+    f.err("any(duplicated(state$samples[[config$obs_id_col]]))")
   }
 }
 
@@ -281,6 +289,8 @@ f.add_filter_stats <- function(state, config) {
   n <- apply(state$expression, 2, function(v) sum(v > 0, na.rm=T))
   f.msg("features per sample", config=config)
   f.quantile(n, config, digits=0)
+  
+  return(state)
 }
 
 #' Prefilter data
@@ -421,14 +431,17 @@ f.load_data <- function(config) {
   f.report_config(config)
   
   state <- f.read_data(config)
-  state <- f.preprocess_covariates(state, config)
-  f.add_filter_stats(state, config)
+  out <- f.preprocess_covariates(state, config)
+  state <- out$state
+  config <- out$config
+  
+  state <- f.add_filter_stats(state, config)
   f.check_state(state, config)
   f.report_state(state, config)
   f.save_state(state, config, prefix="1.initial")
 
-  f.prefilter(state, config)
-  f.permute(state, config)
+  state <- f.prefilter(state, config)
+  state <- f.permute(state, config)
 
   f.check_state(state, config)
   f.report_state(state, config)

@@ -18,18 +18,21 @@ A list with the following elements:
   }
 }
 \description{
-Run a basic workflow: 
-    \code{f.load_data -> f.normalize -> f.combine_reps -> f.filter -> f.impute -> f.test}.
+Run a basic workflow according to: 
+    \code{config$run_order}.
 }
 \details{
 Run a basic workflow: 
-    \code{f.load_data -> f.normalize -> f.combine_reps -> f.filter -> f.impute -> f.test}.
+    \code{f.load_data -> config$run_order -> f.test}, where 
+      \code{config$run_order} is vector of functions which are run in
+      the specified order.
 }
 \examples{
   \dontrun{
-    state <- list(expression=exprs, features=feats, samples=samps)
     config <- list(frm=~age+sex+age:sex, test_term="age:sex", test_method="trend")
-    tbl <- f.test(state, config)
+    config$run_order <- c("normalize", "combine_reps", "filter", "impute")
+    output <- f.run(config)
+    tbl <- output$tbl
     head(tbl)
   }
 }
