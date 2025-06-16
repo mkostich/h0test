@@ -285,7 +285,9 @@ f.filter <- function(state, config) {
   
   f.check_state(state, config)
   f.report_state(state, config)
-  f.save_state(state, config, prefix="5.filtered")
+  i <- config$run_order %in% "filter"
+  prfx <- paste0(which(i)[1] + 2, ".filtered")
+  f.save_state(state, config, prefix=prfx)
   
   return(list(state=state, config=config))
 }

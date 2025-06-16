@@ -341,7 +341,9 @@ f.normalize <- function(state, config) {
 
   f.check_state(state, config)
   f.report_state(state, config)
-  f.save_state(state, config, prefix="3.normalized")
+  i <- config$run_order %in% "normalize"
+  prfx <- paste0(which(i)[1] + 2, ".normalized")
+  f.save_state(state, config, prefix=prfx)
   
   return(list(state=state, config=config))
 }
@@ -394,7 +396,9 @@ f.combine_reps <- function(state, config) {
 
   f.check_state(state, config)
   f.report_state(state, config)
-  f.save_state(state, config, prefix="4.combined")
+  i <- config$run_order %in% "combine_reps"
+  prfx <- paste0(which(i)[1] + 2, ".combined")
+  f.save_state(state, config, prefix=prfx)
   
   return(list(state=state, config=config))
 }
