@@ -17,7 +17,7 @@ f.normalize_edger(state, config, method = NULL, p = NULL)
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
   \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
-  \code{norm_method}     \cr \tab Normalization method in \code{c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")}. \cr
+  \code{norm_method}     \cr \tab Normalization method in \code{c("TMM", "TMMwsp", "RLE", "upperquartile")}. \cr
   \code{norm_quantile}   \cr \tab Quantile to use for \code{norm_method \%in\% c("quantile", "upperquartile")}. \cr
 }}
 

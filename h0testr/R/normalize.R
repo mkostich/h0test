@@ -12,7 +12,7 @@
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
 #'     \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
-#'     \code{norm_method}     \cr \tab Normalization method in \code{c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")}. \cr
+#'     \code{norm_method}     \cr \tab Normalization method in \code{c("TMM", "TMMwsp", "RLE", "upperquartile")}. \cr
 #'     \code{norm_quantile}   \cr \tab Quantile to use for \code{norm_method \%in\% c("quantile", "upperquartile")}. \cr
 #'   }
 #' @param method Character in set
@@ -356,11 +356,13 @@ f.normalize <- function(state, config) {
     state <- f.normalize_vsn(state, config)
   } else if(config$norm_method %in% "qquantile") {
     state <- f.normalize_qquantile(state, config)
+  } else if(config$norm_method %in% "log2") {
+    f.msg("config$norm_method %in% 'log2'", config=config)
   } else if(config$norm_method %in% "none") {
     f.msg("skipping normalization: config$norm_method %in% 'none'", config=config)
   } else f.err("unexpected config$norm_method:", config$norm_method, config=config)
   
-  if(!(config$norm_method %in% "vsn")) {
+  if(!(config$norm_method %in% c("vsn", "none"))) {
     f.log("transforming data", config=config)
     state$expression <- log2(state$expression + 1)
   } 
@@ -388,6 +390,7 @@ f.normalize <- function(state, config) {
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
 #'     \code{log_file}      \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+#'     \code{obs_id_col}    \cr \tab Column in observation metadata matching rownames of \code{state$expression} \cr
 #'     \code{sample_id_col} \cr \tab Column in observation metadata with unique sample ids. \cr
 #'   }
 #' @return A list (the processed state) with the following elements:

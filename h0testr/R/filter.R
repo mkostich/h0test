@@ -283,7 +283,8 @@ f.features_per_sample <- function(state, config) {
 #' @examples
 #'   \dontrun{
 #'     state <- list(expression=exprs, features=feats, samples=samps)
-#'     config <- list(log_file="")
+#'     config <- list(log_file="", n_samples_expr_col="n_samples_expr", 
+#'       median_raw_col="median_expr", n_features_expr_col="n_feats_expr")
 #'     out <- f.filter(state, config)
 #'     config2 <- out$config
 #'     state2 <- out$state

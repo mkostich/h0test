@@ -2,7 +2,7 @@
 % Please edit documentation in R/impute.R
 \name{f.impute_loess_logit}
 \alias{f.impute_loess_logit}
-\title{Impute by drawing from `p(missing|intensity)` estimated with loess.}
+\title{Impute by drawing from \code{p(missing|intensity)} estimated with loess.}
 \usage{
 f.impute_loess_logit(
   state,
@@ -22,7 +22,7 @@ f.impute_loess_logit(
     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
   } 
-It is assumed that state$expression has been previously `log2(x+1)` transformed.}
+It is assumed that state$expression has been previously \code{log2(x+1)} transformed.}
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
@@ -77,7 +77,7 @@ Impute random draws by drawing from the estimated density of
     state2 <- f.impute_loess_logit(state, config, span.=1, gran=0.0001)
     exprs2 <- state2$expression
 
-    config <- list(span.=1, gran=0.0001, log_file="")
+    config <- list(impute_span=1, impute_granularity=0.0001, log_file="")
     state2 <- f.impute_loess_logit(state, config)
     exprs2 <- state2$expression
  }

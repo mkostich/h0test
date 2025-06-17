@@ -117,13 +117,16 @@ f.test_trend <- function(state, config) {
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{log_file}            \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+#'     \code{test_method}  \cr \tab Method (character) in \code{c("trend", "voom")}.
+#'     \code{frm}          \cr \tab Formula (formula) to be fit
+#'     \code{test_term}    \cr \tab Term (character) to be tested for non-zero coefficient.
+#'     \code{log_file}     \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
 #'   }
 #' @return A data.frame containing results of test.
 #' @examples
 #'   \dontrun{
 #'     state <- list(expression=exprs, features=feats, samples=samps)
-#'     config <- list(frm=~age+sex+age:sex, test_term="age:sex", test_method="trend")
+#'     config <- list(frm=~age+sex+age:sex, test_term="age:sex", test_method="trend", log_file="")
 #'     tbl <- f.test(state, config)
 #'     head(tbl)
 #'   }
@@ -172,7 +175,10 @@ f.test <- function(state, config) {
 #'   }
 #' @examples
 #'   \dontrun{
-#'     config <- list(frm=~age+sex+age:sex, test_term="age:sex", test_method="trend")
+#'     config <- h0testr::f.new_config()
+#'     config$frm=~age+sex+age:sex
+#'     config$test_term="age:sex"
+#'     config$test_method="trend"
 #'     config$run_order <- c("normalize", "combine_reps", "filter", "impute")
 #'     output <- f.run(config)
 #'     tbl <- output$tbl

@@ -41,7 +41,7 @@ If variable is \code{NULL}, uses \code{config$permute_var} instead. If variable 
 \examples{
   \dontrun{
     state <- list(expression=exprs, samples=samps)
-    config <- list(log_file="")
+    config <- list(log_file="", feat_id_col="gene", sample_id_col="sampleId")
     state2 <- f.permute(state, config, permute_var="age")
     exprs2 <- state2$expression
     samps2 <- state2$samples

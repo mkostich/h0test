@@ -298,7 +298,7 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 #'     state2 <- f.impute_glm_binom(state, config, impute_granularity=0.0001)
 #'     exprs2 <- state2$expression
 #'
-#'     config <- list(gran=0.0001, log_file="")
+#'     config <- list(impute_granulatiry=0.0001, log_file="")
 #'     state2 <- f.impute_glm_binom(state, config)
 #'     exprs2 <- state2$expression
 #'   }
@@ -376,7 +376,7 @@ f.impute_glm_binom <- function(state, config, gran=NULL, off=1, f_mid=stats::med
 #'     state2 <- f.impute_loess_logit(state, config, span.=1, gran=0.0001)
 #'     exprs2 <- state2$expression
 #'
-#'     config <- list(span.=1, gran=0.0001, log_file="")
+#'     config <- list(impute_span=1, impute_granularity=0.0001, log_file="")
 #'     state2 <- f.impute_loess_logit(state, config)
 #'     exprs2 <- state2$expression
 #'  }

@@ -29,7 +29,10 @@ Run a basic workflow:
 }
 \examples{
   \dontrun{
-    config <- list(frm=~age+sex+age:sex, test_term="age:sex", test_method="trend")
+    config <- h0testr::f.new_config()
+    config$frm=~age+sex+age:sex
+    config$test_term="age:sex"
+    config$test_method="trend"
     config$run_order <- c("normalize", "combine_reps", "filter", "impute")
     output <- f.run(config)
     tbl <- output$tbl

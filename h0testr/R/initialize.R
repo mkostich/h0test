@@ -66,7 +66,9 @@ f.report_config <- function(config) {
 #' @examples
 #'   \dontrun{
 #'     config <- list(dir_in=".", feature_file_in="feats.tsv", 
-#'       sample_file_in="samps.tsv", data_file_in="exprs.tsv", log_file="")
+#'       sample_file_in="samps.tsv", data_file_in="exprs.tsv", 
+#'       feat_id_col="gene", obs_id_col="replicate", sample_id_col="sample", 
+#'       log_file="")
 #'     state <- f.read_data(config)
 #'     exprs <- state$expression
 #'     feats <- state$features
@@ -264,9 +266,9 @@ f.preprocess_covariates <- function(state, config) {
 #'   } 
 #' @param config List with configuration values. Requires the following keys:
 #'   \tabular{ll}{
-#'     \code{log_file}       \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
-#'     \code{feat_id_col}    \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
-#'     \code{obs_col}        \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{expression}. \cr
+#'     \code{log_file}     \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+#'     \code{feat_id_col}  \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+#'     \code{obs_id_col}   \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{expression}. \cr
 #'   }
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
@@ -277,7 +279,7 @@ f.preprocess_covariates <- function(state, config) {
 #' @examples
 #'   \dontrun{
 #'     state <- list(expression=exprs, features=feats, samples=samps)
-#'     config <- list(log_file="")
+#'     config <- list(log_file="", feat_id_col="protein_group", obs_col="sample")
 #'     state <- f.preprocess_covariates(state, config)
 #'     exprs <- state$expression
 #'     feats <- state$features
@@ -299,6 +301,7 @@ f.add_filter_stats <- function(state, config) {
   state$features[, config$median_raw_col] <- m
 
   n <- f.features_per_sample(state, config)
+  if(config$obs_col %in% "") config$obs_col <- config$obs_id_col
   if(!all(names(n) == state$samples[, config$obs_col, drop=T])) {
     f.err("!all(names(n) == state$samples[, config$obs_col])", config=config)
   } 
@@ -330,9 +333,9 @@ f.add_filter_stats <- function(state, config) {
 #'   } 
 #' @param config List with configuration values. Requires the following keys:
 #'   \tabular{ll}{
-#'     \code{log_file}       \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
-#'     \code{feat_id_col}    \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
-#'     \code{obs_col}        \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{expression}. \cr
+#'     \code{log_file}     \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+#'     \code{feat_id_col}  \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+#'     \code{obs_id_col}   \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{expression}. \cr
 #'   }
 #' @param n_samples_min minimum number of samples per feature; numeric >= 1.
 #' @param n_features_min minimum number of features per sample; numeric >= 1.
@@ -345,7 +348,7 @@ f.add_filter_stats <- function(state, config) {
 #' @examples
 #'   \dontrun{
 #'     state <- list(expression=exprs, features=feats, samples=samps)
-#'     config <- list(log_file="")
+#'     config <- list(log_file="", feat_id_col="peptide", obs_id_col="replicate")
 #'     state <- f.prefilter(state, config)
 #'     exprs <- state$expression
 #'     feats <- state$features
@@ -396,7 +399,7 @@ f.prefilter <- function(state, config, n_samples_min=1, n_features_min=1) {
 #' @examples
 #'   \dontrun{
 #'     state <- list(expression=exprs, samples=samps)
-#'     config <- list(log_file="")
+#'     config <- list(log_file="", feat_id_col="gene", sample_id_col="sampleId")
 #'     state2 <- f.permute(state, config, permute_var="age")
 #'     exprs2 <- state2$expression
 #'     samps2 <- state2$samples

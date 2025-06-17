@@ -71,7 +71,7 @@ Imputes missing values using a \code{randomForest} model trained
   features beginning with those having fewest missing values. If 
   \code{aug_steps > 0}, augments observations with affine transormed 
   versions. This is meant to enable extrapolation outside of observed 
-  intensity range. If `aug_steps > 0`, assumes expression data have been 
+  intensity range. If \code{aug_steps > 0}, assumes expression data have been 
   previously \code{log(x+1)} transformed. If you want \code{0} to be 
   considered missing, and have \code{0} in the data, do something like 
   \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. Augmentation uses 

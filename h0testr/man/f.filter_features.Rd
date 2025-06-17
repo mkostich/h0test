@@ -7,7 +7,7 @@
 f.filter_features(state, config, n_samples_min = NULL)
 }
 \arguments{
-\item{state}{A list with elements like that returned by `f.read_data()`:
+\item{state}{A list with elements like that returned by \code{f.read_data()}:
 \tabular{ll}{
   \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
   \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr

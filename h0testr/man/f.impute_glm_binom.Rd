@@ -60,7 +60,7 @@ Impute random draws by drawing from the estimated density of
     state2 <- f.impute_glm_binom(state, config, impute_granularity=0.0001)
     exprs2 <- state2$expression
 
-    config <- list(gran=0.0001, log_file="")
+    config <- list(impute_granulatiry=0.0001, log_file="")
     state2 <- f.impute_glm_binom(state, config)
     exprs2 <- state2$expression
   }

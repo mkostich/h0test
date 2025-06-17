@@ -1,11 +1,11 @@
 Package: h0testr
 Version: 0.1-1
-Date: 2025-06-16
+Date: 2025-06-17
 Title: Hypothesis testing for proteomics
 Author: Mitch Kostich
 Maintainer: Mitch Kostich <mitch.kostich@jax.org>
 Depends: R (>= 3.1)
-Imports: stats, glmnet, randomForest, limma, edgeR
+Imports: utils, stats, glmnet, randomForest, limma, edgeR
 Description: Toolkit providing R-based functionality for analyzing 
   non-negative numeric expression matrices. Provides functions to normalize, 
   transform, combine technical replicates, impute and perform hypothesis 

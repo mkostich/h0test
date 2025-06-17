@@ -38,7 +38,9 @@ Expression data from \code{config$data_file_in} in \code{config$dir_in}.
 \examples{
   \dontrun{
     config <- list(dir_in=".", feature_file_in="feats.tsv", 
-      sample_file_in="samps.tsv", data_file_in="exprs.tsv", log_file="")
+      sample_file_in="samps.tsv", data_file_in="exprs.tsv", 
+      feat_id_col="gene", obs_id_col="replicate", sample_id_col="sample", 
+      log_file="")
     state <- f.read_data(config)
     exprs <- state$expression
     feats <- state$features

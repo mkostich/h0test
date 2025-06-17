@@ -17,6 +17,7 @@ f.combine_reps(state, config)
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
   \code{log_file}      \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+  \code{obs_id_col}    \cr \tab Column in observation metadata matching rownames of \code{state$expression} \cr
   \code{sample_id_col} \cr \tab Column in observation metadata with unique sample ids. \cr
 }}
 }

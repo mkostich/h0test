@@ -16,10 +16,10 @@ f.filter(state, config)
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{log_file}       \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
-  \code{n_samples_expr_col}  \cr \tab Name (character) of new column in feature metadata to hold number of expressing samples.
-  \code{median_raw_col}      \cr \tab Name (character) of new column in feature metadata to hold median expression in expressing samples.
-  \code{n_features_expr_col} \cr \tab Name (character) of new column in sample metadata to hold number of expressed features.
+  \code{log_file}       \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+  \code{n_samples_expr_col}  \cr \tab Name (character) of new column in feature metadata to hold number of expressing samples. \cr
+  \code{median_raw_col}      \cr \tab Name (character) of new column in feature metadata to hold median expression in expressing samples. \cr
+  \code{n_features_expr_col} \cr \tab Name (character) of new column in sample metadata to hold number of expressed features. \cr
 }}
 }
 \value{
@@ -41,7 +41,8 @@ Filters out features with too few expressing samples, and filters out
 \examples{
   \dontrun{
     state <- list(expression=exprs, features=feats, samples=samps)
-    config <- list(log_file="")
+    config <- list(log_file="", n_samples_expr_col="n_samples_expr", 
+      median_raw_col="median_expr", n_features_expr_col="n_feats_expr")
     out <- f.filter(state, config)
     config2 <- out$config
     state2 <- out$state

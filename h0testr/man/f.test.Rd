@@ -16,7 +16,10 @@ f.test(state, config)
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{log_file}            \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+  \code{test_method}  \cr \tab Method (character) in \code{c("trend", "voom")}.
+  \code{frm}          \cr \tab Formula (formula) to be fit
+  \code{test_term}    \cr \tab Term (character) to be tested for non-zero coefficient.
+  \code{log_file}     \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
 }}
 }
 \value{
@@ -31,7 +34,7 @@ Tests for differential expression using method specified in config.
 \examples{
   \dontrun{
     state <- list(expression=exprs, features=feats, samples=samps)
-    config <- list(frm=~age+sex+age:sex, test_term="age:sex", test_method="trend")
+    config <- list(frm=~age+sex+age:sex, test_term="age:sex", test_method="trend", log_file="")
     tbl <- f.test(state, config)
     head(tbl)
   }
