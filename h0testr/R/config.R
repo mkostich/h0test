@@ -76,6 +76,7 @@ f.new_config <- function() {
     run_order=c("normalize", "combine_reps", "filter", "impute"),   ## determines order of workflow operations
     
     ## misc; 
+    save_state=TRUE,                     ## whether to save output files; might set to FALSE for tuning/testing
     probs=c(0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0),
     width=110,
     verbose=T

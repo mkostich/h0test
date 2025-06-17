@@ -111,7 +111,7 @@ f.normalize_edger <- function(state, config, method=NULL, p=NULL) {
 f.normalize_quantile <- function(state, config, norm_quantile=NULL, multiplier=1e3) {
 
   if(!is.matrix(state$expression)) {
-    f.err("f.normalize_edger: !is.matrix(state$expression)", config=config)
+    f.err("f.normalize_quantile: !is.matrix(state$expression)", config=config)
   }
   if(is.null(norm_quantile)) norm_quantile <- config$norm_quantile
   
@@ -360,7 +360,7 @@ f.normalize <- function(state, config) {
     f.msg("config$norm_method %in% 'log2'", config=config)
   } else if(config$norm_method %in% "none") {
     f.msg("skipping normalization: config$norm_method %in% 'none'", config=config)
-  } else f.err("unexpected config$norm_method:", config$norm_method, config=config)
+  } else f.err("f.normalize: unexpected config$norm_method:", config$norm_method, config=config)
   
   if(!(config$norm_method %in% c("vsn", "none"))) {
     f.log("transforming data", config=config)
@@ -422,7 +422,7 @@ f.combine_reps <- function(state, config) {
   state$samples[, config$obs_id_col] <- NULL                  ## !!!!!
   sample_ids <- state$samples[, config$sample_id_col, drop=T]
   if(!all(sample_ids %in% colnames(state$expression))) {
-    f.err("!all(samples[, config$sample_id_col] %in% colnames(expression))", config=config)
+    f.err("f.normalize: !all(samples[, config$sample_id_col] %in% colnames(expression))", config=config)
   }  
   state$expression <- state$expression[, sample_ids]
   config$obs_col <- config$sample_id_col

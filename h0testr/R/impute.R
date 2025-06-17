@@ -306,7 +306,7 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 f.impute_glm_binom <- function(state, config, gran=NULL, off=1, f_mid=stats::median) {
 
   if(!is.matrix(state$expression)) {
-    f.err("!is.matrix(state$expression)", config=config)
+    f.err("f.impute_glm_binom: !is.matrix(state$expression)", config=config)
   }
   if(is.null(gran)) gran <- config$impute_granularity
 
@@ -385,7 +385,7 @@ f.impute_loess_logit <- function(state, config, span.=NULL, gran=NULL,
     off=1, f_mid=stats::median, degree=1, fam="symmetric") {
 
   if(!is.matrix(state$expression)) {
-    f.err("!is.matrix(state$expression)", config=config)
+    f.err("f.impute_loess_logit: !is.matrix(state$expression)", config=config)
   }
   if(is.null(span)) span <- config$impute_span
   if(is.null(gran)) gran <- config$impute_granularity
@@ -496,7 +496,7 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
 f.impute_rf <- function(state, config, f_imp=f.impute_loess_logit, ntree=100, 
     mtry=NULL, aug_mult=0.33, aug_add=0, aug_steps=3, verbose=T) {
   
-  if(!is.matrix(state$expression)) f.err("!is.matrix(exprs)", config=config)
+  if(!is.matrix(state$expression)) f.err("f.impute_rf: !is.matrix(exprs)", config=config)
   
   n_miss <- apply(state$expression, 1, function(v) sum(is.na(v) | v %in% 0))
   o <- order(n_miss, decreasing=F)
@@ -526,7 +526,7 @@ f.impute_rf <- function(state, config, f_imp=f.impute_loess_logit, ntree=100,
     x_miss <- x_train[-idx_feat, which(i_miss), drop=F]
     y_miss <- stats::predict(fit, newdata=t(x_miss), type="response")
     
-    if(any(y_miss < 0)) f.err("ERROR: y_miss < 0; y_miss:", y_miss, config=config)
+    if(any(y_miss < 0)) f.err("f.impute_rf: y_miss < 0; y_miss:", y_miss, config=config)
     state$expression[idx_feat, i_miss] <- y_miss
     
     tm_stmp <- format(Sys.time(), format='%Y%m%d%H%M%S')
@@ -610,7 +610,7 @@ f.impute_glmnet <- function(state, config, f_imp=f.impute_loess_logit,
     aug_steps=3, verbose=T) {
   
   if(!is.matrix(state$expression)) {
-    f.err("!is.matrix(state$expression)", config=config)
+    f.err("f.impute_glmnet: !is.matrix(state$expression)", config=config)
   }
   
   n_miss <- apply(state$expression, 1, function(v) sum(is.na(v) | v %in% 0))
@@ -641,7 +641,7 @@ f.impute_glmnet <- function(state, config, f_imp=f.impute_loess_logit,
     y_miss <- stats::predict(fit, newx=t(x_miss), 
       s=fit$lambda.1se, type="response")
     
-    if(any(y_miss < 0)) f.err("y_miss < 0; y_miss:", y_miss, config=config)
+    if(any(y_miss < 0)) f.err("f.impute_glmnet: y_miss < 0; y_miss:", y_miss, config=config)
     state$expression[idx_feat, i_miss] <- y_miss
     
     idx_lambda <- which(fit$lambda %in% fit$lambda.1se)[1] 
@@ -726,7 +726,7 @@ f.impute <- function(state, config) {
     state <- out$state
   } else if(config$impute_method %in% "none") {
     f.msg("skipping imputation: config$impute_method %in% 'none'", config=config)
-  } else f.err("unexpected config$impute_method:", config$impute_method, config=config)
+  } else f.err("f.impute: unexpected config$impute_method:", config$impute_method, config=config)
 
   f.check_state(state, config)
   f.report_state(state, config)

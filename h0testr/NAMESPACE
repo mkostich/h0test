@@ -39,4 +39,5 @@ export(f.test_trend)
 export(f.test)
 
 export(f.run)
+export(f.tune)
 

@@ -150,9 +150,11 @@ f.test <- function(state, config) {
   tbl <- cbind(state$features[rownames(tbl), ], tbl)
   rownames(tbl) <- NULL
   
-  file_out <- paste0(config$dir_out, "/", length(config$run_order) + 3, config$result_mid_out, config$suffix_out)
-  f.log("writing results to", file_out, config=config)
-  f.save_tsv(tbl, file_out)
+  if(config$save_state) {
+    file_out <- paste0(config$dir_out, "/", length(config$run_order) + 3, config$result_mid_out, config$suffix_out)
+    f.log("writing results to", file_out, config=config)
+    f.save_tsv(tbl, file_out)
+  }
   
   return(tbl)
 }

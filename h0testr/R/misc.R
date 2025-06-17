@@ -44,9 +44,15 @@ f.check_state <- function(state, config) {
     f.err("state$samples do not match columns of state$expression", 
       config=config)
   }
+  
+  if(!is.matrix(state$expression)) {
+    f.err("!is.matrix(state$expression)", config=config)
+  }
 }
 
 f.report_state <- function(state, config) {
+
+  f.msg("class(state$expression):", class(state$expression), config=config)
 
   f.msg("N features: ", nrow(state$expression), 
     "; N observations: ", ncol(state$expression), config=config)
@@ -64,6 +70,8 @@ f.report_state <- function(state, config) {
 
 f.save_state <- function(state, config, prefix) {
 
+  if(!config$save_state) return(NULL)
+  
   file_out <- paste0(config$dir_out, "/", prefix, 
     config$data_mid_out, config$suffix_out)
   f.log("writing expression data to", file_out, config=config)
@@ -86,9 +94,19 @@ f.quantile <- function(v, config, probs=NULL, digits=3, na.rm=T) {
   
   if(config$log_file %in% "") {
     print(round(stats::quantile(v, probs=probs, na.rm=na.rm), digits=digits))
+    utils::flush.console()
   } else {
     utils::capture.output(round(stats::quantile(v, probs=probs, na.rm=na.rm), digits=digits), 
       file=config$log_file, append=T)
   }
 }
 
+f.log_obj <- function(obj, config) {
+  
+  if(config$log_file %in% "") {
+    print(obj)
+    utils::flush.console()
+  } else {
+    utils::capture.output(obj, file=config$log_file, append=T)
+  }
+}
