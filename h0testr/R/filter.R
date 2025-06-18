@@ -26,15 +26,15 @@
 #'     state <- list(expression=exprs, features=feats, samples=samps)
 #'     config <- list(log_file="", n_samples_min=2)
 #'     state2 <- f.filter_features(state, config)
-#'     exprs2 <- state2$exprs
-#'     samps2 <- state2$samps
-#'     feats2 <- state2$feats
+#'     exprs2 <- state2$expression
+#'     samps2 <- state2$samples
+#'     feats2 <- state2$features
 #'
 #'     config <- list(log_file="")
 #'     state2 <- f.filter_features(state, config, n_samples_min=2)
-#'     exprs2 <- state2$exprs
-#'     samps2 <- state2$samps
-#'     feats2 <- state2$feats
+#'     exprs2 <- state2$expression
+#'     samps2 <- state2$samples
+#'     feats2 <- state2$features
 #'   } 
 
 f.filter_features <- function(state, config, n_samples_min=NULL) {
@@ -90,15 +90,15 @@ f.filter_features <- function(state, config, n_samples_min=NULL) {
 #'     state <- list(expression=exprs, features=feats, samples=samps)
 #'     config <- list(log_file="", n_features_min=1000)
 #'     state2 <- f.filter_features(state, config)
-#'     exprs2 <- state2$exprs
-#'     samps2 <- state2$samps
-#'     feats2 <- state2$feats
+#'     exprs2 <- state2$expression
+#'     samps2 <- state2$samples
+#'     feats2 <- state2$features
 #'
 #'     config <- list(log_file="")
 #'     state2 <- f.filter_features(state, config, n_features_min=1000)
-#'     exprs2 <- state2$exprs
-#'     samps2 <- state2$samps
-#'     feats2 <- state2$feats
+#'     exprs2 <- state2$expression
+#'     samps2 <- state2$samples
+#'     feats2 <- state2$features
 #'   }
 
 f.filter_samples <- function(state, config, n_features_min=NULL) {

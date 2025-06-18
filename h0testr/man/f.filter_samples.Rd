@@ -42,14 +42,14 @@ Feature considered expressed if \code{state$expression > 0}; \code{NA}s
     state <- list(expression=exprs, features=feats, samples=samps)
     config <- list(log_file="", n_features_min=1000)
     state2 <- f.filter_features(state, config)
-    exprs2 <- state2$exprs
-    samps2 <- state2$samps
-    feats2 <- state2$feats
+    exprs2 <- state2$expression
+    samps2 <- state2$samples
+    feats2 <- state2$features
 
     config <- list(log_file="")
     state2 <- f.filter_features(state, config, n_features_min=1000)
-    exprs2 <- state2$exprs
-    samps2 <- state2$samps
-    feats2 <- state2$feats
+    exprs2 <- state2$expression
+    samps2 <- state2$samples
+    feats2 <- state2$features
   }
 }

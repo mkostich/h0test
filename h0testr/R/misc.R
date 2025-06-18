@@ -80,12 +80,12 @@ f.save_state <- function(state, config, prefix) {
   file_out <- paste0(config$dir_out, "/", prefix, 
     config$feature_mid_out, config$suffix_out)
   f.log("writing feature metadata to", file_out, config=config)
-  f.save_tsv(state$feats, file_out, config)
+  f.save_tsv(state$features, file_out, config)
 
   file_out <- paste0(config$dir_out, "/", prefix, 
     config$sample_mid_out, config$suffix_out)
   f.log("writing sample metadata to", file_out, config=config)
-  f.save_tsv(state$samps, file_out, config)
+  f.save_tsv(state$samples, file_out, config)
 }
 
 f.quantile <- function(v, config, probs=NULL, digits=3, na.rm=T) {
