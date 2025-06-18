@@ -148,7 +148,7 @@ f.subset_covariates <- function(state, config) {
   }
   
   if(!all(names(config$sample_factors) %in% vars)) {
-    f.err("!all(names(config$sample_factors) %in% vars)", config=config)
+    f.err("!all(names(config$sample_factors) %in% config$frm)", config=config)
   }
   
   f.msg("subsetting sample metadata", config=config)
