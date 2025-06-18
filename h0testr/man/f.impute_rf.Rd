@@ -7,12 +7,13 @@
 f.impute_rf(
   state,
   config,
-  f_imp = f.impute_loess_logit,
+  f_imp = f.impute_unif_sample_lod,
   ntree = 100,
   mtry = NULL,
   aug_mult = 0.33,
   aug_add = 0,
   aug_steps = 3,
+  unlog2 = T,
   verbose = T
 )
 }
@@ -44,6 +45,10 @@ node in each tree. \code{randomForest} \code{mtry} parameter.}
 
 \item{aug_steps}{Numeric (non-negative) number of augmentation steps. Set to
 \code{0} to skip augmentation.}
+
+\item{unlog2}{Logical if \code{TRUE}, treats \code{state$expression} as if 
+\code{log2} transformed (the normal case). Set to \code{FALSE} for raw 
+data.}
 
 \item{verbose}{Logical if TRUE, emits progress messages.}
 }

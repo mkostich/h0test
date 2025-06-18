@@ -4,7 +4,7 @@
 \alias{f.impute_unif_sample_lod}
 \title{Impute missing values from between 0 and sample LOD.}
 \usage{
-f.impute_unif_sample_lod(state, config, impute_quantile = 0)
+f.impute_unif_sample_lod(state, config, impute_quantile = NULL)
 }
 \arguments{
 \item{state}{A list with elements like that returned by \code{f.read_data()}:

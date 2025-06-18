@@ -113,7 +113,7 @@ f.impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
 #'     exprs2 <- state2$expression
 #'   }
 
-f.impute_unif_sample_lod <- function(state, config, impute_quantile=0) {
+f.impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
 
   if(!is.matrix(state$expression)) {
     f.err("f.impute_unif_sample_lod: !is.matrix(state$expression)", config=config)
@@ -387,7 +387,7 @@ f.impute_loess_logit <- function(state, config, span.=NULL, gran=NULL,
   if(!is.matrix(state$expression)) {
     f.err("f.impute_loess_logit: !is.matrix(state$expression)", config=config)
   }
-  if(is.null(span)) span <- config$impute_span
+  if(is.null(span.)) span. <- config$impute_span
   if(is.null(gran)) gran <- config$impute_granularity
 
   m <- apply(state$expression, 1, f_mid, na.rm=T)
@@ -400,7 +400,7 @@ f.impute_loess_logit <- function(state, config, span.=NULL, gran=NULL,
 
   m_new <- seq(from=gran, to=max(c(state$expression), na.rm=T), by=gran)
   
-  fit <- stats::loess(log(p/(1-p)) ~ m, data=dat, span=span, 
+  fit <- stats::loess(log(p/(1-p)) ~ m, data=dat, span=span., 
     degree=degree, family=fam)
     
   p_hat <- stats::predict(fit, newdata=data.frame(m=m_new))  ## on logit scale
@@ -465,6 +465,9 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
 #' @param aug_add Numeric affine shift for training data augmentation.
 #' @param aug_steps Numeric (non-negative) number of augmentation steps. Set to
 #'   \code{0} to skip augmentation.
+#' @param unlog2 Logical if \code{TRUE}, treats \code{state$expression} as if 
+#'   \code{log2} transformed (the normal case). Set to \code{FALSE} for raw 
+#'   data.
 #' @param verbose Logical if TRUE, emits progress messages.
 #' @return A list with the following elements:
 #'   \tabular{llll}{
@@ -493,8 +496,8 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
 #'     exprs2 <- state2$expression
 #'   }
 
-f.impute_rf <- function(state, config, f_imp=f.impute_loess_logit, ntree=100, 
-    mtry=NULL, aug_mult=0.33, aug_add=0, aug_steps=3, verbose=T) {
+f.impute_rf <- function(state, config, f_imp=f.impute_unif_sample_lod, ntree=100, 
+    mtry=NULL, aug_mult=0.33, aug_add=0, aug_steps=3, unlog2=T, verbose=T) {
   
   if(!is.matrix(state$expression)) f.err("f.impute_rf: !is.matrix(exprs)", config=config)
   
@@ -508,9 +511,9 @@ f.impute_rf <- function(state, config, f_imp=f.impute_loess_logit, ntree=100,
     f.msg("processing", rownames(state$expression)[idx_feat], config=config)
     
     x_train <- f_imp(state$expression)
-    x_train <- 2^x_train - 1
+    if(unlog2) x_train <- 2^x_train - 1
     x_train <- f.augment_affine(x_train, mult=aug_mult, add=aug_add, steps=aug_steps)
-    x_train <- log2(x_train + 1)
+    if(unlog2) x_train <- log2(x_train + 1)
     
     y <- state$expression[idx_feat, , drop=T]
     i_miss <- is.na(y) | y %in% 0
@@ -578,6 +581,9 @@ f.impute_rf <- function(state, config, f_imp=f.impute_loess_logit, ntree=100,
 #' @param aug_add Numeric affine shift for training data augmentation.
 #' @param aug_steps Numeric (non-negative) number of augmentation steps. Set to
 #'   \code{0} to skip augmentation.
+#' @param unlog2 Logical if \code{TRUE}, treats \code{state$expression} as if 
+#'   \code{log2} transformed (the usual case). Set to \code{FALSE} for
+#'   raw data.
 #' @param verbose Logical if \code{TRUE}, emits progress messages.
 #' @return A list with the following elements:
 #'   \tabular{llll}{
@@ -605,9 +611,9 @@ f.impute_rf <- function(state, config, f_imp=f.impute_loess_logit, ntree=100,
 #'     exprs2 <- state2$expression
 #'   }
 
-f.impute_glmnet <- function(state, config, f_imp=f.impute_loess_logit, 
+f.impute_glmnet <- function(state, config, f_imp=f.impute_unif_sample_lod, 
     nfolds=5, alpha=1, measure="mae", aug_mult=0.33, aug_add=0, 
-    aug_steps=3, verbose=T) {
+    aug_steps=3, unlog2=T, verbose=T) {
   
   if(!is.matrix(state$expression)) {
     f.err("f.impute_glmnet: !is.matrix(state$expression)", config=config)
@@ -623,9 +629,9 @@ f.impute_glmnet <- function(state, config, f_imp=f.impute_loess_logit,
     f.msg("processing", rownames(state$expression)[idx_feat], config=config)
     
     x_train <- f_imp(state$expression)
-    x_train <- 2^x_train - 1
+    if(unlog2) x_train <- 2^x_train - 1
     x_train <- f.augment_affine(x_train, mult=aug_mult, add=aug_add, steps=aug_steps)
-    x_train <- log2(x_train + 1)
+    if(unlog2) x_train <- log2(x_train + 1)
     
     y <- state$expression[idx_feat, , drop=T]
     i_miss <- is.na(y) | y %in% 0

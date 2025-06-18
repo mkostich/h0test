@@ -364,11 +364,6 @@ Method used for hypothesis testing.
 
 ## Tuning (work in progress -- ignore for now)
 
-Run one instance without permutation, and `N` (`N >= 10` is recommended)
-instances with permutation. Permute by setting `PERMUTE_VAR` to a variable 
-(not a multivariate term, like an interaction, which will fail) that is
-part of the `TEST_TERM`.
-
 Run each instance in its own subdirectory. Here we pretend we have 
 subdirectories numbered from `0` to `10`, where the unpermuted run 
 will be in subdirectory `0`, and permuted runs are in subdirectories
@@ -409,77 +404,44 @@ In R, for each run:
 
 rm(list=ls())
 
-script1 <- "./h0tune.1.R"
-script2 <- "~/opt/h0test/h0test.2.R"
-script3 <- "~/opt/h0test/h0test.3.R"
+config <- h0testr::f.new_config()
+config$feature_file_in <- "feats.tsv"
+config$sample_file_in <- "samps.tsv"
+config$data_file_in <- "exprs.tsv", 
+config$feat_id_col <- "gene"
+config$obs_id_col <- "replicate"
+config$sample_id_col <- "sample"
+config$frm <- ~age+sex+age:sex
+config$test_term <- "age:sex"
 
-out_file <- "0.age_strain.tune.tsv"
-TEST_TERM <- "age:strain"
-PERMUTE_VAR <- ""         ## to run on permuted data, set PERMUTE_VAR to e.g. "age" or "strain"
-## PERMUTE_VAR <- "age"   ## e.g. to run on data where 'age' variable has been randomized/permuted
+## do this run with unpermuted variables once:
+config$permute_var <- ""
+tbl <- f.tune(config)
+write.table(tbl, file="0.age_sex.tune.tsv", sep="\t", quote=F, row.names=F)
 
-set.seed((Sys.getpid() + round((as.numeric(Sys.time()) * 100))) %% 1000)
-source(script1)           ## configure vars; load data; prefilter; permute if req'd; prep exprs1, samps1, feats1; 
-out <- NULL
-IMPUTE_SCALE <- 1
-NORM_QUANTILE <- 0.75
-for(NORM_METHOD in c("vsn", "cpm", "q50", "q75", "qquantile", "TMM", "TMMwsp", "RLE", "upperquartile")) {
-  if(NORM_METHOD %in% "q50") {
-    NORM_METHOD <- "quantile"
-    NORM_QUANTILE <- 0.5
-  } else if(NORM_METHOD %in% c("q75")) {
-    NORM_METHOD <- "quantile"
-    NORM_QUANTILE <- 0.75
-  } else if(NORM_METHOD %in% "upperquartile") NORM_QUANTILE <- 0.75
-  source(script2)     ## normalize/transform; combine tech reps; exprs2, samps2, feats2 from exprs1, samps1, feats1
-  for(TEST_METHOD in c("voom", "trend")) {
-    for(IMPUTE_METHOD in c("unif_global_lod", "unif_sample_lod", "sample_lod", "rnorm_feature")) {
-      if(IMPUTE_METHOD %in% c("unif_global_lod", "unif_sample_lod")) {
-        for(IMPUTE_QUANTILE in c(0, 0.01, 0.05, 0.1, 0.25)) {
-          source(script3)  ## filter -> impute -> test -> tbl; from exprs2, samps2, feats2
-          out_i <- data.frame(norm=NORM_METHOD, norm_quant=NORM_QUANTILE, impute=IMPUTE_METHOD, imp_quant=IMPUTE_QUANTILE, 
-            scale=IMPUTE_SCALE, test=TEST_METHOD, perm=PERMUTE_VAR, nhits=sum(tbl$adj.P.Val < 0.05), ntrys=nrow(tbl), 
-            time=format(Sys.time(), "%H:%M:%S"), stringsAsFactors=F)
-          out <- rbind(out, out_i)
-          print(out); flush.console()
-        }
-      } else if(IMPUTE_METHOD %in% c("rnorm_feature")) {
-        for(IMPUTE_SCALE in c(1, 0.5, 0.25, 0.1)) {
-          source(script3)  ## filter -> impute -> test -> tbl; from exprs2, samps2, feats2
-          out_i <- data.frame(norm=NORM_METHOD, norm_quant=NORM_QUANTILE, impute=IMPUTE_METHOD, imp_quant=IMPUTE_QUANTILE, 
-            scale=IMPUTE_SCALE, test=TEST_METHOD, perm=PERMUTE_VAR, nhits=sum(tbl$adj.P.Val < 0.05), ntrys=nrow(tbl), 
-            time=format(Sys.time(), "%H:%M:%S"), stringsAsFactors=F)
-          out <- rbind(out, out_i)
-          print(out); flush.console()
-        }
-      } else if(IMPUTE_METHOD %in% c("sample_lod")) {
-        source(script3)  ## filter -> impute -> test -> tbl; from exprs2, samps2, feats2
-        out_i <- data.frame(norm=NORM_METHOD, norm_quant=NORM_QUANTILE, impute=IMPUTE_METHOD, imp_quant=IMPUTE_QUANTILE, 
-          scale=IMPUTE_SCALE, test=TEST_METHOD, perm=PERMUTE_VAR, nhits=sum(tbl$adj.P.Val < 0.05), ntrys=nrow(tbl), 
-          time=format(Sys.time(), "%H:%M:%S"), stringsAsFactors=F)
-        out <- rbind(out, out_i)
-        print(out); flush.console()
-      }
-    }
-  }
+## do this run, with permuted variable in config$test_term N times:
+config$permute_var <- "age"
+N <- 20
+for(idx in 1:N) {
+  tbl <- f.tune(config)
+  write.table(tbl, file=paste0(idx, ".age_sex.tune.tsv"), 
+    sep="\t", quote=F, row.names=F)
 }
-write.table(out, file=out_file, sep="\t", quote=F, row.names=F)
 ```
 
-The results of each run look like this:
+The results of each run will look something like this:
 
 ```
-         norm norm_quant          impute imp_quant scale  test perm nhits ntrys     time
-1         vsn       0.50 unif_global_lod      0.00  1.00  voom  age     0  6822 12:06:31
-2         vsn       0.50 unif_global_lod      0.01  1.00  voom  age     0  6822 12:06:41
-3         vsn       0.50 unif_global_lod      0.05  1.00  voom  age     1  6822 12:06:50
-4         vsn       0.50 unif_global_lod      0.10  1.00  voom  age     0  6822 12:06:59
-5         vsn       0.50 unif_global_lod      0.25  1.00  voom  age     1  6822 12:07:09
-6         vsn       0.50 unif_sample_lod      0.00  1.00  voom  age     0  6822 12:07:19
-7         vsn       0.50 unif_sample_lod      0.01  1.00  voom  age     4  6822 12:07:28
-8         vsn       0.50 unif_sample_lod      0.05  1.00  voom  age    26  6822 12:07:37
-9         vsn       0.50 unif_sample_lod      0.10  1.00  voom  age    48  6822 12:07:47
-10        vsn       0.50 unif_sample_lod      0.25  1.00  voom  age    71  6822 12:07:56
+> tbl
+             norm norm_quant          impute imp_quant scale  test perm nhits ntests     time
+1             TMM       0.75      sample_lod      0.01     1  voom       1993   7897 08:25:16
+2             TMM       0.75 unif_sample_lod      0.00     1  voom       2063   7897 08:25:21
+3             TMM       0.75 unif_sample_lod      0.01     1  voom       1513   7897 08:25:27
+4             TMM       0.75 unif_sample_lod      0.05     1  voom        941   7897 08:25:32
+5             TMM       0.75 unif_sample_lod      0.10     1  voom        633   7897 08:25:37
+6             TMM       0.75 unif_sample_lod      0.25     1  voom        406   7897 08:25:42
+7             TMM       0.75       glm_binom      0.25     1  voom        179   7897 08:25:48
+8             TMM       0.75     loess_logit      0.25     1  voom        175   7897 08:25:53
 ```
 
 Collect results. From parent directory, in R (only base packages required for this part):
