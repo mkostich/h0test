@@ -37,17 +37,19 @@ help(package="h0testr")
 ```
 ## get a default configuration object:
 config <- h0testr::f.new_config()
-str(config)                           ## view settings
+str(config)                           ## view default settings
 
-## customize input/output configuration:
+## customize input/output files:
 config$out_dir <- "."                                ## directory for output
 config$in_dir <- "/path/to/input/file/dir"           ## directory to input
 config$feature_file_in <- "my_feature_metadata.tsv"  ## expected in config$in_dir
 config$sample_file_in <- "my_sample_metadata.tsv"    ## expected in config$in_dir
 config$data_file_in <- "my_signal_data.tsv"          ## expected in config$in_dir
-config$feat_id_col <- "gene_id"       ## feature metadata matching rownames of sample_file_in
-config$obs_id_col <- "replicate_id"   ## sample metadata matching column names of sample_file_in
-config$sample_id_col <- "sample_id"   ## set same as obs_id_col if no technical replicates
+
+## customize file cross-referencing:
+config$feat_id_col <- "gene_id"       ## column in feature metadata matching rownames of sample_file_in
+config$obs_id_col <- "replicate_id"   ## column in sample metadata matching column names of sample_file_in
+config$sample_id_col <- "sample_id"   ## column in sample metadata; set obs_id_col == sample_id_col if no technical replicates
 
 ## customize testing configuration:
 config$frm=~age+gender+age:gender     ## formula with variable of interest and covariates
@@ -216,7 +218,7 @@ The names of the files can be customized using `config$data_mid_out`,
 common file suffix can be customized by changing `config$suffix_out`.
 
 Prefix numbering of output files reflects the order in which they were 
-generated, which is determinedby `config$run_order`. With the default settings 
+generated, which is determined by `config$run_order`. With the default settings 
 for `config$data_mid_out`, `config$feature_mid_out`, `config$sample_mid_out`, 
 `config$suffix_out`, and `config$run_order`, output files in `config$dir_out` 
 will be:
@@ -328,7 +330,7 @@ Zero and `NA` values are both treated as missing. Methods `glmnet` and
 **rnorm_feature**: for each feature, calculate the mean `m` and standard 
   deviation `s`. Replace each `NA` value with a random draw from a normal 
   distribution centered at `m` with standard deviation  
-  `IMPUTE_SCALE * s`: `rnorm(1, mean=m, sd=IMPUTE_SCALE*s)`.
+  `config$impute_scale * s`: `rnorm(1, mean=m, sd=s*config$impute_scale)
   
 **glm_binom**: fit generalized linear model with logit link and binomial 
   errors to `p(missing) ~ log2(intensity)`, where `p(missing)` estimated 
@@ -362,42 +364,13 @@ Method used for hypothesis testing.
 
 ---
 
-## Tuning (work in progress -- ignore for now)
+## Tuning (alpha)
 
-Run each instance in its own subdirectory. Here we pretend we have 
-subdirectories numbered from `0` to `10`, where the unpermuted run 
-will be in subdirectory `0`, and permuted runs are in subdirectories
-`1` thru `10`. In the main directory, do something like the following
-to get the tuning script and configure it for this run. Note that 
-`h0tune.1.R` differs from `h0test.1.R` in that some configuration
-parameters are commented out, and are meant to be set in the calling
-environment before the scripts are sourced:
-
-```
-## bash: 
-
-## copy h0test.1.R to working directory:
-rsync /path/to/h0test/h0test.1.R ./
-
-## configure script for this experiment:
-vi h0tune.1.R            
-
-## make subdirectories 0 thru 10:
-mkdir $(seq 0 10)
-```
-
-Perform each run in a separate subdirectory:
-
-```
-## change to a subdirectory where run will be performed:
-cd 0
-
-## invoke R instance with required packages (limma and edgeR):
-container='/projects/compsci/jgeorge/kostim/resources/containers/msproteomics_r.20250325a.sif'
-apptainer exec $container R
-```
-
-In R, for each run:
+In practice, we run one run with no permuted variable, then around 20 runs 
+with permuted variables. The naive code for doing so is shown below, which may 
+be suitable for small to medium datasets. For larger datasets, we would 
+normally launch a separate instance in its own directory, with one instance
+for the unpermuted data, and 20 instances with permuted data:
 
 ```
 ## R:
@@ -411,19 +384,19 @@ config$data_file_in <- "exprs.tsv",
 config$feat_id_col <- "gene"
 config$obs_id_col <- "replicate"
 config$sample_id_col <- "sample"
-config$frm <- ~age+sex+age:sex
-config$test_term <- "age:sex"
+config$frm <- ~age+strain+age:strain
+config$test_term <- "age:strain"
 
 ## do this run with unpermuted variables once:
 config$permute_var <- ""
-tbl <- f.tune(config)
-write.table(tbl, file="0.age_sex.tune.tsv", sep="\t", quote=F, row.names=F)
+tbl <- h0testr::f.tune(config)
+write.table(tbl, file="0.age_strain.tune.tsv", sep="\t", quote=F, row.names=F)
 
 ## do this run, with permuted variable in config$test_term N times:
 config$permute_var <- "age"
 N <- 20
 for(idx in 1:N) {
-  tbl <- f.tune(config)
+  tbl <- h0testr::f.tune(config)
   write.table(tbl, file=paste0(idx, ".age_sex.tune.tsv"), 
     sep="\t", quote=F, row.names=F)
 }
@@ -448,48 +421,10 @@ Collect results. From parent directory, in R (only base packages required for th
 
 ```
 rm(list=ls())
-## main unpermuted results:
-dat1 <- read.table("0/0.age_strain.tune.tsv", header=T, sep="\t", quote="", as.is=T)
 
-## ten sets of permutation results:
-obj <- list()
-for(idx in 1:10) {
-  f <- paste(idx, paste0(idx, ".age_strain.tune.tsv"), sep="/")
-  cat("reading", f, "\n"); flush.console()
-  dat_i <- read.table(f, header=T, sep="\t", quote="", as.is=T)
-  dat_i$run <- idx
-  obj[[idx]] <- dat_i
-}
-dat0 <- do.call(rbind, obj)  ## rbind the permutation results
-rm(obj)
+tbl <- f.tune_check(dir_in="/path/to/tuning/results", sfx=".age_strain.tune.tsv")
 
-## keys with norm, norm_quant, imput, imp_quant, scale, and test:
-k0 <- apply(dat0[, 1:6], 1, paste, collapse=":")
-k1 <- apply(dat1[, 1:6], 1, paste, collapse=":")
-
-## permuted results in dat0; take max, median, mean, and sd of 10 permutation results:
-perm_max <- tapply(dat0$nhits, k0, max, na.rm=T)
-perm_mid <- tapply(dat0$nhits, k0, median, na.rm=T)
-perm_avg <- tapply(dat0$nhits, k0, mean, na.rm=T)
-perm_sd <- tapply(dat0$nhits, k0, sd, na.rm=T)
-
-## get them in the same order as dat1 (k1 made from dat1):
-dat1$max0 <- perm_max[k1]
-dat1$mid0 <- perm_mid[k1]
-dat1$avg0 <- perm_avg[k1]
-dat1$sd0 <- perm_sd[k1]
-dat1$perm <- NULL
-
-## average number of false positives == average number of hits across 10 sets of permutation results;
-##   false positive rate: (average number of false positives) / (total number of positives)
-
-if(any(dat1$nhits %in% 0)) stop("any(dat1$nhits %in% 0)")
-dat1$fdr <- dat1$avg / dat1$nhits
-dat1 <- dat1[order(dat1$nhits, -dat1$fdr, decreasing=T), c("nhits", "fdr", "max0", "mid0", "avg0", "sd0", 
-  "norm", "norm_quant", "impute", "imp_quant", "scale", "test")]
-rownames(dat1) <- NULL
-
-## dat1 has a bunch of statistics that can be used to evaluate option combinations;
+## tbl has a bunch of statistics that can be used to evaluate option combinations;
 ##   nhits: number of hits in unpermuted data
 ##   fdr: avg0 / nhits
 ##   max0: maximum number of hits in any permutation
@@ -503,7 +438,7 @@ rownames(dat1) <- NULL
 ##   scale: scale parameter for rnorm_ imputation methods
 ##   test: method used for hypothesis testing
 
-> head(x)
+> head(tbl)
   nhits       fdr max0  mid0  avg0      sd0   norm norm_quant          impute imp_quant scale test
 1  4366 0.1097572 2433  37.5 479.2 919.9720 TMMwsp       0.75      sample_lod      0.25   0.1 voom
 2  4358 0.1150757 2538  70.5 501.5 908.2445 TMMwsp       0.75 unif_sample_lod      0.00   0.1 voom

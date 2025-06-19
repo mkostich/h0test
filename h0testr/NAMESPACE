@@ -40,4 +40,5 @@ export(f.test)
 
 export(f.run)
 export(f.tune)
+export(f.tune_check)
 

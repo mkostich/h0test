@@ -242,9 +242,11 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
       s <- stats::sd(v, na.rm=T) * scale.
       v[i] <- stats::rnorm(sum(i), mean=m, sd=s)
       i <- v < 0
+      i[is.na(i)] <- F
       while(any(i)) {
         v[i] <- stats::rnorm(sum(i), mean=m, sd=s)
         i <- v < 0
+        i[is.na(i)] <- F
       }
     }
     return(v)
