@@ -42,12 +42,12 @@ Wrapper for \code{f.samples_per_feature()}, \code{f.feature_median_expression()}
     \code{f.features_per_sample()}. Also reports quantiles of distributions.
 }
 \examples{
-  \dontrun{
-    state <- list(expression=exprs, features=feats, samples=samps)
-    config <- list(log_file="", feat_id_col="peptide", obs_id_col="replicate")
-    state <- f.prefilter(state, config)
-    exprs <- state$expression
-    feats <- state$features
-    samps <- state$samples
-  }
+set.seed(101)
+exprs <- h0testr::f.sim1(n_obs=6, n_feats=12, mcar_p=0.75)$mat
+feats <- data.frame(feature_id=rownames(exprs))
+samps <- data.frame(observation_id=colnames(exprs))
+state <- list(expression=exprs, features=feats, samples=samps)
+config <- list(log_file="")
+state2 <- h0testr::f.prefilter(state, config)
+print(state2)
 }

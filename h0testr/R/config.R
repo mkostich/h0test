@@ -9,17 +9,15 @@
 #'   Throws error if \code{config$test_term} is not compatible with \code{config$frm}.
 #' @return list of configuration values
 #' @examples
-#'   \dontrun{
-#'     config <- f.new_config()
-#'     config$frm <- ~ age + sex + age:sex
-#'     config$test_term <- "age:sex"
-#'     config$sample_factors <- list(age=c("young", "old"), sex=c("female", "male"))
-#'     config$feat_id_col <- "gene"
-#'     config$sample_id_col <- "sample"
-#'     config$obs_id_col <- "observation"
-#'     config$log_file <- "/path/to/log.txt"
-#'     f.report_config(config)
-#'   }
+#' config <- f.new_config()
+#' config$frm <- ~ age + sex + age:sex
+#' config$test_term <- "age:sex"
+#' config$sample_factors <- list(age=c("young", "old"), sex=c("female", "male"))
+#' config$feat_id_col <- "gene"
+#' config$sample_id_col <- "sample"
+#' config$obs_id_col <- "observation"
+#' config$log_file <- ""
+#' f.report_config(config)
 
 f.new_config <- function() {
 
@@ -42,7 +40,7 @@ f.new_config <- function() {
     ),
     
     ## samps and feats column names (new cols are introduced by the code):
-    feat_id_col="gene_id",               ## column (character) in feature_file_in matching rownames of data_file_in
+    feat_id_col="feature_id",            ## column (character) in feature_file_in matching rownames of data_file_in
     obs_id_col="observation_id",         ## column in sample_file_in matching colnames of data_file_in
     sample_id_col="sample_id",           ## column in sample_file_in with sample ids; not unique if tech reps; same as obs_id_col if no tech reps
     obs_col="",                          ## for internal use; leave ""; samps[, obs_col] == colnames(exprs) throughout script
@@ -83,4 +81,50 @@ f.new_config <- function() {
   )
   
   return(config)
+}
+
+#' Report configuration
+#' @description
+#' Reports configuration settings used for run, and checks if
+#'   \code{config$test_term} is compatible with \code{config$frm}.
+#' @details Report written to \code{config$log_file}; if \code{config$log_file == ""},
+#'   written to standard out (console or terminal). Only supports non-lists
+#'     and lists of non-lists (not lists of lists) as \code{config} values.
+#'   Throws error if \code{config$test_term} is not compatible with \code{config$frm}.
+#' @param config List with configuration values.
+#' @return NULL
+#' @examples
+#' config <- h0testr::f.new_config()
+#' h0testr::f.report_config(config)
+#'
+#' config$frm <- ~ age
+#' config$test_term <- "age"
+#' config$sample_factors <- list(age=c("young", "old"))
+#' h0testr::f.report_config(config)
+
+f.report_config <- function(config) {
+  for(k1 in names(config)) {
+    v1 <- config[[k1]]
+    if(is.list(v1)) {
+      for(k2 in names(v1)) {
+        f.msg(k1, ":", k2, ":", paste(as.character(v1[[k2]]), sep=", "), config=config)
+      }
+    } else f.msg(k1, ":", paste(as.character(v1), sep=", "), config=config)
+  }
+  
+  ## check config$test_term compatible with config$frm; throws error if not, 
+  ##   else returns NULL:
+
+  trms <- as.character(config$frm)[2]
+  trms <- gsub("[[:space:]]+", "", trms)
+  trms <- unlist(strsplit(trms, split="\\+"))
+  
+  if(length(trms) %in% 0) {
+    f.err("length(trms) %in% 0", config=config)
+  }  
+  
+  if(!(config$test_term %in% trms)) {
+    f.err("config$test_term", config$test_term, "not in config$frm", 
+      as.character(config$frm), config=config)
+  }
 }

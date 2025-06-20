@@ -150,3 +150,89 @@ f.tune <- function(
   f.log_block("returning result", config=config)
   return(rslt)
 }
+
+#' Check tuning results
+#' @description
+#'   Check results of tuning.
+#' @details
+#'   Imports data from basic tuning loop, comparing results from unpermuted 
+#'     data with those from permuted data. FDR is estimated from the permuted
+#'     data results. Recommend that tuning use at least 20 iterations with
+#'     permuted data.
+#' @param dir_in Character scalar with path to directory containing tuning results.
+#' @param sfx Character scalar with distinctive suffix of tuning results files.
+#' @param config List with at least \code{log_file} defined (can be \code{""}).
+#' @return A data.frame with the following columns:
+#'   \tabular{ll}{
+#'     \code{nhits}      \cr \tab Number of significant hits (numeric). \cr
+#'     \code{fdr}        \cr \tab False discovery rate (numeric). \cr
+#'     \code{max0}       \cr \tab Maximum number of hits in any permutation (numeric). \cr
+#'     \code{mid0}       \cr \tab Median number of hits across permutations (numeric). \cr
+#'     \code{avg0}       \cr \tab Average number of hits across permutations (numeric). \cr
+#'     \code{sd0}        \cr \tab Standard deviation of number of hits across permutations (numeric). \cr
+#'     \code{norm}       \cr \tab Normalization method (character). \cr
+#'     \code{norm_quant} \cr \tab Normalization quantile (numeric). \cr
+#'     \code{impute}     \cr \tab Imputation method (character). \cr
+#'     \code{imp_quant}  \cr \tab Imputation quantile (numeric). \cr
+#'     \code{scale}      \cr \tab Scale (numeric). \cr
+#'     \code{test}       \cr \tab Test method (character). \cr
+#'   }
+#' @examples
+#'   \dontrun{
+#'     dir_in <- "/path/to/my/tuning/results"
+#'     sfx <- ".strain.tune.tsv"
+#'     config <- list(log_file="")
+#'     tbl <- f.tune_check(dir_in, sfx, config)
+#'     head(tbl)
+#'   }
+
+f.tune_check <- function(dir_in, sfx, config) {
+
+  pat <- paste0(gsub("(\\W)", "\\\\\\1", sfx), "$")
+  files <- sort(list.files(path=dir_in, pattern=pat))
+  
+  unperm_file <- paste0("0", sfx)
+  i0 <- files %in% unperm_file
+  if(sum(i0) != 1) stop("no unperm file found; looking for:", unperm_file)
+  perm_files <- files[!i0]
+  f.msg("found 1 unpermuted file and", length(perm_files), "permuted files\n", config=config)
+  dat1 <- utils::read.table(paste(dir_in, unperm_file, sep="/"), header=T, sep="\t", quote="", as.is=T)
+  
+  obj <- list()
+  for(perm_file in perm_files) {
+    f.msg("reading", perm_file, config=config)
+    prfx <- sub(pat, "", perm_file)
+    dat_i <- utils::read.table(paste(dir_in, perm_file, sep="/"), header=T, sep="\t", quote="", as.is=T)
+    dat_i$perm_prfx <- prfx
+    obj[[perm_file]] <- dat_i
+  }
+  dat0 <- do.call(rbind, obj)
+  
+  k0 <- apply(dat0[, 1:6], 1, paste, collapse=":")
+  k1 <- apply(dat1[, 1:6], 1, paste, collapse=":")
+  
+  ## permuted results in dat0; take max, median, mean, and sd of 10 permutation results:
+  perm_max <- tapply(dat0$nhits, k0, max, na.rm=T)
+  perm_mid <- tapply(dat0$nhits, k0, stats::median, na.rm=T)
+  perm_avg <- tapply(dat0$nhits, k0, mean, na.rm=T)
+  perm_sd  <- tapply(dat0$nhits, k0, stats::sd, na.rm=T)
+  
+  ## get them in the same order as dat1 (k1 made from dat1):
+  dat1$max0 <- perm_max[k1]
+  dat1$mid0 <- perm_mid[k1]
+  dat1$avg0 <- perm_avg[k1]
+  dat1$sd0  <- perm_sd[k1]
+  dat1$perm <- NULL
+  
+  ## average number of false positives == average number of hits across 10 sets of permutation results;
+  ##   false positive rate: (average number of false positives) / (total number of positives)
+  
+  if(any(dat1$nhits %in% 0)) f.err("any(dat1$nhits %in% 0)", config=config)
+  dat1$fdr <- dat1$avg / dat1$nhits
+  dat1 <- dat1[order(dat1$nhits, -dat1$fdr, decreasing=T), 
+               c("nhits", "fdr", "max0", "mid0", "avg0", "sd0", 
+                 "norm", "norm_quant", "impute", "imp_quant", "scale", "test")]
+  rownames(dat1) <- NULL
+  
+  return(dat1)
+}

@@ -43,18 +43,13 @@ Inter-observation normalization. \code{edgeR::calcNormFactors()}
   called under the hood. Returned values on a counts-per-million scale.
 }
 \examples{
-  \dontrun{
-    state <- list(expression=exprs)
-    config <- list(norm_method="TMM", log_file="")
-    state <- f.normalize_edger(state, config)
-    norm_exprs <- state$expression
-
-    config <- list(norm_method="upperquartile", norm_quantile=0.75, log_file="")
-    state <- f.normalize_edger(state, config)
-    norm_exprs <- state$expression
-
-    config <- list(log_file="")
-    state <- f.normalize_edger(state, config, method="upperquartile", p=0.75)
-    norm_exprs <- state$expression
-  }
+set.seed(101)
+exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+feats <- data.frame(feature_id=rownames(exprs))
+samps <- data.frame(observation_id=colnames(exprs))
+state <- list(expression=exprs, features=feats, samples=samps)
+config <- list(log_file="", norm_method="TMM", norm_quantile="0.75")
+state2 <- h0testr::f.normalize_edger(state, config)
+print(state)
+print(state2)
 }

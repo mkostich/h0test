@@ -46,15 +46,13 @@ Imputed values are random draws from uniform distribution over the
   prior to imputing.
 }
 \examples{
-  \dontrun{
-    exprs[exprs \%in\% 0] <- NA
-    state <- list(expression=exprs)
-    config <- list(impute_quantile=0.05, log_file="")
-    state2 <- f.impute_unif_global_lod(state, config)
-    exprs2 <- state2$expression
-
-    config <- list(log_file="")
-    state2 <- f.impute_unif_global_lod(state, config, impute_quantile=0.05)
-    exprs2 <- state2$expression
-  }
+set.seed(101)
+exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+feats <- data.frame(feature_id=rownames(exprs))
+samps <- data.frame(observation_id=colnames(exprs))
+state <- list(expression=exprs, features=feats, samples=samps)
+config <- list(log_file="", impute_quantile=0.05)
+state2 <- h0testr::f.impute_unif_global_lod(state, config)
+print(state)
+print(state2)
 }

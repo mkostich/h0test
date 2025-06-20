@@ -52,16 +52,13 @@ Impute random draws by drawing from the estimated density of
   something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing.
 }
 \examples{
-  \dontrun{
-    exprs <- log2(exprs + 1)
-    exprs[exprs \%in\% 0] <- NA
-    state <- list(expression=exprs)
-    config <- list(log_file="")
-    state2 <- f.impute_glm_binom(state, config, impute_granularity=0.0001)
-    exprs2 <- state2$expression
-
-    config <- list(impute_granulatiry=0.0001, log_file="")
-    state2 <- f.impute_glm_binom(state, config)
-    exprs2 <- state2$expression
-  }
+set.seed(101)
+exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+feats <- data.frame(feature_id=rownames(exprs))
+samps <- data.frame(observation_id=colnames(exprs))
+state <- list(expression=exprs, features=feats, samples=samps)
+config <- list(log_file="", impute_granularity=1)
+state2 <- h0testr::f.impute_glm_binom(state, config)
+print(state)
+print(state2)
 }

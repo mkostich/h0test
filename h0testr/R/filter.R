@@ -22,20 +22,15 @@
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     state <- list(expression=exprs, features=feats, samples=samps)
-#'     config <- list(log_file="", n_samples_min=2)
-#'     state2 <- f.filter_features(state, config)
-#'     exprs2 <- state2$expression
-#'     samps2 <- state2$samples
-#'     feats2 <- state2$features
-#'
-#'     config <- list(log_file="")
-#'     state2 <- f.filter_features(state, config, n_samples_min=2)
-#'     exprs2 <- state2$expression
-#'     samps2 <- state2$samples
-#'     feats2 <- state2$features
-#'   } 
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12, mcar_p=0.5)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="", n_samples_min=3)
+#' state2 <- h0testr::f.filter_features(state, config)
+#' print(state)
+#' print(state2)
 
 f.filter_features <- function(state, config, n_samples_min=NULL) {
 
@@ -53,8 +48,8 @@ f.filter_features <- function(state, config, n_samples_min=NULL) {
   i <- apply(state$expression, 1, f)
 
   f.msg("filtering", sum(!i), "features, keeping", sum(i), config=config)
-  state$expression <- state$expression[i, ]
-  state$features <- state$features[i, ]
+  state$expression <- state$expression[i, , drop=F]
+  state$features <- state$features[i, , drop=F]
   f.msg("features filtered: nrow(state$expression):", nrow(state$expression), 
     "; ncol(state$features):", ncol(state$features), config=config)
 
@@ -86,20 +81,15 @@ f.filter_features <- function(state, config, n_samples_min=NULL) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     state <- list(expression=exprs, features=feats, samples=samps)
-#'     config <- list(log_file="", n_features_min=1000)
-#'     state2 <- f.filter_features(state, config)
-#'     exprs2 <- state2$expression
-#'     samps2 <- state2$samples
-#'     feats2 <- state2$features
-#'
-#'     config <- list(log_file="")
-#'     state2 <- f.filter_features(state, config, n_features_min=1000)
-#'     exprs2 <- state2$expression
-#'     samps2 <- state2$samples
-#'     feats2 <- state2$features
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12, mcar_p=0.5)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="", n_features_min=4)
+#' state2 <- h0testr::f.filter_samples(state, config)
+#' print(state)
+#' print(state2)
 
 f.filter_samples <- function(state, config, n_features_min=NULL) {
 
@@ -117,8 +107,8 @@ f.filter_samples <- function(state, config, n_features_min=NULL) {
   i <- apply(state$expression, 2, f)
 
   f.msg("filtering", sum(!i), "samples, keeping", sum(i), config=config)
-  state$expression <- state$expression[, i]
-  state$samples <- state$samples[i, ]
+  state$expression <- state$expression[, i, drop=F]
+  state$samples <- state$samples[i, , drop=F]
   f.msg(
     "n_features_min:", n_features_min, 
     "; samples filtered: nrow(state$expression):", nrow(state$expression), 
@@ -147,11 +137,13 @@ f.filter_samples <- function(state, config, n_features_min=NULL) {
 #' @return A numeric vector of length \code{nrow(state$expression)} with non-negative sample 
 #'   counts for each feature.
 #' @examples
-#'   \dontrun{
-#'     state <- list(expression=exprs, features=feats, samples=samps)
-#'     config <- list(log_file="")
-#'     n_samples <- f.samples_per_feature(state, config)
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12, mcar_p=0.5)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="")
+#' h0testr::f.samples_per_feature(state, config)
 
 f.samples_per_feature <- function(state, config) {
 
@@ -190,11 +182,13 @@ f.samples_per_feature <- function(state, config) {
 #' @return A numeric vector of length \code{nrow(state$expression)} with median expression in 
 #'   each expressing sample.
 #' @examples
-#'   \dontrun{
-#'     state <- list(expression=exprs, features=feats, samples=samps)
-#'     config <- list(log_file="")
-#'     median_expressions <- f.feature_median_expression(state, config)
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="")
+#' h0testr::f.feature_median_expression(state, config)
 
 f.feature_median_expression <- function(state, config) {
 
@@ -232,11 +226,13 @@ f.feature_median_expression <- function(state, config) {
 #' @return A numeric vector of length \code{ncol(state$expression)} with 
 #'   number of features expressed in each sample.
 #' @examples
-#'   \dontrun{
-#'     state <- list(expression=exprs, features=feats, samples=samps)
-#'     config <- list(log_file="")
-#'     n_features <- f.features_per_sample(state, config)
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="")
+#' h0testr::f.features_per_sample(state, config)
 
 f.features_per_sample <- function(state, config) {
 
@@ -281,17 +277,18 @@ f.features_per_sample <- function(state, config) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   }
 #' @examples
-#'   \dontrun{
-#'     state <- list(expression=exprs, features=feats, samples=samps)
-#'     config <- list(log_file="", n_samples_expr_col="n_samples_expr", 
-#'       median_raw_col="median_expr", n_features_expr_col="n_feats_expr")
-#'     out <- f.filter(state, config)
-#'     config2 <- out$config
-#'     state2 <- out$state
-#'     exprs2 <- state2$expression
-#'     feats2 <- state2$features
-#'     samps2 <- state2$samples
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12, mcar_p=0.25)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- h0testr::f.new_config()
+#' config$n_features_min <- 6
+#' config$n_samples_min <- 2
+#' config$save_state <- FALSE           ## so doesn't write output file
+#' out <- h0testr::f.filter(state, config)
+#' print(out$state)
+#' str(out$config)
 
 f.filter <- function(state, config) {
 

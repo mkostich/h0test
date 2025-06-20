@@ -39,16 +39,13 @@ If variable is \code{NULL}, uses \code{config$permute_var} instead. If variable 
   \code{NULL} and \code{config$permute_var == ""}, skips permutation (normal execution).
 }
 \examples{
-  \dontrun{
-    state <- list(expression=exprs, samples=samps)
-    config <- list(log_file="", feat_id_col="gene", sample_id_col="sampleId")
-    state2 <- f.permute(state, config, permute_var="age")
-    exprs2 <- state2$expression
-    samps2 <- state2$samples
-
-    config <- list(log_file="")
-    state2 <- f.permute(state, config, variable="age")
-    exprs2 <- state2$expression
-    samps2 <- state2$samples
-  }
+set.seed(101)
+exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+feats <- data.frame(feature_id=rownames(exprs))
+samps <- data.frame(observation_id=colnames(exprs), age=c(rep("young", 3), rep("old", 3)))
+state <- list(expression=exprs, features=feats, samples=samps)
+config <- list(log_file="", feat_id_col="feature_id", sample_id_col="observation_id", permute_var="age")
+state2 <- h0testr::f.permute(state, config)
+print(state)
+print(state2)
 }

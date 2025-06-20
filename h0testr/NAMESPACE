@@ -40,4 +40,7 @@ export(f.test)
 
 export(f.run)
 export(f.tune)
+export(f.tune_check)
 
+export(f.sim1)
+export(f.sim2)
