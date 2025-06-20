@@ -38,7 +38,9 @@ f.check_state <- function(state, config) {
       config=config)
   }
   
-  if(config$obs_col %in% "") config$obs_col <- config$obs_id_col
+  if(is.null(config$obs_col) || config$obs_col %in% "") {
+    config$obs_col <- config$obs_id_col
+  }
   samps <- state$samples[, config$obs_col, drop=T]
   if(!all(colnames(state$expression) == samps)) {
     f.err("state$samples do not match columns of state$expression", 

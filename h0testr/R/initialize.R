@@ -1,44 +1,3 @@
-#' Report configuration
-#' @description
-#' Reports configuration settings used for run, and checks if
-#'   \code{config$test_term} is compatible with \code{config$frm}.
-#' @details Report written to \code{config$log_file}; if \code{config$log_file == ""},
-#'   written to standard out (console or terminal). Only supports non-lists
-#'     and lists of non-lists (not lists of lists) as \code{config} values.
-#'   Throws error if \code{config$test_term} is not compatible with \code{config$frm}.
-#' @param config List with configuration values.
-#' @return NULL
-#' @examples
-#'   \dontrun{
-#'     config <- list(a=1, b="accorn", c=~x1+x2+x1:x2, d=list(e=1, b=FALSE))
-#'     f.report_config(config)
-#'   }
-
-f.report_config <- function(config) {
-  for(k1 in names(config)) {
-    v1 <- config[[k1]]
-    if(is.list(v1)) {
-      for(k2 in names(v1)) {
-        f.msg(k1, ":", k2, ":", paste(as.character(v1[[k2]]), sep=", "), config=config)
-      }
-    } else f.msg(k1, ":", paste(as.character(v1), sep=", "), config=config)
-  }
-  
-  ## check config$test_term compatible with config$frm; throws error if not, 
-  ##   else returns NULL:
-
-  trms <- as.character(config$frm)[2]
-  trms <- gsub("[[:space:]]+", "", trms)
-  trms <- unlist(strsplit(trms, split="\\+"))
-  
-  if(!(config$test_term %in% trms)) {
-    f.err("config$test_term", config$test_term, "not in config$frm", 
-      as.character(config$frm), config=config)
-  }
-}
-
-###############################################################################
-
 #' Read data
 #' @description
 #' Reads expression data, feature metadata, and observation metadata files.
@@ -277,14 +236,13 @@ f.preprocess_covariates <- function(state, config) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     state <- list(expression=exprs, features=feats, samples=samps)
-#'     config <- list(log_file="", feat_id_col="protein_group", obs_col="sample")
-#'     state <- f.preprocess_covariates(state, config)
-#'     exprs <- state$expression
-#'     feats <- state$features
-#'     samps <- state$samples
-#'   }
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=8)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- h0testr::f.new_config()
+#' state <- h0testr::f.add_filter_stats(state, config)
+#' print(state)
 
 f.add_filter_stats <- function(state, config) {
 
@@ -301,7 +259,9 @@ f.add_filter_stats <- function(state, config) {
   state$features[, config$median_raw_col] <- m
 
   n <- f.features_per_sample(state, config)
-  if(config$obs_col %in% "") config$obs_col <- config$obs_id_col
+  if(is.null(config$obs_col) || config$obs_col %in% "") {
+    config$obs_col <- config$obs_id_col
+  }
   if(!all(names(n) == state$samples[, config$obs_col, drop=T])) {
     f.err("!all(names(n) == state$samples[, config$obs_col])", config=config)
   } 
@@ -346,14 +306,14 @@ f.add_filter_stats <- function(state, config) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     state <- list(expression=exprs, features=feats, samples=samps)
-#'     config <- list(log_file="", feat_id_col="peptide", obs_id_col="replicate")
-#'     state <- f.prefilter(state, config)
-#'     exprs <- state$expression
-#'     feats <- state$features
-#'     samps <- state$samples
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12, mcar_p=0.75)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="")
+#' state2 <- h0testr::f.prefilter(state, config)
+#' print(state2)
 
 f.prefilter <- function(state, config, n_samples_min=1, n_features_min=1) {
   
@@ -397,18 +357,15 @@ f.prefilter <- function(state, config, n_samples_min=1, n_features_min=1) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     state <- list(expression=exprs, samples=samps)
-#'     config <- list(log_file="", feat_id_col="gene", sample_id_col="sampleId")
-#'     state2 <- f.permute(state, config, permute_var="age")
-#'     exprs2 <- state2$expression
-#'     samps2 <- state2$samples
-#'
-#'     config <- list(log_file="")
-#'     state2 <- f.permute(state, config, variable="age")
-#'     exprs2 <- state2$expression
-#'     samps2 <- state2$samples
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs), age=c(rep("young", 3), rep("old", 3)))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="", feat_id_col="feature_id", sample_id_col="observation_id", permute_var="age")
+#' state2 <- h0testr::f.permute(state, config)
+#' print(state)
+#' print(state2)
 
 f.permute <- function(state, config, variable=NULL) {
 

@@ -33,9 +33,11 @@ Sample considered to express feature if \code{state$expression > 0};
       toward the median.
 }
 \examples{
-  \dontrun{
-    state <- list(expression=exprs, features=feats, samples=samps)
-    config <- list(log_file="")
-    median_expressions <- f.feature_median_expression(state, config)
-  }
+set.seed(101)
+exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+feats <- data.frame(feature_id=rownames(exprs))
+samps <- data.frame(observation_id=colnames(exprs))
+state <- list(expression=exprs, features=feats, samples=samps)
+config <- list(log_file="")
+h0testr::f.feature_median_expression(state, config)
 }

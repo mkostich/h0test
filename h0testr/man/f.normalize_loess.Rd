@@ -43,10 +43,13 @@ Inter-observation normalization using cyclic-loess results
     \code{limma::normalizeCyclicLoess()} under the hood.
 }
 \examples{
-  \dontrun{
-    state <- list(expression=exprs)
-    config <- list(log_file="")
-    state <- f.normalize_loess(state, config)
-    norm_exprs <- state$expression
-  }
+set.seed(101)
+exprs <- h0testr::f.sim1(n_obs=6, n_feats=30, mnar_c0=-Inf)$mat
+feats <- data.frame(feature_id=rownames(exprs))
+samps <- data.frame(observation_id=colnames(exprs))
+state <- list(expression=exprs, features=feats, samples=samps)
+config <- list(log_file="")
+state2 <- h0testr::f.normalize_loess(state, config)
+print(state)
+print(state2)
 }

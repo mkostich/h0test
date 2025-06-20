@@ -39,15 +39,16 @@ Filters out features with too few expressing samples, and filters out
     expressed if \code{state$expression > 0}; \code{NA}s count as no expression.
 }
 \examples{
-  \dontrun{
-    state <- list(expression=exprs, features=feats, samples=samps)
-    config <- list(log_file="", n_samples_expr_col="n_samples_expr", 
-      median_raw_col="median_expr", n_features_expr_col="n_feats_expr")
-    out <- f.filter(state, config)
-    config2 <- out$config
-    state2 <- out$state
-    exprs2 <- state2$expression
-    feats2 <- state2$features
-    samps2 <- state2$samples
-  }
+set.seed(101)
+exprs <- h0testr::f.sim1(n_obs=6, n_feats=12, mcar_p=0.25)$mat
+feats <- data.frame(feature_id=rownames(exprs))
+samps <- data.frame(observation_id=colnames(exprs))
+state <- list(expression=exprs, features=feats, samples=samps)
+config <- h0testr::f.new_config()
+config$n_features_min <- 6
+config$n_samples_min <- 2
+config$save_state <- FALSE           ## so doesn't write output file
+out <- h0testr::f.filter(state, config)
+print(out$state)
+str(out$config)
 }

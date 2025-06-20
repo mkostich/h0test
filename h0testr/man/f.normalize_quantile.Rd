@@ -44,14 +44,13 @@ Inter-observation normalization. Setting \code{p <- 0.5} is equivalent
     ignoring missing values.
 }
 \examples{
-  \dontrun{
-    state <- list(expression=exprs)
-    config <- list(log_file="", norm_quantile=0.75)
-    state <- f.normalize_quantile(state, config)
-    norm_exprs <- state$expression
-
-    config <- list(log_file="")
-    state <- f.normalize_quantile(state, config, norm_quantile=0.75)
-    norm_exprs <- state$expression
- }
+set.seed(101)
+exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+feats <- data.frame(feature_id=rownames(exprs))
+samps <- data.frame(observation_id=colnames(exprs))
+state <- list(expression=exprs, features=feats, samples=samps)
+config <- list(log_file="", norm_quantile=0.75)
+state2 <- h0testr::f.normalize_quantile(state, config)
+print(state)
+print(state2)
 }

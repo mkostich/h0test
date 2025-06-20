@@ -21,15 +21,13 @@ Report written to \code{config$log_file}; if \code{config$log_file == ""},
   Throws error if \code{config$test_term} is not compatible with \code{config$frm}.
 }
 \examples{
-  \dontrun{
-    config <- f.new_config()
-    config$frm <- ~ age + sex + age:sex
-    config$test_term <- "age:sex"
-    config$sample_factors <- list(age=c("young", "old"), sex=c("female", "male"))
-    config$feat_id_col <- "gene"
-    config$sample_id_col <- "sample"
-    config$obs_id_col <- "observation"
-    config$log_file <- "/path/to/log.txt"
-    f.report_config(config)
-  }
+config <- f.new_config()
+config$frm <- ~ age + sex + age:sex
+config$test_term <- "age:sex"
+config$sample_factors <- list(age=c("young", "old"), sex=c("female", "male"))
+config$feat_id_col <- "gene"
+config$sample_id_col <- "sample"
+config$obs_id_col <- "observation"
+config$log_file <- ""
+f.report_config(config)
 }

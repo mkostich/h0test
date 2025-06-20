@@ -30,17 +30,15 @@
 #'   } 
 #' Returned \code{state$xpression} matrix contains strictly positive numeric values.
 #' @examples
-#'   \dontrun{
-#'     exprs[exprs %in% 0] <- NA
-#'     state <- list(expression=exprs)
-#'     config <- list(impute_quantile=0.05, log_file="")
-#'     state2 <- f.impute_unif_global_lod(state, config)
-#'     exprs2 <- state2$expression
-#'
-#'     config <- list(log_file="")
-#'     state2 <- f.impute_unif_global_lod(state, config, impute_quantile=0.05)
-#'     exprs2 <- state2$expression
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="", impute_quantile=0.05)
+#' state2 <- h0testr::f.impute_unif_global_lod(state, config)
+#' print(state)
+#' print(state2)
 
 f.impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
 
@@ -101,17 +99,15 @@ f.impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     exprs[exprs %in% 0] <- NA
-#'     state <- list(expression=exprs)
-#'     config <- list(log_file="")
-#'     state2 <- f.impute_unif_sample_lod(state, config, impute_quantile=0.01)
-#'     exprs2 <- state2$expression
-#'
-#'     config <- list(impute_quantile=0.01, log_file="")
-#'     state2 <- f.impute_unif_sample_lod(state, config)
-#'     exprs2 <- state2$expression
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="", impute_quantile=0.05)
+#' state2 <- h0testr::f.impute_unif_sample_lod(state, config)
+#' print(state)
+#' print(state2)
 
 f.impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
 
@@ -158,13 +154,15 @@ f.impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     exprs[exprs %in% 0] <- NA
-#'     state <- list(expression=exprs)
-#'     config <- list(log_file="")
-#'     state2 <- f.impute_sample_lod(state, config)
-#'     exprs2 <- state2$expression
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="")
+#' state2 <- h0testr::f.impute_sample_lod(state, config)
+#' print(state)
+#' print(state2)
 
 f.impute_sample_lod <- function(state, config) {
 
@@ -210,17 +208,15 @@ f.impute_sample_lod <- function(state, config) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     exprs[exprs %in% 0] <- NA
-#'     state <- list(expression=exprs)
-#'     config <- list(log_file="")
-#'     state2 <- f.impute_rnorm_feature(state, config, scale.=1)
-#'     exprs2 <- state2$expression
-#'
-#'     config <- list(impute_scale=1, log_file="")
-#'     state2 <- f.impute_rnorm_feature(state, config)
-#'     exprs2 <- state2$expression
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="", scale.=1)
+#' state2 <- h0testr::f.impute_rnorm_feature(state, config)
+#' print(state)
+#' print(state2)
 
 f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 
@@ -237,7 +233,7 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
   
   f <- function(v) {
     i <- is.na(v)
-    if(any(i)) {
+    if(any(i) && sum(i) >= 2) {
       m <- mean(v, na.rm=T)
       s <- stats::sd(v, na.rm=T) * scale.
       v[i] <- stats::rnorm(sum(i), mean=m, sd=s)
@@ -292,18 +288,15 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     exprs <- log2(exprs + 1)
-#'     exprs[exprs %in% 0] <- NA
-#'     state <- list(expression=exprs)
-#'     config <- list(log_file="")
-#'     state2 <- f.impute_glm_binom(state, config, impute_granularity=0.0001)
-#'     exprs2 <- state2$expression
-#'
-#'     config <- list(impute_granulatiry=0.0001, log_file="")
-#'     state2 <- f.impute_glm_binom(state, config)
-#'     exprs2 <- state2$expression
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="", impute_granularity=1)
+#' state2 <- h0testr::f.impute_glm_binom(state, config)
+#' print(state)
+#' print(state2)
 
 f.impute_glm_binom <- function(state, config, gran=NULL, off=1, f_mid=stats::median) {
 
@@ -370,18 +363,15 @@ f.impute_glm_binom <- function(state, config, gran=NULL, off=1, f_mid=stats::med
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     exprs <- log2(exprs + 1)
-#'     exprs[exprs %in% 0] <- NA
-#'     state <- list(expression=exprs)
-#'     config <- list(log_file="")
-#'     state2 <- f.impute_loess_logit(state, config, span.=1, gran=0.0001)
-#'     exprs2 <- state2$expression
-#'
-#'     config <- list(impute_span=1, impute_granularity=0.0001, log_file="")
-#'     state2 <- f.impute_loess_logit(state, config)
-#'     exprs2 <- state2$expression
-#'  }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="", impute_granularity=1, impute_span=0.25)
+#' state2 <- h0testr::f.impute_loess_logit(state, config)
+#' print(state)
+#' print(state2)
 
 f.impute_loess_logit <- function(state, config, span.=NULL, gran=NULL, 
     off=1, f_mid=stats::median, degree=1, fam="symmetric") {
@@ -399,12 +389,11 @@ f.impute_loess_logit <- function(state, config, span.=NULL, gran=NULL,
   n1 <- ncol(state$expression) - n0                          ## n.found
   p <- (n0 + off) / (ncol(state$expression) + off)           ## p.missing
   dat <- data.frame(n0=n0, n1=n1, p=p, m=m)
-
-  m_new <- seq(from=gran, to=max(c(state$expression), na.rm=T), by=gran)
   
   fit <- stats::loess(log(p/(1-p)) ~ m, data=dat, span=span., 
     degree=degree, family=fam)
     
+  m_new <- seq(from=gran, to=max(c(state$expression), na.rm=T), by=gran)  
   p_hat <- stats::predict(fit, newdata=data.frame(m=m_new))  ## on logit scale
   p_hat[is.na(p_hat)] <- min(p_hat[p_hat > 0], na.rm=T)      ## is.na -> low p
   p_hat = exp(p_hat) / (1 + exp(p_hat))                      ## inverse logit

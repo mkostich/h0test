@@ -26,20 +26,15 @@
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     state <- list(expression=exprs)
-#'     config <- list(norm_method="TMM", log_file="")
-#'     state <- f.normalize_edger(state, config)
-#'     norm_exprs <- state$expression
-#'
-#'     config <- list(norm_method="upperquartile", norm_quantile=0.75, log_file="")
-#'     state <- f.normalize_edger(state, config)
-#'     norm_exprs <- state$expression
-#' 
-#'     config <- list(log_file="")
-#'     state <- f.normalize_edger(state, config, method="upperquartile", p=0.75)
-#'     norm_exprs <- state$expression
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="", norm_method="TMM", norm_quantile="0.75")
+#' state2 <- h0testr::f.normalize_edger(state, config)
+#' print(state)
+#' print(state2)
 
 f.normalize_edger <- function(state, config, method=NULL, p=NULL) {
 
@@ -97,16 +92,15 @@ f.normalize_edger <- function(state, config, method=NULL, p=NULL) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     state <- list(expression=exprs)
-#'     config <- list(log_file="", norm_quantile=0.75)
-#'     state <- f.normalize_quantile(state, config)
-#'     norm_exprs <- state$expression
-#'
-#'     config <- list(log_file="")
-#'     state <- f.normalize_quantile(state, config, norm_quantile=0.75)
-#'     norm_exprs <- state$expression
-#'  }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="", norm_quantile=0.75)
+#' state2 <- h0testr::f.normalize_quantile(state, config)
+#' print(state)
+#' print(state2)
 
 f.normalize_quantile <- function(state, config, norm_quantile=NULL, multiplier=1e3) {
 
@@ -150,12 +144,15 @@ f.normalize_quantile <- function(state, config, norm_quantile=NULL, multiplier=1
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     state <- list(expression=exprs)
-#'     config <- list(log_file="")
-#'     state <- f.normalize_cpm(state, config)
-#'     norm_exprs <- state$expression
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="")
+#' state2 <- h0testr::f.normalize_cpm(state, config)
+#' print(state)
+#' print(state2)
 
 f.normalize_cpm <- function(state, config, multiplier=1e6) {
 
@@ -192,12 +189,15 @@ f.normalize_cpm <- function(state, config, multiplier=1e6) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     state <- list(expression=exprs)
-#'     config <- list(log_file="")
-#'     state <- f.normalize_vsn(state, config)
-#'     norm_exprs <- state$expression
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=50)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="")
+#' state2 <- h0testr::f.normalize_vsn(state, config)
+#' print(state)
+#' print(state2)
 
 f.normalize_vsn <- function(state, config) {
 
@@ -238,12 +238,15 @@ f.normalize_vsn <- function(state, config) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     state <- list(expression=exprs)
-#'     config <- list(log_file="")
-#'     state <- f.normalize_loess(state, config)
-#'     norm_exprs <- state$expression
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=30, mnar_c0=-Inf)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="")
+#' state2 <- h0testr::f.normalize_loess(state, config)
+#' print(state)
+#' print(state2)
 
 f.normalize_loess <- function(state, config, span=0.7, method="affy") {
 
@@ -279,12 +282,15 @@ f.normalize_loess <- function(state, config, span=0.7, method="affy") {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     state <- list(expression=exprs)
-#'     config <- list(log_file="")
-#'     state <- f.normalize_qquantile(state, config)
-#'     norm_exprs <- state$expression
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12, mnar_c0=-Inf)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="")
+#' state2 <- h0testr::f.normalize_qquantile(state, config)
+#' print(state)
+#' print(state2)
 
 f.normalize_qquantile <- function(state, config) {
 
@@ -293,6 +299,7 @@ f.normalize_qquantile <- function(state, config) {
   }
   
   state$expression <- limma::normalizeQuantiles(state$expression)
+  
   return(state)
 }
 

@@ -31,9 +31,11 @@ Feature considered expressed if \code{state$expression > 0};
   \code{NA}s count as no expression.
 }
 \examples{
-  \dontrun{
-    state <- list(expression=exprs, features=feats, samples=samps)
-    config <- list(log_file="")
-    n_samples <- f.samples_per_feature(state, config)
-  }
+set.seed(101)
+exprs <- h0testr::f.sim1(n_obs=6, n_feats=12, mcar_p=0.5)$mat
+feats <- data.frame(feature_id=rownames(exprs))
+samps <- data.frame(observation_id=colnames(exprs))
+state <- list(expression=exprs, features=feats, samples=samps)
+config <- list(log_file="")
+h0testr::f.samples_per_feature(state, config)
 }
