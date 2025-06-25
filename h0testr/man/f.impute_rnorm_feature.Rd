@@ -48,7 +48,7 @@ exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(log_file="", scale.=1)
+config <- list(log_file="", impute_scale.=1)
 state2 <- h0testr::f.impute_rnorm_feature(state, config)
 print(state)
 print(state2)

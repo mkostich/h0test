@@ -19,6 +19,16 @@ f.err <- function(..., config) {
   stop("Stopping", call.=F)
 }
 
+f.log_obj <- function(obj, config) {
+  
+  if(config$log_file %in% "") {
+    print(obj)
+    utils::flush.console()
+  } else {
+    utils::capture.output(obj, file=config$log_file, append=T)
+  }
+}
+
 f.save_tsv <- function(dat, file_out, config, row.names=T, col.names=T) {
   tryCatch(
     utils::write.table(dat, file=file_out, quote=F, sep="\t", 
@@ -103,12 +113,3 @@ f.quantile <- function(v, config, probs=NULL, digits=3, na.rm=T) {
   }
 }
 
-f.log_obj <- function(obj, config) {
-  
-  if(config$log_file %in% "") {
-    print(obj)
-    utils::flush.console()
-  } else {
-    utils::capture.output(obj, file=config$log_file, append=T)
-  }
-}

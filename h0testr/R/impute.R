@@ -114,6 +114,7 @@ f.impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
   if(!is.matrix(state$expression)) {
     f.err("f.impute_unif_sample_lod: !is.matrix(state$expression)", config=config)
   }
+  
   if(is.null(impute_quantile)) impute_quantile <- config$impute_quantile
   
   f <- function(v) {
@@ -213,7 +214,7 @@ f.impute_sample_lod <- function(state, config) {
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="", scale.=1)
+#' config <- list(log_file="", impute_scale.=1)
 #' state2 <- h0testr::f.impute_rnorm_feature(state, config)
 #' print(state)
 #' print(state2)
@@ -221,21 +222,33 @@ f.impute_sample_lod <- function(state, config) {
 f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 
   if(!is.matrix(state$expression)) {
-    f.err("f.impute_rnorm_feature: !is.matrix(state$expression)", config=config)
-  }
-  if(is.null(scale.)) scale. <- config$scale
-  
+    f.err("f.impute_rnorm_feature: !is.matrix(state$expression)", 
+      config=config)
+  } 
   i <- c(state$expression) < 0
   i[is.na(i)] <- F
   if(any(i)) {
-    f.err("f.impute_rnorm_feature: state$expression contains negative values", config=config)
+    f.err("f.impute_rnorm_feature: state$expression contains negative values", 
+      config=config)
   }
+  
+  if(is.null(scale.)) scale. <- config$impute_scale
   
   f <- function(v) {
     i <- is.na(v)
-    if(any(i) && sum(i) >= 2) {
-      m <- mean(v, na.rm=T)
-      s <- stats::sd(v, na.rm=T) * scale.
+    if(all(i)) {
+      f.err("f.impute_rnorm_feature: all(is.na(state$expression[row,]))")
+    }
+    if(any(i)) {
+      m <- mean(v[!i])
+      s_min <- sqrt(m)
+      if(sum(!i) >= 2) {
+        s <- stats::sd(v[!i]) * scale.
+      } else {
+        s <- s_min
+      }
+      if(s < s_min) s <- s_min
+
       v[i] <- stats::rnorm(sum(i), mean=m, sd=s)
       i <- v < 0
       i[is.na(i)] <- F
@@ -271,11 +284,11 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 #' It is assumed that state$expression has been previously \code{log2(x+1)} transformed.
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{log_file}            \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
-#'     \code{impute_granularity}  \cr \tab Numeric greater than zero. Determines granularity of imputation. Smaller values lead to finer grain.
+#'     \code{log_file}      \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+#'     \code{impute_n_pts}  \cr \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain.
 #'   }
-#' @param gran Numeric greater than zero. Granularity of prediction 
-#'   grid. Smaller values lead to less chance of duplicate imputed values.
+#' @param n_pts Numeric greater than one. Granularity of prediction 
+#'   grid. Larger values lead to less chance of duplicate imputed values.
 #'   Larger values require more compute time and memory.
 #' @param off Numeric offset for calculating 
 #'   \code{p.missing = (n.missing + off) / (n.total + off)}.
@@ -293,17 +306,19 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="", impute_granularity=1)
+#' config <- list(log_file="", impute_n_pts=1e7)
 #' state2 <- h0testr::f.impute_glm_binom(state, config)
 #' print(state)
 #' print(state2)
 
-f.impute_glm_binom <- function(state, config, gran=NULL, off=1, f_mid=stats::median) {
+f.impute_glm_binom <- function(state, config, n_pts=NULL, off=1, 
+    f_mid=stats::median) {
 
   if(!is.matrix(state$expression)) {
     f.err("f.impute_glm_binom: !is.matrix(state$expression)", config=config)
   }
-  if(is.null(gran)) gran <- config$impute_granularity
+  if(is.null(n_pts)) n_pts <- config$impute_n_pts
+  if(n_pts <= 0) f.err("f.impute_glm_binom: n_pts <= 0", config=config)
 
   m <- apply(state$expression, 1, f_mid, na.rm=T)
   m[is.na(m)] <- 0
@@ -313,7 +328,8 @@ f.impute_glm_binom <- function(state, config, gran=NULL, off=1, f_mid=stats::med
   dat <- data.frame(n0=n0, n1=n1, p=p, m=m)
 
   fit <- stats::glm(cbind(n0, n1) ~ m, data=dat, family="binomial")
-  m <- seq(from=gran, to=max(c(state$expression), na.rm=T), by=gran)
+  m <- seq(from=max(c(state$expression), na.rm=T) / n_pts, 
+    to=max(c(state$expression), na.rm=T), length.out=n_pts)
   p <- stats::predict(fit, newdata=data.frame(m=m), type="response")
   p[is.na(p)] <- min(p, na.rm=T)
   i_na <- is.na(c(state$expression))
@@ -341,13 +357,13 @@ f.impute_glm_binom <- function(state, config, gran=NULL, off=1, f_mid=stats::med
 #' It is assumed that state$expression has been previously \code{log2(x+1)} transformed.
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{log_file}            \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
-#'     \code{impute_granularity}  \cr \tab Numeric greater than zero. Determines granularity of imputation. Smaller values lead to finer grain.
-#'     \code{impute_span}         \cr \tab Span (numeric between zero and 1) for \code{loess} fit.
+#'     \code{log_file}      \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+#'     \code{impute_n_pts}  \cr \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain.
+#'     \code{impute_span}   \cr \tab Span (numeric between zero and 1) for \code{loess} fit.
 #'   }
 #' @param span. Span for loess fit. Numeric in the open interval \code{(0, 1)}.
-#' @param gran Numeric greater than zero. Granularity of prediction 
-#'   grid. Smaller values lead to less chance of duplicate imputed values.
+#' @param n_pts Numeric greater than one. Granularity of prediction 
+#'   grid. Larger values lead to less chance of duplicate imputed values.
 #'   Larger values require more compute time and memory.
 #' @param off Numeric offset for calculating 
 #'   \code{p.missing = (n.missing + off) / (n.total + off)}.
@@ -368,19 +384,19 @@ f.impute_glm_binom <- function(state, config, gran=NULL, off=1, f_mid=stats::med
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="", impute_granularity=1, impute_span=0.25)
+#' config <- list(log_file="", impute_n_pts=1e7, impute_span=0.25)
 #' state2 <- h0testr::f.impute_loess_logit(state, config)
 #' print(state)
 #' print(state2)
 
-f.impute_loess_logit <- function(state, config, span.=NULL, gran=NULL, 
+f.impute_loess_logit <- function(state, config, span.=NULL, n_pts=NULL, 
     off=1, f_mid=stats::median, degree=1, fam="symmetric") {
 
   if(!is.matrix(state$expression)) {
     f.err("f.impute_loess_logit: !is.matrix(state$expression)", config=config)
   }
   if(is.null(span.)) span. <- config$impute_span
-  if(is.null(gran)) gran <- config$impute_granularity
+  if(is.null(n_pts)) n_pts <- config$impute_n_pts
 
   m <- apply(state$expression, 1, f_mid, na.rm=T)
   m[is.na(m)] <- 0
@@ -393,7 +409,9 @@ f.impute_loess_logit <- function(state, config, span.=NULL, gran=NULL,
   fit <- stats::loess(log(p/(1-p)) ~ m, data=dat, span=span., 
     degree=degree, family=fam)
     
-  m_new <- seq(from=gran, to=max(c(state$expression), na.rm=T), by=gran)  
+  m_new <- seq(from=max(c(state$expression), na.rm=T) / n_pts, 
+    to=max(c(state$expression), na.rm=T), length.out=n_pts)
+      
   p_hat <- stats::predict(fit, newdata=data.frame(m=m_new))  ## on logit scale
   p_hat[is.na(p_hat)] <- min(p_hat[p_hat > 0], na.rm=T)      ## is.na -> low p
   p_hat = exp(p_hat) / (1 + exp(p_hat))                      ## inverse logit
@@ -501,7 +519,7 @@ f.impute_rf <- function(state, config, f_imp=f.impute_unif_sample_lod, ntree=100
     if(n_miss[idx_feat] < 1) next
     f.msg("processing", rownames(state$expression)[idx_feat], config=config)
     
-    x_train <- f_imp(state$expression)
+    x_train <- f_imp(state, config)$expression
     if(unlog2) x_train <- 2^x_train - 1
     x_train <- f.augment_affine(x_train, mult=aug_mult, add=aug_add, steps=aug_steps)
     if(unlog2) x_train <- log2(x_train + 1)
@@ -520,18 +538,29 @@ f.impute_rf <- function(state, config, f_imp=f.impute_unif_sample_lod, ntree=100
     x_miss <- x_train[-idx_feat, which(i_miss), drop=F]
     y_miss <- stats::predict(fit, newdata=t(x_miss), type="response")
     
-    if(any(y_miss < 0)) f.err("f.impute_rf: y_miss < 0; y_miss:", y_miss, config=config)
+    if(any(y_miss < 0)) {
+      f.msg("f.impute_rf: y_miss < 0; deferred to f_imp; y_miss:", y_miss, config=config)
+      y_miss[y_miss < 0] <- NA
+    }
     state$expression[idx_feat, i_miss] <- y_miss
     
     tm_stmp <- format(Sys.time(), format='%Y%m%d%H%M%S')
-    tbl_i <- data.frame(time=tm_stmp, feat=rownames(state$expression)[idx_feat], 
-      mtry=mtry0, n_miss=sum(i_miss), mean0=mean(y[!i_miss]), 
-      mean1=mean(y_miss), pvar0=fit$rsq[1], pvar1=fit$rsq[ntree], 
+    tbl_i <- data.frame(
+      time=tm_stmp, feat=rownames(state$expression)[idx_feat], 
+      mtry=mtry0, n_miss1=sum(i_miss), n_miss2=sum(is.na(y_miss)), 
+      mean0=mean(y[!i_miss]), mean1=mean(y_miss), 
+      pvar0=fit$rsq[1], pvar1=fit$rsq[ntree], 
       mse0=fit$mse[1], mse1=fit$mse[ntree]
     )
     
-    if(verbose) f.msg(tbl_i, config=config)
+    if(verbose) f.log_obj(tbl_i, config=config)
     tbl <- rbind(tbl, tbl_i)
+  }
+  ## fall-back:
+  if(any(is.na(state$expression))) {
+    f.msg("f.impute_rf: fall-back imputation for", 
+      sum(is.na(state$expression)), "features", config=config)
+    state <- f_imp(state, config)
   }
   
   return(list(state=state, log=tbl))
@@ -619,10 +648,10 @@ f.impute_glmnet <- function(state, config, f_imp=f.impute_unif_sample_lod,
     if(n_miss[idx_feat] < 1) next
     f.msg("processing", rownames(state$expression)[idx_feat], config=config)
     
-    x_train <- f_imp(state$expression)
+    x_train <- f_imp(state, config)$expression
     if(unlog2) x_train <- 2^x_train - 1
     x_train <- f.augment_affine(x_train, mult=aug_mult, add=aug_add, steps=aug_steps)
-    if(unlog2) x_train <- log2(x_train + 1)
+    if(unlog2) x_train <- log2(x_train + 1)   
     
     y <- state$expression[idx_feat, , drop=T]
     i_miss <- is.na(y) | y %in% 0
@@ -630,27 +659,37 @@ f.impute_glmnet <- function(state, config, f_imp=f.impute_unif_sample_lod,
     i_miss_train <- colnames(x_train) %in% col_names_miss
     x_train_i <- x_train[-idx_feat, !i_miss_train, drop=F]
     y_train_i <- x_train[idx_feat, !i_miss_train, drop=T]
-
+    
     fit <- glmnet::cv.glmnet(x=t(x_train_i), y=y_train_i, family="gaussian", 
       alpha=alpha, type.measure=measure, nfolds=nfolds, parallel=F)
     
     x_miss <- x_train[-idx_feat, which(i_miss), drop=F]
-    y_miss <- stats::predict(fit, newx=t(x_miss), 
-      s=fit$lambda.1se, type="response")
-    
-    if(any(y_miss < 0)) f.err("f.impute_glmnet: y_miss < 0; y_miss:", y_miss, config=config)
+    y_miss <- stats::predict(fit, newx=t(x_miss), s=fit$lambda.1se, type="response")
+    if(any(y_miss < 0)) {
+      f.msg("f.impute_glmnet: y_miss < 0; deferred to f_imp; y_miss:", y_miss, config=config)
+      y_miss[y_miss < 0] <- NA
+    }
     state$expression[idx_feat, i_miss] <- y_miss
     
     idx_lambda <- which(fit$lambda %in% fit$lambda.1se)[1] 
     tm_stmp <- format(Sys.time(), format='%Y%m%d%H%M%S')
-    tbl_i <- data.frame(time=tm_stmp, feat=rownames(state$expression)[idx_feat], 
-      alpha=alpha, nfolds=nfolds, n_miss=sum(i_miss), mean0=mean(y[!i_miss]), 
-      mean1=mean(y_miss), cvm0=max(fit$cvm), cvm1=fit$cvm[idx_lambda], 
+    
+    tbl_i <- data.frame(
+      time=tm_stmp, feat=rownames(state$expression)[idx_feat], 
+      alpha=alpha, nfolds=nfolds, 
+      n_miss1=sum(i_miss), n_miss2=sum(is.na(y_miss)), 
+      mean0=mean(y[!i_miss]), mean1=mean(y_miss, na.rm=T), 
+      cvm0=max(fit$cvm), cvm1=fit$cvm[idx_lambda], 
       cvup0=max(fit$cvup), cvup1=fit$cvup[idx_lambda]
     )
-    
-    if(verbose) f.msg(tbl_i, config=config)
+    if(verbose) f.log_obj(tbl_i, config=config)
     tbl <- rbind(tbl, tbl_i)
+  }
+  ## fall-back:
+  if(any(is.na(state$expression))) {
+    f.msg("f.impute_glmnet: fall-back imputation for", 
+      sum(is.na(state$expression)), "features", config=config)
+    state <- f_imp(state, config)
   }
   
   return(list(state=state, log=tbl))
@@ -675,12 +714,12 @@ f.impute_glmnet <- function(state, config, f_imp=f.impute_unif_sample_lod,
 #' It is assumed that \code{state$expression} has been previously \code{log2(x+1)} transformed.
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{log_file}           \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
-#'     \code{impute_method}      \cr \tab In \code{c("unif_global_lod","unif_sample_lod","sample_lod","rnorm_feature","glm_binom","loess_logit","glmnet","rf","none")} \cr
-#'     \code{impute_quantile}    \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD). \cr
-#'     \code{impute_scale}       \cr \tab Factor (numeric) rescaling variance of normal distribution from which draws are made for \code{impute_method \%in\% "rnorm"}. \cr
-#'     \code{impute_granularity} \cr \tab Numeric greater than zero. Determines granularity of imputation. Smaller values lead to finer grain. \cr
-#'     \code{impute_span}        \cr \tab Span (numeric between zero and 1) for \code{loess} fit. \cr
+#'     \code{log_file}         \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
+#'     \code{impute_method}    \cr \tab In \code{c("unif_global_lod","unif_sample_lod","sample_lod","rnorm_feature","glm_binom","loess_logit","glmnet","rf","none")} \cr
+#'     \code{impute_quantile}  \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD). \cr
+#'     \code{impute_scale}     \cr \tab Factor (numeric) rescaling variance of normal distribution from which draws are made for \code{impute_method \%in\% "rnorm"}. \cr
+#'     \code{impute_n_pts}     \cr \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain. \cr
+#'     \code{impute_span}      \cr \tab Span (numeric between zero and 1) for \code{loess} fit. \cr
 #'   }
 #' @return Updated \code{state} list with the following elements:
 #'   \tabular{ll}{

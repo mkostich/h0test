@@ -37,7 +37,7 @@ f.filter_features <- function(state, config, n_samples_min=NULL) {
   if(!is.matrix(state$expression)) {
     f.err("f.filter_features: !is.matrix(state$expression)", config=config)
   }
-  
+
   if(is.null(n_samples_min)) n_samples_min <- config$n_samples_min
 
   f <- function(v) {
@@ -292,7 +292,7 @@ f.features_per_sample <- function(state, config) {
 
 f.filter <- function(state, config) {
 
-  state <- f.filter_features(state, config)
+  state <- f.filter_features(state, config)  
   state <- f.filter_samples(state, config)
 
   n <- f.samples_per_feature(state, config)

@@ -8,7 +8,7 @@ f.impute_loess_logit(
   state,
   config,
   span. = NULL,
-  gran = NULL,
+  n_pts = NULL,
   off = 1,
   f_mid = stats::median,
   degree = 1,
@@ -26,15 +26,15 @@ It is assumed that state$expression has been previously \code{log2(x+1)} transfo
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{log_file}            \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
-  \code{impute_granularity}  \cr \tab Numeric greater than zero. Determines granularity of imputation. Smaller values lead to finer grain.
-  \code{impute_span}         \cr \tab Span (numeric between zero and 1) for \code{loess} fit.
+  \code{log_file}      \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+  \code{impute_n_pts}  \cr \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain.
+  \code{impute_span}   \cr \tab Span (numeric between zero and 1) for \code{loess} fit.
 }}
 
 \item{span.}{Span for loess fit. Numeric in the open interval \code{(0, 1)}.}
 
-\item{gran}{Numeric greater than zero. Granularity of prediction 
-grid. Smaller values lead to less chance of duplicate imputed values.
+\item{n_pts}{Numeric greater than one. Granularity of prediction 
+grid. Larger values lead to less chance of duplicate imputed values.
 Larger values require more compute time and memory.}
 
 \item{off}{Numeric offset for calculating 
@@ -74,7 +74,7 @@ exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(log_file="", impute_granularity=1, impute_span=0.25)
+config <- list(log_file="", impute_n_pts=1e7, impute_span=0.25)
 state2 <- h0testr::f.impute_loess_logit(state, config)
 print(state)
 print(state2)
