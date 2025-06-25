@@ -4,7 +4,7 @@
 \alias{f.impute_glm_binom}
 \title{Impute by drawing from `p(missing|intensity)` from binomial glm.}
 \usage{
-f.impute_glm_binom(state, config, gran = NULL, off = 1, f_mid = stats::median)
+f.impute_glm_binom(state, config, n_pts = NULL, off = 1, f_mid = stats::median)
 }
 \arguments{
 \item{state}{A list with elements like that returned by \code{f.read_data()}:
@@ -17,12 +17,12 @@ It is assumed that state$expression has been previously \code{log2(x+1)} transfo
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{log_file}            \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
-  \code{impute_granularity}  \cr \tab Numeric greater than zero. Determines granularity of imputation. Smaller values lead to finer grain.
+  \code{log_file}      \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+  \code{impute_n_pts}  \cr \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain.
 }}
 
-\item{gran}{Numeric greater than zero. Granularity of prediction 
-grid. Smaller values lead to less chance of duplicate imputed values.
+\item{n_pts}{Numeric greater than one. Granularity of prediction 
+grid. Larger values lead to less chance of duplicate imputed values.
 Larger values require more compute time and memory.}
 
 \item{off}{Numeric offset for calculating 
@@ -57,7 +57,7 @@ exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(log_file="", impute_granularity=1)
+config <- list(log_file="", impute_n_pts=1e7)
 state2 <- h0testr::f.impute_glm_binom(state, config)
 print(state)
 print(state2)

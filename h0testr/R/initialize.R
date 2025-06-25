@@ -297,8 +297,8 @@ f.add_filter_stats <- function(state, config) {
 #'     \code{feat_id_col}  \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
 #'     \code{obs_id_col}   \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{expression}. \cr
 #'   }
-#' @param n_samples_min minimum number of samples per feature; numeric >= 1.
-#' @param n_features_min minimum number of features per sample; numeric >= 1.
+#' @param n_samples_min minimum number of samples per feature; numeric >= 2.
+#' @param n_features_min minimum number of features per sample; numeric >= 2.
 #' @return A list (the filtered state) with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -315,7 +315,7 @@ f.add_filter_stats <- function(state, config) {
 #' state2 <- h0testr::f.prefilter(state, config)
 #' print(state2)
 
-f.prefilter <- function(state, config, n_samples_min=1, n_features_min=1) {
+f.prefilter <- function(state, config, n_samples_min=2, n_features_min=2) {
   
   f.log("prefilter features and samples", config=config)
   f.msg("before filtering features:", config=config)

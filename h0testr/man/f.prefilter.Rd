@@ -4,7 +4,7 @@
 \alias{f.prefilter}
 \title{Prefilter data}
 \usage{
-f.prefilter(state, config, n_samples_min = 1, n_features_min = 1)
+f.prefilter(state, config, n_samples_min = 2, n_features_min = 2)
 }
 \arguments{
 \item{state}{List with elements formatted like the list returned by \code{f.read_data()}:
@@ -21,9 +21,9 @@ f.prefilter(state, config, n_samples_min = 1, n_features_min = 1)
   \code{obs_id_col}   \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{expression}. \cr
 }}
 
-\item{n_samples_min}{minimum number of samples per feature; numeric >= 1.}
+\item{n_samples_min}{minimum number of samples per feature; numeric >= 2.}
 
-\item{n_features_min}{minimum number of features per sample; numeric >= 1.}
+\item{n_features_min}{minimum number of features per sample; numeric >= 2.}
 }
 \value{
 A list (the filtered state) with the following elements:
