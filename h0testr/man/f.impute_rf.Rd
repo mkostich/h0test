@@ -83,16 +83,15 @@ Imputes missing values using a \code{randomForest} model trained
   \code{f.aug_mult()}.
 }
 \examples{
-  \dontrun{
-    exprs <- log2(exprs + 1)
-    exprs[exprs \%in\% 0] <- NA
-    state <- list(expression=exprs)
-    config <- list(log_file="")
-    state2 <- f.impute_rf(state, config)
-    exprs2 <- state2$expression
-
-    config <- list(ntree=250, aug_steps=2, log_file="")
-    state2 <- f.impute_rf(state, config)
-    exprs2 <- state2$expression
-  }
+set.seed(101)
+exprs <- h0testr::f.sim1(n_obs=20, n_feats=30)$mat
+exprs <- log2(exprs + 1)
+feats <- data.frame(feature_id=rownames(exprs))
+samps <- data.frame(observation_id=colnames(exprs))
+state <- list(expression=exprs, features=feats, samples=samps)
+config <- list(log_file="", impute_quantile=0)
+out <- h0testr::f.impute_rf(state, config, verbose=FALSE)
+summary(c(state$expression))   ## note number of NAs
+summary(c(out$state$expression))  ## note number of NAs
+print(out$log)
 }

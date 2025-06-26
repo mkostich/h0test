@@ -39,7 +39,9 @@ f.filter_features <- function(state, config, n_samples_min=NULL) {
   }
 
   if(is.null(n_samples_min)) n_samples_min <- config$n_samples_min
-
+  if(is.null(n_samples_min)) {
+    f.err("f.filter_features: n_samples_min unset", config=config)
+  }
   f <- function(v) {
     i <- sum(v > 0, na.rm=T) >= n_samples_min
     i[is.na(i)] <- F
@@ -98,7 +100,10 @@ f.filter_samples <- function(state, config, n_features_min=NULL) {
   }
   
   if(is.null(n_features_min)) n_features_min <- config$n_features_min
-
+  if(is.null(n_features_min)) {
+    f.err("f.filter_samples: n_features_min unset", config=config)
+  }
+  
   f <- function(v) {
     i <- sum(v > 0, na.rm=T) >= n_features_min
     i[is.na(i)] <- F

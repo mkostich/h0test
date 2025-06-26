@@ -6,9 +6,13 @@ f.sim0 <- function(n_obs, feat_means, feat_sds, mnar_c0, mnar_c1, mnar_off=0.000
 
   for(i_obs in 1:n_obs) {
 
-    v <- feat_means + stats::rnorm(length(feat_means), mean=0, sd=feat_sds)
-    v[v < 0] <- 0
-
+    v <- stats::rnorm(length(feat_means), mean=feat_means, sd=feat_sds)
+    i <- v <= 0
+    while(any(i)) {
+      v[i] <- stats::rnorm(sum(i), mean=feat_means[i], sd=feat_sds[i])
+      i <- v <= 0
+    }
+    
     resp <- mnar_c0 + mnar_c1 * log(v + mnar_off)   ## logit(p_mnar) ~ c0 + c1 * log(intensity)
     p_mnar = exp(resp) / (1 + exp(resp))            ## inverse logit
 

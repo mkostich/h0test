@@ -36,16 +36,14 @@ Combine expression signals from technical replicates.
 Combines signals for each feature across technical replicates by taking median.
 }
 \examples{
-  \dontrun{
-    config <- list(obs_id_col="observation_id", sample_id_col="sample_id", log_file="")
-    state <- list(expression=exprs, samples=samps, features=feats)
-    cat("config$obs_col:", config$obs_col, "\n")
-    out <- f.combine_reps(state, config)
-    config2 <- out$config
-    cat("config2$obs_col:", config2$obs_col, "\n")
-    state2 <- out$state
-    exprs2 <- state2$expression
-    samps2 <- state2$samples
-    f.do_stuff(state2, config2)
-  }
+set.seed(101)
+exprs <- h0testr::f.sim1(n_obs=6, n_feats=8)$mat
+feats <- data.frame(feature_id=rownames(exprs))
+samps <- data.frame(observation_id=colnames(exprs))
+samps$sample_id=c("samp1", "samp2", "samp3", "samp1", "samp2", "samp3")
+state <- list(expression=exprs, features=feats, samples=samps)
+config <- list(log_file="", obs_id_col="observation_id", sample_id_col="sample_id", save_state=FALSE)
+out <- h0testr::f.combine_reps(state, config)
+state
+out$state
 }

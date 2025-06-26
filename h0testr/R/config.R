@@ -3,20 +3,25 @@
 #'   Returns a configuration list filled with defaults and
 #'     example values. Configuration meant to be customized then passed to
 #'     other functions.
-#' @details Report written to \code{config$log_file}; if \code{config$log_file == ""},
-#'   written to standard out (console or terminal). Only supports non-lists
-#'     and lists of non-lists (not lists of lists) as \code{config} values.
-#'   Throws error if \code{config$test_term} is not compatible with \code{config$frm}.
+#' @details 
+#'   You must customize \code{frm}, \code{test_term}, and \code{sample_factors}.
+#'     You often need to customize \code{feat_id_col}, \code{sample_id_col}, 
+#'     and \code{obs_id_col}.  
 #' @return list of configuration values
 #' @examples
 #' config <- f.new_config()
+#' 
+#' ## you must customize frm, test_term, and sample_factors:
 #' config$frm <- ~ age + sex + age:sex
 #' config$test_term <- "age:sex"
 #' config$sample_factors <- list(age=c("young", "old"), sex=c("female", "male"))
+#'
+#' ## these may or may not need customization, depending on your file formats:
 #' config$feat_id_col <- "gene"
 #' config$sample_id_col <- "sample"
 #' config$obs_id_col <- "observation"
-#' config$log_file <- ""
+#' 
+#' config$log_file <- ""          ## log to console/stdout
 #' f.report_config(config)
 
 f.new_config <- function() {
@@ -94,13 +99,20 @@ f.new_config <- function() {
 #' @param config List with configuration values.
 #' @return NULL
 #' @examples
-#' config <- h0testr::f.new_config()
-#' h0testr::f.report_config(config)
+#' config <- f.new_config()
+#' 
+#' ## you must customize frm, test_term, and sample_factors:
+#' config$frm <- ~ age + sex + age:sex
+#' config$test_term <- "age:sex"
+#' config$sample_factors <- list(age=c("young", "old"), sex=c("female", "male"))
 #'
-#' config$frm <- ~ age
-#' config$test_term <- "age"
-#' config$sample_factors <- list(age=c("young", "old"))
-#' h0testr::f.report_config(config)
+#' ## these may or may not need customization, depending on your file formats:
+#' config$feat_id_col <- "gene"
+#' config$sample_id_col <- "sample"
+#' config$obs_id_col <- "observation"
+#' 
+#' config$log_file <- ""          ## log to console/stdout
+#' f.report_config(config)
 
 f.report_config <- function(config) {
   for(k1 in names(config)) {

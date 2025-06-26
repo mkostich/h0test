@@ -37,26 +37,21 @@ Normalize expression data to reduce effects of technical differences
 Inter-observation normalization using any of the methods available in this package.
 }
 \examples{
-  \dontrun{
-    state <- list(expression=exprs)
-    config <- list(norm_method="RLE", log_file="")
-    out <- f.normalize(state, config)
-    config2 <- out$config
-    state2 <- out$state
-    exprs2 <- state2$expression
+set.seed(101)
+exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+exprs[, 4:6] <- exprs[, 4:6] * 2
+feats <- data.frame(feature_id=rownames(exprs))
+samps <- data.frame(observation_id=colnames(exprs))
+state <- list(expression=exprs, features=feats, samples=samps)
+config <- list(log_file="", norm_method="RLE", save_state=FALSE)
+out <- h0testr::f.normalize(state, config)
+f.cv <- function(v) sd(v, na.rm=TRUE) / mean(v, na.rm=TRUE)
+summary(apply(log2(state$expression + 1), 1, f.cv))
+summary(apply(out$state$expression, 1, f.cv))
 
-    state <- list(expression=exprs)
-    config <- list(norm_method="quantile", norm_quantile=0.75, log_file="")
-    out <- f.normalize(state, config)
-    config2 <- out$config
-    state2 <- out$state
-    exprs2 <- state2$expression
-
-    state <- list(expression=exprs)
-    config <- list(norm_method="cpm", log_file="")
-    out <- f.normalize(state, config)
-    config2 <- out$config
-    state2 <- out$state
-    exprs2 <- state2$expression
-  }
+config <- list(log_file="", norm_method="quantile", norm_quantile=0.5, save_state=FALSE)
+out <- h0testr::f.normalize(state, config)
+f.cv <- function(v) sd(v, na.rm=TRUE) / mean(v, na.rm=TRUE)
+summary(apply(log2(state$expression + 1), 1, f.cv))
+summary(apply(out$state$expression, 1, f.cv))
 }

@@ -328,28 +328,23 @@ f.normalize_qquantile <- function(state, config) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     state <- list(expression=exprs)
-#'     config <- list(norm_method="RLE", log_file="")
-#'     out <- f.normalize(state, config)
-#'     config2 <- out$config
-#'     state2 <- out$state
-#'     exprs2 <- state2$expression
-#'
-#'     state <- list(expression=exprs)
-#'     config <- list(norm_method="quantile", norm_quantile=0.75, log_file="")
-#'     out <- f.normalize(state, config)
-#'     config2 <- out$config
-#'     state2 <- out$state
-#'     exprs2 <- state2$expression
-#'
-#'     state <- list(expression=exprs)
-#'     config <- list(norm_method="cpm", log_file="")
-#'     out <- f.normalize(state, config)
-#'     config2 <- out$config
-#'     state2 <- out$state
-#'     exprs2 <- state2$expression
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' exprs[, 4:6] <- exprs[, 4:6] * 2
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="", norm_method="RLE", save_state=FALSE)
+#' out <- h0testr::f.normalize(state, config)
+#' f.cv <- function(v) sd(v, na.rm=TRUE) / mean(v, na.rm=TRUE)
+#' summary(apply(log2(state$expression + 1), 1, f.cv))
+#' summary(apply(out$state$expression, 1, f.cv))
+#' 
+#' config <- list(log_file="", norm_method="quantile", norm_quantile=0.5, save_state=FALSE)
+#' out <- h0testr::f.normalize(state, config)
+#' f.cv <- function(v) sd(v, na.rm=TRUE) / mean(v, na.rm=TRUE)
+#' summary(apply(log2(state$expression + 1), 1, f.cv))
+#' summary(apply(out$state$expression, 1, f.cv))
 
 f.normalize <- function(state, config) {
   
@@ -407,18 +402,16 @@ f.normalize <- function(state, config) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     config <- list(obs_id_col="observation_id", sample_id_col="sample_id", log_file="")
-#'     state <- list(expression=exprs, samples=samps, features=feats)
-#'     cat("config$obs_col:", config$obs_col, "\n")
-#'     out <- f.combine_reps(state, config)
-#'     config2 <- out$config
-#'     cat("config2$obs_col:", config2$obs_col, "\n")
-#'     state2 <- out$state
-#'     exprs2 <- state2$expression
-#'     samps2 <- state2$samples
-#'     f.do_stuff(state2, config2)
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=8)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' samps$sample_id=c("samp1", "samp2", "samp3", "samp1", "samp2", "samp3")
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="", obs_id_col="observation_id", sample_id_col="sample_id", save_state=FALSE)
+#' out <- h0testr::f.combine_reps(state, config)
+#' state
+#' out$state
 
 f.combine_reps <- function(state, config) {
 
@@ -426,7 +419,9 @@ f.combine_reps <- function(state, config) {
   sample_ids <- state$samples[, config$sample_id_col, drop=T]
   state$expression <- t(apply(state$expression, 1, f, sample_ids))
   state$samples <- state$samples[!duplicated(sample_ids), ]
-  state$samples[, config$obs_id_col] <- NULL                  ## !!!!!
+  if(config$obs_id_col != config$sample_id_col) {
+    state$samples[, config$obs_id_col] <- NULL
+  }
   sample_ids <- state$samples[, config$sample_id_col, drop=T]
   if(!all(sample_ids %in% colnames(state$expression))) {
     f.err("f.normalize: !all(samples[, config$sample_id_col] %in% colnames(expression))", config=config)

@@ -20,11 +20,18 @@ Report written to \code{config$log_file}; if \code{config$log_file == ""},
   Throws error if \code{config$test_term} is not compatible with \code{config$frm}.
 }
 \examples{
-config <- h0testr::f.new_config()
-h0testr::f.report_config(config)
+config <- f.new_config()
 
-config$frm <- ~ age
-config$test_term <- "age"
-config$sample_factors <- list(age=c("young", "old"))
-h0testr::f.report_config(config)
+## you must customize frm, test_term, and sample_factors:
+config$frm <- ~ age + sex + age:sex
+config$test_term <- "age:sex"
+config$sample_factors <- list(age=c("young", "old"), sex=c("female", "male"))
+
+## these may or may not need customization, depending on your file formats:
+config$feat_id_col <- "gene"
+config$sample_id_col <- "sample"
+config$obs_id_col <- "observation"
+
+config$log_file <- ""          ## log to console/stdout
+f.report_config(config)
 }

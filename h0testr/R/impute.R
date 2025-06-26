@@ -32,13 +32,14 @@
 #' @examples
 #' set.seed(101)
 #' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' exprs <- log2(exprs + 1)
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list(log_file="", impute_quantile=0.05)
 #' state2 <- h0testr::f.impute_unif_global_lod(state, config)
-#' print(state)
-#' print(state2)
+#' summary(c(state$expression))   ## note number of NAs
+#' summary(c(state2$expression))  ## note number of NAs
 
 f.impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
 
@@ -46,7 +47,9 @@ f.impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
      f.err("f.impute_unif_global_lod: !is.matrix(state$expression)", config=config)
   }
   if(is.null(impute_quantile)) impute_quantile <- config$impute_quantile
-  
+  if(is.null(impute_quantile)) {
+    f.err("f.impute_unif_global_lod: impute_quantile unset", config=config)
+  }
   v <- apply(state$expression, 1, min, na.rm=T)
   v <- v[!is.na(v)]
   v <- v[v > 0]        ## minimum non-zero values for each gene (with non-0 vals)
@@ -101,24 +104,32 @@ f.impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
 #' @examples
 #' set.seed(101)
 #' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' exprs <- log2(exprs + 1)
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list(log_file="", impute_quantile=0.05)
 #' state2 <- h0testr::f.impute_unif_sample_lod(state, config)
-#' print(state)
-#' print(state2)
+#' summary(c(state$expression))   ## note number of NAs
+#' summary(c(state2$expression))  ## note number of NAs
 
 f.impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
 
   if(!is.matrix(state$expression)) {
-    f.err("f.impute_unif_sample_lod: !is.matrix(state$expression)", config=config)
+    f.err("f.impute_unif_sample_lod: !is.matrix(state$expression)", 
+      config=config)
   }
-  
   if(is.null(impute_quantile)) impute_quantile <- config$impute_quantile
+  if(is.null(impute_quantile)) {
+    f.err("f.impute_unif_sample_lod: impute_quantile unset", config=config)
+  }
   
   f <- function(v) {
     i <- is.na(v)
+    if(all(i)) {
+      f.err("f.impute_unif_sample_lod: all(is.na(state$expression[, column]))", 
+        config=config)
+    }
     if(any(i)) {
       max_val <- stats::quantile(v, probs=impute_quantile, na.rm=T)
       v[i] <- stats::runif(sum(i), 0, max_val)
@@ -157,18 +168,20 @@ f.impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
 #' @examples
 #' set.seed(101)
 #' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' exprs <- log2(exprs + 1)
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list(log_file="")
 #' state2 <- h0testr::f.impute_sample_lod(state, config)
-#' print(state)
-#' print(state2)
+#' summary(c(state$expression))   ## note number of NAs
+#' summary(c(state2$expression))  ## note number of NAs
 
 f.impute_sample_lod <- function(state, config) {
 
   if(!is.matrix(state$expression)) {
-    f.err("f.impute_sample_lod: !is.matrix(state$expression)", config=config)
+    f.err("f.impute_sample_lod: !is.matrix(state$expression)", 
+      config=config)
   }
   
   f <- function(v) {
@@ -211,13 +224,14 @@ f.impute_sample_lod <- function(state, config) {
 #' @examples
 #' set.seed(101)
 #' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' exprs <- log2(exprs + 1)
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list(log_file="", impute_scale.=1)
 #' state2 <- h0testr::f.impute_rnorm_feature(state, config)
-#' print(state)
-#' print(state2)
+#' summary(c(state$expression))   ## note number of NAs
+#' summary(c(state2$expression))  ## note number of NAs
 
 f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 
@@ -231,8 +245,11 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
     f.err("f.impute_rnorm_feature: state$expression contains negative values", 
       config=config)
   }
-  
   if(is.null(scale.)) scale. <- config$impute_scale
+  if(is.null(scale.)) {
+    f.err("f.impute_rnorm_feature: scale. and config$impute_scale unset", 
+      config=config)
+  }
   
   f <- function(v) {
     i <- is.na(v)
@@ -303,13 +320,14 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 #' @examples
 #' set.seed(101)
 #' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' exprs <- log2(exprs + 1)
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list(log_file="", impute_n_pts=1e7)
 #' state2 <- h0testr::f.impute_glm_binom(state, config)
-#' print(state)
-#' print(state2)
+#' summary(c(state$expression))   ## note number of NAs
+#' summary(c(state2$expression))  ## note number of NAs
 
 f.impute_glm_binom <- function(state, config, n_pts=NULL, off=1, 
     f_mid=stats::median) {
@@ -318,6 +336,8 @@ f.impute_glm_binom <- function(state, config, n_pts=NULL, off=1,
     f.err("f.impute_glm_binom: !is.matrix(state$expression)", config=config)
   }
   if(is.null(n_pts)) n_pts <- config$impute_n_pts
+  if(is.null(n_pts)) f.err("f.impute_glm_binom: n_pts and config$impute_n_pts unset", 
+    config=config)
   if(n_pts <= 0) f.err("f.impute_glm_binom: n_pts <= 0", config=config)
 
   m <- apply(state$expression, 1, f_mid, na.rm=T)
@@ -381,13 +401,14 @@ f.impute_glm_binom <- function(state, config, n_pts=NULL, off=1,
 #' @examples
 #' set.seed(101)
 #' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' exprs <- log2(exprs + 1)
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="", impute_n_pts=1e7, impute_span=0.25)
+#' config <- list(log_file="", impute_n_pts=1e7, impute_span=0.4)
 #' state2 <- h0testr::f.impute_loess_logit(state, config)
-#' print(state)
-#' print(state2)
+#' summary(c(state$expression))   ## note number of NAs
+#' summary(c(state2$expression))  ## note number of NAs
 
 f.impute_loess_logit <- function(state, config, span.=NULL, n_pts=NULL, 
     off=1, f_mid=stats::median, degree=1, fam="symmetric") {
@@ -396,7 +417,15 @@ f.impute_loess_logit <- function(state, config, span.=NULL, n_pts=NULL,
     f.err("f.impute_loess_logit: !is.matrix(state$expression)", config=config)
   }
   if(is.null(span.)) span. <- config$impute_span
+  if(is.null(span.)) {
+    f.err("f.impute_loess_logit: span. and config$impute_span unset", 
+      config=config)
+  }
   if(is.null(n_pts)) n_pts <- config$impute_n_pts
+  if(is.null(n_pts)) {
+    f.err("f.impute_loess_logit: n_pts and config$impute_n_pts unset", 
+      config=config)
+  }
 
   m <- apply(state$expression, 1, f_mid, na.rm=T)
   m[is.na(m)] <- 0
@@ -492,23 +521,24 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
 #'       \tab A data.frame logging statistics for each fit. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     exprs <- log2(exprs + 1)
-#'     exprs[exprs %in% 0] <- NA
-#'     state <- list(expression=exprs)
-#'     config <- list(log_file="")
-#'     state2 <- f.impute_rf(state, config)
-#'     exprs2 <- state2$expression
-#'
-#'     config <- list(ntree=250, aug_steps=2, log_file="")
-#'     state2 <- f.impute_rf(state, config)
-#'     exprs2 <- state2$expression
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=20, n_feats=30)$mat
+#' exprs <- log2(exprs + 1)
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="", impute_quantile=0)
+#' out <- h0testr::f.impute_rf(state, config, verbose=FALSE)
+#' summary(c(state$expression))   ## note number of NAs
+#' summary(c(out$state$expression))  ## note number of NAs
+#' print(out$log)
 
 f.impute_rf <- function(state, config, f_imp=f.impute_unif_sample_lod, ntree=100, 
     mtry=NULL, aug_mult=0.33, aug_add=0, aug_steps=3, unlog2=T, verbose=T) {
   
-  if(!is.matrix(state$expression)) f.err("f.impute_rf: !is.matrix(exprs)", config=config)
+  if(!is.matrix(state$expression)) {
+    f.err("f.impute_rf: !is.matrix(exprs)", config=config)
+  }
   
   n_miss <- apply(state$expression, 1, function(v) sum(is.na(v) | v %in% 0))
   o <- order(n_miss, decreasing=F)
@@ -520,6 +550,9 @@ f.impute_rf <- function(state, config, f_imp=f.impute_unif_sample_lod, ntree=100
     f.msg("processing", rownames(state$expression)[idx_feat], config=config)
     
     x_train <- f_imp(state, config)$expression
+    if(any(is.na(c(x_train)))) {
+      f.err("f.impute_rf: f_imp returned NAs", config=config)
+    }
     if(unlog2) x_train <- 2^x_train - 1
     x_train <- f.augment_affine(x_train, mult=aug_mult, add=aug_add, steps=aug_steps)
     if(unlog2) x_train <- log2(x_train + 1)
@@ -619,17 +652,17 @@ f.impute_rf <- function(state, config, f_imp=f.impute_unif_sample_lod, ntree=100
 #'       \tab A data.frame logging statistics for each fit. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     exprs[exprs %in% 0] <- NA
-#'     state <- list(expression=exprs)
-#'     config <- list(log_file="")
-#'     state2 <- f.impute_glmnet(state, config, impute_quantile=0.01)
-#'     exprs2 <- state2$expression
-#'
-#'     state2 <- f.impute_glmnet(state, config, nfolds=3, alpha=0.5, aug_steps=2)
-#'     state2 <- f.impute_glmnet(state, config)
-#'     exprs2 <- state2$expression
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=20, n_feats=30)$mat
+#' exprs <- log2(exprs + 1)
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="", impute_quantile=0)
+#' out <- h0testr::f.impute_glmnet(state, config, verbose=FALSE)
+#' summary(c(state$expression))   ## note number of NAs
+#' summary(c(out$state$expression))  ## note number of NAs
+#' print(out$log)
 
 f.impute_glmnet <- function(state, config, f_imp=f.impute_unif_sample_lod, 
     nfolds=5, alpha=1, measure="mae", aug_mult=0.33, aug_add=0, 
@@ -728,17 +761,16 @@ f.impute_glmnet <- function(state, config, f_imp=f.impute_unif_sample_lod,
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     exprs[exprs %in% 0] <- NA
-#'     state <- list(expression=exprs)
-#'     config <- list(log_file="")
-#'     state2 <- f.impute_glmnet(state, config, impute_quantile=0.01)
-#'     exprs2 <- state2$expression
-#'
-#'     state2 <- f.impute_glmnet(state, config, nfolds=3, alpha=0.5, aug_steps=2)
-#'     state2 <- f.impute_glmnet(state, config)
-#'     exprs2 <- state2$expression
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=8, n_feats=12)$mat
+#' exprs <- log2(exprs + 1)
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(log_file="", impute_method="unif_sample_lod", impute_quantile=0, save_state=FALSE)
+#' out <- h0testr::f.impute(state, config)
+#' summary(c(state$expression))      ## note number of NAs
+#' summary(c(out$state$expression))  ## note number of NAs
 
 f.impute <- function(state, config) {
 
@@ -761,9 +793,13 @@ f.impute <- function(state, config) {
     out <- f.impute_rf(state, config)
     state <- out$state
   } else if(config$impute_method %in% "none") {
-    f.msg("skipping imputation: config$impute_method %in% 'none'", config=config)
-  } else f.err("f.impute: unexpected config$impute_method:", config$impute_method, config=config)
-
+    f.msg("skipping imputation: config$impute_method %in% 'none'", 
+      config=config)
+  } else {
+    f.err("f.impute: unexpected config$impute_method:", 
+      config$impute_method, config=config)
+  }
+  
   f.check_state(state, config)
   f.report_state(state, config)
   i <- config$run_order %in% "impute"

@@ -23,16 +23,20 @@
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   }
 #' @examples
-#'   \dontrun{
-#'     config <- list(dir_in=".", feature_file_in="feats.tsv", 
-#'       sample_file_in="samps.tsv", data_file_in="exprs.tsv", 
-#'       feat_id_col="gene", obs_id_col="replicate", sample_id_col="sample", 
-#'       log_file="")
-#'     state <- f.read_data(config)
-#'     exprs <- state$expression
-#'     feats <- state$features
-#'     samps <- state$samples
-#'   }
+#' config <- h0testr::f.new_config()
+#' config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
+#' config$feature_file_in <- "features.tsv"
+#' config$sample_file_in <- "samples.tsv"
+#' config$data_file_in <- "expression.tsv" 
+#' config$feat_id_col <- "feature_id"
+#' config$obs_id_col <- "observation_id"
+#' 
+#' state <- h0testr::f.read_data(config)
+#' 
+#' names(state)
+#' print(state$features)
+#' print(state$samples)
+#' print(state$expression[1:6, 1:6])
 
 f.read_data <- function(config) {
 
@@ -64,6 +68,15 @@ f.read_data <- function(config) {
 ## set up types and levels of covariates; uses config$feat_id_col:
 
 f.check_covariates <- function(state, config) {
+
+  reqd_params <- c("log_file", "save_state", "n_samples_expr_col", "median_raw_col", 
+    "n_features_expr_col", "obs_id_col", "sample_id_col", "feat_id_col")
+  
+  for(param in reqd_params) {
+    if(!(param %in% names(config))) {
+      f.err("!(param %in% names(config)), for param:", param)
+    }
+  }
 
   noms <- c(config$n_samples_expr_col, config$median_raw_col, config$n_features_expr_col)
   for(nom in noms) {
@@ -111,7 +124,7 @@ f.subset_covariates <- function(state, config) {
   }
   
   f.msg("subsetting sample metadata", config=config)
-  state$samples <- state$samples[, c(config$obs_id_col, config$sample_id_col, vars)]
+  state$samples <- state$samples[, unique(c(config$obs_id_col, config$sample_id_col, vars))]
   
   return(state)
 }
@@ -415,18 +428,27 @@ f.permute <- function(state, config, variable=NULL) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     config <- f.new_config()
-#'     config$feature_file_in <- "features.tsv"   ## feature annotation .tsv; row features
-#'     config$sample_file_in <- "samples.tsv"     ## sample annotation .tsv; row observations
-#'     config$data_file_in <- "expression.tsv"    ## lfq normalized quant matrix .tsv; row features, column observations
-#'     config$feat_id_col <- "gene_id"            ## feats[, FEAT_ID_COL] == rownames(exprs)
-#'     config$obs_id_col <- "assay_id"            ## unique id for observations; initial samps[, obs_id_col] == colnames(exprs)
-#'     config$sample_id_col <- "sample_id"        ## 
-#'     out <- f.load_data(config)
-#'     state <- out$state
-#'     f.do_stuff(state, config)
-#'   }
+#' config <- h0testr::f.new_config()
+#' config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
+#' config$feature_file_in <- "features.tsv"
+#' config$sample_file_in <- "samples.tsv"
+#' config$data_file_in <- "expression.tsv" 
+#' config$feat_id_col <- "feature_id"
+#' config$obs_id_col <- "observation_id"
+#' config$sample_id_col <- "observation_id"
+#' config$frm <- ~condition
+#' config$test_term <- "condition"
+#' config$test_method <- "trend"
+#' config$sample_factors <- list(condition=c("placebo", "drug"))
+#' config$save_state <- FALSE
+#' 
+#' output <- h0testr::f.load_data(config)
+#' 
+#' names(output)
+#' names(output$state)
+#' output$state$expression
+#' output$state$samples
+#' output$state$features
 
 f.load_data <- function(config) {
 

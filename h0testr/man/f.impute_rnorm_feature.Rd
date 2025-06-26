@@ -45,11 +45,12 @@ Missing values are draws from
 \examples{
 set.seed(101)
 exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+exprs <- log2(exprs + 1)
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
 config <- list(log_file="", impute_scale.=1)
 state2 <- h0testr::f.impute_rnorm_feature(state, config)
-print(state)
-print(state2)
+summary(c(state$expression))   ## note number of NAs
+summary(c(state2$expression))  ## note number of NAs
 }

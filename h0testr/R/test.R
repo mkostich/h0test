@@ -20,12 +20,21 @@
 #'   \code{c("TMM", "TMMwsp", "RLE", "upperquartile", "none")}.
 #' @return A data.frame containing results of test.
 #' @examples
-#'   \dontrun{
-#'     state <- list(expression=exprs, features=feats, samples=samps)
-#'     config <- list(frm=~age+sex+age:sex, test_term="age:sex")
-#'     tbl <- f.test_voom(state, config)
-#'     head(tbl)
-#'   }
+#' set.seed(101)
+#' ## no missing values: mnar_c0=-Inf, mnar_c1=0, mcar_p=0
+#' exprs <- h0testr::f.sim2(n_obs1=6, n_obs2=6, n_feats=25, 
+#'   n_sig=5, fold_change=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+#' exprs <- log2(exprs + 1)
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs), 
+#'   condition=c(rep("placebo", 6), rep("drug", 6)))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' 
+#' config <- list(log_file="", frm=~condition, test_term="condition", 
+#'   sample_factors=list(condition=c("placebo", "drug")))
+#' 
+#' out <- h0testr::f.test_voom(state, config)
+#' print(out)
 
 f.test_voom <- function(state, config, normalize.method="none") {
   
@@ -75,12 +84,21 @@ f.test_voom <- function(state, config, normalize.method="none") {
 #'   }
 #' @return A \code{data.frame} containing results of test.
 #' @examples
-#'   \dontrun{
-#'     state <- list(expression=exprs, features=feats, samples=samps)
-#'     config <- list(frm=~age+sex+age:sex, test_term="age:sex")
-#'     tbl <- f.test_trend(state, config)
-#'     head(tbl)
-#'   }
+#' set.seed(101)
+#' ## no missing values: mnar_c0=-Inf, mnar_c1=0, mcar_p=0
+#' exprs <- h0testr::f.sim2(n_obs1=6, n_obs2=6, n_feats=25, n_sig=5, 
+#'   fold_change=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+#' exprs <- log2(exprs + 1)
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs), 
+#'   condition=c(rep("placebo", 6), rep("drug", 6)))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' 
+#' config <- list(log_file="", frm=~condition, test_term="condition", 
+#'   sample_factors=list(condition=c("placebo", "drug")))
+#' 
+#' out <- h0testr::f.test_trend(state, config)
+#' print(out)
 
 f.test_trend <- function(state, config) {
 
@@ -124,12 +142,25 @@ f.test_trend <- function(state, config) {
 #'   }
 #' @return A data.frame containing results of test.
 #' @examples
-#'   \dontrun{
-#'     state <- list(expression=exprs, features=feats, samples=samps)
-#'     config <- list(frm=~age+sex+age:sex, test_term="age:sex", test_method="trend", log_file="")
-#'     tbl <- f.test(state, config)
-#'     head(tbl)
-#'   }
+#' set.seed(101)
+#' ## no missing values: mnar_c0=-Inf, mnar_c1=0, mcar_p=0
+#' exprs <- h0testr::f.sim2(n_obs1=6, n_obs2=6, n_feats=25, n_sig=5, fold_change=2, 
+#'   mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+#' exprs <- log2(exprs + 1)
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs), 
+#'   condition=c(rep("placebo", 6), rep("drug", 6)))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' 
+#' ## save_state=FALSE so test results not written to file:
+#' config <- list(
+#'   log_file="", frm=~condition, test_term="condition", 
+#'   sample_factors=list(condition=c("placebo", "drug")), test_method="trend", 
+#'   feat_id_col="feature_id", save_state=FALSE
+#' )
+#' 
+#' out <- h0testr::f.test(state, config)
+#' print(out)
 
 f.test <- function(state, config) {
 
@@ -147,11 +178,13 @@ f.test <- function(state, config) {
     f.err("!all(rownames(tbl) %in% rownames(state$features))", config=config)
   }
   
-  tbl <- cbind(state$features[rownames(tbl), ], tbl)
+  tbl0 <- state$features[rownames(tbl), , drop=F]
+  tbl <- cbind(tbl0, tbl)
   rownames(tbl) <- NULL
   
   if(config$save_state) {
-    file_out <- paste0(config$dir_out, "/", length(config$run_order) + 3, config$result_mid_out, config$suffix_out)
+    file_out <- paste0(config$dir_out, "/", length(config$run_order) + 3, 
+      config$result_mid_out, config$suffix_out)
     f.log("writing results to", file_out, config=config)
     f.save_tsv(tbl, file_out)
   }
@@ -176,22 +209,26 @@ f.test <- function(state, config) {
 #'     \code{tbl}    \cr \tab A data.frame containing results of test.. \cr
 #'   }
 #' @examples
-#'   \dontrun{
-#'     config <- h0testr::f.new_config()
-#'     config$feature_file_in <- "feats.tsv"
-#'     config$sample_file_in <- "samps.tsv"
-#'     config$data_file_in <- "exprs.tsv", 
-#'     config$feat_id_col <- "gene"
-#'     config$obs_id_col <- "replicate"
-#'     config$sample_id_col <- "sample"
-#'     config$frm <- ~age+sex+age:sex
-#'     config$test_term <- "age:sex"
-#'     config$test_method <- "trend"
-#'     config$run_order <- c("normalize", "combine_reps", "filter", "impute")
-#'     output <- f.run(config)
-#'     tbl <- output$tbl
-#'     head(tbl)
-#'   }
+#' config <- h0testr::f.new_config()
+#' config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
+#' config$feature_file_in <- "features.tsv"
+#' config$sample_file_in <- "samples.tsv"
+#' config$data_file_in <- "expression.tsv" 
+#' config$feat_id_col <- "feature_id"
+#' config$obs_id_col <- "observation_id"
+#' config$sample_id_col <- "observation_id"
+#' config$frm <- ~condition
+#' config$test_term <- "condition"
+#' config$test_method <- "trend"
+#' config$sample_factors <- list(condition=c("placebo", "drug"))
+#' config$n_features_min <- 10      ## default 1000 too big for small demo dataset
+#' config$run_order <- c("normalize", "combine_reps", "filter", "impute")
+#' config$save_state <- FALSE
+#'
+#' print(config$run_order)
+#'
+#' out <- h0testr::f.run(config)   ## run workflow
+#' print(out$tbl)                  ## hit table
 
 f.run <- function(config) {
 

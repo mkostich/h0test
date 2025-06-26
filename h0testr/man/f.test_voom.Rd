@@ -35,10 +35,19 @@ Tests for differential expression using the \code{limma::voom()}.
     \code{state$expression} is zero.
 }
 \examples{
-  \dontrun{
-    state <- list(expression=exprs, features=feats, samples=samps)
-    config <- list(frm=~age+sex+age:sex, test_term="age:sex")
-    tbl <- f.test_voom(state, config)
-    head(tbl)
-  }
+set.seed(101)
+## no missing values: mnar_c0=-Inf, mnar_c1=0, mcar_p=0
+exprs <- h0testr::f.sim2(n_obs1=6, n_obs2=6, n_feats=25, 
+  n_sig=5, fold_change=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+exprs <- log2(exprs + 1)
+feats <- data.frame(feature_id=rownames(exprs))
+samps <- data.frame(observation_id=colnames(exprs), 
+  condition=c(rep("placebo", 6), rep("drug", 6)))
+state <- list(expression=exprs, features=feats, samples=samps)
+
+config <- list(log_file="", frm=~condition, test_term="condition", 
+  sample_factors=list(condition=c("placebo", "drug")))
+
+out <- h0testr::f.test_voom(state, config)
+print(out)
 }
