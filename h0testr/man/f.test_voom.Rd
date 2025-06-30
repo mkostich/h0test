@@ -16,7 +16,12 @@ f.test_voom(state, config, normalize.method = "none")
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{log_file}            \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+  \code{feat_id_col}    \cr \tab Column (character scalar) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+  \code{obs_id_col}     \cr \tab Column (character scalar) in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
+  \code{sample_id_col}  \cr \tab Column (character scalar) in \code{sample_file_in} with unique sample labels. \cr
+  \code{frm}            \cr \tab Formula (formula) to be fit \cr
+  \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
+  \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
 }}
 
 \item{normalize.method}{Character in 
@@ -45,9 +50,17 @@ samps <- data.frame(observation_id=colnames(exprs),
   condition=c(rep("placebo", 6), rep("drug", 6)))
 state <- list(expression=exprs, features=feats, samples=samps)
 
-config <- list(log_file="", frm=~condition, test_term="condition", 
-  sample_factors=list(condition=c("placebo", "drug")))
+config <- h0testr::f.new_config()
+config$feat_id_col <- "feature_id"
+config$obs_id_col <- "observation_id"
+config$sample_id_col <- "observation_id"
+config$frm <- ~condition
+config$test_term <- "condition"
+config$sample_factors <- list(condition=c("placebo", "drug"))
 
-out <- h0testr::f.test_voom(state, config)
-print(out)
+## set up and check covariates:
+out <- h0testr::f.preprocess_covariates(state, config)
+
+tbl <- h0testr::f.test_voom(out$state, out$config)
+print(tbl)
 }

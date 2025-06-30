@@ -26,10 +26,7 @@ f.impute_rf(
   } 
 It is assumed that state$expression has been previously \code{log2(x+1)} transformed.}
 
-\item{config}{List with configuration values. Uses the following keys:
-\tabular{ll}{
-  \code{log_file}   \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
-}}
+\item{config}{List with configuration values. Does not use any keys, so can pass empty list.}
 
 \item{f_imp}{Function to use for initial rough imputation.}
 
@@ -89,7 +86,7 @@ exprs <- log2(exprs + 1)
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(log_file="", impute_quantile=0)
+config <- list()
 out <- h0testr::f.impute_rf(state, config, verbose=FALSE)
 summary(c(state$expression))   ## note number of NAs
 summary(c(out$state$expression))  ## note number of NAs

@@ -9,7 +9,6 @@ f.read_data(config)
 \arguments{
 \item{config}{List with configuration values. Requires the following keys:
 \tabular{ll}{
-  \code{log_file}  \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
   \code{dir_in}    \cr \tab Path to directory where input files located (character). \cr
   \code{feature_file_in} \cr \tab Name of file with feature metadata; assumed in \code{dir_in}. \cr
   \code{sample_file_in}  \cr \tab Name of file with observation metadata; assumed in \code{dir_in}. \cr
@@ -36,14 +35,18 @@ Expression data from \code{config$data_file_in} in \code{config$dir_in}.
   Observation metadata from \code{config$sample_file_in} in \code{config$dir_in}.
 }
 \examples{
-  \dontrun{
-    config <- list(dir_in=".", feature_file_in="feats.tsv", 
-      sample_file_in="samps.tsv", data_file_in="exprs.tsv", 
-      feat_id_col="gene", obs_id_col="replicate", sample_id_col="sample", 
-      log_file="")
-    state <- f.read_data(config)
-    exprs <- state$expression
-    feats <- state$features
-    samps <- state$samples
-  }
+config <- h0testr::f.new_config()
+config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
+config$feature_file_in <- "features.tsv"
+config$sample_file_in <- "samples.tsv"
+config$data_file_in <- "expression.tsv" 
+config$feat_id_col <- "feature_id"
+config$obs_id_col <- "observation_id"
+
+state <- h0testr::f.read_data(config)
+
+names(state)
+print(state$features)
+print(state$samples)
+print(state$expression[1:6, 1:6])
 }

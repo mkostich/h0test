@@ -17,7 +17,6 @@ It is assumed that \code{state$expression} has been previously \code{log2(x+1)} 
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{log_file}         \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
   \code{impute_method}    \cr \tab In \code{c("unif_global_lod","unif_sample_lod","sample_lod","rnorm_feature","glm_binom","loess_logit","glmnet","rf","none")} \cr
   \code{impute_quantile}  \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD). \cr
   \code{impute_scale}     \cr \tab Factor (numeric) rescaling variance of normal distribution from which draws are made for \code{impute_method \%in\% "rnorm"}. \cr
@@ -51,7 +50,8 @@ exprs <- log2(exprs + 1)
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(log_file="", impute_method="unif_sample_lod", impute_quantile=0, save_state=FALSE)
+config <- list(impute_method="unif_sample_lod", impute_quantile=0, 
+  feat_id_col="feature_id", obs_id_col="observation_id", save_state=FALSE)
 out <- h0testr::f.impute(state, config)
 summary(c(state$expression))      ## note number of NAs
 summary(c(out$state$expression))  ## note number of NAs

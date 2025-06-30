@@ -11,8 +11,7 @@
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{log_file}      \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
-#'     \code{n_samples_min} \cr \tab Minimum number (non-negative numeric) of samples expressing feature to keep feature.
+#'     \code{n_samples_min} \cr \tab Minimum number (non-negative numeric) of samples expressing feature to keep feature. \cr
 #'   }
 #' @param n_samples_min Minimum number of samples expressing feature. Non-negative numeric.
 #' @return An updated \code{state} list with the following elements:
@@ -27,12 +26,14 @@
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="", n_samples_min=3)
+#' config <- list(n_samples_min=3)
 #' state2 <- h0testr::f.filter_features(state, config)
 #' print(state)
 #' print(state2)
 
 f.filter_features <- function(state, config, n_samples_min=NULL) {
+
+  f.check_config(config)
 
   if(!is.matrix(state$expression)) {
     f.err("f.filter_features: !is.matrix(state$expression)", config=config)
@@ -42,6 +43,7 @@ f.filter_features <- function(state, config, n_samples_min=NULL) {
   if(is.null(n_samples_min)) {
     f.err("f.filter_features: n_samples_min unset", config=config)
   }
+  
   f <- function(v) {
     i <- sum(v > 0, na.rm=T) >= n_samples_min
     i[is.na(i)] <- F
@@ -72,8 +74,7 @@ f.filter_features <- function(state, config, n_samples_min=NULL) {
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{log_file}       \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
-#'     \code{n_features_min} \cr \tab Minimum number (non-negative numeric) of features expressed in observation to keep observation.
+#'     \code{n_features_min} \cr \tab Minimum number (non-negative numeric) of features expressed in observation to keep observation. \cr
 #'   }
 #' @param n_features_min Minimum number of features expressed per sample. Non-negative numeric.
 #' @return An updated \code{state} list with the following elements:
@@ -88,12 +89,14 @@ f.filter_features <- function(state, config, n_samples_min=NULL) {
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="", n_features_min=4)
+#' config <- list(n_features_min=4)
 #' state2 <- h0testr::f.filter_samples(state, config)
 #' print(state)
 #' print(state2)
 
 f.filter_samples <- function(state, config, n_features_min=NULL) {
+
+  f.check_config(config)
 
   if(!is.matrix(state$expression)) {
     f.err("f.filter_samples: !is.matrix(state$expression)", config=config)
@@ -135,10 +138,7 @@ f.filter_samples <- function(state, config, n_features_min=NULL) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values. Uses the following keys:
-#'   \tabular{ll}{
-#'     \code{log_file}       \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
-#'   }
+#' @param config List with configuration values. Does not use any params, so can pass empty list.
 #' @return A numeric vector of length \code{nrow(state$expression)} with non-negative sample 
 #'   counts for each feature.
 #' @examples
@@ -147,7 +147,7 @@ f.filter_samples <- function(state, config, n_features_min=NULL) {
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="")
+#' config <- list()
 #' h0testr::f.samples_per_feature(state, config)
 
 f.samples_per_feature <- function(state, config) {
@@ -180,10 +180,7 @@ f.samples_per_feature <- function(state, config) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values. Uses the following keys:
-#'   \tabular{ll}{
-#'     \code{log_file}       \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
-#'   }
+#' @param config List with configuration values. Does not use any params, so can pass empty list.
 #' @return A numeric vector of length \code{nrow(state$expression)} with median expression in 
 #'   each expressing sample.
 #' @examples
@@ -192,7 +189,7 @@ f.samples_per_feature <- function(state, config) {
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="")
+#' config <- list()
 #' h0testr::f.feature_median_expression(state, config)
 
 f.feature_median_expression <- function(state, config) {
@@ -224,10 +221,8 @@ f.feature_median_expression <- function(state, config) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   }
-#' @param config List with configuration values. Uses the following keys:
-#'   \tabular{ll}{
-#'     \code{log_file}       \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
-#'   }
+#' @param config List with configuration values. Does not use any params, 
+#'   so can pass empty list.
 #' @return A numeric vector of length \code{ncol(state$expression)} with 
 #'   number of features expressed in each sample.
 #' @examples
@@ -236,7 +231,7 @@ f.feature_median_expression <- function(state, config) {
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="")
+#' config <- list()
 #' h0testr::f.features_per_sample(state, config)
 
 f.features_per_sample <- function(state, config) {
@@ -270,9 +265,10 @@ f.features_per_sample <- function(state, config) {
 #'   }
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{log_file}       \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
-#'     \code{n_samples_expr_col}  \cr \tab Name (character) of new column in feature metadata to hold number of expressing samples. \cr
+#'     \code{n_features_min}      \cr \tab Minimum number (non-negative numeric) of features expressed in observation to keep observation. \cr
+#'     \code{n_samples_min}       \cr \tab Minimum number (non-negative numeric) of samples expressing feature to keep feature. \cr
 #'     \code{median_raw_col}      \cr \tab Name (character) of new column in feature metadata to hold median expression in expressing samples. \cr
+#'     \code{n_samples_expr_col}  \cr \tab Name (character) of new column in feature metadata to hold number of expressing samples. \cr
 #'     \code{n_features_expr_col} \cr \tab Name (character) of new column in sample metadata to hold number of expressed features. \cr
 #'   }
 #' @return A list with elements like that returned by `f.read_data()`:
@@ -287,6 +283,8 @@ f.features_per_sample <- function(state, config) {
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
+#'
+#' ## assume default median_raw_col, n_samples_expr_col, and n_features_expr_col are ok:
 #' config <- h0testr::f.new_config()
 #' config$n_features_min <- 6
 #' config$n_samples_min <- 2
@@ -296,6 +294,8 @@ f.features_per_sample <- function(state, config) {
 #' str(out$config)
 
 f.filter <- function(state, config) {
+
+  f.check_config(config)
 
   state <- f.filter_features(state, config)  
   state <- f.filter_samples(state, config)

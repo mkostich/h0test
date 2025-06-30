@@ -14,10 +14,7 @@ f.normalize_cpm(state, config, multiplier = 1e+06)
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration values. Uses the following keys:
-\tabular{ll}{
-  \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
-}}
+\item{config}{List with configuration values. Does not use any keys, so can pass empty list.}
 
 \item{multiplier}{Numeric greater than zero used to scale returned values 
 after dividing by total counts in observation. For example, the default 
@@ -45,8 +42,10 @@ exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(log_file="")
+config <- list()
 state2 <- h0testr::f.normalize_cpm(state, config)
-print(state)
-print(state2)
+print(state$expression)
+print(state2$expression)
+apply(state$expression, 2, function(v) sum(v, na.rm=TRUE))
+apply(state2$expression, 2, function(v) sum(v, na.rm=TRUE))
 }

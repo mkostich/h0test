@@ -16,9 +16,11 @@ f.normalize(state, config)
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
-  \code{norm_method}     \cr \tab In \code{c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")}. \cr
-  \code{norm_quantile}   \cr \tab Quantile (numeric between 0 and 1) for \code{norm_method \%in\% c("quantile", "upperquartile")}. \cr
+  \code{norm_method}   \cr \tab Character scalar in \code{c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")}. \cr
+  \code{norm_quantile} \cr \tab Quantile (numeric between 0 and 1) for \code{norm_method \%in\% c("quantile", "upperquartile")}. \cr
+  \code{feat_id_col}   \cr \tab Column (character scalar) of \code{state$features} which matches \code{rownames(state$expression)}. \cr
+  \code{obs_id_col}    \cr \tab Column in observation metadata matching initial rownames of \code{state$expression}. \cr
+  \code{sample_id_col} \cr \tab Column in observation metadata with unique sample ids. \cr
 }}
 }
 \value{
@@ -43,15 +45,20 @@ exprs[, 4:6] <- exprs[, 4:6] * 2
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(log_file="", norm_method="RLE", save_state=FALSE)
-out <- h0testr::f.normalize(state, config)
-f.cv <- function(v) sd(v, na.rm=TRUE) / mean(v, na.rm=TRUE)
-summary(apply(log2(state$expression + 1), 1, f.cv))
-summary(apply(out$state$expression, 1, f.cv))
 
-config <- list(log_file="", norm_method="quantile", norm_quantile=0.5, save_state=FALSE)
+config <- list(save_state=FALSE, norm_method="RLE", 
+  feat_id_col="feature_id", obs_id_col="observation_id")
 out <- h0testr::f.normalize(state, config)
-f.cv <- function(v) sd(v, na.rm=TRUE) / mean(v, na.rm=TRUE)
-summary(apply(log2(state$expression + 1), 1, f.cv))
-summary(apply(out$state$expression, 1, f.cv))
+summary(apply(state$expression, 2, sd, na.rm=TRUE))
+summary(apply(out$state$expression, 2, sd, na.rm=TRUE))
+summary(apply(state$expression, 1, sd, na.rm=TRUE))
+summary(apply(out$state$expression, 1, sd, na.rm=TRUE))
+
+config$norm_method <- "quantile"
+config$norm_quantile <- 0.5
+out <- h0testr::f.normalize(state, config)
+summary(apply(state$expression, 2, sd, na.rm=TRUE))
+summary(apply(out$state$expression, 2, sd, na.rm=TRUE))
+summary(apply(state$expression, 1, sd, na.rm=TRUE))
+summary(apply(out$state$expression, 1, sd, na.rm=TRUE))
 }

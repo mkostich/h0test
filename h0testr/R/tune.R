@@ -29,7 +29,7 @@ f.tune2 <- function(state, config) {
     
   rslt <- data.frame(norm=config$norm_method, norm_quant=config$norm_quantile, 
     impute=config$impute_method, imp_quant=config$impute_quantile, 
-    scale=config$impute_scale, test=config$test_method, 
+    scale=config$impute_scale, span=config$impute_span, test=config$test_method, 
     perm=config$permute_var, nhits=sum(tbl$adj.P.Val < 0.05), ntests=nrow(tbl), 
     time=format(Sys.time(), "%H:%M:%S"), stringsAsFactors=F)
   
@@ -51,10 +51,11 @@ f.tune2 <- function(state, config) {
 #'   \code{c("TMM", "TMMwsp", "RLE", "upperquartile", "q50", "q75", "cpm", "vsn", "qquantile", "log2", "none")}.
 #' @param impute_methods Character vector of methods to try. One or more of:
 #'   \code{c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", "none")}.
-#' @param impute_quantiles Numeric vector of quantiles to try for \code{unif_} methods. 
+#' @param impute_quantiles Numeric vector of quantiles to try for \code{f.impute_unif_*} methods. 
 #'   One or more values between \code{0.0} and \code{1.0}.
-#' @param impute_scales Numeric vector of scales to try for \code{rnorm_feature}. 
+#' @param impute_scales Numeric vector of scales to try for \code{f.impute_rnorm_feature}. 
 #'   See \code{f.impute_rnorm_feature()} \code{scale}. parameter.
+#' @param impute_spans Numeric vector of spans to try for \code{f.impute_loess_logit}.
 #' @param test_methods Character vector with one or more of: \code{c("trend", "voom")}.
 #' @return A data.frame with the following columns:
 #'   \tabular{ll}{
@@ -70,23 +71,40 @@ f.tune2 <- function(state, config) {
 #'     \code{time}       \cr \tab Timestamp. \cr
 #'   }
 #' @examples
-#'   \dontrun{
-#'     config <- h0testr::f.new_config()
-#'     config$feature_file_in <- "feats.tsv"
-#'     config$sample_file_in <- "samps.tsv"
-#'     config$data_file_in <- "exprs.tsv", 
-#'     config$feat_id_col <- "gene"
-#'     config$obs_id_col <- "replicate"
-#'     config$sample_id_col <- "sample"
-#'     config$frm <- ~age+sex+age:sex
-#'     config$test_term <- "age:sex"
-#'     config$permute_var <- ""
-#'     tbl <- f.tune(config)
-#'     config$permute_var <- "age"
-#'     n <- 20
-#'     for(idx in 1:n) tbl <- rbind(tbl, f.tune(config))
-#'     head(tbl)
-#'   }
+#' config <- h0testr::f.new_config()
+#' config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
+#' config$feature_file_in <- "features.tsv"
+#' config$sample_file_in <- "samples.tsv"
+#' config$data_file_in <- "expression.tsv" 
+#' config$feat_id_col <- "feature_id"
+#' config$obs_id_col <- "observation_id"
+#' config$sample_id_col <- "observation_id"
+#' config$frm <- ~condition
+#' config$test_term <- "condition"
+#' config$test_method <- "trend"
+#' config$sample_factors <- list(condition=c("placebo", "drug"))
+#' config$n_features_min <- 10         ## default 1000 too big for small demo dataset
+#' config$save_state <- FALSE
+#' 
+#' ## one run with unpermuted data:
+#' config$permute_var <- ""            ## no permutation
+#' set.seed(101)
+#' out1 <- h0testr::f.tune(config,
+#'   norm_methods=c("TMM", "RLE", "q50", "q75", "cpm", "log2", "none"),
+#'   impute_methods=c("sample_lod", "unif_sample_lod", "unif_global_lod", "none"),
+#'   impute_quantiles=c(0, 0.1, 0.25)
+#' )
+#' ## write.table("0.condition.tune.tsv", quote=F, sep="\t", row.names=F)
+#' 
+#' ## one run with permuted data; run 20+ such runs w/ suffices 1:20:
+#' config$permute_var <- "condition"   ## permute variable in test_term
+#' set.seed(101)
+#' out2 <- h0testr::f.tune(config,
+#'   norm_methods=c("TMM", "RLE", "q50", "q75", "cpm", "log2", "none"),
+#'   impute_methods=c("sample_lod", "unif_sample_lod", "unif_global_lod", "none"),
+#'   impute_quantiles=c(0, 0.1, 0.25)
+#' )
+#' ## write.table("1.condition.tune.tsv", quote=F, sep="\t", row.names=F)
 
 f.tune <- function(
     config,  
@@ -96,7 +114,10 @@ f.tune <- function(
       "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", "none"),
     impute_quantiles=c(0, 0.01, 0.05, 0.1, 0.25), 
     impute_scales=c(1, 0.5, 0.25, 0.1),
+    impute_spans=c(0.25, 0.5, 0.75),
     test_methods=c("voom", "trend")) {
+    
+  f.report_config(config)
 
   ## load data:
   f.log_block("loading data", config=config)
@@ -137,7 +158,16 @@ f.tune <- function(
             rslt <- rbind(rslt, rslt_i)
             f.log_obj(rslt, config=config2)
           }
-        } else if(impute_method %in% c("sample_lod", "glm_binom", "loess_logit", "glmnet", "rf")) {
+        } else if(impute_method %in% c("loess_logit")) {
+          for(impute_span in impute_spans) {
+            config2$impute_span <- impute_span
+            f.msg("impute_span:", impute_span, config=config2)
+            f.log_block("impute and test", config=config2)
+            rslt_i <- f.tune2(state2, config2)
+            rslt <- rbind(rslt, rslt_i)
+            f.log_obj(rslt, config=config2)
+          }
+        } else if(impute_method %in% c("sample_lod", "glm_binom", "glmnet", "rf")) {
           f.log_block("impute and test", config=config2)
           rslt_i <- f.tune2(state2, config2)
           rslt <- rbind(rslt, rslt_i)
@@ -178,13 +208,12 @@ f.tune <- function(
 #'     \code{test}       \cr \tab Test method (character). \cr
 #'   }
 #' @examples
-#'   \dontrun{
-#'     dir_in <- "/path/to/my/tuning/results"
-#'     sfx <- ".strain.tune.tsv"
-#'     config <- list(log_file="")
-#'     tbl <- f.tune_check(dir_in, sfx, config)
-#'     head(tbl)
-#'   }
+#' dir_in <- system.file("extdata/tune", package="h0testr")
+#' sfx <- ".condition.tune.tsv"
+#' config <- list()
+
+#' tbl <- h0testr::f.tune_check(dir_in, sfx, config)
+#' print(tbl)
 
 f.tune_check <- function(dir_in, sfx, config) {
 
@@ -193,46 +222,54 @@ f.tune_check <- function(dir_in, sfx, config) {
   
   unperm_file <- paste0("0", sfx)
   i0 <- files %in% unperm_file
-  if(sum(i0) != 1) stop("no unperm file found; looking for:", unperm_file)
+  if(sum(i0) != 1) f.err("f.tune_check: no unperm file found; looking for:", 
+    unperm_file, config=config)
   perm_files <- files[!i0]
-  f.msg("found 1 unpermuted file and", length(perm_files), "permuted files\n", config=config)
-  dat1 <- utils::read.table(paste(dir_in, unperm_file, sep="/"), header=T, sep="\t", quote="", as.is=T)
+  f.msg("found 1 unpermuted file and", length(perm_files), "permuted files\n", 
+    config=config)
+  dat0 <- utils::read.table(paste(dir_in, unperm_file, sep="/"), header=T, 
+    sep="\t", quote="", as.is=T)
   
   obj <- list()
   for(perm_file in perm_files) {
     f.msg("reading", perm_file, config=config)
     prfx <- sub(pat, "", perm_file)
-    dat_i <- utils::read.table(paste(dir_in, perm_file, sep="/"), header=T, sep="\t", quote="", as.is=T)
+    dat_i <- utils::read.table(paste(dir_in, perm_file, sep="/"), header=T, 
+      sep="\t", quote="", as.is=T)
     dat_i$perm_prfx <- prfx
     obj[[perm_file]] <- dat_i
   }
-  dat0 <- do.call(rbind, obj)
+  dat1 <- do.call(rbind, obj)
+  rownames(dat1) <- NULL
   
   k0 <- apply(dat0[, 1:6], 1, paste, collapse=":")
   k1 <- apply(dat1[, 1:6], 1, paste, collapse=":")
   
-  ## permuted results in dat0; take max, median, mean, and sd of 10 permutation results:
-  perm_max <- tapply(dat0$nhits, k0, max, na.rm=T)
-  perm_mid <- tapply(dat0$nhits, k0, stats::median, na.rm=T)
-  perm_avg <- tapply(dat0$nhits, k0, mean, na.rm=T)
-  perm_sd  <- tapply(dat0$nhits, k0, stats::sd, na.rm=T)
+  ## permuted results in dat1; take max, median, mean, and sd of 10 permutation results:
+  perm_max <- tapply(dat1$nhits, k1, max, na.rm=T)
+  perm_mid <- tapply(dat1$nhits, k1, stats::median, na.rm=T)
+  perm_avg <- tapply(dat1$nhits, k1, mean, na.rm=T)
+  perm_sd  <- tapply(dat1$nhits, k1, stats::sd, na.rm=T)
   
   ## get them in the same order as dat1 (k1 made from dat1):
-  dat1$max0 <- perm_max[k1]
-  dat1$mid0 <- perm_mid[k1]
-  dat1$avg0 <- perm_avg[k1]
-  dat1$sd0  <- perm_sd[k1]
-  dat1$perm <- NULL
+  dat0$max1 <- perm_max[k0]
+  dat0$mid1 <- perm_mid[k0]
+  dat0$avg1 <- perm_avg[k0]
+  dat0$sd1  <- perm_sd[k0]
+  dat0$perm <- NULL
   
   ## average number of false positives == average number of hits across 10 sets of permutation results;
   ##   false positive rate: (average number of false positives) / (total number of positives)
   
-  if(any(dat1$nhits %in% 0)) f.err("any(dat1$nhits %in% 0)", config=config)
-  dat1$fdr <- dat1$avg / dat1$nhits
-  dat1 <- dat1[order(dat1$nhits, -dat1$fdr, decreasing=T), 
-               c("nhits", "fdr", "max0", "mid0", "avg0", "sd0", 
-                 "norm", "norm_quant", "impute", "imp_quant", "scale", "test")]
-  rownames(dat1) <- NULL
+  dat0$nhits[dat0$nhits %in% 0] <- 1
+  dat0$fdr <- dat0$avg / dat0$nhits
   
-  return(dat1)
+  dat0 <- dat0[
+    order(dat0$nhits, -dat0$fdr, decreasing=T), 
+    c("nhits", "fdr", "max1", "mid1", "avg1", "sd1", 
+      "norm", "norm_quant", "impute", "imp_quant", "scale", "test")
+  ]
+  rownames(dat0) <- NULL
+  
+  return(dat0)
 }

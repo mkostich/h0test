@@ -33,5 +33,6 @@ config$sample_id_col <- "sample"
 config$obs_id_col <- "observation"
 
 config$log_file <- ""          ## log to console/stdout
+str(config)
 f.report_config(config)
 }

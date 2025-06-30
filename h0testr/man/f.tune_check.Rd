@@ -40,11 +40,9 @@ Imports data from basic tuning loop, comparing results from unpermuted
     permuted data.
 }
 \examples{
-  \dontrun{
-    dir_in <- "/path/to/my/tuning/results"
-    sfx <- ".strain.tune.tsv"
-    config <- list(log_file="")
-    tbl <- f.tune_check(dir_in, sfx, config)
-    head(tbl)
-  }
+dir_in <- system.file("extdata/tune", package="h0testr")
+sfx <- ".condition.tune.tsv"
+config <- list()
+tbl <- h0testr::f.tune_check(dir_in, sfx, config)
+print(tbl)
 }

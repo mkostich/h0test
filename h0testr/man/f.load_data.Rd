@@ -9,8 +9,7 @@ f.load_data(config)
 \arguments{
 \item{config}{List with configuration values. Requires the following keys:
 \tabular{ll}{
-  \code{log_file}  \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
-  \code{dir_in}    \cr \tab Path to directory where input files located (character). \cr
+  \code{dir_in}          \cr \tab Path to directory where input files located (character). \cr
   \code{feature_file_in} \cr \tab Name of file with feature metadata; assumed in \code{dir_in}. \cr
   \code{sample_file_in}  \cr \tab Name of file with observation metadata; assumed in \code{dir_in}. \cr
   \code{data_file_in}    \cr \tab Name of file with signal data; assumed in \code{dir_in}. \cr

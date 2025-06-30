@@ -96,7 +96,10 @@ f.report_state <- function(state, config) {
 
 f.save_state <- function(state, config, prefix) {
 
-  if(!config$save_state) return(NULL)
+  if(is.null(config$save_state) || !config$save_state) {
+    f.msg("config$save_state not TRUE; no files saved", config=config)
+    return(NULL)
+  }
   
   file_out <- paste0(config$dir_out, "/", prefix, 
     config$data_mid_out, config$suffix_out)
@@ -117,7 +120,7 @@ f.save_state <- function(state, config, prefix) {
 f.quantile <- function(v, config, probs=NULL, digits=3, na.rm=T) {
 
   if(is.null(probs)) probs <- config$probs
-  
+  if(is.null(probs)) probs <- c(0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0)
   if(is.null(config$log_file)) config$log_file <- ""
   
   if(config$log_file %in% "") {

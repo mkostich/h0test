@@ -68,7 +68,7 @@ head(tbl)
 
 ## Dependencies
 
-- R, with utils, stats, randomForest, glmnet, limma, edgeR
+- R, with utils, stats, methods, randomForest, glmnet, limma, edgeR
 - Developed and tested with R 4.3.1, randomForest 4.7.1.2, glmnet 4.1.8, limma 3.56.2, and edgeR 3.42.4
 - Dependencies (other than this package) available on JAX HPC in this apptainer container:<br/>
   `/projects/compsci/jgeorge/kostim/resources/containers/msproteomics_r.20250605a.sif`

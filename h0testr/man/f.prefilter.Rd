@@ -16,7 +16,6 @@ f.prefilter(state, config, n_samples_min = 2, n_features_min = 2)
 
 \item{config}{List with configuration values. Requires the following keys:
 \tabular{ll}{
-  \code{log_file}     \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
   \code{feat_id_col}  \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
   \code{obs_id_col}   \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{expression}. \cr
 }}
@@ -47,7 +46,7 @@ exprs <- h0testr::f.sim1(n_obs=6, n_feats=12, mcar_p=0.75)$mat
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(log_file="")
+config <- list(feat_id_col="feature_id", obs_id_col="observation_id")
 state2 <- h0testr::f.prefilter(state, config)
 print(state2)
 }

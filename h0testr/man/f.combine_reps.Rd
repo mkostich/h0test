@@ -16,8 +16,8 @@ f.combine_reps(state, config)
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{log_file}      \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
-  \code{obs_id_col}    \cr \tab Column in observation metadata matching rownames of \code{state$expression} \cr
+  \code{feat_id_col}   \cr \tab Column (character scalar) of \code{state$features} which matches \code{rownames(state$expression)}. \cr
+  \code{obs_id_col}    \cr \tab Column in observation metadata matching initial rownames of \code{state$expression}. \cr
   \code{sample_id_col} \cr \tab Column in observation metadata with unique sample ids. \cr
 }}
 }
@@ -42,7 +42,8 @@ feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 samps$sample_id=c("samp1", "samp2", "samp3", "samp1", "samp2", "samp3")
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(log_file="", obs_id_col="observation_id", sample_id_col="sample_id", save_state=FALSE)
+config <- list(obs_id_col="observation_id", 
+  sample_id_col="sample_id", feat_id_col="feature_id", save_state=FALSE)
 out <- h0testr::f.combine_reps(state, config)
 state
 out$state

@@ -16,7 +16,6 @@ f.permute(state, config, variable = NULL)
 
 \item{config}{List with configuration values. Requires the following keys:
 \tabular{ll}{
-  \code{log_file}       \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
   \code{feat_id_col}    \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
   \code{sample_id_col}  \cr \tab Name of column (character) in \code{sample_file_in} with unique sample identifiers. \cr
 }}
@@ -44,7 +43,8 @@ exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs), age=c(rep("young", 3), rep("old", 3)))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(log_file="", feat_id_col="feature_id", sample_id_col="observation_id", permute_var="age")
+config <- list(feat_id_col="feature_id", obs_id_col="observation_id", 
+  sample_id_col="observation_id", permute_var="age")
 state2 <- h0testr::f.permute(state, config)
 print(state)
 print(state2)
