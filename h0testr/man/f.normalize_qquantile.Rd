@@ -14,10 +14,7 @@ f.normalize_qquantile(state, config)
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration values. Uses the following keys:
-\tabular{ll}{
-  \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
-}}
+\item{config}{List with configuration values. Does not use any keys, so can pass empty list.}
 }
 \value{
 A list (the processed state) with the following elements:
@@ -41,8 +38,15 @@ exprs <- h0testr::f.sim1(n_obs=6, n_feats=12, mnar_c0=-Inf)$mat
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(log_file="")
+config <- list()
 state2 <- h0testr::f.normalize_qquantile(state, config)
-print(state)
-print(state2)
+print(state$expression)
+print(state2$expression)
+
+summary(apply(state$expression, 2, sd, na.rm=TRUE))
+summary(apply(state2$expression, 2, sd, na.rm=TRUE))
+
+## afterwards, all quantiles line up:
+apply(state$expression, 2, quantile, probs=c(0.1, 0.25, 0.5, 0.75, 0.9), na.rm=TRUE)
+apply(state2$expression, 2, quantile, probs=c(0.1, 0.25, 0.5, 0.75, 0.9), na.rm=TRUE)
 }

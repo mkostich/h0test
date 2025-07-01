@@ -28,20 +28,24 @@ Run a basic workflow:
       the specified order.
 }
 \examples{
-  \dontrun{
-    config <- h0testr::f.new_config()
-    config$feature_file_in <- "feats.tsv"
-    config$sample_file_in <- "samps.tsv"
-    config$data_file_in <- "exprs.tsv", 
-    config$feat_id_col <- "gene"
-    config$obs_id_col <- "replicate"
-    config$sample_id_col <- "sample"
-    config$frm <- ~age+sex+age:sex
-    config$test_term <- "age:sex"
-    config$test_method <- "trend"
-    config$run_order <- c("normalize", "combine_reps", "filter", "impute")
-    output <- f.run(config)
-    tbl <- output$tbl
-    head(tbl)
-  }
+config <- h0testr::f.new_config()
+config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
+config$feature_file_in <- "features.tsv"
+config$sample_file_in <- "samples.tsv"
+config$data_file_in <- "expression.tsv" 
+config$feat_id_col <- "feature_id"
+config$obs_id_col <- "observation_id"
+config$sample_id_col <- "observation_id"
+config$frm <- ~condition
+config$test_term <- "condition"
+config$test_method <- "trend"
+config$sample_factors <- list(condition=c("placebo", "drug"))
+config$n_features_min <- 10      ## default 1000 too big for small demo dataset
+config$run_order <- c("normalize", "combine_reps", "filter", "impute")
+config$save_state <- FALSE
+
+print(config$run_order)
+
+out <- h0testr::f.run(config)   ## run workflow
+print(out$tbl)                  ## hit table
 }

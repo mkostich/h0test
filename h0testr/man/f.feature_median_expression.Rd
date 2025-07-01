@@ -14,10 +14,7 @@ f.feature_median_expression(state, config)
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration values. Uses the following keys:
-\tabular{ll}{
-  \code{log_file}       \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
-}}
+\item{config}{List with configuration values. Does not use any params, so can pass empty list.}
 }
 \value{
 A numeric vector of length \code{nrow(state$expression)} with median expression in 
@@ -38,6 +35,6 @@ exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(log_file="")
+config <- list()
 h0testr::f.feature_median_expression(state, config)
 }

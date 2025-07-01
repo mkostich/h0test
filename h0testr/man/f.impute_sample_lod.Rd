@@ -14,10 +14,7 @@ f.impute_sample_lod(state, config)
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration values. Uses the following keys:
-\tabular{ll}{
-  \code{log_file}         \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
-}}
+\item{config}{List with configuration values. No keys used, so can send empty list.}
 }
 \value{
 An updated \code{state} list with the following elements:
@@ -40,11 +37,12 @@ Missing values are set to an estimate observation limit of
 \examples{
 set.seed(101)
 exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+exprs <- log2(exprs + 1)
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(log_file="")
+config <- list()
 state2 <- h0testr::f.impute_sample_lod(state, config)
-print(state)
-print(state2)
+summary(c(state$expression))   ## note number of NAs
+summary(c(state2$expression))  ## note number of NAs
 }

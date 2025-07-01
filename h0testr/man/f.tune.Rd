@@ -12,6 +12,7 @@ f.tune(
     "glm_binom", "loess_logit", "glmnet", "rf", "none"),
   impute_quantiles = c(0, 0.01, 0.05, 0.1, 0.25),
   impute_scales = c(1, 0.5, 0.25, 0.1),
+  impute_spans = c(0.25, 0.5, 0.75),
   test_methods = c("voom", "trend")
 )
 }
@@ -24,11 +25,13 @@ f.tune(
 \item{impute_methods}{Character vector of methods to try. One or more of:
 \code{c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", "none")}.}
 
-\item{impute_quantiles}{Numeric vector of quantiles to try for \code{unif_} methods. 
+\item{impute_quantiles}{Numeric vector of quantiles to try for \code{f.impute_unif_*} methods. 
 One or more values between \code{0.0} and \code{1.0}.}
 
-\item{impute_scales}{Numeric vector of scales to try for \code{rnorm_feature}. 
+\item{impute_scales}{Numeric vector of scales to try for \code{f.impute_rnorm_feature}. 
 See \code{f.impute_rnorm_feature()} \code{scale}. parameter.}
+
+\item{impute_spans}{Numeric vector of spans to try for \code{f.impute_loess_logit}.}
 
 \item{test_methods}{Character vector with one or more of: \code{c("trend", "voom")}.}
 }
@@ -59,21 +62,38 @@ Run a basic tuning loop that iterates over parameter combinations,
     name of a variable in \code{config$test_term}.
 }
 \examples{
-  \dontrun{
-    config <- h0testr::f.new_config()
-    config$feature_file_in <- "feats.tsv"
-    config$sample_file_in <- "samps.tsv"
-    config$data_file_in <- "exprs.tsv", 
-    config$feat_id_col <- "gene"
-    config$obs_id_col <- "replicate"
-    config$sample_id_col <- "sample"
-    config$frm <- ~age+sex+age:sex
-    config$test_term <- "age:sex"
-    config$permute_var <- ""
-    tbl <- f.tune(config)
-    config$permute_var <- "age"
-    n <- 20
-    for(idx in 1:n) tbl <- rbind(tbl, f.tune(config))
-    head(tbl)
-  }
+config <- h0testr::f.new_config()
+config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
+config$feature_file_in <- "features.tsv"
+config$sample_file_in <- "samples.tsv"
+config$data_file_in <- "expression.tsv" 
+config$feat_id_col <- "feature_id"
+config$obs_id_col <- "observation_id"
+config$sample_id_col <- "observation_id"
+config$frm <- ~condition
+config$test_term <- "condition"
+config$test_method <- "trend"
+config$sample_factors <- list(condition=c("placebo", "drug"))
+config$n_features_min <- 10         ## default 1000 too big for small demo dataset
+config$save_state <- FALSE
+
+## one run with unpermuted data:
+config$permute_var <- ""            ## no permutation
+set.seed(101)
+out1 <- h0testr::f.tune(config,
+  norm_methods=c("TMM", "RLE", "q50", "q75", "cpm", "log2", "none"),
+  impute_methods=c("sample_lod", "unif_sample_lod", "unif_global_lod", "none"),
+  impute_quantiles=c(0, 0.1, 0.25)
+)
+## write.table("0.condition.tune.tsv", quote=F, sep="\t", row.names=F)
+
+## one run with permuted data; run 20+ such runs w/ suffices 1:20:
+config$permute_var <- "condition"   ## permute variable in test_term
+set.seed(101)
+out2 <- h0testr::f.tune(config,
+  norm_methods=c("TMM", "RLE", "q50", "q75", "cpm", "log2", "none"),
+  impute_methods=c("sample_lod", "unif_sample_lod", "unif_global_lod", "none"),
+  impute_quantiles=c(0, 0.1, 0.25)
+)
+## write.table("1.condition.tune.tsv", quote=F, sep="\t", row.names=F)
 }

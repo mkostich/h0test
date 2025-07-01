@@ -14,10 +14,7 @@ f.normalize_vsn(state, config)
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration values. Uses the following keys:
-\tabular{ll}{
-  \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
-}}
+\item{config}{List with configuration values. Does not use any keys, so can pass empty list.}
 }
 \value{
 A list (the processed state) with the following elements:
@@ -37,12 +34,18 @@ Inter-observation normalization. Under the hood, it calls
 }
 \examples{
 set.seed(101)
-exprs <- h0testr::f.sim1(n_obs=6, n_feats=50)$mat
+exprs <- h0testr::f.sim1(n_obs=6, n_feats=50, mnar_c0=-Inf)$mat
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(log_file="")
+config <- list()
 state2 <- h0testr::f.normalize_vsn(state, config)
-print(state)
-print(state2)
+head(state$expression)
+head(state2$expression)
+summary(apply(state$expression, 2, sd, na.rm=TRUE))
+summary(apply(log2(state$expression+1), 2, sd, na.rm=TRUE))
+summary(apply(state2$expression, 2, sd, na.rm=TRUE))
+summary(apply(state$expression, 1, sd, na.rm=TRUE))
+summary(apply(log2(state$expression+1), 1, sd, na.rm=TRUE))
+summary(apply(state2$expression, 1, sd, na.rm=TRUE))
 }

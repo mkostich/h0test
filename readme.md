@@ -37,24 +37,26 @@ help(package="h0testr")
 ```
 ## get a default configuration object:
 config <- h0testr::f.new_config()
-str(config)                           ## view default settings
+str(config)                                          ## view default settings
 
 ## customize input/output files:
 config$out_dir <- "."                                ## directory for output
 config$in_dir <- "/path/to/input/file/dir"           ## directory to input
-config$feature_file_in <- "my_feature_metadata.tsv"  ## expected in config$in_dir
-config$sample_file_in <- "my_sample_metadata.tsv"    ## expected in config$in_dir
-config$data_file_in <- "my_signal_data.tsv"          ## expected in config$in_dir
+config$feature_file_in <- "my_feature_metadata.tsv"  ## feature metadata in config$in_dir
+config$sample_file_in <- "my_sample_metadata.tsv"    ## sample metadata in config$in_dir
+config$data_file_in <- "my_signal_data.tsv"          ## measurement data in config$in_dir
 
-## customize file cross-referencing:
-config$feat_id_col <- "gene_id"       ## column in feature metadata matching rownames of sample_file_in
-config$obs_id_col <- "replicate_id"   ## column in sample metadata matching column names of sample_file_in
-config$sample_id_col <- "sample_id"   ## column in sample metadata; set obs_id_col == sample_id_col if no technical replicates
+## customize file cross-referencing; sample_id_col becomes colnames of data_file_in
+##   after aggregation of technical replicates; set obs_id_col == sample_id_col if 
+##   no technical replicates:
+config$feat_id_col <- "gene_id"       ## column in feature file matching rownames of data file
+config$obs_id_col <- "replicate_id"   ## column in sample file matching colnames of data file
+config$sample_id_col <- "sample_id"   ## column in sample file identifying samples
 
 ## customize testing configuration:
-config$frm=~age+gender+age:gender     ## formula with variable of interest and covariates
-config$test_term="age:gender"         ## term in config$frm on which test is to be performed
-config$sample_factors=list(           ## set levels of factor variables in sample metadata
+config$frm <- ~ age + gender + age:gender    ## formula to fit ('~+:' ok; '*' not tested)
+config$test_term <- "age:gender"             ## term in config$frm to test
+config$sample_factors=list(                  ## levels of factor variables in sample metadata
   age=c("young", "old"),    
   gender=c("Male", "Female")
 )
@@ -68,11 +70,9 @@ head(tbl)
 
 ## Dependencies
 
-- R, with utils, stats, randomForest, glmnet, limma, edgeR
+- R, with utils, stats, methods, randomForest, glmnet, limma, edgeR
 - Developed and tested with R 4.3.1, randomForest 4.7.1.2, glmnet 4.1.8, limma 3.56.2, and edgeR 3.42.4
-- Dependencies (other than this package) available on JAX HPC in this apptainer container:<br/>
-  `/projects/compsci/jgeorge/kostim/resources/containers/msproteomics_r.20250605a.sif`
-- Should work on Linux, Mac, or Windows
+- Should work on Linux, Mac, or Windows; tested on Rocky Linux 9.5 and Windows 10.
 
 ---
 
@@ -80,7 +80,11 @@ head(tbl)
 
 Inputs are three tab-delimited text files in directory `config$dir_in`. The names of 
 the files can be configured using parameters `config$feature_file_in`, 
-`config$sample_file_in`, and `config$data_file_in`:
+`config$sample_file_in`, and `config$data_file_in`. The `config$data_file_in` is
+assumed to be saved by R with rownames and colnames: the first row corresponds
+to the colnames, and the first column corresponds to the rownames. The first 
+row (colnames) has one less column than the rest of the table, since the first 
+row has no rowname. Example files can be found in `h0testr/inst/extdata`:
 
 - `$feature_file_in`: feature metadata, with unique key `config$feat_id_col` 
      matching rownames of `$data_file_in`. Other columns contain supplementary 
@@ -88,7 +92,7 @@ the files can be configured using parameters `config$feature_file_in`,
      Should not have rownames.
 - `$sample_file_in`: observation metadata, without rownames, with:
   - `config$obs_id_col`: unique key; technical replicate identifier matching colnames of `data_file_in`.
-  - `config$sample_id_col`: biosample identifier; not unique if technical replication
+  - `config$sample_id_col`: biosample identifier; not unique if technical replication.
   - if you don't have technical replicates, set so `config$obs_id_col == config$sample_id_col`.
   - all variables referred to in the formula specified by configuration variable `config$frm`
 - `$data_file_in`: raw (not log transformed) non-negative signal data table 
@@ -110,6 +114,7 @@ sample_file_in="samples.tsv"    ## sample annotation .tsv; row observations, met
 data_file_in="expression.tsv"   ## quantification matrix .tsv; rowname features, colname observations
 dir_in="."                      ## feature_file_in, sample_file_in, and data_file_in found here (character)
 dir_out="."                     ## output directory (character)
+
 ## formula for testing: actual formula can have '+' and ':'; not tested w/ e.g. '*' yet.
 frm=~age+gender+age:gender      ## formula with variables of interest and covariates; all in sample_file_in
 test_term="age:gender"          ## term (character) in $frm on which test is to be performed
@@ -118,7 +123,8 @@ sample_factors=list(            ## set levels of factor variables in $frm
   age=c("young", "old"),        ## by default, numeric treated as numeric; if levels set here, treated as factor
   gender=c("Male", "Female")    ## by default, character treated as factor with alphabetically ordered levels
 )
-## samps and feats column names:
+
+## sample and feature metadata column names:
 feat_id_col="gene_id"           ## column (character) in feature_file_in matching rownames of data_file_in
 obs_id_col="observation_id"     ## column in sample_file_in matching colnames of data_file_in
 sample_id_col="sample_id"       ## column in sample_file_in with sample ids; not unique if tech reps; same as obs_id_col if no tech reps
@@ -174,9 +180,11 @@ config <- list(
   impute_method="sample_lod",
   impute_quantile=0.01,                ## quantile for unif_ imputation methods
   impute_scale=1,                      ## for rnorm_feature, adjustment on sd of distribution [1: no change];
+  impute_span=0.5,                     ## loess span for f.impute_loess_logit
   impute_n_pts=1e7,                    ## granularity of imputed values for f.impute_glm_binom and f.impute_loess_logit
   impute_span=0.25,                    ## loess span for f.impute_loess_logit 
   test_method="trend",                 ## in c("voom", "trend")
+  
   ## run_order character vector with elements from {"normalize", "combine_reps", "filter", "impute"}:
   run_order=c("normalize", "combine_reps", "filter", "impute"),   ## determines order of workflow operations
   
@@ -198,7 +206,7 @@ The default `config$run_order` of
 workflow:
 
 
-1) Load data: read data from disk, format, [permute], check.
+1) Load data: read from disk, format, [optionally permute], check.
 2) Inter-sample normalization: includes `log2(x+1)` transform
 3) Combine technical replicates: using median
 4) Filter features and samples: based on expression levels
@@ -225,18 +233,19 @@ will be:
 
 ```
 ## sample covariates reduced to set needed for downstream analysis;
-##   features/observation and observations/feature recorded:
+##   features per observation, median expresison, and observations 
+##   per feature recorded:
 1.initial.expression.tsv
 1.initial.features.tsv
 1.initial.samples.tsv
 
 ## prefiltered uninformative features and observations; 
-##   permute if PERMUTE_VAR not "":
+##   permute if config$permute_var not "":
 2.prepped.expression.tsv
 2.prepped.features.tsv
 2.prepped.samples.tsv
 
-## inter-sample normalized and transformed (e.g. log2):
+## inter-sample normalized and transformed (log2 or glog2):
 3.normalized.expression.tsv
 3.normalized.features.tsv
 3.normalized.samples.tsv
@@ -274,7 +283,7 @@ results <- read.table("7.results.tsv", header=T, sep="\t", quote="", as.is=T)
 5     K6SUP6 ...         202   8.665571 0.6286665 0.8722942 8.642624 38.05398 4.674231e-14 5.148198e-11
 6     P4TXL2 ...         202   9.486986 0.2715985 0.6570489 9.487649 37.33104 7.544069e-14 6.924198e-11
 
-## where ... represents additional feature columns inserted from config$feature_file_in.
+## where '...' represents feature columns from config$feature_file_in.
 ```
 
 ---
@@ -295,7 +304,7 @@ unless `config$norm_method %in% "none"`:
   See [https://doi.org/10.1186/gb-2010-11-3-r25](https://doi.org/10.1186/gb-2010-11-3-r25 "Robinson and Oshlack, 2010")
   
 **TMMwsp**: TMM with singleton pairing, using `edgeR::calcNormFactors()` then `edgeR::cpm()`. 
-  May be better than TMM when many zeros.
+  May be better than TMM when many zeros are present.
 
 **qquantile**: classical quantile normalization, using `limma::normalizeQuantiles()`
 
@@ -330,7 +339,7 @@ Zero and `NA` values are both treated as missing. Methods `glmnet` and
 **rnorm_feature**: for each feature, calculate the mean `m` and standard 
   deviation `s`. Replace each `NA` value with a random draw from a normal 
   distribution centered at `m` with standard deviation  
-  `config$impute_scale * s`: `rnorm(1, mean=m, sd=s*config$impute_scale)
+  `config$impute_scale * s`: `rnorm(1, mean=m, sd=s*config$impute_scale)`.
   
 **glm_binom**: fit generalized linear model with logit link and binomial 
   errors to `p(missing) ~ log2(intensity)`, where `p(missing)` estimated 
@@ -364,13 +373,14 @@ Method used for hypothesis testing.
 
 ---
 
-## Tuning (alpha)
+## Tuning (beta)
 
-In practice, we run one run with no permuted variable, then around 20 runs 
-with permuted variables. The naive code for doing so is shown below, which may 
-be suitable for small to medium datasets. For larger datasets, we would 
-normally launch a separate instance in its own directory, with one instance
-for the unpermuted data, and 20 instances with permuted data:
+In practice, perform one run with no permuted variable, then around 20 runs 
+with permutation of a variable in the test term `config$test_term`. The 
+naive code for doing so is shown below, which may be suitable for small to 
+medium datasets. For larger datasets, we would normally launch a separate 
+instance in its own directory, with one instance for the unpermuted data, 
+and 20 instances with permuted data:
 
 ```
 ## R:
@@ -378,26 +388,26 @@ for the unpermuted data, and 20 instances with permuted data:
 rm(list=ls())
 
 config <- h0testr::f.new_config()
-config$feature_file_in <- "feats.tsv"
-config$sample_file_in <- "samps.tsv"
-config$data_file_in <- "exprs.tsv", 
+config$feature_file_in <- "features.tsv"
+config$sample_file_in <- "samples.tsv"
+config$data_file_in <- "expression.tsv", 
 config$feat_id_col <- "gene"
 config$obs_id_col <- "replicate"
 config$sample_id_col <- "sample"
-config$frm <- ~age+strain+age:strain
-config$test_term <- "age:strain"
+config$frm <- ~age+gender+age:gender
+config$test_term <- "age:gender"
 
 ## do this run with unpermuted variables once:
 config$permute_var <- ""
 tbl <- h0testr::f.tune(config)
-write.table(tbl, file="0.age_strain.tune.tsv", sep="\t", quote=F, row.names=F)
+write.table(tbl, file="0.age_gender.tune.tsv", sep="\t", quote=F, row.names=F)
 
 ## do this run, with permuted variable in config$test_term N times:
 config$permute_var <- "age"
 N <- 20
 for(idx in 1:N) {
   tbl <- h0testr::f.tune(config)
-  write.table(tbl, file=paste0(idx, ".age_sex.tune.tsv"), 
+  write.table(tbl, file=paste0(idx, ".age_gender.tune.tsv"), 
     sep="\t", quote=F, row.names=F)
 }
 ```
@@ -422,7 +432,7 @@ Collect results. From parent directory, in R (only base packages required for th
 ```
 rm(list=ls())
 
-tbl <- f.tune_check(dir_in="/path/to/tuning/results", sfx=".age_strain.tune.tsv")
+tbl <- f.tune_check(dir_in="/path/to/tuning/results", sfx=".age_gender.tune.tsv")
 
 ## tbl has a bunch of statistics that can be used to evaluate option combinations;
 ##   nhits: number of hits in unpermuted data
@@ -448,7 +458,7 @@ tbl <- f.tune_check(dir_in="/path/to/tuning/results", sfx=".age_strain.tune.tsv"
 6  4352 0.1309053 2661 138.0 569.7 957.4347 TMMwsp       0.75 unif_global_lod      0.10   0.1 voom
 
 ## save results:
-write.table(dat1, file="perm_results.age_strain.tsv", sep="\t", quote=F, row.names=F)
+write.table(dat1, file="perm_results.age_gender.tsv", sep="\t", quote=F, row.names=F)
 ```
 
 ---

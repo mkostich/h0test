@@ -1,5 +1,6 @@
 export(f.new_config)
 
+export(f.check_config)
 export(f.report_config)
 export(f.read_data)
 export(f.preprocess_covariates)

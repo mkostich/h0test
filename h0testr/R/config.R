@@ -3,20 +3,26 @@
 #'   Returns a configuration list filled with defaults and
 #'     example values. Configuration meant to be customized then passed to
 #'     other functions.
-#' @details Report written to \code{config$log_file}; if \code{config$log_file == ""},
-#'   written to standard out (console or terminal). Only supports non-lists
-#'     and lists of non-lists (not lists of lists) as \code{config} values.
-#'   Throws error if \code{config$test_term} is not compatible with \code{config$frm}.
+#' @details 
+#'   You must customize \code{frm}, \code{test_term}, and \code{sample_factors}.
+#'     You often need to customize \code{feat_id_col}, \code{sample_id_col}, 
+#'     and \code{obs_id_col}.  
 #' @return list of configuration values
 #' @examples
 #' config <- f.new_config()
+#' 
+#' ## you must customize frm, test_term, and sample_factors:
 #' config$frm <- ~ age + sex + age:sex
 #' config$test_term <- "age:sex"
 #' config$sample_factors <- list(age=c("young", "old"), sex=c("female", "male"))
+#'
+#' ## these may or may not need customization, depending on your file formats:
 #' config$feat_id_col <- "gene"
 #' config$sample_id_col <- "sample"
 #' config$obs_id_col <- "observation"
-#' config$log_file <- ""
+#' 
+#' config$log_file <- ""          ## log to console/stdout
+#' str(config)
 #' f.report_config(config)
 
 f.new_config <- function() {
@@ -54,7 +60,7 @@ f.new_config <- function() {
     sample_mid_out=".samples",           ## midfix for output samples file
     data_mid_out=".expression",          ## midfix for output expression files
     result_mid_out=".results",           ## midfix for output results file
-    suffix_out=".tsv",                   ## suffix for output files  
+    suffix_out=".tsv",                   ## suffix for output files 
     
     ## tunable options: defaults are usually ok, except:
     ##   for dia: usually works ok: RLE:unif_sample_lod:0.05 for norm_method:impute_method:impute_quantile
@@ -67,8 +73,8 @@ f.new_config <- function() {
     impute_method="sample_lod",
     impute_quantile=0.01,                ## quantile for unif_ imputation methods
     impute_scale=1,                      ## for rnorm_feature, adjustment on sd of distribution [1: no change];
+    impute_span=0.5,                     ## loess span for f.impute_loess_logit
     impute_n_pts=1e7,                    ## granularity of imputed values for f.impute_glm_binom and f.impute_loess_logit
-    impute_span=0.25,                    ## loess span for f.impute_loess_logit 
     test_method="trend",                 ## in c("voom", "trend")
     ## run_order character vector with elements from {"normalize", "combine_reps", "filter", "impute"}:
     run_order=c("normalize", "combine_reps", "filter", "impute"),   ## determines order of workflow operations
@@ -83,6 +89,165 @@ f.new_config <- function() {
   return(config)
 }
 
+#' Check configuration
+#' @description
+#'   Check configuration list for recognizable names and proper value types.
+#' @details
+#'   Only checks parameters in the configuration. Does not complain about 
+#'     missing settings.
+#' @param config List with configuration values like those returned by \code{f.new_config()}.
+#' @return Logical scalar \code{TRUE} if configuration ok. Otherwise throws error.
+#' @examples
+#' config <- list()
+#' h0testr::f.check_config(config)
+#'
+#' config <- h0testr::f.new_config()
+#' h0testr::f.check_config(config)
+#'
+#' config$impute_quantile <- "0.01"
+#' h0testr::f.check_config(config)
+
+f.check_config <- function(config) {
+
+  if(length(config) %in% 0) {
+    f.msg("empty config ok", config=config)
+    return(TRUE)
+  }
+
+  scalar_character <- c("feature_file_in", "sample_file_in", "data_file_in", 
+    "dir_in", "dir_out", "test_term", "permute_var", "feat_id_col", 
+    "obs_id_col", "sample_id_col", "obs_col", "n_samples_expr_col", 
+    "median_raw_col", "n_features_expr_col", "log_file", "feature_mid_out", 
+    "sample_mid_out", "data_mid_out", "result_mid_out", "suffix_out", 
+    "norm_method", "impute_method", "test_method", "run_order")
+    
+  scalar_counts <- c("n_samples_min", "n_features_min", "impute_n_pts", "width")
+  scalar_props <- c("norm_quantile", "impute_quantile", 
+    "impute_scale", "impute_span")
+  scalar_positive <- c("impute_span")
+  scalar_logical <- c("save_state", "verbose")
+  scalar_formula <- c("frm")
+  vector_props <- c("probs")
+  list_character <- c("sample_factors")
+  
+  ## check all param names in config are non-emtpy and recognized:
+  
+  noms <- names(config)
+  all_noms <- c(
+    scalar_character, scalar_counts, scalar_props, 
+    scalar_positive, scalar_logical, scalar_formula, vector_props, 
+    list_character
+  )
+  
+  if(is.null(noms)) f.err("f.check_config: is.null(names(config))", config=config)
+  for(idx in 1:length(config)) {
+    if(length(noms[idx]) %in% 0) {
+      f.err("f.check_config: empty parameter name in config at idx:", 
+        idx, config=config)
+    }
+    if(!(noms[idx] %in% all_noms)) {
+      f.err("f.check_config: unexpected parameter name:", noms[idx], 
+        config=config)
+    }
+  }  
+  
+  ## check param values:
+  
+  for(nom in scalar_character) {
+    if(nom %in% config) {
+      if(!(is.character(config[[nom]]) && length(config[[nom]] == 1))) {
+        f.err("f.check_config: param not scalar character; param:",  nom, 
+          "; value:", config[[nom]], config=config)
+      }
+    }
+  }
+  
+  for(nom in scalar_counts) {
+    if(nom %in% config) {
+      if(!(is.numeric(config[[nom]]) && length(config[[nom]] == 1))) {
+        f.err("f.check_config: param not scalar count; param:",  nom, 
+          "; value:", config[[nom]], config=config)
+      }
+      if(config[[nom]] < 0) {
+        f.err("f.check_config: param not non-negative integer:", nom,
+          "; value:", config[[nom]], config=config)
+      }
+      if(config[[nom]] != round(config[[nom]])) {
+        f.err("f.check_config: param not an integer:", nom,
+          "; value:", config[[nom]], config=config)
+      }
+    }
+  }
+  
+  for(nom in scalar_props) {
+    if(nom %in% config) {
+      if(!is.numeric(config[[nom]]) && length(config[[nom]] == 1)) {
+        f.err("f.check_config: param not scalar proportion; param:",  nom, 
+          "; value:", config[[nom]], config=config)
+      }
+      if(config[[nom]] < 0 || config[[nom]] > 1) {
+        f.err("f.check_config: param not between 0 and 1:", nom,
+          "; value:", config[[nom]], config=config)
+      }
+    }
+  }
+  
+  for(nom in scalar_positive) {
+    if(nom %in% config) {
+      if(!is.numeric(config[[nom]]) && length(config[[nom]] == 1)) {
+        f.err("f.check_config: param not scalar positive numeric; param:",  nom, 
+          "; value:", config[[nom]], config=config)
+      }
+      if(config[[nom]] < 0) {
+        f.err("f.check_config: param not non-negative:", nom,
+          "; value:", config[[nom]], config=config)
+      }
+    }
+  }
+  
+  for(nom in scalar_logical) {
+    if(nom %in% config) {
+      if(!is.logical(config[[nom]]) && length(config[[nom]] == 1)) {
+        f.err("f.check_config: param not scalar logical; param:",  nom, 
+          "; value:", config[[nom]], config=config)
+      }
+    }
+  }
+  
+  for(nom in scalar_formula) {
+    if(nom %in% config) {
+      if(!methods::is(config[[nom]], "formula") && length(config[[nom]] == 1)) {
+        f.err("f.check_config: param not scalar formula; param:",  nom, 
+          "; value:", config[[nom]], config=config)
+      }
+    }
+  }
+  
+  for(nom in vector_props) {
+    if(nom %in% config) {
+      if(!is.numeric(config[[nom]])) {
+        f.err("f.check_config: param not vector of proportions; param:",  nom, 
+          "; value:", config[[nom]], config=config)
+      }
+      if(any(config[[nom]] < 0) || any(config[[nom]] > 1)) {
+        f.err("f.check_config: proportions out of range [0, 1]; param:", nom,
+          "; value:", config[[nom]], config=config)
+      }
+    }
+  }
+  
+  for(nom in list_character) {
+    if(nom %in% config) {
+      if(!is.numeric(config[[nom]])) {
+        f.err("f.check_config: param not list of character; param:",  nom, 
+          "; value:", config[[nom]], config=config)
+      }
+    }
+  }
+
+  return(TRUE)
+}
+
 #' Report configuration
 #' @description
 #' Reports configuration settings used for run, and checks if
@@ -94,15 +259,25 @@ f.new_config <- function() {
 #' @param config List with configuration values.
 #' @return NULL
 #' @examples
-#' config <- h0testr::f.new_config()
-#' h0testr::f.report_config(config)
+#' config <- f.new_config()
+#' 
+#' ## you must customize frm, test_term, and sample_factors:
+#' config$frm <- ~ age + sex + age:sex
+#' config$test_term <- "age:sex"
+#' config$sample_factors <- list(age=c("young", "old"), sex=c("female", "male"))
 #'
-#' config$frm <- ~ age
-#' config$test_term <- "age"
-#' config$sample_factors <- list(age=c("young", "old"))
-#' h0testr::f.report_config(config)
+#' ## these may or may not need customization, depending on your file formats:
+#' config$feat_id_col <- "gene"
+#' config$sample_id_col <- "sample"
+#' config$obs_id_col <- "observation"
+#' 
+#' config$log_file <- ""          ## log to console/stdout
+#' f.report_config(config)
 
 f.report_config <- function(config) {
+
+  f.check_config(config)
+
   for(k1 in names(config)) {
     v1 <- config[[k1]]
     if(is.list(v1)) {
@@ -120,11 +295,11 @@ f.report_config <- function(config) {
   trms <- unlist(strsplit(trms, split="\\+"))
   
   if(length(trms) %in% 0) {
-    f.err("length(trms) %in% 0", config=config)
+    f.err("f.report_config: length(trms) %in% 0", config=config)
   }  
   
   if(!(config$test_term %in% trms)) {
-    f.err("config$test_term", config$test_term, "not in config$frm", 
+    f.err("f.report_config: config$test_term", config$test_term, "not in config$frm", 
       as.character(config$frm), config=config)
   }
 }

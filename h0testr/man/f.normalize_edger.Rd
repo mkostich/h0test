@@ -16,16 +16,16 @@ f.normalize_edger(state, config, method = NULL, p = NULL)
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
   \code{norm_method}     \cr \tab Normalization method in \code{c("TMM", "TMMwsp", "RLE", "upperquartile")}. \cr
   \code{norm_quantile}   \cr \tab Quantile to use for \code{norm_method \%in\% c("quantile", "upperquartile")}. \cr
 }}
 
 \item{method}{Character in set
-\code{c("TMM", "TMMwsp", "RLE", "upperquartile", "none")}.}
+\code{c("TMM", "TMMwsp", "RLE", "upperquartile", "none")}. Can be set with
+\code{config$norm_method}.}
 
 \item{p}{Numeric in closed interval \code{[0, 1]} specifying quantile to use for method 
-\code{upperquartile}.}
+\code{upperquartile}. Can be set with \code{config$norm_quantile}.}
 }
 \value{
 A list (the processed state) with the following elements:
@@ -48,8 +48,15 @@ exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(log_file="", norm_method="TMM", norm_quantile="0.75")
+
+config <- list(norm_method="upperquartile", norm_quantile=0.75)
 state2 <- h0testr::f.normalize_edger(state, config)
-print(state)
-print(state2)
+print(state$expression)
+print(state2$expression)
+
+## norm_quantile ignored for norm_method="TMM":
+config <- list(norm_method="TMM", norm_quantile=0)
+state2 <- h0testr::f.normalize_edger(state, config)
+print(state$expression)
+print(state2$expression)
 }

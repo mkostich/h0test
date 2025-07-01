@@ -16,8 +16,7 @@ f.normalize_quantile(state, config, norm_quantile = NULL, multiplier = 1000)
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
-  \code{norm_quantile}   \cr \tab Quantile to use for \code{norm_method \%in\% c("quantile", "upperquartile")}. \cr
+  \code{norm_quantile}   \cr \tab Quantile to use where \code{norm_method \%in\% c("quantile", "upperquartile")}. \cr
 }}
 
 \item{norm_quantile}{Numeric in closed interval \code{[0, 1]} specifying quantile to use.}
@@ -49,8 +48,10 @@ exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(log_file="", norm_quantile=0.75)
+config <- list(norm_quantile=0.75)
 state2 <- h0testr::f.normalize_quantile(state, config)
-print(state)
-print(state2)
+print(state$expression)
+print(state2$expression)
+apply(state$expression, 2, quantile, probs=c(0.5, 0.75, 0.9), na.rm=TRUE)
+apply(state2$expression, 2, quantile, probs=c(0.5, 0.75, 0.9), na.rm=TRUE)
 }

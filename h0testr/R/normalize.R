@@ -11,14 +11,14 @@
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
 #'     \code{norm_method}     \cr \tab Normalization method in \code{c("TMM", "TMMwsp", "RLE", "upperquartile")}. \cr
 #'     \code{norm_quantile}   \cr \tab Quantile to use for \code{norm_method \%in\% c("quantile", "upperquartile")}. \cr
 #'   }
 #' @param method Character in set
-#'   \code{c("TMM", "TMMwsp", "RLE", "upperquartile", "none")}.
+#'   \code{c("TMM", "TMMwsp", "RLE", "upperquartile", "none")}. Can be set with
+#'   \code{config$norm_method}.
 #' @param p Numeric in closed interval \code{[0, 1]} specifying quantile to use for method 
-#'   \code{upperquartile}.
+#'   \code{upperquartile}. Can be set with \code{config$norm_quantile}.
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -31,18 +31,43 @@
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="", norm_method="TMM", norm_quantile="0.75")
+#'
+#' config <- list(norm_method="upperquartile", norm_quantile=0.75)
 #' state2 <- h0testr::f.normalize_edger(state, config)
-#' print(state)
-#' print(state2)
+#' print(state$expression)
+#' print(state2$expression)
+#'
+#' ## norm_quantile ignored for norm_method="TMM":
+#' config <- list(norm_method="TMM", norm_quantile=0)
+#' state2 <- h0testr::f.normalize_edger(state, config)
+#' print(state$expression)
+#' print(state2$expression)
 
 f.normalize_edger <- function(state, config, method=NULL, p=NULL) {
 
+  f.check_config(config)
+
   if(!is.matrix(state$expression)) {
-    f.err("f.normalize_edger: !is.matrix(state$expression)", config=config)
+    f.err("f.normalize_edger: !is.matrix(state$expression)", 
+      config=config)
   }
   if(is.null(method)) method <- config$norm_method
-  if(is.null(p)) p <- config$norm_quantile
+  if(is.null(method)) {
+    f.err("f.normalize_edger: method and config$norm_method both unset", 
+      config=config)
+  }
+  
+  if(method %in% "upperquartile") {
+    if(is.null(p)) p <- config$norm_quantile
+    if(is.null(p) && method %in% "upperquartile") {
+      f.err("f.normalize_edger: p and config$norm_quantile both unset", 
+        config=config)
+    }
+    if(!is.numeric(p)) {
+        f.err("f.normalize_edger: p and config$norm_quantile need to be numeric", 
+          config=config)
+    }
+  }
 
   f.log("convert NA to zero", config=config)
   state$expression[is.na(state$expression)] <- 0
@@ -54,7 +79,8 @@ f.normalize_edger <- function(state, config, method=NULL, p=NULL) {
   obj <- edgeR::calcNormFactors(obj, method=method, p=p)
 
   f.log("making normalized expression", config=config)
-  state$expression <- edgeR::cpm(obj, normalized.lib.sizes=T, log=F, prior.count=1)
+  state$expression <- edgeR::cpm(obj, normalized.lib.sizes=T, 
+    log=F, prior.count=1)
 
   f.log("convert zero back to NA", config=config)
   state$expression[state$expression == 0] <- NA
@@ -79,8 +105,7 @@ f.normalize_edger <- function(state, config, method=NULL, p=NULL) {
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
-#'     \code{norm_quantile}   \cr \tab Quantile to use for \code{norm_method \%in\% c("quantile", "upperquartile")}. \cr
+#'     \code{norm_quantile}   \cr \tab Quantile to use where \code{norm_method \%in\% c("quantile", "upperquartile")}. \cr
 #'   }
 #' @param norm_quantile Numeric in closed interval \code{[0, 1]} specifying quantile to use.
 #' @param multiplier Numeric used to scale returned values after 
@@ -97,17 +122,27 @@ f.normalize_edger <- function(state, config, method=NULL, p=NULL) {
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="", norm_quantile=0.75)
+#' config <- list(norm_quantile=0.75)
 #' state2 <- h0testr::f.normalize_quantile(state, config)
-#' print(state)
-#' print(state2)
+#' print(state$expression)
+#' print(state2$expression)
+#' apply(state$expression, 2, quantile, probs=c(0.5, 0.75, 0.9), na.rm=TRUE)
+#' apply(state2$expression, 2, quantile, probs=c(0.5, 0.75, 0.9), na.rm=TRUE)
 
 f.normalize_quantile <- function(state, config, norm_quantile=NULL, multiplier=1e3) {
+
+  f.check_config(config)
 
   if(!is.matrix(state$expression)) {
     f.err("f.normalize_quantile: !is.matrix(state$expression)", config=config)
   }
   if(is.null(norm_quantile)) norm_quantile <- config$norm_quantile
+  if(is.null(norm_quantile)) {
+    f.err("f.normalize_quantile: is.null(norm_quantile)", config=config)
+  }
+  if(!is.numeric(norm_quantile)) {
+    f.err("f.normalize_quantile: !is.numeric(norm_quantile)", config=config)
+  }
   
   f <- function(v) {
     multiplier * v / stats::quantile(v, probs=norm_quantile, na.rm=T)
@@ -130,10 +165,7 @@ f.normalize_quantile <- function(state, config, norm_quantile=NULL, multiplier=1
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values. Uses the following keys:
-#'   \tabular{ll}{
-#'     \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
-#'   }
+#' @param config List with configuration values. Does not use any keys, so can pass empty list.
 #' @param multiplier Numeric greater than zero used to scale returned values 
 #'   after dividing by total counts in observation. For example, the default 
 #'   \code{multiplier=1e6} yields normalized expression as CPM (counts per million). 
@@ -149,10 +181,12 @@ f.normalize_quantile <- function(state, config, norm_quantile=NULL, multiplier=1
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="")
+#' config <- list()
 #' state2 <- h0testr::f.normalize_cpm(state, config)
-#' print(state)
-#' print(state2)
+#' print(state$expression)
+#' print(state2$expression)
+#' apply(state$expression, 2, function(v) sum(v, na.rm=TRUE))
+#' apply(state2$expression, 2, function(v) sum(v, na.rm=TRUE))
 
 f.normalize_cpm <- function(state, config, multiplier=1e6) {
 
@@ -178,10 +212,7 @@ f.normalize_cpm <- function(state, config, multiplier=1e6) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values. Uses the following keys:
-#'   \tabular{ll}{
-#'     \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
-#'   }
+#' @param config List with configuration values. Does not use any keys, so can pass empty list.
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -190,14 +221,20 @@ f.normalize_cpm <- function(state, config, multiplier=1e6) {
 #'   } 
 #' @examples
 #' set.seed(101)
-#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=50)$mat
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=50, mnar_c0=-Inf)$mat
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="")
+#' config <- list()
 #' state2 <- h0testr::f.normalize_vsn(state, config)
-#' print(state)
-#' print(state2)
+#' head(state$expression)
+#' head(state2$expression)
+#' summary(apply(state$expression, 2, sd, na.rm=TRUE))
+#' summary(apply(log2(state$expression+1), 2, sd, na.rm=TRUE))
+#' summary(apply(state2$expression, 2, sd, na.rm=TRUE))
+#' summary(apply(state$expression, 1, sd, na.rm=TRUE))
+#' summary(apply(log2(state$expression+1), 1, sd, na.rm=TRUE))
+#' summary(apply(state2$expression, 1, sd, na.rm=TRUE))
 
 f.normalize_vsn <- function(state, config) {
 
@@ -224,10 +261,7 @@ f.normalize_vsn <- function(state, config) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values. Uses the following keys:
-#'   \tabular{ll}{
-#'     \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
-#'   }
+#' @param config List with configuration values. Does not use any keys, so can pass empty list.
 #' @param span Numeric between 0 and 1 specifying span for loess fit.
 #'   Higher numbers result in smoother (less localized) fit.
 #' @param method Character in \code{c("fast", "affy", "pairs")}.
@@ -243,18 +277,24 @@ f.normalize_vsn <- function(state, config) {
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="")
+#' config <- list()
 #' state2 <- h0testr::f.normalize_loess(state, config)
-#' print(state)
-#' print(state2)
+#' head(state$expression)
+#' head(state2$expression)
+#' summary(apply(state$expression, 2, sd, na.rm=TRUE))
+#' summary(apply(state2$expression, 2, sd, na.rm=TRUE))
+#' summary(apply(state$expression, 1, sd, na.rm=TRUE))
+#' summary(apply(state2$expression, 1, sd, na.rm=TRUE))
 
 f.normalize_loess <- function(state, config, span=0.7, method="affy") {
 
   if(!is.matrix(state$expression)) {
-    f.err("f.normalize_loess: !is.matrix(state$expression)")
+    f.err("f.normalize_loess: !is.matrix(state$expression)", config=config)
   }
   
-  state$expression <- limma::normalizeCyclicLoess(state$expression, span=span, method=method)
+  state$expression <- limma::normalizeCyclicLoess(state$expression, 
+    span=span, method=method)
+    
   return(state)
 }
 
@@ -271,10 +311,7 @@ f.normalize_loess <- function(state, config, span=0.7, method="affy") {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values. Uses the following keys:
-#'   \tabular{ll}{
-#'     \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
-#'   }
+#' @param config List with configuration values. Does not use any keys, so can pass empty list.
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -287,10 +324,17 @@ f.normalize_loess <- function(state, config, span=0.7, method="affy") {
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="")
+#' config <- list()
 #' state2 <- h0testr::f.normalize_qquantile(state, config)
-#' print(state)
-#' print(state2)
+#' print(state$expression)
+#' print(state2$expression)
+#' 
+#' summary(apply(state$expression, 2, sd, na.rm=TRUE))
+#' summary(apply(state2$expression, 2, sd, na.rm=TRUE))
+#'
+#' ## afterwards, all quantiles line up:
+#' apply(state$expression, 2, quantile, probs=c(0.1, 0.25, 0.5, 0.75, 0.9), na.rm=TRUE)
+#' apply(state2$expression, 2, quantile, probs=c(0.1, 0.25, 0.5, 0.75, 0.9), na.rm=TRUE)
 
 f.normalize_qquantile <- function(state, config) {
 
@@ -317,9 +361,11 @@ f.normalize_qquantile <- function(state, config) {
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
-#'     \code{norm_method}     \cr \tab In \code{c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")}. \cr
-#'     \code{norm_quantile}   \cr \tab Quantile (numeric between 0 and 1) for \code{norm_method \%in\% c("quantile", "upperquartile")}. \cr
+#'     \code{norm_method}   \cr \tab Character scalar in \code{c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")}. \cr
+#'     \code{norm_quantile} \cr \tab Quantile (numeric between 0 and 1) for \code{norm_method \%in\% c("quantile", "upperquartile")}. \cr
+#'     \code{feat_id_col}   \cr \tab Column (character scalar) of \code{state$features} which matches \code{rownames(state$expression)}. \cr
+#'     \code{obs_id_col}    \cr \tab Column in observation metadata matching initial rownames of \code{state$expression}. \cr
+#'     \code{sample_id_col} \cr \tab Column in observation metadata with unique sample ids. \cr
 #'   }
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
@@ -328,30 +374,32 @@ f.normalize_qquantile <- function(state, config) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     state <- list(expression=exprs)
-#'     config <- list(norm_method="RLE", log_file="")
-#'     out <- f.normalize(state, config)
-#'     config2 <- out$config
-#'     state2 <- out$state
-#'     exprs2 <- state2$expression
-#'
-#'     state <- list(expression=exprs)
-#'     config <- list(norm_method="quantile", norm_quantile=0.75, log_file="")
-#'     out <- f.normalize(state, config)
-#'     config2 <- out$config
-#'     state2 <- out$state
-#'     exprs2 <- state2$expression
-#'
-#'     state <- list(expression=exprs)
-#'     config <- list(norm_method="cpm", log_file="")
-#'     out <- f.normalize(state, config)
-#'     config2 <- out$config
-#'     state2 <- out$state
-#'     exprs2 <- state2$expression
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' exprs[, 4:6] <- exprs[, 4:6] * 2
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' 
+#' config <- list(save_state=FALSE, norm_method="RLE", 
+#'   feat_id_col="feature_id", obs_id_col="observation_id")
+#' out <- h0testr::f.normalize(state, config)
+#' summary(apply(state$expression, 2, sd, na.rm=TRUE))
+#' summary(apply(out$state$expression, 2, sd, na.rm=TRUE))
+#' summary(apply(state$expression, 1, sd, na.rm=TRUE))
+#' summary(apply(out$state$expression, 1, sd, na.rm=TRUE))
+#' 
+#' config$norm_method <- "quantile"
+#' config$norm_quantile <- 0.5
+#' out <- h0testr::f.normalize(state, config)
+#' summary(apply(state$expression, 2, sd, na.rm=TRUE))
+#' summary(apply(out$state$expression, 2, sd, na.rm=TRUE))
+#' summary(apply(state$expression, 1, sd, na.rm=TRUE))
+#' summary(apply(out$state$expression, 1, sd, na.rm=TRUE))
 
 f.normalize <- function(state, config) {
+
+  f.check_config(config)
   
   if(config$norm_method %in% c("TMM", "TMMwsp", "RLE", "upperquartile")) {
     state <- f.normalize_edger(state, config)
@@ -366,8 +414,12 @@ f.normalize <- function(state, config) {
   } else if(config$norm_method %in% "log2") {
     f.msg("config$norm_method %in% 'log2'", config=config)
   } else if(config$norm_method %in% "none") {
-    f.msg("skipping normalization: config$norm_method %in% 'none'", config=config)
-  } else f.err("f.normalize: unexpected config$norm_method:", config$norm_method, config=config)
+    f.msg("skipping normalization: config$norm_method %in% 'none'", 
+      config=config)
+  } else {
+    f.err("f.normalize: unexpected config$norm_method:", config$norm_method, 
+      config=config)
+  }
   
   if(!(config$norm_method %in% c("vsn", "none"))) {
     f.log("transforming data", config=config)
@@ -396,8 +448,8 @@ f.normalize <- function(state, config) {
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{log_file}      \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
-#'     \code{obs_id_col}    \cr \tab Column in observation metadata matching rownames of \code{state$expression} \cr
+#'     \code{feat_id_col}   \cr \tab Column (character scalar) of \code{state$features} which matches \code{rownames(state$expression)}. \cr
+#'     \code{obs_id_col}    \cr \tab Column in observation metadata matching initial rownames of \code{state$expression}. \cr
 #'     \code{sample_id_col} \cr \tab Column in observation metadata with unique sample ids. \cr
 #'   }
 #' @return A list (the processed state) with the following elements:
@@ -407,29 +459,33 @@ f.normalize <- function(state, config) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     config <- list(obs_id_col="observation_id", sample_id_col="sample_id", log_file="")
-#'     state <- list(expression=exprs, samples=samps, features=feats)
-#'     cat("config$obs_col:", config$obs_col, "\n")
-#'     out <- f.combine_reps(state, config)
-#'     config2 <- out$config
-#'     cat("config2$obs_col:", config2$obs_col, "\n")
-#'     state2 <- out$state
-#'     exprs2 <- state2$expression
-#'     samps2 <- state2$samples
-#'     f.do_stuff(state2, config2)
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=8)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' samps$sample_id=c("samp1", "samp2", "samp3", "samp1", "samp2", "samp3")
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(obs_id_col="observation_id", 
+#'   sample_id_col="sample_id", feat_id_col="feature_id", save_state=FALSE)
+#' out <- h0testr::f.combine_reps(state, config)
+#' state
+#' out$state
 
 f.combine_reps <- function(state, config) {
+
+  f.check_config(config)
 
   f <- function(v, s) tapply(v, s, stats::median, na.rm=T)
   sample_ids <- state$samples[, config$sample_id_col, drop=T]
   state$expression <- t(apply(state$expression, 1, f, sample_ids))
   state$samples <- state$samples[!duplicated(sample_ids), ]
-  state$samples[, config$obs_id_col] <- NULL                  ## !!!!!
+  if(config$obs_id_col != config$sample_id_col) {
+    state$samples[, config$obs_id_col] <- NULL
+  }
   sample_ids <- state$samples[, config$sample_id_col, drop=T]
   if(!all(sample_ids %in% colnames(state$expression))) {
-    f.err("f.normalize: !all(samples[, config$sample_id_col] %in% colnames(expression))", config=config)
+    f.err("f.normalize: !all(samples[, config$sample_id_col] %in% colnames(expression))", 
+      config=config)
   }  
   state$expression <- state$expression[, sample_ids]
   config$obs_col <- config$sample_id_col

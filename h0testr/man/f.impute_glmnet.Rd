@@ -27,10 +27,7 @@ f.impute_glmnet(
   } 
 It is assumed that state$expression has been previously \code{log2(x+1)} transformed.}
 
-\item{config}{List with configuration values. Uses the following keys:
-\tabular{ll}{
-  \code{log_file}            \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
-}}
+\item{config}{List with configuration values. Does not use any keys so can pass empty list.}
 
 \item{f_imp}{Function to use for initial rough imputation.}
 
@@ -86,15 +83,15 @@ Imputes missing values using a \code{glmnet::cv.glmnet} model trained
     \code{f.aug_mult()}.
 }
 \examples{
-  \dontrun{
-    exprs[exprs \%in\% 0] <- NA
-    state <- list(expression=exprs)
-    config <- list(log_file="")
-    state2 <- f.impute_glmnet(state, config, impute_quantile=0.01)
-    exprs2 <- state2$expression
-
-    state2 <- f.impute_glmnet(state, config, nfolds=3, alpha=0.5, aug_steps=2)
-    state2 <- f.impute_glmnet(state, config)
-    exprs2 <- state2$expression
-  }
+set.seed(101)
+exprs <- h0testr::f.sim1(n_obs=20, n_feats=30)$mat
+exprs <- log2(exprs + 1)
+feats <- data.frame(feature_id=rownames(exprs))
+samps <- data.frame(observation_id=colnames(exprs))
+state <- list(expression=exprs, features=feats, samples=samps)
+config <- list()
+out <- h0testr::f.impute_glmnet(state, config, verbose=FALSE)
+summary(c(state$expression))   ## note number of NAs
+summary(c(out$state$expression))  ## note number of NAs
+print(out$log)
 }

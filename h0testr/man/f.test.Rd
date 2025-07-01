@@ -16,10 +16,13 @@ f.test(state, config)
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{test_method}  \cr \tab Method (character) in \code{c("trend", "voom")}.
-  \code{frm}          \cr \tab Formula (formula) to be fit
-  \code{test_term}    \cr \tab Term (character) to be tested for non-zero coefficient.
-  \code{log_file}     \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
+  \code{feat_id_col}    \cr \tab Column (character scalar) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+  \code{obs_id_col}     \cr \tab Column (character scalar) in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
+  \code{sample_id_col}  \cr \tab Column (character scalar) in \code{sample_file_in} with unique sample labels. \cr
+  \code{frm}            \cr \tab Formula (formula) to be fit \cr
+  \code{test_term}      \cr \tab Term (character scalar) to be tested for non-zero coefficient. \cr
+  \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
+  \code{test_method}    \cr \tab Character scalar in \code{c("trend", "voom")}. \cr
 }}
 }
 \value{
@@ -32,10 +35,35 @@ Test hypotheses using .
 Tests for differential expression using method specified in config.
 }
 \examples{
-  \dontrun{
-    state <- list(expression=exprs, features=feats, samples=samps)
-    config <- list(frm=~age+sex+age:sex, test_term="age:sex", test_method="trend", log_file="")
-    tbl <- f.test(state, config)
-    head(tbl)
-  }
+set.seed(101)
+## no missing values: mnar_c0=-Inf, mnar_c1=0, mcar_p=0
+exprs <- h0testr::f.sim2(n_obs1=6, n_obs2=6, n_feats=25, n_sig=5, fold_change=2, 
+  mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+exprs <- log2(exprs + 1)
+feats <- data.frame(feature_id=rownames(exprs))
+samps <- data.frame(observation_id=colnames(exprs), 
+  condition=c(rep("placebo", 6), rep("drug", 6)))
+state <- list(expression=exprs, features=feats, samples=samps)
+
+config <- h0testr::f.new_config()
+config$feat_id_col <- "feature_id"
+config$obs_id_col <- "observation_id"
+config$sample_id_col <- "observation_id"
+config$frm <- ~condition
+config$test_term <- "condition"
+config$sample_factors <- list(condition=c("placebo", "drug"))
+config$test_method <- "trend"
+
+## set up and check covariates:
+out <- h0testr::f.preprocess_covariates(state, config)
+
+## save_state=FALSE so test results not written to file:
+config <- list(
+  log_file="", frm=~condition, test_term="condition", 
+  sample_factors=list(condition=c("placebo", "drug")), test_method="trend", 
+  feat_id_col="feature_id", save_state=FALSE
+)
+
+out <- h0testr::f.test(state, config)
+print(out)
 }

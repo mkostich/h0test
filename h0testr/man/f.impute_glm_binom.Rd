@@ -17,7 +17,6 @@ It is assumed that state$expression has been previously \code{log2(x+1)} transfo
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{log_file}      \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
   \code{impute_n_pts}  \cr \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain.
 }}
 
@@ -54,11 +53,12 @@ Impute random draws by drawing from the estimated density of
 \examples{
 set.seed(101)
 exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+exprs <- log2(exprs + 1)
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(log_file="", impute_n_pts=1e7)
+config <- list(impute_n_pts=1e7)
 state2 <- h0testr::f.impute_glm_binom(state, config)
-print(state)
-print(state2)
+summary(c(state$expression))   ## note number of NAs
+summary(c(state2$expression))  ## note number of NAs
 }

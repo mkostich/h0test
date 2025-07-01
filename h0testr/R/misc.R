@@ -1,9 +1,11 @@
 f.msg <- function(..., config) {
+  if(is.null(config$log_file)) config$log_file <- ""
   cat(..., "\n", file=config$log_file, append=T)
   utils::flush.console()
 }
 
 f.log <- function(..., config) {
+  if(is.null(config$log_file)) config$log_file <- ""
   cat(..., "at:", format(Sys.time(), format='%Y%m%d%H%M%S'), "\n", 
     file=config$log_file, append=T)
   utils::flush.console()
@@ -20,6 +22,8 @@ f.err <- function(..., config) {
 }
 
 f.log_obj <- function(obj, config) {
+  
+  if(is.null(config$log_file)) config$log_file <- ""
   
   if(config$log_file %in% "") {
     print(obj)
@@ -40,25 +44,35 @@ f.save_tsv <- function(dat, file_out, config, row.names=T, col.names=T) {
   )
 }
 
+## needs config$feat_id_col and config$obs_id_col:
+
 f.check_state <- function(state, config) {
 
+  if(is.null(config$feat_id_col)) {
+    f.err("f.check_state: config$feat_id_col unset", 
+      config=config)
+  }
   feats <- state$features[, config$feat_id_col, drop=T]
   if(!all(rownames(state$expression) == feats)) {
-    f.err("state$features do not match rows of state$expression", 
+    f.err("f.check_state: state$features do not match rows of state$expression", 
       config=config)
   }
   
   if(is.null(config$obs_col) || config$obs_col %in% "") {
     config$obs_col <- config$obs_id_col
   }
+  if(is.null(config$obs_col) || config$obs_col %in% "") {
+    f.err("f.check_state: config$obs_id_col unset", 
+      config=config)
+  }
   samps <- state$samples[, config$obs_col, drop=T]
   if(!all(colnames(state$expression) == samps)) {
-    f.err("state$samples do not match columns of state$expression", 
+    f.err("f.check_state: state$samples do not match columns of state$expression", 
       config=config)
   }
   
   if(!is.matrix(state$expression)) {
-    f.err("!is.matrix(state$expression)", config=config)
+    f.err("f.check_state: !is.matrix(state$expression)", config=config)
   }
 }
 
@@ -82,7 +96,10 @@ f.report_state <- function(state, config) {
 
 f.save_state <- function(state, config, prefix) {
 
-  if(!config$save_state) return(NULL)
+  if(is.null(config$save_state) || !config$save_state) {
+    f.msg("config$save_state not TRUE; no files saved", config=config)
+    return(NULL)
+  }
   
   file_out <- paste0(config$dir_out, "/", prefix, 
     config$data_mid_out, config$suffix_out)
@@ -103,6 +120,8 @@ f.save_state <- function(state, config, prefix) {
 f.quantile <- function(v, config, probs=NULL, digits=3, na.rm=T) {
 
   if(is.null(probs)) probs <- config$probs
+  if(is.null(probs)) probs <- c(0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0)
+  if(is.null(config$log_file)) config$log_file <- ""
   
   if(config$log_file %in% "") {
     print(round(stats::quantile(v, probs=probs, na.rm=na.rm), digits=digits))

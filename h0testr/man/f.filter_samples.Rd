@@ -16,8 +16,7 @@ f.filter_samples(state, config, n_features_min = NULL)
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{log_file}       \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
-  \code{n_features_min} \cr \tab Minimum number (non-negative numeric) of features expressed in observation to keep observation.
+  \code{n_features_min} \cr \tab Minimum number (non-negative numeric) of features expressed in observation to keep observation. \cr
 }}
 
 \item{n_features_min}{Minimum number of features expressed per sample. Non-negative numeric.}
@@ -43,7 +42,7 @@ exprs <- h0testr::f.sim1(n_obs=6, n_feats=12, mcar_p=0.5)$mat
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(log_file="", n_features_min=4)
+config <- list(n_features_min=4)
 state2 <- h0testr::f.filter_samples(state, config)
 print(state)
 print(state2)

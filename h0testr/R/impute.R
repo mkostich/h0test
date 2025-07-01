@@ -16,7 +16,6 @@
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{log_file}         \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
 #'     \code{impute_quantile}  \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD).
 #'   }
 #' @param impute_quantile Numeric between 0 and 1 specifying 
@@ -32,20 +31,24 @@
 #' @examples
 #' set.seed(101)
 #' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' exprs <- log2(exprs + 1)
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="", impute_quantile=0.05)
+#' config <- list(impute_quantile=0.05)
 #' state2 <- h0testr::f.impute_unif_global_lod(state, config)
-#' print(state)
-#' print(state2)
+#' summary(c(state$expression))   ## note number of NAs
+#' summary(c(state2$expression))  ## note number of NAs
 
 f.impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
+
+  f.check_config(config)
 
   if(!is.matrix(state$expression)) {
      f.err("f.impute_unif_global_lod: !is.matrix(state$expression)", config=config)
   }
   if(is.null(impute_quantile)) impute_quantile <- config$impute_quantile
+  if(is.null(impute_quantile)) impute_quantile <- 0
   
   v <- apply(state$expression, 1, min, na.rm=T)
   v <- v[!is.na(v)]
@@ -86,7 +89,6 @@ f.impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{log_file}         \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
 #'     \code{impute_quantile}  \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD).
 #'   }
 #' @param impute_quantile Numeric between 0 and 1 specifying 
@@ -101,24 +103,32 @@ f.impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
 #' @examples
 #' set.seed(101)
 #' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' exprs <- log2(exprs + 1)
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="", impute_quantile=0.05)
+#' config <- list(impute_quantile=0.05)
 #' state2 <- h0testr::f.impute_unif_sample_lod(state, config)
-#' print(state)
-#' print(state2)
+#' summary(c(state$expression))   ## note number of NAs
+#' summary(c(state2$expression))  ## note number of NAs
 
 f.impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
 
+  f.check_config(config)
+
   if(!is.matrix(state$expression)) {
-    f.err("f.impute_unif_sample_lod: !is.matrix(state$expression)", config=config)
+    f.err("f.impute_unif_sample_lod: !is.matrix(state$expression)", 
+      config=config)
   }
-  
   if(is.null(impute_quantile)) impute_quantile <- config$impute_quantile
+  if(is.null(impute_quantile)) impute_quantile <- 0
   
   f <- function(v) {
     i <- is.na(v)
+    if(all(i)) {
+      f.err("f.impute_unif_sample_lod: all(is.na(state$expression[, column]))", 
+        config=config)
+    }
     if(any(i)) {
       max_val <- stats::quantile(v, probs=impute_quantile, na.rm=T)
       v[i] <- stats::runif(sum(i), 0, max_val)
@@ -144,10 +154,7 @@ f.impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values. Uses the following keys:
-#'   \tabular{ll}{
-#'     \code{log_file}         \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
-#'   }
+#' @param config List with configuration values. No keys used, so can send empty list.
 #' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -157,18 +164,20 @@ f.impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
 #' @examples
 #' set.seed(101)
 #' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' exprs <- log2(exprs + 1)
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="")
+#' config <- list()
 #' state2 <- h0testr::f.impute_sample_lod(state, config)
-#' print(state)
-#' print(state2)
+#' summary(c(state$expression))   ## note number of NAs
+#' summary(c(state2$expression))  ## note number of NAs
 
 f.impute_sample_lod <- function(state, config) {
 
   if(!is.matrix(state$expression)) {
-    f.err("f.impute_sample_lod: !is.matrix(state$expression)", config=config)
+    f.err("f.impute_sample_lod: !is.matrix(state$expression)", 
+      config=config)
   }
   
   f <- function(v) {
@@ -197,7 +206,6 @@ f.impute_sample_lod <- function(state, config) {
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{log_file}      \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
 #'     \code{impute_scale}  \cr \tab Factor (numeric) rescaling variance of normal distribution from which draws are made. See details.
 #'   }
 #' @param scale. Numeric greater than zero, linearly scaling the
@@ -211,15 +219,18 @@ f.impute_sample_lod <- function(state, config) {
 #' @examples
 #' set.seed(101)
 #' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' exprs <- log2(exprs + 1)
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="", impute_scale.=1)
+#' config <- list(impute_scale=1)
 #' state2 <- h0testr::f.impute_rnorm_feature(state, config)
-#' print(state)
-#' print(state2)
+#' summary(c(state$expression))   ## note number of NAs
+#' summary(c(state2$expression))  ## note number of NAs
 
 f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
+
+  f.check_config(config)
 
   if(!is.matrix(state$expression)) {
     f.err("f.impute_rnorm_feature: !is.matrix(state$expression)", 
@@ -231,8 +242,11 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
     f.err("f.impute_rnorm_feature: state$expression contains negative values", 
       config=config)
   }
-  
   if(is.null(scale.)) scale. <- config$impute_scale
+  if(is.null(scale.)) {
+    f.err("f.impute_rnorm_feature: scale. and config$impute_scale unset", 
+      config=config)
+  }
   
   f <- function(v) {
     i <- is.na(v)
@@ -284,7 +298,6 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 #' It is assumed that state$expression has been previously \code{log2(x+1)} transformed.
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{log_file}      \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
 #'     \code{impute_n_pts}  \cr \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain.
 #'   }
 #' @param n_pts Numeric greater than one. Granularity of prediction 
@@ -303,38 +316,43 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 #' @examples
 #' set.seed(101)
 #' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' exprs <- log2(exprs + 1)
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="", impute_n_pts=1e7)
+#' config <- list(impute_n_pts=1e7)
 #' state2 <- h0testr::f.impute_glm_binom(state, config)
-#' print(state)
-#' print(state2)
+#' summary(c(state$expression))   ## note number of NAs
+#' summary(c(state2$expression))  ## note number of NAs
 
 f.impute_glm_binom <- function(state, config, n_pts=NULL, off=1, 
     f_mid=stats::median) {
-
+    
+  f.check_config(config)
+  
   if(!is.matrix(state$expression)) {
     f.err("f.impute_glm_binom: !is.matrix(state$expression)", config=config)
   }
   if(is.null(n_pts)) n_pts <- config$impute_n_pts
+  if(is.null(n_pts)) f.err("f.impute_glm_binom: n_pts and config$impute_n_pts unset", 
+    config=config)
   if(n_pts <= 0) f.err("f.impute_glm_binom: n_pts <= 0", config=config)
-
+  
   m <- apply(state$expression, 1, f_mid, na.rm=T)
   m[is.na(m)] <- 0
   n0 <- apply(state$expression, 1, function(v) sum(is.na(v) | v %in% 0))  ## n.missing
   n1 <- ncol(state$expression) - n0                                     
   p <- (n0 + off) / (ncol(state$expression) + off)
   dat <- data.frame(n0=n0, n1=n1, p=p, m=m)
-
+  
   fit <- stats::glm(cbind(n0, n1) ~ m, data=dat, family="binomial")
-  m <- seq(from=max(c(state$expression), na.rm=T) / n_pts, 
+  m_new <- seq(from=max(c(state$expression), na.rm=T) / n_pts, 
     to=max(c(state$expression), na.rm=T), length.out=n_pts)
-  p <- stats::predict(fit, newdata=data.frame(m=m), type="response")
-  p[is.na(p)] <- min(p, na.rm=T)
+  p_hat <- stats::predict(fit, newdata=data.frame(m=m_new), type="response")
+  p_hat[is.na(p_hat)] <- min(p_hat, na.rm=T)
   i_na <- is.na(c(state$expression))
-  state$expression[i_na] <- sample(m, sum(i_na), replace=T, prob=p)
-
+  state$expression[i_na] <- sample(m_new, sum(i_na), replace=T, prob=p_hat)
+  
   return(state)
 }
 
@@ -357,7 +375,6 @@ f.impute_glm_binom <- function(state, config, n_pts=NULL, off=1,
 #' It is assumed that state$expression has been previously \code{log2(x+1)} transformed.
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{log_file}      \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
 #'     \code{impute_n_pts}  \cr \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain.
 #'     \code{impute_span}   \cr \tab Span (numeric between zero and 1) for \code{loess} fit.
 #'   }
@@ -380,30 +397,35 @@ f.impute_glm_binom <- function(state, config, n_pts=NULL, off=1,
 #'   } 
 #' @examples
 #' set.seed(101)
-#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=25)$mat
+#' exprs <- log2(exprs + 1)
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(log_file="", impute_n_pts=1e7, impute_span=0.25)
+#' config <- list(impute_n_pts=1e7, impute_span=0.5)
 #' state2 <- h0testr::f.impute_loess_logit(state, config)
-#' print(state)
-#' print(state2)
+#' summary(c(state$expression))     ## note number of NAs
+#' summary(c(state2$expression))    ## note number of NAs
 
 f.impute_loess_logit <- function(state, config, span.=NULL, n_pts=NULL, 
-    off=1, f_mid=stats::median, degree=1, fam="symmetric") {
+    off=0.1, f_mid=stats::median, degree=1, fam="symmetric") {
+    
+  f.check_config(config)
 
   if(!is.matrix(state$expression)) {
     f.err("f.impute_loess_logit: !is.matrix(state$expression)", config=config)
   }
   if(is.null(span.)) span. <- config$impute_span
+  if(is.null(span.)) span. <- 0.5
   if(is.null(n_pts)) n_pts <- config$impute_n_pts
+  if(is.null(n_pts)) n_pts <- 1e7
 
   m <- apply(state$expression, 1, f_mid, na.rm=T)
   m[is.na(m)] <- 0
   f <- function(v) sum(is.na(v) | v %in% 0)
   n0 <- apply(state$expression, 1, f)                        ## n.missing
   n1 <- ncol(state$expression) - n0                          ## n.found
-  p <- (n0 + off) / (ncol(state$expression) + off)           ## p.missing
+  p <- (n0 + off) / (ncol(state$expression) + 2 * off)       ## p.missing
   dat <- data.frame(n0=n0, n1=n1, p=p, m=m)
   
   fit <- stats::loess(log(p/(1-p)) ~ m, data=dat, span=span., 
@@ -411,13 +433,23 @@ f.impute_loess_logit <- function(state, config, span.=NULL, n_pts=NULL,
     
   m_new <- seq(from=max(c(state$expression), na.rm=T) / n_pts, 
     to=max(c(state$expression), na.rm=T), length.out=n_pts)
-      
+  
   p_hat <- stats::predict(fit, newdata=data.frame(m=m_new))  ## on logit scale
-  p_hat[is.na(p_hat)] <- min(p_hat[p_hat > 0], na.rm=T)      ## is.na -> low p
   p_hat = exp(p_hat) / (1 + exp(p_hat))                      ## inverse logit
-  i_na <- is.na(c(state$expression))                         ## values to be imputed
-  state$expression[i_na] <- sample(m, sum(i_na), replace=T, prob=p)
 
+  i_p <- !is.na(p_hat)
+  i_p[is.na(i_p)] <- F
+  if(any(i_p)) {
+    p_hat[is.na(p_hat)] <- min(p_hat[i_p], na.rm=T) / 2      ## is.na -> low p
+  } else {
+    ## p_hat <- rep(1 / n_pts, length(p_hat))                ## maybe uniform?
+    f.err("f.impute_loess_logit: all probabilities NA", 
+      config=config)                                         ## for now
+  }
+  
+  i_na <- is.na(c(state$expression))                         ## values to be imputed
+  state$expression[i_na] <- sample(m_new, sum(i_na), replace=T, prob=p_hat)
+  
   return(state)
 }
 
@@ -461,10 +493,7 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' It is assumed that state$expression has been previously \code{log2(x+1)} transformed.
-#' @param config List with configuration values. Uses the following keys:
-#'   \tabular{ll}{
-#'     \code{log_file}   \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
-#'   }
+#' @param config List with configuration values. Does not use any keys, so can pass empty list.
 #' @param f_imp Function to use for initial rough imputation.
 #' @param ntree Numeric (greater than 0) number of trees in random forest.
 #'   \code{randomForest} \code{ntree} parameter.
@@ -492,23 +521,26 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
 #'       \tab A data.frame logging statistics for each fit. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     exprs <- log2(exprs + 1)
-#'     exprs[exprs %in% 0] <- NA
-#'     state <- list(expression=exprs)
-#'     config <- list(log_file="")
-#'     state2 <- f.impute_rf(state, config)
-#'     exprs2 <- state2$expression
-#'
-#'     config <- list(ntree=250, aug_steps=2, log_file="")
-#'     state2 <- f.impute_rf(state, config)
-#'     exprs2 <- state2$expression
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=20, n_feats=30)$mat
+#' exprs <- log2(exprs + 1)
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list()
+#' out <- h0testr::f.impute_rf(state, config, verbose=FALSE)
+#' summary(c(state$expression))   ## note number of NAs
+#' summary(c(out$state$expression))  ## note number of NAs
+#' print(out$log)
 
 f.impute_rf <- function(state, config, f_imp=f.impute_unif_sample_lod, ntree=100, 
     mtry=NULL, aug_mult=0.33, aug_add=0, aug_steps=3, unlog2=T, verbose=T) {
   
-  if(!is.matrix(state$expression)) f.err("f.impute_rf: !is.matrix(exprs)", config=config)
+  f.check_config(config)
+  
+  if(!is.matrix(state$expression)) {
+    f.err("f.impute_rf: !is.matrix(exprs)", config=config)
+  }
   
   n_miss <- apply(state$expression, 1, function(v) sum(is.na(v) | v %in% 0))
   o <- order(n_miss, decreasing=F)
@@ -520,6 +552,9 @@ f.impute_rf <- function(state, config, f_imp=f.impute_unif_sample_lod, ntree=100
     f.msg("processing", rownames(state$expression)[idx_feat], config=config)
     
     x_train <- f_imp(state, config)$expression
+    if(any(is.na(c(x_train)))) {
+      f.err("f.impute_rf: f_imp returned NAs", config=config)
+    }
     if(unlog2) x_train <- 2^x_train - 1
     x_train <- f.augment_affine(x_train, mult=aug_mult, add=aug_add, steps=aug_steps)
     if(unlog2) x_train <- log2(x_train + 1)
@@ -587,10 +622,7 @@ f.impute_rf <- function(state, config, f_imp=f.impute_unif_sample_lod, ntree=100
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' It is assumed that state$expression has been previously \code{log2(x+1)} transformed.
-#' @param config List with configuration values. Uses the following keys:
-#'   \tabular{ll}{
-#'     \code{log_file}            \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
-#'   }
+#' @param config List with configuration values. Does not use any keys so can pass empty list.
 #' @param f_imp Function to use for initial rough imputation.
 #' @param alpha Numeric (between 0 and 1) number of trees in random forest.
 #' @param nfolds Numeric (greater than or equal to 2) number of folds for 
@@ -619,21 +651,23 @@ f.impute_rf <- function(state, config, f_imp=f.impute_unif_sample_lod, ntree=100
 #'       \tab A data.frame logging statistics for each fit. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     exprs[exprs %in% 0] <- NA
-#'     state <- list(expression=exprs)
-#'     config <- list(log_file="")
-#'     state2 <- f.impute_glmnet(state, config, impute_quantile=0.01)
-#'     exprs2 <- state2$expression
-#'
-#'     state2 <- f.impute_glmnet(state, config, nfolds=3, alpha=0.5, aug_steps=2)
-#'     state2 <- f.impute_glmnet(state, config)
-#'     exprs2 <- state2$expression
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=20, n_feats=30)$mat
+#' exprs <- log2(exprs + 1)
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list()
+#' out <- h0testr::f.impute_glmnet(state, config, verbose=FALSE)
+#' summary(c(state$expression))   ## note number of NAs
+#' summary(c(out$state$expression))  ## note number of NAs
+#' print(out$log)
 
 f.impute_glmnet <- function(state, config, f_imp=f.impute_unif_sample_lod, 
     nfolds=5, alpha=1, measure="mae", aug_mult=0.33, aug_add=0, 
     aug_steps=3, unlog2=T, verbose=T) {
+  
+  f.check_config(config)
   
   if(!is.matrix(state$expression)) {
     f.err("f.impute_glmnet: !is.matrix(state$expression)", config=config)
@@ -714,7 +748,6 @@ f.impute_glmnet <- function(state, config, f_imp=f.impute_unif_sample_lod,
 #' It is assumed that \code{state$expression} has been previously \code{log2(x+1)} transformed.
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{log_file}         \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
 #'     \code{impute_method}    \cr \tab In \code{c("unif_global_lod","unif_sample_lod","sample_lod","rnorm_feature","glm_binom","loess_logit","glmnet","rf","none")} \cr
 #'     \code{impute_quantile}  \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD). \cr
 #'     \code{impute_scale}     \cr \tab Factor (numeric) rescaling variance of normal distribution from which draws are made for \code{impute_method \%in\% "rnorm"}. \cr
@@ -728,19 +761,21 @@ f.impute_glmnet <- function(state, config, f_imp=f.impute_unif_sample_lod,
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#'   \dontrun{
-#'     exprs[exprs %in% 0] <- NA
-#'     state <- list(expression=exprs)
-#'     config <- list(log_file="")
-#'     state2 <- f.impute_glmnet(state, config, impute_quantile=0.01)
-#'     exprs2 <- state2$expression
-#'
-#'     state2 <- f.impute_glmnet(state, config, nfolds=3, alpha=0.5, aug_steps=2)
-#'     state2 <- f.impute_glmnet(state, config)
-#'     exprs2 <- state2$expression
-#'   }
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=8, n_feats=12)$mat
+#' exprs <- log2(exprs + 1)
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(impute_method="unif_sample_lod", impute_quantile=0, 
+#'   feat_id_col="feature_id", obs_id_col="observation_id", save_state=FALSE)
+#' out <- h0testr::f.impute(state, config)
+#' summary(c(state$expression))      ## note number of NAs
+#' summary(c(out$state$expression))  ## note number of NAs
 
 f.impute <- function(state, config) {
+
+  f.check_config(config)
 
   if(config$impute_method %in% "unif_global_lod") {
     state <- f.impute_unif_global_lod(state, config)
@@ -761,9 +796,13 @@ f.impute <- function(state, config) {
     out <- f.impute_rf(state, config)
     state <- out$state
   } else if(config$impute_method %in% "none") {
-    f.msg("skipping imputation: config$impute_method %in% 'none'", config=config)
-  } else f.err("f.impute: unexpected config$impute_method:", config$impute_method, config=config)
-
+    f.msg("skipping imputation: config$impute_method %in% 'none'", 
+      config=config)
+  } else {
+    f.err("f.impute: unexpected config$impute_method:", 
+      config$impute_method, config=config)
+  }
+  
   f.check_state(state, config)
   f.report_state(state, config)
   i <- config$run_order %in% "impute"

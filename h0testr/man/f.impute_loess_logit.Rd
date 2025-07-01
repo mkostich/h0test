@@ -9,7 +9,7 @@ f.impute_loess_logit(
   config,
   span. = NULL,
   n_pts = NULL,
-  off = 1,
+  off = 0.1,
   f_mid = stats::median,
   degree = 1,
   fam = "symmetric"
@@ -26,7 +26,6 @@ It is assumed that state$expression has been previously \code{log2(x+1)} transfo
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{log_file}      \cr \tab Path to log file (character); \code{log_file=""} outputs to console.
   \code{impute_n_pts}  \cr \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain.
   \code{impute_span}   \cr \tab Span (numeric between zero and 1) for \code{loess} fit.
 }}
@@ -70,12 +69,13 @@ Impute random draws by drawing from the estimated density of
 }
 \examples{
 set.seed(101)
-exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+exprs <- h0testr::f.sim1(n_obs=6, n_feats=25)$mat
+exprs <- log2(exprs + 1)
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(log_file="", impute_n_pts=1e7, impute_span=0.25)
+config <- list(impute_n_pts=1e7, impute_span=0.5)
 state2 <- h0testr::f.impute_loess_logit(state, config)
-print(state)
-print(state2)
+summary(c(state$expression))     ## note number of NAs
+summary(c(state2$expression))    ## note number of NAs
 }

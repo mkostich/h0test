@@ -4,7 +4,7 @@
 \alias{f.preprocess_covariates}
 \title{Preprocess covariates}
 \usage{
-f.preprocess_covariates(state, config)
+f.preprocess_covariates(state, config, initialized = F)
 }
 \arguments{
 \item{state}{List with elements formatted like the list returned by \code{f.read_data()}:
@@ -16,12 +16,13 @@ f.preprocess_covariates(state, config)
 
 \item{config}{List with configuration values. Requires the following keys:
 \tabular{ll}{
-  \code{log_file}        \cr \tab Path to log file (character); \code{log_file=""} outputs to console. \cr
   \code{sample_factors}  \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
   \code{feat_id_col}     \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
   \code{obs_id_col}      \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
   \code{sample_id_col}   \cr \tab Name of column (character) in \code{sample_file_in} with unique sample labels. \cr
 }}
+
+\item{initialized}{Logical scalar indicating if \code{state} has already has filter statistics initialized.}
 }
 \value{
 A list (the processed state) with the following elements:
@@ -39,24 +40,25 @@ Check covariates referred to in
 }
 \details{
 Wrapper for \code{f.check_covariates()}, then \code{f.subset_covariates()}, 
-    followed by \code{f.set_covariate_factor_levels()}.
+    followed by \code{f.set_covariate_factor_levels()}. If \code{initialized=FALSE}, 
+    then checks if \code{state$features} has columns with names in 
+    \code{c(config$n_samples_expr_col, config$median_raw_col)}; and if 
+    \code{state$samples} has a column named \code{config$n_features_expr_col}. If either
+    is \code{TRUE}, results in error.
 }
 \examples{
-  \dontrun{
-    state <- list(expression=exprs, features=feats, samples=samps)
-    config <- list(
-      feat_id_col="gene_id", 
-      sample_factors=list(age=c("Young", "Old"), gender=c("Male", "Female")),
-      obs_id_col="observation_id",
-      sample_id_col="sample_id",
-      log_file=""
-    )
-    out <- f.preprocess_covariates(state, config)
-    config <- out$config
-    cat("obs_col", config$obs_col, "\n")
-    state <- out$state
-    exprs <- state$expression
-    feats <- state$features
-    samps <- state$samples
-  }
+exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+feats <- data.frame(feature_id=rownames(exprs))
+samps <- data.frame(observation_id=colnames(exprs), 
+  condition=c(rep("ctl", 3), rep("trt", 3)))
+state <- list(expression=exprs, features=feats, samples=samps)
+config <- h0testr::f.new_config()
+config$feat_id_col <- "feature_id"
+config$obs_id_col <- "observation_id"
+config$sample_id_col <- "observation_id"
+config$frm <- ~condition
+config$test_term <- "condition"
+config$sample_factors=list(condition=c("ctl", "trt"))
+out <- h0testr::f.preprocess_covariates(state, config)
+print(out)
 }
