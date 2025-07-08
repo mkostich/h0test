@@ -363,9 +363,8 @@ f.normalize_qquantile <- function(state, config) {
 #'   \tabular{ll}{
 #'     \code{norm_method}   \cr \tab Character scalar in \code{c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")}. \cr
 #'     \code{norm_quantile} \cr \tab Quantile (numeric between 0 and 1) for \code{norm_method \%in\% c("quantile", "upperquartile")}. \cr
-#'     \code{feat_id_col}   \cr \tab Column (character scalar) of \code{state$features} which matches \code{rownames(state$expression)}. \cr
-#'     \code{obs_id_col}    \cr \tab Column in observation metadata matching initial rownames of \code{state$expression}. \cr
-#'     \code{sample_id_col} \cr \tab Column in observation metadata with unique sample ids. \cr
+#'     \code{feat_col}      \cr \tab Column of \code{state$features} matching \code{rownames(state$expression)}. \cr
+#'     \code{obs_col}       \cr \tab Column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
 #'   }
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
@@ -382,7 +381,7 @@ f.normalize_qquantile <- function(state, config) {
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' 
 #' config <- list(save_state=FALSE, norm_method="RLE", 
-#'   feat_id_col="feature_id", obs_id_col="observation_id")
+#'   feat_col="feature_id", obs_col="observation_id")
 #' out <- h0testr::f.normalize(state, config)
 #' summary(apply(state$expression, 2, sd, na.rm=TRUE))
 #' summary(apply(out$state$expression, 2, sd, na.rm=TRUE))
@@ -400,6 +399,7 @@ f.normalize_qquantile <- function(state, config) {
 f.normalize <- function(state, config) {
 
   f.check_config(config)
+  f.check_state(state, config)
   
   if(config$norm_method %in% c("TMM", "TMMwsp", "RLE", "upperquartile")) {
     state <- f.normalize_edger(state, config)
@@ -448,7 +448,6 @@ f.normalize <- function(state, config) {
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{feat_id_col}   \cr \tab Column (character scalar) of \code{state$features} which matches \code{rownames(state$expression)}. \cr
 #'     \code{obs_id_col}    \cr \tab Column in observation metadata matching initial rownames of \code{state$expression}. \cr
 #'     \code{sample_id_col} \cr \tab Column in observation metadata with unique sample ids. \cr
 #'   }
@@ -465,8 +464,7 @@ f.normalize <- function(state, config) {
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' samps$sample_id=c("samp1", "samp2", "samp3", "samp1", "samp2", "samp3")
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(obs_id_col="observation_id", 
-#'   sample_id_col="sample_id", feat_id_col="feature_id", save_state=FALSE)
+#' config <- list(obs_id_col="observation_id", sample_id_col="sample_id", save_state=FALSE)
 #' out <- h0testr::f.combine_reps(state, config)
 #' state
 #' out$state

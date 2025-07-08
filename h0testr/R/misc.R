@@ -44,23 +44,20 @@ f.save_tsv <- function(dat, file_out, config, row.names=T, col.names=T) {
   )
 }
 
-## needs config$feat_id_col and config$obs_id_col:
+## needs config$feat_col and config$obs_col:
 
 f.check_state <- function(state, config) {
 
-  if(is.null(config$feat_id_col)) {
-    f.err("f.check_state: config$feat_id_col unset", 
+  if(is.null(config$feat_col) || config$feat_col %in% "") {
+    f.err("f.check_state: config$feat_col unset", 
       config=config)
   }
-  feats <- state$features[, config$feat_id_col, drop=T]
+  feats <- state$features[, config$feat_col, drop=T]
   if(!all(rownames(state$expression) == feats)) {
     f.err("f.check_state: state$features do not match rows of state$expression", 
       config=config)
   }
   
-  if(is.null(config$obs_col) || config$obs_col %in% "") {
-    config$obs_col <- config$obs_id_col
-  }
   if(is.null(config$obs_col) || config$obs_col %in% "") {
     f.err("f.check_state: config$obs_id_col unset", 
       config=config)

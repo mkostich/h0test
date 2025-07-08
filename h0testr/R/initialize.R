@@ -11,9 +11,10 @@
 #'     \code{feature_file_in} \cr \tab Name of file with feature metadata; assumed in \code{dir_in}. \cr
 #'     \code{sample_file_in}  \cr \tab Name of file with observation metadata; assumed in \code{dir_in}. \cr
 #'     \code{data_file_in}    \cr \tab Name of file with signal data; assumed in \code{dir_in}. \cr
-#'     \code{feat_id_col}     \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
-#'     \code{obs_id_col}      \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
-#'     \code{sample_id_col}   \cr \tab Name of column (character) in \code{sample_file_in} with unique sample labels. \cr
+#'     \code{feat_id_col}     \cr \tab Name of column in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+#'     \code{gene_id_col}     \cr \tab Name of column in \code{feature_file_in} with unique genegroup or proteingroup ids. \cr
+#'     \code{obs_id_col}      \cr \tab Name of column in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
+#'     \code{sample_id_col}   \cr \tab Name of column in \code{sample_file_in} with unique sample labels. \cr
 #'   }
 #' @return A list (the initial state) with the following elements:
 #'   \tabular{ll}{
@@ -74,7 +75,7 @@ f.check_covariates <- function(state, config, initialized=F) {
   
   reqd_params <- c("n_samples_expr_col", "median_raw_col", 
     "n_features_expr_col", "obs_id_col", "sample_id_col", "feat_id_col", 
-    "sample_factors")
+    "gene_id_col", "sample_factors")
     
   for(param in reqd_params) {
     if(!(param %in% names(config))) {
@@ -111,8 +112,11 @@ f.check_covariates <- function(state, config, initialized=F) {
     }
   }
   
-  if(!(config$feat_id_col %in% names(state$features))) {
-    f.err("f.check_covariates: !(config$feat_id_col %in% names(state$features))", config=config)
+  for(nom in c(config$feat_id_col, config$gene_id_col)) {
+    if(!(nom %in% names(state$features))) {
+      f.err("f.check_covariates: !(nom %In% names(state$featues)); nom:",
+        nom, config=config)
+    }
   }
   
   if(any(duplicated(state$features[[config$feat_id_col]]))) {
@@ -211,6 +215,7 @@ f.set_covariate_factor_levels <- function(state, config) {
 #'   \tabular{ll}{
 #'     \code{sample_factors}  \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
 #'     \code{feat_id_col}     \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+#'     \code{gene_id_col}     \cr \tab Name of column in \code{feature_file_in} with unique genegroup or proteingroup ids. \cr
 #'     \code{obs_id_col}      \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
 #'     \code{sample_id_col}   \cr \tab Name of column (character) in \code{sample_file_in} with unique sample labels. \cr
 #'   }
@@ -229,20 +234,29 @@ f.set_covariate_factor_levels <- function(state, config) {
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- h0testr::f.new_config()
 #' config$feat_id_col <- "feature_id"
+#' config$gene_id_col <- "gene_id"
 #' config$obs_id_col <- "observation_id"
 #' config$sample_id_col <- "observation_id"
 #' config$frm <- ~condition
 #' config$test_term <- "condition"
 #' config$sample_factors=list(condition=c("ctl", "trt"))
 #' out <- h0testr::f.preprocess_covariates(state, config)
-#' print(out)
+#' print(out$state)
+#' str(out$config)
 
 f.preprocess_covariates <- function(state, config, initialized=F) {
   
   f.log("preprocessing covariates", config=config)
   
   f.check_covariates(state, config, initialized=initialized)
-  config$obs_col <- config$obs_id_col   ## as soon as confirm obs_id_col exists
+  
+  if(is.null(config$feat_col) || config$feat_col %in% "") {
+    config$feat_col <- config$feat_id_col  ## as soon as confirm feat_id_col exists
+  }
+  
+  if(is.null(config$obs_col) || config$obs_col %in% "") {
+    config$obs_col <- config$obs_id_col    ## as soon as confirm obs_id_col exists
+  }
   
   state <- f.subset_covariates(state, config)
   state <- f.set_covariate_factor_levels(state, config)
@@ -267,8 +281,8 @@ f.preprocess_covariates <- function(state, config, initialized=F) {
 #'   } 
 #' @param config List with configuration values. Requires the following keys:
 #'   \tabular{ll}{
-#'     \code{feat_id_col}  \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
-#'     \code{obs_id_col}   \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{expression}. \cr
+#'     \code{feat_col}  \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+#'     \code{obs_col}   \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{expression}. \cr
 #'   }
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
@@ -290,14 +304,14 @@ f.add_filter_stats <- function(state, config) {
   f.check_config(config)
   
   n <- f.samples_per_feature(state, config)
-  if(!all(names(n) == state$features[, config$feat_id_col, drop=T])) {
-    f.err("f.add_filter_stats: !all(names(n) == state$features[, config$feat_id_col])", config=config)
+  if(!all(names(n) == state$features[, config$feat_col, drop=T])) {
+    f.err("f.add_filter_stats: !all(names(n) == state$features[, config$feat_col])", config=config)
   }
   state$features[, config$n_samples_expr_col] <- n
   
   m <- f.feature_median_expression(state, config)
-  if(!all(names(m) == state$features[, config$feat_id_col, drop=T])) {
-    f.err("f.add_filter_stats: !all(names(m) == state$features[, config$feat_id_col, drop=T])", config=config)
+  if(!all(names(m) == state$features[, config$feat_col, drop=T])) {
+    f.err("f.add_filter_stats: !all(names(m) == state$features[, config$feat_col, drop=T])", config=config)
   }
   state$features[, config$median_raw_col] <- m
   
@@ -353,7 +367,7 @@ f.add_filter_stats <- function(state, config) {
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(feat_id_col="feature_id", obs_id_col="observation_id")
+#' config <- list(feat_col="feature_id", obs_col="observation_id")
 #' state2 <- h0testr::f.prefilter(state, config)
 #' print(state2)
 
@@ -389,8 +403,8 @@ f.prefilter <- function(state, config, n_samples_min=2, n_features_min=2) {
 #'   } 
 #' @param config List with configuration values. Requires the following keys:
 #'   \tabular{ll}{
-#'     \code{feat_id_col}    \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
-#'     \code{sample_id_col}  \cr \tab Name of column (character) in \code{sample_file_in} with unique sample identifiers. \cr
+#'     \code{obs_col}        \cr \tab Name of column in \code{feature_file_in} that corresponds to columns of \code{data_file_in}. \cr
+#'     \code{sample_id_col}  \cr \tab Name of column in \code{sample_file_in} with unique sample identifiers. \cr
 #'   }
 #' @param variable Character name of variable (column in samples) to permute.
 #' @return A list (the permuted state) with the following elements:
@@ -405,10 +419,9 @@ f.prefilter <- function(state, config, n_samples_min=2, n_features_min=2) {
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs), age=c(rep("young", 3), rep("old", 3)))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(feat_id_col="feature_id", obs_id_col="observation_id", 
-#'   sample_id_col="observation_id", permute_var="age")
-#' state2 <- h0testr::f.permute(state, config)
 #' print(state)
+#' config <- list(obs_col="observation_id", sample_id_col="observation_id", permute_var="age")
+#' state2 <- h0testr::f.permute(state, config)
 #' print(state2)
 
 f.permute <- function(state, config, variable=NULL) {
@@ -449,9 +462,10 @@ f.permute <- function(state, config, variable=NULL) {
 #'     \code{feature_file_in} \cr \tab Name of file with feature metadata; assumed in \code{dir_in}. \cr
 #'     \code{sample_file_in}  \cr \tab Name of file with observation metadata; assumed in \code{dir_in}. \cr
 #'     \code{data_file_in}    \cr \tab Name of file with signal data; assumed in \code{dir_in}. \cr
-#'     \code{feat_id_col}     \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
-#'     \code{obs_id_col}      \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
-#'     \code{sample_id_col}   \cr \tab Name of column (character) in \code{sample_file_in} with unique sample labels. \cr
+#'     \code{feat_id_col}     \cr \tab Name of column in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+#'     \code{gene_id_col}     \cr \tab Name of column in \code{feature_file_in} with unique gene group or protein group labels. \cr
+#'     \code{obs_id_col}      \cr \tab Name of column in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
+#'     \code{sample_id_col}   \cr \tab Name of column in \code{sample_file_in} with unique sample labels. \cr
 #'   }
 #' @return A list (the initial state) with the following elements:
 #'   \tabular{ll}{
@@ -465,7 +479,8 @@ f.permute <- function(state, config, variable=NULL) {
 #' config$feature_file_in <- "features.tsv"
 #' config$sample_file_in <- "samples.tsv"
 #' config$data_file_in <- "expression.tsv" 
-#' config$feat_id_col <- "feature_id"
+#' config$feat_id_col <- "precursor_id"
+#' config$gene_id_col <- "protein_group_id"
 #' config$obs_id_col <- "observation_id"
 #' config$sample_id_col <- "observation_id"
 #' config$frm <- ~condition

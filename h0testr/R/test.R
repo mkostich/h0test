@@ -14,9 +14,8 @@
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{feat_id_col}    \cr \tab Column (character scalar) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
-#'     \code{obs_id_col}     \cr \tab Column (character scalar) in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
-#'     \code{sample_id_col}  \cr \tab Column (character scalar) in \code{sample_file_in} with unique sample labels. \cr
+#'     \code{feat_col}       \cr \tab Name of column in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+#'     \code{obs_col}        \cr \tab Name of column in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
 #'     \code{frm}            \cr \tab Formula (formula) to be fit \cr
 #'     \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
 #'     \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
@@ -36,9 +35,8 @@
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' 
 #' config <- h0testr::f.new_config()
-#' config$feat_id_col <- "feature_id"
-#' config$obs_id_col <- "observation_id"
-#' config$sample_id_col <- "observation_id"
+#' config$feat_col <- "feature_id"
+#' config$obs_col <- "observation_id"
 #' config$frm <- ~condition
 #' config$test_term <- "condition"
 #' config$sample_factors <- list(condition=c("placebo", "drug"))
@@ -52,10 +50,7 @@
 f.test_voom <- function(state, config, normalize.method="none") {
 
   f.check_config(config)
-  
-  if(!is.matrix(state$expression)) {
-    f.err("f.test_voom: !is.matrix(state$expression)", config=config)
-  }
+  f.check_state(state, config)
   
   exprs <- state$expression
   i <- apply(exprs, 1, function(v) any(is.na(v)))
@@ -95,11 +90,10 @@ f.test_voom <- function(state, config, normalize.method="none") {
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{feat_id_col}    \cr \tab Column (character scalar) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
-#'     \code{obs_id_col}     \cr \tab Column (character scalar) in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
-#'     \code{sample_id_col}  \cr \tab Column (character scalar) in \code{sample_file_in} with unique sample labels. \cr
+#'     \code{feat_col}       \cr \tab Name of column in \code{feature_file_in} corresponding to \code{rownames(state$expression)}. \cr
+#'     \code{obs_col}        \cr \tab Name of column in \code{sample_file_in} corresponding to \code{colnames(state$expression)}. \cr
 #'     \code{frm}            \cr \tab Formula (formula) to be fit \cr
-#'     \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
+#'     \code{test_term}      \cr \tab Term (scalar character) to be tested for non-zero coefficient. \cr
 #'     \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
 #'   }
 #' @return A \code{data.frame} containing results of test.
@@ -115,9 +109,8 @@ f.test_voom <- function(state, config, normalize.method="none") {
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' 
 #' config <- h0testr::f.new_config()
-#' config$feat_id_col <- "feature_id"
-#' config$obs_id_col <- "observation_id"
-#' config$sample_id_col <- "observation_id"
+#' config$feat_col <- "feature_id"
+#' config$obs_col <- "observation_id"
 #' config$frm <- ~condition
 #' config$test_term <- "condition"
 #' config$sample_factors <- list(condition=c("placebo", "drug"))
@@ -131,6 +124,7 @@ f.test_voom <- function(state, config, normalize.method="none") {
 f.test_trend <- function(state, config) {
 
   f.check_config(config)
+  f.check_state(state, config)
 
   if(!is.matrix(state$expression)) {
     f.err("f.test_trend: !is.matrix(state$expression)", config=config)
@@ -165,9 +159,8 @@ f.test_trend <- function(state, config) {
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{feat_id_col}    \cr \tab Column (character scalar) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
-#'     \code{obs_id_col}     \cr \tab Column (character scalar) in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
-#'     \code{sample_id_col}  \cr \tab Column (character scalar) in \code{sample_file_in} with unique sample labels. \cr
+#'     \code{feat_col}       \cr \tab Name of column in \code{state$fetaures} matching \code{rownames(state$expression)}. \cr
+#'     \code{obs_col}        \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
 #'     \code{frm}            \cr \tab Formula (formula) to be fit \cr
 #'     \code{test_term}      \cr \tab Term (character scalar) to be tested for non-zero coefficient. \cr
 #'     \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
@@ -186,9 +179,8 @@ f.test_trend <- function(state, config) {
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #'
 #' config <- h0testr::f.new_config()
-#' config$feat_id_col <- "feature_id"
-#' config$obs_id_col <- "observation_id"
-#' config$sample_id_col <- "observation_id"
+#' config$feat_col <- "feature_id"
+#' config$obs_col <- "observation_id"
 #' config$frm <- ~condition
 #' config$test_term <- "condition"
 #' config$sample_factors <- list(condition=c("placebo", "drug"))
@@ -199,7 +191,7 @@ f.test_trend <- function(state, config) {
 #' 
 #' ## save_state=FALSE so test results not written to file:
 #' config <- list(
-#'   log_file="", frm=~condition, test_term="condition", 
+#'   frm=~condition, test_term="condition", 
 #'   sample_factors=list(condition=c("placebo", "drug")), test_method="trend", 
 #'   feat_id_col="feature_id", save_state=FALSE
 #' )
@@ -220,7 +212,7 @@ f.test <- function(state, config) {
     return(NULL)
   } else f.err("f.test: unexpected TEST_METHOD:", config$test_method, config=config)
   
-  rownames(state$features) <- state$features[[config$feat_id_col]]
+  rownames(state$features) <- state$features[[config$feat_col]]
   if(!all(rownames(tbl) %in% rownames(state$features))) {
     f.err("f.test: !all(rownames(tbl) %in% rownames(state$features))", config=config)
   }
@@ -261,14 +253,15 @@ f.test <- function(state, config) {
 #' config$feature_file_in <- "features.tsv"
 #' config$sample_file_in <- "samples.tsv"
 #' config$data_file_in <- "expression.tsv" 
-#' config$feat_id_col <- "feature_id"
+#' config$feat_id_col <- "precursor_id"
+#' config$gene_id_col <- "gene_group_id"
 #' config$obs_id_col <- "observation_id"
-#' config$sample_id_col <- "observation_id"
+#' config$sample_id_col <- "sample_id"
 #' config$frm <- ~condition
 #' config$test_term <- "condition"
 #' config$test_method <- "trend"
 #' config$sample_factors <- list(condition=c("placebo", "drug"))
-#' config$n_features_min <- 10      ## default 1000 too big for small demo dataset
+#' config$n_features_min <- 10     ## default 1000 too big for small demo dataset
 #' config$run_order <- c("normalize", "combine_reps", "filter", "impute")
 #' config$save_state <- FALSE
 #'

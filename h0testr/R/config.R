@@ -5,8 +5,8 @@
 #'     other functions.
 #' @details 
 #'   You must customize \code{frm}, \code{test_term}, and \code{sample_factors}.
-#'     You often need to customize \code{feat_id_col}, \code{sample_id_col}, 
-#'     and \code{obs_id_col}.  
+#'     You often need to customize \code{feat_id_col}, \code{gene_id_col}, 
+#'     \code{sample_id_col}, and \code{obs_id_col}.  
 #' @return list of configuration values
 #' @examples
 #' config <- f.new_config()
@@ -17,11 +17,11 @@
 #' config$sample_factors <- list(age=c("young", "old"), sex=c("female", "male"))
 #'
 #' ## these may or may not need customization, depending on your file formats:
-#' config$feat_id_col <- "gene"
+#' config$feat_id_col <- "peptide_id"
+#' config$gene_id_col <- "gene_id"
 #' config$sample_id_col <- "sample"
 #' config$obs_id_col <- "observation"
 #' 
-#' config$log_file <- ""          ## log to console/stdout
 #' str(config)
 #' f.report_config(config)
 
@@ -38,21 +38,23 @@ f.new_config <- function() {
     
     ## formula for testing: actual formula can have '+' and ':'; not tested w/ e.g. '*' yet.
     frm=~age+gender+age:gender,          ## formula with variable of interest and covariates
-    test_term="age:gender",              ## term (character) in $frm on which test is to be performed
-    permute_var="",                      ## name (character) of variable to permute; "" for no permutation (normal execution)
+    test_term="age:gender",              ## term (scalar character) in $frm on which test is to be performed
+    permute_var="",                      ## name (scalar character) of variable to permute; "" for no permutation (normal execution)
     sample_factors=list(                 ## set levels of factor variables in $frm
       age=c("young", "old"),             ## by default, numeric treated as numeric; if levels set here, treated as factor
       gender=c("Male", "Female")         ## by default, character treated as factor with alphabetically ordered levels
     ),
     
     ## samps and feats column names (new cols are introduced by the code):
-    feat_id_col="feature_id",            ## column (character) in feature_file_in matching rownames of data_file_in
-    obs_id_col="observation_id",         ## column in sample_file_in matching colnames of data_file_in
-    sample_id_col="sample_id",           ## column in sample_file_in with sample ids; not unique if tech reps; same as obs_id_col if no tech reps
+    feat_id_col="feature_id",            ## column (scalar character) in feature_file_in matching rownames of data_file_in
+    gene_id_col="gene_id",               ## column (scalar character) in feature_file_in with gene group or protein group ids 
+    obs_id_col="observation_id",         ## column (scalar character) in sample_file_in matching colnames of data_file_in
+    sample_id_col="sample_id",           ## column (scalar character) in sample_file_in with sample ids; not unique if tech reps; same as obs_id_col if no tech reps
+    n_samples_expr_col="n_samps_expr",   ## new col (scalar character) for feature metadata; n samples expressing feature
+    median_raw_col="median_raw",         ## new col (scalar character) for feature metadata; median feature expression in expressing samples
+    n_features_expr_col="n_feats_expr",  ## new col (scalar character) for sample metadata; n features expressed
     obs_col="",                          ## for internal use; leave ""; samps[, obs_col] == colnames(exprs) throughout script
-    n_samples_expr_col="n_samps_expr",   ## new col for feature metadata; n samples expressing feature
-    median_raw_col="median_raw",         ## new col for feature metadata; median feature expression in expressing samples
-    n_features_expr_col="n_feats_expr",  ## new col for sample metadata; n features expressed
+    feat_col="",                         ## for internal use; leave ""; feats[, feat_col] == rownames(exprs) throughout script
     
     ## output file naming:
     log_file="",                         ## log file path (character); or "" for log to console                 
@@ -113,13 +115,14 @@ f.check_config <- function(config) {
     f.msg("empty config ok", config=config)
     return(TRUE)
   }
-
+  
   scalar_character <- c("feature_file_in", "sample_file_in", "data_file_in", 
-    "dir_in", "dir_out", "test_term", "permute_var", "feat_id_col", 
+    "dir_in", "dir_out", "test_term", "permute_var", 
+    "feat_id_col", "gene_id_col", "feat_col",
     "obs_id_col", "sample_id_col", "obs_col", "n_samples_expr_col", 
     "median_raw_col", "n_features_expr_col", "log_file", "feature_mid_out", 
     "sample_mid_out", "data_mid_out", "result_mid_out", "suffix_out", 
-    "norm_method", "impute_method", "test_method", "run_order")
+    "norm_method", "impute_method", "test_method")
     
   scalar_counts <- c("n_samples_min", "n_features_min", "impute_n_pts", "width")
   scalar_props <- c("norm_quantile", "impute_quantile", 
@@ -127,6 +130,7 @@ f.check_config <- function(config) {
   scalar_positive <- c("impute_span")
   scalar_logical <- c("save_state", "verbose")
   scalar_formula <- c("frm")
+  vector_character <- c("run_order")
   vector_props <- c("probs")
   list_character <- c("sample_factors")
   
@@ -223,6 +227,15 @@ f.check_config <- function(config) {
     }
   }
   
+  for(nom in vector_character) {
+    if(nom %in% config) {
+      if(!is.character(config[[nom]])) {
+        f.err("f.check_config: param not vector of character; param:",  nom, 
+          "; value:", config[[nom]], config=config)
+      }
+    }
+  }
+  
   for(nom in vector_props) {
     if(nom %in% config) {
       if(!is.numeric(config[[nom]])) {
@@ -267,11 +280,11 @@ f.check_config <- function(config) {
 #' config$sample_factors <- list(age=c("young", "old"), sex=c("female", "male"))
 #'
 #' ## these may or may not need customization, depending on your file formats:
-#' config$feat_id_col <- "gene"
+#' config$feat_id_col <- "peptide_id"
+#' config$gene_id_col <- "gene_id"
 #' config$sample_id_col <- "sample"
 #' config$obs_id_col <- "observation"
 #' 
-#' config$log_file <- ""          ## log to console/stdout
 #' f.report_config(config)
 
 f.report_config <- function(config) {

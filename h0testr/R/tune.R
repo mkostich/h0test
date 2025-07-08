@@ -76,7 +76,8 @@ f.tune2 <- function(state, config) {
 #' config$feature_file_in <- "features.tsv"
 #' config$sample_file_in <- "samples.tsv"
 #' config$data_file_in <- "expression.tsv" 
-#' config$feat_id_col <- "feature_id"
+#' config$feat_id_col <- "precursor_id"
+#' config$gene_id_col <- "gene_group_id"
 #' config$obs_id_col <- "observation_id"
 #' config$sample_id_col <- "observation_id"
 #' config$frm <- ~condition
@@ -90,8 +91,8 @@ f.tune2 <- function(state, config) {
 #' config$permute_var <- ""            ## no permutation
 #' set.seed(101)
 #' out1 <- h0testr::f.tune(config,
-#'   norm_methods=c("TMM", "RLE", "q50", "q75", "cpm", "log2", "none"),
-#'   impute_methods=c("sample_lod", "unif_sample_lod", "unif_global_lod", "none"),
+#'   norm_methods=c("TMM", "RLE", "q75", "cpm", "log2", "none"),
+#'   impute_methods=c("sample_lod", "unif_sample_lod", "none"),
 #'   impute_quantiles=c(0, 0.1, 0.25)
 #' )
 #' ## write.table("0.condition.tune.tsv", quote=F, sep="\t", row.names=F)
@@ -100,8 +101,8 @@ f.tune2 <- function(state, config) {
 #' config$permute_var <- "condition"   ## permute variable in test_term
 #' set.seed(101)
 #' out2 <- h0testr::f.tune(config,
-#'   norm_methods=c("TMM", "RLE", "q50", "q75", "cpm", "log2", "none"),
-#'   impute_methods=c("sample_lod", "unif_sample_lod", "unif_global_lod", "none"),
+#'   norm_methods=c("TMM", "RLE", "q75", "cpm", "log2", "none"),
+#'   impute_methods=c("sample_lod", "unif_sample_lod", "none"),
 #'   impute_quantiles=c(0, 0.1, 0.25)
 #' )
 #' ## write.table("1.condition.tune.tsv", quote=F, sep="\t", row.names=F)
