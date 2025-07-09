@@ -18,9 +18,9 @@ f.sim1(
 )
 }
 \arguments{
-\item{n_obs}{Number of observations to simulate. Scalar numeric, with \code{n_obs >= 1}.}
+\item{n_obs}{Scalar number of observations to simulate, where \code{n_obs >= 1}.}
 
-\item{n_feats}{Number of features to simulate. Scalar numeric, with \code{n_feats >= 1}.}
+\item{n_feats}{Scalar number of features to simulate, where \code{n_feats >= 1}.}
 
 \item{log_m_mean}{Mean of feature means. Scalar numeric, with \code{log_m_mean > 0}.}
 

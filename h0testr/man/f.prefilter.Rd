@@ -46,7 +46,7 @@ exprs <- h0testr::f.sim1(n_obs=6, n_feats=12, mcar_p=0.75)$mat
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(feat_id_col="feature_id", obs_id_col="observation_id")
+config <- list(feat_col="feature_id", obs_col="observation_id")
 state2 <- h0testr::f.prefilter(state, config)
 print(state2)
 }

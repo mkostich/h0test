@@ -265,6 +265,8 @@ f.features_per_sample <- function(state, config) {
 #'   }
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
+#'     \code{feat_col}            \cr \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}.
+#'     \code{obs_col}             \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}.
 #'     \code{n_features_min}      \cr \tab Minimum number (non-negative numeric) of features expressed in observation to keep observation. \cr
 #'     \code{n_samples_min}       \cr \tab Minimum number (non-negative numeric) of samples expressing feature to keep feature. \cr
 #'     \code{median_raw_col}      \cr \tab Name (character) of new column in feature metadata to hold median expression in expressing samples. \cr
@@ -286,6 +288,8 @@ f.features_per_sample <- function(state, config) {
 #'
 #' ## assume default median_raw_col, n_samples_expr_col, and n_features_expr_col are ok:
 #' config <- h0testr::f.new_config()
+#' config$feat_col <- config$feat_id_col
+#' config$obs_col <- config$obs_id_col
 #' config$n_features_min <- 6
 #' config$n_samples_min <- 2
 #' config$save_state <- FALSE           ## so doesn't write output file

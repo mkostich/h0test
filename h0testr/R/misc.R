@@ -59,7 +59,7 @@ f.check_state <- function(state, config) {
   }
   
   if(is.null(config$obs_col) || config$obs_col %in% "") {
-    f.err("f.check_state: config$obs_id_col unset", 
+    f.err("f.check_state: config$obs_col unset", 
       config=config)
   }
   samps <- state$samples[, config$obs_col, drop=T]

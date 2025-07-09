@@ -58,9 +58,7 @@ f.read_data <- function(config) {
     f.err("f.read_data: !(typeof(exprs) %in% 'double')", config=config)
   }
   
-  f.log("checking initial state", config=config)
   state <- list(expression=exprs, features=feats, samples=samps)
-  f.check_state(state, config)
   
   return(state)
 }
@@ -69,9 +67,7 @@ f.read_data <- function(config) {
 
 ## set up types and levels of covariates; uses config$feat_id_col:
 
-f.check_covariates <- function(state, config, initialized=F) {
-
-  f.check_config(config)
+f.check_parameters <- function(state, config, initialized=F) {
   
   reqd_params <- c("n_samples_expr_col", "median_raw_col", 
     "n_features_expr_col", "obs_id_col", "sample_id_col", "feat_id_col", 
@@ -79,7 +75,7 @@ f.check_covariates <- function(state, config, initialized=F) {
     
   for(param in reqd_params) {
     if(!(param %in% names(config))) {
-      f.err("f.check_covariates: !(param %in% names(config)), for param:", 
+      f.err("f.check_parameters: !(param %in% names(config)), for param:", 
         param, config=config)
     }
   }
@@ -89,7 +85,7 @@ f.check_covariates <- function(state, config, initialized=F) {
       "sample_mid_out", "suffix_out")
     for(param in reqd_params) {
       if(!(param %in% names(config))) {
-        f.err("f.check_covariates: !(param %in% names(config)), for param:", 
+        f.err("f.check_parameters: !(param %in% names(config)), for param:", 
           param, config=config)
       }
     }
@@ -99,7 +95,7 @@ f.check_covariates <- function(state, config, initialized=F) {
     noms <- c(config$n_samples_expr_col, config$median_raw_col, config$n_features_expr_col)
     for(nom in noms) {
       if(nom %in% names(state$samples)) {
-        f.err("f.check_covariates: nom %in% names(state$samples); nom:", 
+        f.err("f.check_parameters: nom %in% names(state$samples); nom:", 
           nom, config=config)
       }
     }
@@ -107,32 +103,32 @@ f.check_covariates <- function(state, config, initialized=F) {
   
   for(nom in c(config$obs_id_col, config$sample_id_col)) {
     if(!(nom %in% names(state$samples))) {
-      f.err("f.check_covariates: !(nom %in% names(state$samples)); nom:", 
+      f.err("f.check_parameters: !(nom %in% names(state$samples)); nom:", 
         nom, config=config)
     }
   }
   
   for(nom in c(config$feat_id_col, config$gene_id_col)) {
     if(!(nom %in% names(state$features))) {
-      f.err("f.check_covariates: !(nom %In% names(state$featues)); nom:",
+      f.err("f.check_parameters: !(nom %in% names(state$features)); nom:",
         nom, config=config)
     }
   }
   
   if(any(duplicated(state$features[[config$feat_id_col]]))) {
-    f.err("f.check_covariates: any(duplicated(state$features[[config$feat_id_col]]))")
+    f.err("f.check_parameters: any(duplicated(state$features[[config$feat_id_col]]))")
   }
   
   if(any(duplicated(state$samples[[config$obs_id_col]]))) {
-    f.err("f.check_covariates: any(duplicated(state$samples[[config$obs_id_col]]))")
+    f.err("f.check_parameters: any(duplicated(state$samples[[config$obs_id_col]]))")
   }
+  
+  return(TRUE)
 }
 
 ## uses config$sample_factors, config$obs_id_col, and config$sample_id_col:
 
 f.subset_covariates <- function(state, config) {
-
-  f.check_config(config)
   
   ## variables referred to in formula:
   vars <- as.character(config$frm)
@@ -162,8 +158,6 @@ f.subset_covariates <- function(state, config) {
 ## uses config$sample_factors
 
 f.set_covariate_factor_levels <- function(state, config) {
-
-  f.check_config(config)
   
   f.msg("setting factor levels", config=config)
   
@@ -192,13 +186,17 @@ f.set_covariate_factor_levels <- function(state, config) {
   return(state)
 }
 
-#' Preprocess covariates
+#' Preprocess covariates and parameters in config
 #' @description
-#'   Check covariates referred to in
-#'     \code{config$frm} are in \code{state$samples}, subsets only the needed
-#'     variables into \code{state$samples}, and sets covariate factor 
-#'     levels according to \code{config$sample_factors}.
+#'   Check \code{config} vs. \code{state}, check covariates in \code{config$frm},
+#'     and set factor levels.
 #' @details 
+#'   Checks to make sure columns specified in \code{config} parameters are 
+#'     found in \code{state$features} and \code{state$samples}.
+#'   Check covariates referred to in \code{config$frm} are found in 
+#'     \code{state$samples}, subsets only the needed variables into 
+#'     \code{state$samples}, and sets covariate factor levels 
+#'     according to \code{config$sample_factors}.
 #'   Wrapper for \code{f.check_covariates()}, then \code{f.subset_covariates()}, 
 #'     followed by \code{f.set_covariate_factor_levels()}. If \code{initialized=FALSE}, 
 #'     then checks if \code{state$features} has columns with names in 
@@ -214,10 +212,10 @@ f.set_covariate_factor_levels <- function(state, config) {
 #' @param config List with configuration values. Requires the following keys:
 #'   \tabular{ll}{
 #'     \code{sample_factors}  \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
-#'     \code{feat_id_col}     \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+#'     \code{feat_id_col}     \cr \tab Name of column in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
 #'     \code{gene_id_col}     \cr \tab Name of column in \code{feature_file_in} with unique genegroup or proteingroup ids. \cr
-#'     \code{obs_id_col}      \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
-#'     \code{sample_id_col}   \cr \tab Name of column (character) in \code{sample_file_in} with unique sample labels. \cr
+#'     \code{obs_id_col}      \cr \tab Name of column in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
+#'     \code{sample_id_col}   \cr \tab Name of column in \code{sample_file_in} with unique sample labels. \cr
 #'   }
 #' @param initialized Logical scalar indicating if \code{state} has already has filter statistics initialized. 
 #' @return A list (the processed state) with the following elements:
@@ -228,7 +226,7 @@ f.set_covariate_factor_levels <- function(state, config) {
 #'   } 
 #' @examples
 #' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
-#' feats <- data.frame(feature_id=rownames(exprs))
+#' feats <- data.frame(feature_id=rownames(exprs), gene_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs), 
 #'   condition=c(rep("ctl", 3), rep("trt", 3)))
 #' state <- list(expression=exprs, features=feats, samples=samps)
@@ -240,15 +238,17 @@ f.set_covariate_factor_levels <- function(state, config) {
 #' config$frm <- ~condition
 #' config$test_term <- "condition"
 #' config$sample_factors=list(condition=c("ctl", "trt"))
-#' out <- h0testr::f.preprocess_covariates(state, config)
+#' out <- h0testr::f.initialize(state, config)
 #' print(out$state)
 #' str(out$config)
 
-f.preprocess_covariates <- function(state, config, initialized=F) {
+f.initialize <- function(state, config, initialized=F) {
   
-  f.log("preprocessing covariates", config=config)
+  f.log("initializing", config=config)
   
-  f.check_covariates(state, config, initialized=initialized)
+  f.check_config(config)
+  
+  f.check_parameters(state, config, initialized=initialized)
   
   if(is.null(config$feat_col) || config$feat_col %in% "") {
     config$feat_col <- config$feat_id_col  ## as soon as confirm feat_id_col exists
@@ -296,6 +296,8 @@ f.preprocess_covariates <- function(state, config, initialized=F) {
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- h0testr::f.new_config()
+#' config$feat_col <- config$feat_id_col
+#' config$obs_col <- config$obs_id_col
 #' state <- h0testr::f.add_filter_stats(state, config)
 #' print(state)
 
@@ -316,9 +318,6 @@ f.add_filter_stats <- function(state, config) {
   state$features[, config$median_raw_col] <- m
   
   n <- f.features_per_sample(state, config)
-  if(is.null(config$obs_col) || config$obs_col %in% "") {
-    config$obs_col <- config$obs_id_col
-  }
   if(!all(names(n) == state$samples[, config$obs_col, drop=T])) {
     f.err("f.add_filter_stats: !all(names(n) == state$samples[, config$obs_col])", config=config)
   } 
@@ -420,7 +419,7 @@ f.prefilter <- function(state, config, n_samples_min=2, n_features_min=2) {
 #' samps <- data.frame(observation_id=colnames(exprs), age=c(rep("young", 3), rep("old", 3)))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' print(state)
-#' config <- list(obs_col="observation_id", sample_id_col="observation_id", permute_var="age")
+#' config <- list(feat_col="feature_id", obs_col="observation_id", sample_id_col="observation_id", permute_var="age")
 #' state2 <- h0testr::f.permute(state, config)
 #' print(state2)
 
@@ -479,8 +478,8 @@ f.permute <- function(state, config, variable=NULL) {
 #' config$feature_file_in <- "features.tsv"
 #' config$sample_file_in <- "samples.tsv"
 #' config$data_file_in <- "expression.tsv" 
-#' config$feat_id_col <- "precursor_id"
-#' config$gene_id_col <- "protein_group_id"
+#' config$feat_id_col <- "feature_id"
+#' config$gene_id_col <- "feature_id"
 #' config$obs_id_col <- "observation_id"
 #' config$sample_id_col <- "observation_id"
 #' config$frm <- ~condition
@@ -502,7 +501,7 @@ f.load_data <- function(config) {
   f.report_config(config)
   
   state <- f.read_data(config)
-  out <- f.preprocess_covariates(state, config)
+  out <- f.initialize(state, config)
   state <- out$state
   config <- out$config
   

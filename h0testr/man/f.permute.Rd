@@ -16,8 +16,8 @@ f.permute(state, config, variable = NULL)
 
 \item{config}{List with configuration values. Requires the following keys:
 \tabular{ll}{
-  \code{feat_id_col}    \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
-  \code{sample_id_col}  \cr \tab Name of column (character) in \code{sample_file_in} with unique sample identifiers. \cr
+  \code{obs_col}        \cr \tab Name of column in \code{feature_file_in} that corresponds to columns of \code{data_file_in}. \cr
+  \code{sample_id_col}  \cr \tab Name of column in \code{sample_file_in} with unique sample identifiers. \cr
 }}
 
 \item{variable}{Character name of variable (column in samples) to permute.}
@@ -43,9 +43,8 @@ exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs), age=c(rep("young", 3), rep("old", 3)))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(feat_id_col="feature_id", obs_id_col="observation_id", 
-  sample_id_col="observation_id", permute_var="age")
-state2 <- h0testr::f.permute(state, config)
 print(state)
+config <- list(feat_col="feature_id", obs_col="observation_id", sample_id_col="observation_id", permute_var="age")
+state2 <- h0testr::f.permute(state, config)
 print(state2)
 }

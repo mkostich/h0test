@@ -16,11 +16,10 @@ f.test_trend(state, config)
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{feat_id_col}    \cr \tab Column (character scalar) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
-  \code{obs_id_col}     \cr \tab Column (character scalar) in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
-  \code{sample_id_col}  \cr \tab Column (character scalar) in \code{sample_file_in} with unique sample labels. \cr
+  \code{feat_col}       \cr \tab Name of column in \code{feature_file_in} corresponding to \code{rownames(state$expression)}. \cr
+  \code{obs_col}        \cr \tab Name of column in \code{sample_file_in} corresponding to \code{colnames(state$expression)}. \cr
   \code{frm}            \cr \tab Formula (formula) to be fit \cr
-  \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
+  \code{test_term}      \cr \tab Term (scalar character) to be tested for non-zero coefficient. \cr
   \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
 }}
 }
@@ -40,8 +39,8 @@ Tests for differential expression using the \code{limma} pakcage by running
 \examples{
 set.seed(101)
 ## no missing values: mnar_c0=-Inf, mnar_c1=0, mcar_p=0
-exprs <- h0testr::f.sim2(n_obs1=6, n_obs2=6, n_feats=25, n_sig=5, 
-  fold_change=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+exprs <- h0testr::f.sim2(n_samps1=6, n_samps2=6, n_genes=25, 
+  n_genes_signif=5, fold_change=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
 exprs <- log2(exprs + 1)
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs), 
@@ -49,15 +48,14 @@ samps <- data.frame(observation_id=colnames(exprs),
 state <- list(expression=exprs, features=feats, samples=samps)
 
 config <- h0testr::f.new_config()
-config$feat_id_col <- "feature_id"
-config$obs_id_col <- "observation_id"
-config$sample_id_col <- "observation_id"
+config$feat_col <- config$feat_id_col <- config$gene_id_col <- "feature_id"
+config$obs_col <- config$obs_id_col <- config$sample_id_col <- "observation_id"
 config$frm <- ~condition
 config$test_term <- "condition"
 config$sample_factors <- list(condition=c("placebo", "drug"))
 
-## set up and check covariates:
-out <- h0testr::f.preprocess_covariates(state, config)
+## set up and check covariates and parameters:
+out <- h0testr::f.initialize(state, config)
 
 tbl <- h0testr::f.test_trend(state, config)
 print(tbl)

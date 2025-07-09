@@ -13,9 +13,10 @@ f.read_data(config)
   \code{feature_file_in} \cr \tab Name of file with feature metadata; assumed in \code{dir_in}. \cr
   \code{sample_file_in}  \cr \tab Name of file with observation metadata; assumed in \code{dir_in}. \cr
   \code{data_file_in}    \cr \tab Name of file with signal data; assumed in \code{dir_in}. \cr
-  \code{feat_id_col}     \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
-  \code{obs_id_col}      \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
-  \code{sample_id_col}   \cr \tab Name of column (character) in \code{sample_file_in} with unique sample labels. \cr
+  \code{feat_id_col}     \cr \tab Name of column in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+  \code{gene_id_col}     \cr \tab Name of column in \code{feature_file_in} with unique genegroup or proteingroup ids. \cr
+  \code{obs_id_col}      \cr \tab Name of column in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
+  \code{sample_id_col}   \cr \tab Name of column in \code{sample_file_in} with unique sample labels. \cr
 }}
 }
 \value{

@@ -18,9 +18,8 @@ f.normalize(state, config)
 \tabular{ll}{
   \code{norm_method}   \cr \tab Character scalar in \code{c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")}. \cr
   \code{norm_quantile} \cr \tab Quantile (numeric between 0 and 1) for \code{norm_method \%in\% c("quantile", "upperquartile")}. \cr
-  \code{feat_id_col}   \cr \tab Column (character scalar) of \code{state$features} which matches \code{rownames(state$expression)}. \cr
-  \code{obs_id_col}    \cr \tab Column in observation metadata matching initial rownames of \code{state$expression}. \cr
-  \code{sample_id_col} \cr \tab Column in observation metadata with unique sample ids. \cr
+  \code{feat_col}      \cr \tab Column of \code{state$features} matching \code{rownames(state$expression)}. \cr
+  \code{obs_col}       \cr \tab Column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
 }}
 }
 \value{
@@ -47,7 +46,7 @@ samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
 
 config <- list(save_state=FALSE, norm_method="RLE", 
-  feat_id_col="feature_id", obs_id_col="observation_id")
+  feat_col="feature_id", obs_col="observation_id")
 out <- h0testr::f.normalize(state, config)
 summary(apply(state$expression, 2, sd, na.rm=TRUE))
 summary(apply(out$state$expression, 2, sd, na.rm=TRUE))

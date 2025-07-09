@@ -4,9 +4,26 @@
 #'     example values. Configuration meant to be customized then passed to
 #'     other functions.
 #' @details 
-#'   You must customize \code{frm}, \code{test_term}, and \code{sample_factors}.
-#'     You often need to customize \code{feat_id_col}, \code{gene_id_col}, 
-#'     \code{sample_id_col}, and \code{obs_id_col}.  
+#'   This function is meant to simplify generation of configurations for 
+#'     higher level functions, like \code{h0testr::run()}, 
+#'     \code{h0testr::tune()}, or \code{h0testr::save_state()}. For most 
+#'     other functions, you can pass a simpler config as a list containing
+#'     only the needed parameters. See documentation and examples for the 
+#'     function of interest for the minimal configuration needed.
+#'   For hypothesis testing or calls to \code{h0testr::f.initialize()}, 
+#'     customize \code{frm}, \code{test_term}, and \code{sample_factors}.
+#'   When using the config to load data from files (e.g. by calling 
+#'     \code{h0testr::load_data(config)}), calling 
+#'     \code{h0testr::f.initialize()}, or for aggregating multiple 
+#'     observations per sample (e.g. by calling \code{h0testr::combine_reps()}),
+#'     or for aggregating precursors into gene/protein groups (e.g. by calling 
+#'     \code{h0testr::combine_precursors()}), you should customize 
+#'     \code{feat_id_col}, \code{gene_id_col}, \code{sample_id_col}, 
+#'     and \code{obs_id_col}. In these cases, leave \code{feat_col} and
+#'     \code{obs_col} as \code{""} (they will be automatically set and 
+#'     changed after observation or precursor aggregation.
+#'   Otherwise, you may only need to set \code{feat_col} and \code{obs_col}. 
+#'     see examples for the function of interest to see what is needed.
 #' @return list of configuration values
 #' @examples
 #' config <- f.new_config()
@@ -139,7 +156,8 @@ f.check_config <- function(config) {
   noms <- names(config)
   all_noms <- c(
     scalar_character, scalar_counts, scalar_props, 
-    scalar_positive, scalar_logical, scalar_formula, vector_props, 
+    scalar_positive, scalar_logical, scalar_formula, 
+    vector_character, vector_props, 
     list_character
   )
   

@@ -5,11 +5,14 @@
 \title{Simulate a two-condition dataset}
 \usage{
 f.sim2(
-  n_obs1,
-  n_obs2,
-  n_feats,
-  n_sig,
+  n_samps1,
+  n_samps2,
+  n_genes,
+  n_genes_signif,
   fold_change = 0.5,
+  peps_per_gene = 1,
+  reps_per_sample = 1,
+  cv_reps = 0.1,
   log_m_mean = 11,
   log_m_sd = 2.7,
   log_cv_mean = -0.75,
@@ -21,19 +24,22 @@ f.sim2(
 )
 }
 \arguments{
-\item{n_obs1}{Number of observations to simulate for condition1. 
-Scalar numeric, with \code{n_obs1 >= 1}.}
+\item{n_samps1}{Scalar number of samples to simulate for condition1, with \code{n_samps1 >= 1}.}
 
-\item{n_obs2}{Number of observations to simulate for condition2. 
-Scalar numeric, with \code{n_obs2 >= 1}.}
+\item{n_samps2}{Scalar number of samples to simulate for condition2, with \code{n_samps2 >= 1}.}
 
-\item{n_feats}{Number of features to simulate. Scalar numeric, 
-with \code{n_feats >= 1}.}
+\item{n_genes}{Scalar number of gene groups to simulate, with \code{n_genes >= 2}.}
 
-\item{n_sig}{Number of significant (affected) features. Scalar numeric, 
-with \code{n_sig >= 0}.}
+\item{n_genes_signif}{Number of significant (affected) genes. Scalar numeric, 
+with \code{0 <= n_genes_signif <= n_genes}.}
 
 \item{fold_change}{Fold change for \code{n_sig} features. Scalar numeric.}
+
+\item{peps_per_gene}{Number of peptides to simulate per gene.}
+
+\item{reps_per_sample}{Number of technical replicates to simulate per sample.}
+
+\item{cv_reps}{Coeffient of variation between technical replicates.}
 
 \item{log_m_mean}{Mean of feature means. Scalar numeric, 
 with \code{log_m_mean > 0}.}
@@ -68,10 +74,11 @@ List with elements:
   }
 }
 \description{
-Simulates non-negative data matrix with \code{n_feats} rows and
+Simulates non-negative data matrix with \code{n_genes * peps_per_gene} 
+  rows and \code{(n_samps1 + n_samps2) * reps_per_sample} columns.
 }
 \details{
-For \code{n_sig} features out of \code{n_feats} will have a 50:50 chance 
+For \code{n_genes_signif} features out of \code{n_genes} will have a 50:50 chance 
     of an increase or a decrease. 
   For an increase, \code{mean2 <- mean1 * 2^(fold_change)}.
   For a decrease, \code{mean2 <- mean1 * 2^(-fold_change)}.
@@ -85,10 +92,14 @@ For \code{n_sig} features out of \code{n_feats} will have a 50:50 chance
 }
 \examples{
 ## default missing value settings:
-rslt <- h0testr::f.sim2(n_obs1=3, n_obs2=3, n_feats=8, n_sig=2)
+rslt <- h0testr::f.sim2(n_samps1=3, n_samps2=3, n_genes=8, n_genes_signif=2)
 print(rslt)
 
 ## no missing values:
-rslt <- h0testr::f.sim2(n_obs1=3, n_obs2=3, n_feats=8, n_sig=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+rslt <- h0testr::f.sim2(n_samps1=3, n_samps2=3, n_genes=8, n_genes_signif=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+print(rslt)
+
+## peptide-level, with technical replicate observations:
+rslt <- h0testr::f.sim2(n_samps1=2, n_samps2=2, n_genes=8, reps_per_sample=2, peps_per_gene=3)
 print(rslt)
 }
