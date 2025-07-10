@@ -53,6 +53,14 @@ f.new_config <- function() {
     dir_in=".",                          ## data_file_in, feature_file_in, and sample_file_in found here
     dir_out=".",                         ## output directory
     
+    ## match up expression dimnames with features metadata and samples metadata:
+    feat_id_col="feature_id",            ## column (scalar character) in feature_file_in matching rownames of data_file_in
+    gene_id_col="gene_id",               ## column (scalar character) in feature_file_in with gene group or protein group ids 
+    obs_id_col="observation_id",         ## column (scalar character) in sample_file_in matching colnames of data_file_in
+    sample_id_col="sample_id",           ## column (scalar character) in sample_file_in with sample ids; not unique if tech reps; same as obs_id_col if no tech reps
+    obs_col="",                          ## for internal use; leave ""; samps[, obs_col] == colnames(exprs) throughout script
+    feat_col="",                         ## for internal use; leave ""; feats[, feat_col] == rownames(exprs) throughout script
+    
     ## formula for testing: actual formula can have '+' and ':'; not tested w/ e.g. '*' yet.
     frm=~age+gender+age:gender,          ## formula with variable of interest and covariates
     test_term="age:gender",              ## term (scalar character) in $frm on which test is to be performed
@@ -62,16 +70,10 @@ f.new_config <- function() {
       gender=c("Male", "Female")         ## by default, character treated as factor with alphabetically ordered levels
     ),
     
-    ## samps and feats column names (new cols are introduced by the code):
-    feat_id_col="feature_id",            ## column (scalar character) in feature_file_in matching rownames of data_file_in
-    gene_id_col="gene_id",               ## column (scalar character) in feature_file_in with gene group or protein group ids 
-    obs_id_col="observation_id",         ## column (scalar character) in sample_file_in matching colnames of data_file_in
-    sample_id_col="sample_id",           ## column (scalar character) in sample_file_in with sample ids; not unique if tech reps; same as obs_id_col if no tech reps
+    ## new cols introduced into metadata data.frames by the code:
     n_samples_expr_col="n_samps_expr",   ## new col (scalar character) for feature metadata; n samples expressing feature
     median_raw_col="median_raw",         ## new col (scalar character) for feature metadata; median feature expression in expressing samples
     n_features_expr_col="n_feats_expr",  ## new col (scalar character) for sample metadata; n features expressed
-    obs_col="",                          ## for internal use; leave ""; samps[, obs_col] == colnames(exprs) throughout script
-    feat_col="",                         ## for internal use; leave ""; feats[, feat_col] == rownames(exprs) throughout script
     
     ## output file naming:
     log_file="",                         ## log file path (character); or "" for log to console                 
@@ -84,19 +86,21 @@ f.new_config <- function() {
     ## tunable options: defaults are usually ok, except:
     ##   for dia: usually works ok: RLE:unif_sample_lod:0.05 for norm_method:impute_method:impute_quantile
     ##   for dda: usually works ok: quantile:0.75:unif_sample_lod:0 for norm_method:norm_quantile:impute_method:impute_quantile
-    norm_method="quantile",              ## in c("TMM", "TMMwsp", "RLE", "upperquartile", "quantile", "cpm", "vsn", "qquantile", "log2", "none")
+    norm_method="RLE",                   ## in c("TMM", "TMMwsp", "RLE", "upperquartile", "quantile", "cpm", "vsn", "qquantile", "log2", "none")
     norm_quantile=0.75,                  ## for quantile normalization; 0.5 is median; 0.75 is upper quartile;
     n_samples_min=2,                     ## min samples/feature w/ feature expression > 0 to keep feature
     n_features_min=1000,                 ## min features/sample w/ expression > 0 to keep sample
+    feature_aggregation="medianPolish",  ## in c("medianPolish", "robustSummary", "none")
+    feature_aggregation_scaled=FALSE,    ## whether to rescale peptide features prior to aggregation into protein/gene group.
     ## in: c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", "none")
-    impute_method="sample_lod",
-    impute_quantile=0.01,                ## quantile for unif_ imputation methods
+    impute_method="unif_sample_lod",
+    impute_quantile=0.05,                ## quantile for unif_ imputation methods
     impute_scale=1,                      ## for rnorm_feature, adjustment on sd of distribution [1: no change];
     impute_span=0.5,                     ## loess span for f.impute_loess_logit
     impute_n_pts=1e7,                    ## granularity of imputed values for f.impute_glm_binom and f.impute_loess_logit
     test_method="trend",                 ## in c("voom", "trend")
     ## run_order character vector with elements from {"normalize", "combine_reps", "filter", "impute"}:
-    run_order=c("normalize", "combine_reps", "filter", "impute"),   ## determines order of workflow operations
+    run_order=c("normalize", "combine_reps", "combine_peps", "filter", "impute"),   ## order of workflow operations
     
     ## misc; 
     save_state=TRUE,                     ## whether to save output files; might set to FALSE for tuning/testing
@@ -139,13 +143,13 @@ f.check_config <- function(config) {
     "obs_id_col", "sample_id_col", "obs_col", "n_samples_expr_col", 
     "median_raw_col", "n_features_expr_col", "log_file", "feature_mid_out", 
     "sample_mid_out", "data_mid_out", "result_mid_out", "suffix_out", 
-    "norm_method", "impute_method", "test_method")
+    "norm_method", "feature_aggregation", "impute_method", "test_method")
     
   scalar_counts <- c("n_samples_min", "n_features_min", "impute_n_pts", "width")
   scalar_props <- c("norm_quantile", "impute_quantile", 
     "impute_scale", "impute_span")
   scalar_positive <- c("impute_span")
-  scalar_logical <- c("save_state", "verbose")
+  scalar_logical <- c("feature_aggregation_scaled", "save_state", "verbose")
   scalar_formula <- c("frm")
   vector_character <- c("run_order")
   vector_props <- c("probs")

@@ -2,11 +2,10 @@
 #' @description
 #'   Tests for differential expression using the \code{limma::voom()} function.
 #' @details
-#'   Tests for differential expression using the \code{limma::voom()}. 
-#'     Model is fit to \code{config$frm} and an F-test is performed for 
-#'     whether the effect of \code{config$test_term} on 
+#'   The \code{limma::voom()} model is fit to \code{config$frm} and an F-test 
+#'     is performed for whether the effect of \code{config$test_term} on 
 #'     \code{state$expression} is zero. 
-#' @param state List with elements formatted like the list returned by \code{f.read_data()}:
+#' @param state List with elements like those returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -27,7 +26,7 @@
 #' set.seed(101)
 #' ## no missing values: mnar_c0=-Inf, mnar_c1=0, mcar_p=0
 #' exprs <- h0testr::f.sim2(n_samps1=6, n_samps2=6, n_genes=25, 
-#'   n_genes_signif=5, fold_change=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+#'   n_genes_signif=5, fold_change=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)$mat
 #' exprs <- log2(exprs + 1)
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs), 
@@ -76,7 +75,7 @@ f.test_voom <- function(state, config, normalize.method="none") {
 #' Hypothesis testing using \code{limma} trend.
 #' @description
 #'   Test for differential expression using the \code{limma} 
-#'   package trend approach.
+#'   package \code{trend} approach.
 #' @details
 #'   Tests for differential expression using the \code{limma} pakcage by running 
 #'     \code{lmFit()}, then \code{eBayes()}, then \code{topTable()}. Model is fit 
@@ -101,7 +100,7 @@ f.test_voom <- function(state, config, normalize.method="none") {
 #' set.seed(101)
 #' ## no missing values: mnar_c0=-Inf, mnar_c1=0, mcar_p=0
 #' exprs <- h0testr::f.sim2(n_samps1=6, n_samps2=6, n_genes=25, 
-#'   n_genes_signif=5, fold_change=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+#'   n_genes_signif=5, fold_change=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)$mat
 #' exprs <- log2(exprs + 1)
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs), 
@@ -151,6 +150,7 @@ f.test_trend <- function(state, config) {
 #'   Test hypotheses using .
 #' @details
 #'   Tests for differential expression using method specified in config. 
+#'   See invididual \code{f.test_*} methods for more details.
 #' @param state List with elements formatted like the list returned by `f.read_data()`:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -171,7 +171,7 @@ f.test_trend <- function(state, config) {
 #' set.seed(101)
 #' ## no missing values: mnar_c0=-Inf, mnar_c1=0, mcar_p=0
 #' exprs <- h0testr::f.sim2(n_samps1=6, n_samps2=6, n_genes=25, 
-#'   n_genes_signif=5, fold_change=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+#'   n_genes_signif=5, fold_change=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)$mat
 #' exprs <- log2(exprs + 1)
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs), 

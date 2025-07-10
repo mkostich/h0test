@@ -39,8 +39,8 @@ A list (the processed state) with the following elements:
 Normalize expression using functionality from \code{edgeR} package.
 }
 \details{
-Inter-observation normalization. \code{edgeR::calcNormFactors()} 
-  called under the hood. Returned values on a counts-per-million scale.
+Inter-observation normalization. Uses \code{edgeR::calcNormFactors()}. 
+  Returned values on a counts-per-million scale.
 }
 \examples{
 set.seed(101)

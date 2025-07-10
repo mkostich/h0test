@@ -209,7 +209,7 @@ f.feature_median_expression <- function(state, config) {
   return(m)
 }
 
-#' Numer of expressed features per sample
+#' Number of expressed features per sample
 #' @description
 #'   Calculates the number of expressed features in each sample. 
 #' @details 

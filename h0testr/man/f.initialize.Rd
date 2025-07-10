@@ -4,7 +4,7 @@
 \alias{f.initialize}
 \title{Preprocess covariates and parameters in config}
 \usage{
-f.initialize(state, config, initialized = F)
+f.initialize(state, config, initialized = F, minimal = F)
 }
 \arguments{
 \item{state}{List with elements formatted like the list returned by \code{f.read_data()}:
@@ -14,16 +14,27 @@ f.initialize(state, config, initialized = F)
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration values. Requires the following keys:
+\item{config}{List with configuration values. Keys 
+\code{c("n_samples_expr_col", "median_raw_col", "n_features_expr_col")} 
+  not needed if \code{minimal=TRUE}:
 \tabular{ll}{
-  \code{sample_factors}  \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
-  \code{feat_id_col}     \cr \tab Name of column in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
-  \code{gene_id_col}     \cr \tab Name of column in \code{feature_file_in} with unique genegroup or proteingroup ids. \cr
-  \code{obs_id_col}      \cr \tab Name of column in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
-  \code{sample_id_col}   \cr \tab Name of column in \code{sample_file_in} with unique sample labels. \cr
+  \code{obs_id_col}           \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
+  \code{sample_id_col}        \cr \tab Name of column in \code{state$samples} with unique sample labels. \cr
+  \code{feat_id_col}          \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
+  \code{gene_id_col}          \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
+  \code{frm}                  \cr \tab Formula object specifying formula to be fit. \cr
+  \code{test_term}            \cr \tab Term (character) in \code{config$frm} to test for significance. \cr
+  \code{sample_factors}       \cr \tab List specifying levels of factor variables in \code{config$frm}. \cr
+  \code{n_samples_expr_col}   \cr \tab Name of column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
+  \code{median_raw_col}       \cr \tab Name of column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
+  \code{n_features_expr_col}  \cr \tab Name of column in \code{state$samples} that corresponds to columns of \code{data_file_in}. \cr
 }}
 
-\item{initialized}{Logical scalar indicating if \code{state} has already has filter statistics initialized.}
+\item{initialized}{Logical scalar indicating if \code{state} has already 
+has filter statistics initialized.}
+
+\item{minimal}{Logical scalar indicating whether only minimal set of 
+parameters needed for formula processing should be required.}
 }
 \value{
 A list (the processed state) with the following elements:
@@ -57,14 +68,33 @@ feats <- data.frame(feature_id=rownames(exprs), gene_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs), 
   condition=c(rep("ctl", 3), rep("trt", 3)))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- h0testr::f.new_config()
-config$feat_id_col <- "feature_id"
-config$gene_id_col <- "gene_id"
-config$obs_id_col <- "observation_id"
-config$sample_id_col <- "observation_id"
-config$frm <- ~condition
-config$test_term <- "condition"
-config$sample_factors=list(condition=c("ctl", "trt"))
+
+## minimal:
+config <- list(
+  obs_id_col="observation_id",
+  sample_id_col="observation_id",
+  feat_id_col="feature_id",
+  gene_id_col="gene_id",
+  frm=~condition,
+  test_term="condition",
+  sample_factors=list(condition=c("ctl", "trt"))
+)
+out <- h0testr::f.initialize(state, config, minimal=TRUE)
+print(out$state)
+str(out$config)
+
+config <- list(
+  obs_id_col="observation_id",
+  sample_id_col="observation_id",
+  feat_id_col="feature_id",
+  gene_id_col="gene_id",
+  frm=~condition,
+  test_term="condition", 
+  sample_factors=list(condition=c("ctl", "trt")),
+  n_samples_expr_col="n_samples_exprs",
+  median_raw_col="median_raw",
+  n_features_expr_col="n_features_exprs"
+)
 out <- h0testr::f.initialize(state, config)
 print(out$state)
 str(out$config)

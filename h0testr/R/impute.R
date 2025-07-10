@@ -279,7 +279,7 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
   return(state)
 }
 
-#' Impute by drawing from `p(missing|intensity)` from binomial glm.
+#' Impute by drawing from \code{p(missing|intensity)} from binomial glm.
 #' @description
 #'   Impute missing values by randomly drawing from an estimated density 
 #'     of \code{p(missing|intensity)}.
@@ -475,17 +475,17 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
 
 #' Impute missing values using \code{randomForest}.
 #' @description
-#'   Impute missing values using \code{randomForest}.
-#' @details Imputes missing values using a \code{randomForest} model trained 
-#'   using observations in which the feature was expressed. Iterates through 
-#'   features beginning with those having fewest missing values. If 
-#'   \code{aug_steps > 0}, augments observations with affine transormed 
-#'   versions. This is meant to enable extrapolation outside of observed 
-#'   intensity range. If \code{aug_steps > 0}, assumes expression data have been 
-#'   previously \code{log(x+1)} transformed. If you want \code{0} to be 
-#'   considered missing, and have \code{0} in the data, do something like 
-#'   \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. Augmentation uses 
-#'   \code{f.aug_mult()}.
+#'   Impute missing values using the \code{randomForest} package.
+#' @details Imputes missing values using a \code{randomForest::randomForest} 
+#'   model trained using observations in which the feature was expressed. 
+#'   Iterates through features beginning with those having fewest missing 
+#'   values. If \code{aug_steps > 0}, augments observations with affine 
+#'   transormed versions. This is meant to enable extrapolation outside of 
+#'   observed intensity range. If \code{aug_steps > 0}, assumes expression 
+#'   data have been previously \code{log(x+1)} transformed. If you want 
+#'   \code{0} to be considered missing, and have \code{0} in the data, do 
+#'   something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. 
+#'   Augmentation uses \code{f.augment_affine()}.
 #' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -738,7 +738,8 @@ f.impute_glmnet <- function(state, config, f_imp=f.impute_unif_sample_lod,
 #'     \code{config}. Assumes expression data have been previously
 #'     \code{log(x+1)} transformed. If you want \code{0} to be considered missing, 
 #'     and have \code{0} in the data, do something like 
-#'     \code{exprs[exprs \%in\% 0] <- 0} prior to imputing. 
+#'     \code{exprs[exprs \%in\% 0] <- 0} prior to imputing. See invidual 
+#'     \code{f.impute_*} methods for more details.
 #' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr

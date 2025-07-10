@@ -1,8 +1,8 @@
 #' Normalize expression using \code{edgeR}
 #' @description
 #'   Normalize expression using functionality from \code{edgeR} package.
-#' @details Inter-observation normalization. \code{edgeR::calcNormFactors()} 
-#'   called under the hood. Returned values on a counts-per-million scale.
+#' @details Inter-observation normalization. Uses \code{edgeR::calcNormFactors()}. 
+#'   Returned values on a counts-per-million scale.
 #' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -203,9 +203,9 @@ f.normalize_cpm <- function(state, config, multiplier=1e6) {
 #' @description
 #'   Normalize expression using variance stabilizing transformation.
 #' @details 
-#'   Inter-observation normalization. Under the hood, it calls 
-#'     \code{limma::normalizeVSN()}. Unlike most other normalization methods,
-#'     results are returned on a log2-like scale.
+#'   Inter-observation normalization. Uses \code{limma::normalizeVSN()}. 
+#'     Unlike most other normalization methods, results are returned on a 
+#'     log2-like scale.
 #' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -353,6 +353,7 @@ f.normalize_qquantile <- function(state, config) {
 #'     between samples.
 #' @details 
 #'   Inter-observation normalization using any of the methods available in this package.
+#'     See individual methods for more details.
 #' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr

@@ -7,7 +7,8 @@
 f.run(config)
 }
 \arguments{
-\item{config}{List with configuration values like those returned by \code{f.new_config()}.}
+\item{config}{List with configuration values like those returned by 
+\code{f.new_config()}.}
 }
 \value{
 A list with the following elements:
@@ -18,14 +19,12 @@ A list with the following elements:
   }
 }
 \description{
-Run a basic workflow according to: 
-    \code{config$run_order}.
+Run a basic workflow according to: \code{config$run_order}.
 }
 \details{
-Run a basic workflow: 
-    \code{f.load_data -> config$run_order -> f.test}, where 
-      \code{config$run_order} is vector of functions which are run in
-      the specified order.
+Run a basic workflow: \code{f.load_data -> config$run_order -> f.test}, 
+    where \code{config$run_order} is vector of functions which are run in 
+    the specified order.
 }
 \examples{
 config <- h0testr::f.new_config()

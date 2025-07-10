@@ -28,9 +28,9 @@ A list (the processed state) with the following elements:
 Normalize expression using variance stabilizing transformation.
 }
 \details{
-Inter-observation normalization. Under the hood, it calls 
-    \code{limma::normalizeVSN()}. Unlike most other normalization methods,
-    results are returned on a log2-like scale.
+Inter-observation normalization. Uses \code{limma::normalizeVSN()}. 
+    Unlike most other normalization methods, results are returned on a 
+    log2-like scale.
 }
 \examples{
 set.seed(101)

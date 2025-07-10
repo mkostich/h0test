@@ -36,6 +36,7 @@ Normalize expression data to reduce effects of technical differences
 }
 \details{
 Inter-observation normalization using any of the methods available in this package.
+    See individual methods for more details.
 }
 \examples{
 set.seed(101)

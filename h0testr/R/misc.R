@@ -49,23 +49,21 @@ f.save_tsv <- function(dat, file_out, config, row.names=T, col.names=T) {
 f.check_state <- function(state, config) {
 
   if(is.null(config$feat_col) || config$feat_col %in% "") {
-    f.err("f.check_state: config$feat_col unset", 
-      config=config)
+    f.err("f.check_state: config$feat_col unset", config=config) 
   }
   feats <- state$features[, config$feat_col, drop=T]
   if(!all(rownames(state$expression) == feats)) {
     f.err("f.check_state: state$features do not match rows of state$expression", 
-      config=config)
+      "config$feat_col: ", config$feat_col, config=config)
   }
   
   if(is.null(config$obs_col) || config$obs_col %in% "") {
-    f.err("f.check_state: config$obs_col unset", 
-      config=config)
+    f.err("f.check_state: config$obs_col unset", config=config)
   }
   samps <- state$samples[, config$obs_col, drop=T]
   if(!all(colnames(state$expression) == samps)) {
     f.err("f.check_state: state$samples do not match columns of state$expression", 
-      config=config)
+      "config$obs_col: ", config$obs_col, config=config)
   }
   
   if(!is.matrix(state$expression)) {

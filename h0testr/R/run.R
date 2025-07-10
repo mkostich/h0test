@@ -1,13 +1,12 @@
 #' Run a basic workflow
 #' @description
-#'   Run a basic workflow according to: 
-#'     \code{config$run_order}.
+#'   Run a basic workflow according to: \code{config$run_order}.
 #' @details
-#'   Run a basic workflow: 
-#'     \code{f.load_data -> config$run_order -> f.test}, where 
-#'       \code{config$run_order} is vector of functions which are run in
-#'       the specified order.
-#' @param config List with configuration values like those returned by \code{f.new_config()}.
+#'   Run a basic workflow: \code{f.load_data -> config$run_order -> f.test}, 
+#'     where \code{config$run_order} is vector of functions which are run in 
+#'     the specified order.
+#' @param config List with configuration values like those returned by 
+#'   \code{f.new_config()}.
 #' @return A list with the following elements:
 #'   \tabular{ll}{
 #'     \code{state}  \cr \tab A list with elements \code{$expression}, \code{$features}, and \code{$samples}. \cr

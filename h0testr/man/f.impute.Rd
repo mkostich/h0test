@@ -43,7 +43,8 @@ Imputes missing values using a method and parameters specified in
     \code{config}. Assumes expression data have been previously
     \code{log(x+1)} transformed. If you want \code{0} to be considered missing, 
     and have \code{0} in the data, do something like 
-    \code{exprs[exprs \%in\% 0] <- 0} prior to imputing.
+    \code{exprs[exprs \%in\% 0] <- 0} prior to imputing. See invidual 
+    \code{f.impute_*} methods for more details.
 }
 \examples{
 set.seed(101)

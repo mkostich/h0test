@@ -8,7 +8,7 @@ f.sim2(
   n_samps1,
   n_samps2,
   n_genes,
-  n_genes_signif,
+  n_genes_signif = 0,
   fold_change = 0.5,
   peps_per_gene = 1,
   reps_per_sample = 1,
@@ -101,5 +101,9 @@ print(rslt)
 
 ## peptide-level, with technical replicate observations:
 rslt <- h0testr::f.sim2(n_samps1=2, n_samps2=2, n_genes=8, reps_per_sample=2, peps_per_gene=3)
+print(rslt)
+
+## minimal \code{2x2} matrix with no effects:
+rslt <- h0testr::f.sim2(n_samps1=1, n_samps2=1, n_genes=2)
 print(rslt)
 }

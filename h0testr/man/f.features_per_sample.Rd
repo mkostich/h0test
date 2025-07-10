@@ -2,7 +2,7 @@
 % Please edit documentation in R/filter.R
 \name{f.features_per_sample}
 \alias{f.features_per_sample}
-\title{Numer of expressed features per sample}
+\title{Number of expressed features per sample}
 \usage{
 f.features_per_sample(state, config)
 }

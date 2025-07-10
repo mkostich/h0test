@@ -11,6 +11,7 @@ Description: Toolkit providing R-based functionality for analyzing
   transform, combine technical replicates, impute and perform hypothesis 
   testing. Also has higher level functions to run whole workflows, as well 
   as function to tune workflow configuration and parameterization.
+Encoding: UTF-8
 License: GPL-3
 URL: https://github.com/TheJacksonLaboratory/h0testr
 RoxygenNote: 7.3.2

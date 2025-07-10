@@ -28,7 +28,7 @@ A \code{data.frame} containing results of test.
 }
 \description{
 Test for differential expression using the \code{limma} 
-  package trend approach.
+  package \code{trend} approach.
 }
 \details{
 Tests for differential expression using the \code{limma} pakcage by running 
@@ -40,7 +40,7 @@ Tests for differential expression using the \code{limma} pakcage by running
 set.seed(101)
 ## no missing values: mnar_c0=-Inf, mnar_c1=0, mcar_p=0
 exprs <- h0testr::f.sim2(n_samps1=6, n_samps2=6, n_genes=25, 
-  n_genes_signif=5, fold_change=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+  n_genes_signif=5, fold_change=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)$mat
 exprs <- log2(exprs + 1)
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs), 

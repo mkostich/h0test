@@ -65,19 +65,19 @@ A list with the following elements:
   }
 }
 \description{
-Impute missing values using \code{randomForest}.
+Impute missing values using the \code{randomForest} package.
 }
 \details{
-Imputes missing values using a \code{randomForest} model trained 
-  using observations in which the feature was expressed. Iterates through 
-  features beginning with those having fewest missing values. If 
-  \code{aug_steps > 0}, augments observations with affine transormed 
-  versions. This is meant to enable extrapolation outside of observed 
-  intensity range. If \code{aug_steps > 0}, assumes expression data have been 
-  previously \code{log(x+1)} transformed. If you want \code{0} to be 
-  considered missing, and have \code{0} in the data, do something like 
-  \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. Augmentation uses 
-  \code{f.aug_mult()}.
+Imputes missing values using a \code{randomForest::randomForest} 
+  model trained using observations in which the feature was expressed. 
+  Iterates through features beginning with those having fewest missing 
+  values. If \code{aug_steps > 0}, augments observations with affine 
+  transormed versions. This is meant to enable extrapolation outside of 
+  observed intensity range. If \code{aug_steps > 0}, assumes expression 
+  data have been previously \code{log(x+1)} transformed. If you want 
+  \code{0} to be considered missing, and have \code{0} in the data, do 
+  something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. 
+  Augmentation uses \code{f.augment_affine()}.
 }
 \examples{
 set.seed(101)

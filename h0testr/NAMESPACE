@@ -23,7 +23,9 @@ export(f.normalize_vsn)
 export(f.normalize_loess)
 export(f.normalize_qquantile)
 export(f.normalize)
+
 export(f.combine_reps)
+export(f.combine_peps)
 
 export(f.impute_unif_global_lod)
 export(f.impute_unif_sample_lod)

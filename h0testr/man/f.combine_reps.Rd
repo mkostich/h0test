@@ -2,12 +2,13 @@
 % Please edit documentation in R/aggregate.R
 \name{f.combine_reps}
 \alias{f.combine_reps}
-\title{Combine technical replicates}
+\title{Combine replicate observations}
 \usage{
 f.combine_reps(state, config)
 }
 \arguments{
-\item{state}{List with elements formatted like the list returned by \code{f.read_data()}:
+\item{state}{List with elements formatted like the list returned by 
+\code{f.read_data()}:
 \tabular{ll}{
   \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
   \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -16,9 +17,15 @@ f.combine_reps(state, config)
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{feat_col}      \cr \tab Name of column in feature metadata matching \code{rownames(state$expression)}. \cr
-  \code{obs_col}       \cr \tab Name of column in observation metadata matching \code{colnames(state$expression)}. \cr
-  \code{sample_id_col} \cr \tab Name of column in observation metadata with unique sample ids. \cr
+  \code{feat_col}        \cr \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}.
+  \code{obs_id_col}      \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}.
+  \code{sample_id_col}   \cr \tab Name of column in \code{state$samples} with unique sample (case) ids. \cr
+  \code{save_state}      \cr \tab Logical scalar indicating whether to save new state to disk. \cr
+  \code{dir_out}         \cr \tab Output directory path (scalar character); only needed if \code{save_state == TRUE}. \cr
+  \code{data_mid_out}    \cr \tab Midfix of expression matrix filename; only needed if \code{save_state == TRUE}.\cr
+  \code{feature_mid_out} \cr \tab Midfix of feature metadata filename; only needed if \code{save_state == TRUE}.\cr
+  \code{sample_mid_out}  \cr \tab Midfix of sample metadata filename; only needed if \code{save_state == TRUE}.\cr
+  \code{suffix_out}      \cr \tab Suffix of output files; only needed if \code{save_state == TRUE}.\cr
 }}
 }
 \value{
@@ -30,20 +37,26 @@ A list (the processed state) with the following elements:
   }
 }
 \description{
-Combine expression signals from technical replicates.
+Combine expression signals from replicate observations, such as technical replicates.
 }
 \details{
 Combines signals for each feature across technical replicates by taking median.
+  Deletes \code{state$samples[, config$obs_id_col} if not same as 
+    \code{config$sample_id_col}.
+  Sets \code{config$obs_col} and \code{config$obs_id_col} to 
+    \code{config$sample_id_col}.
 }
 \examples{
 set.seed(101)
 exprs <- h0testr::f.sim1(n_obs=6, n_feats=8)$mat
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
-samps$sample_id=c("samp1", "samp2", "samp3", "samp1", "samp2", "samp3")
+samps$sample_id=c("samp1", "samp1", "samp2", "samp2", "samp3", "samp3")
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(feat_col="feature_id", obs_col="observation_id", sample_id_col="sample_id", save_state=FALSE)
+config <- list(feat_col="feature_id", obs_id_col="observation_id", sample_id_col="sample_id", save_state=FALSE)
 out <- h0testr::f.combine_reps(state, config)
-state
-out$state
+print(state)
+print(out$state)
+str(config)
+str(out$config)
 }
