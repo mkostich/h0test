@@ -1,18 +1,31 @@
+## helper; n normally distributed positive values with means m and sds s:
+
+f.rnorm_pos <- function(n, m, s) {
+  
+  if(any(m < 0)) stop("f.rnorm_pos: any(m < 0); m: ", m)
+  if(length(m) != length(s)) stop("f.rnorm_pos: length(m) != length(s)") 
+  
+  v <- stats::rnorm(n[1], mean=m, sd=s)
+  i <- v <= 0
+  i[is.na(i)] <- T
+  
+  while(any(i)) {
+    v[i] <- stats::rnorm(sum(i), mean=m, sd=s)
+    i <- v <= 0
+    i[is.na(i)] <- T
+  }
+  
+  return(v)
+}
+
 ## helper for f.sim1 and f.sim2; ensures all values strictly positive (> 0):
 
-f.sim0 <- function(n_obs, feat_means, feat_sds, mnar_c0, mnar_c1, mnar_off=0.0001) {
+f.sim0 <- function(n_obs, feat_means, feat_sds) {
 
   mat <- NULL
 
   for(i_obs in 1:n_obs) {
-
-    v <- stats::rnorm(length(feat_means), mean=feat_means, sd=feat_sds)
-    i <- v <= 0
-    while(any(i)) {
-      v[i] <- stats::rnorm(sum(i), mean=feat_means[i], sd=feat_sds[i])
-      i <- v <= 0
-    }
-
+    v <- f.rnorm_pos(n=length(feat_means), m=feat_means, s=feat_sds)
     mat <- cbind(mat, v)
   }
 
@@ -87,12 +100,11 @@ f.sim1 <- function(n_obs, n_feats, log_m_mean=11, log_m_sd=2.7,
     mnar_off=0.0001, mcar_p=0.002) {
 
   ## feature mean, cv, and sd:
-  m <- exp(stats::rnorm(n=n_feats, mean=log_m_mean, sd=log_m_sd))
-  cv <- exp(stats::rnorm(n=n_feats, mean=log_cv_mean, sd=log_cv_sd))
+  m <- exp(f.rnorm_pos(n=n_feats, m=log_m_mean, s=log_m_sd))
+  cv <- exp(stats::rnorm(n_feats, mean=log_cv_mean, sd=log_cv_sd))
   s <- m * cv
   
-  mat <- f.sim0(n_obs=n_obs, feat_means=m, feat_sds=s, 
-    mnar_c0=mnar_c0, mnar_c1=mnar_c1, mnar_off=mnar_off)
+  mat <- f.sim0(n_obs=n_obs, feat_means=m, feat_sds=s)
 
   rownames(mat) <- names(m) <- names(cv) <- paste0("feat_", 1:n_feats)
   colnames(mat) <- paste0("obs_", 1:n_obs)
@@ -121,6 +133,9 @@ f.sim1 <- function(n_obs, n_feats, log_m_mean=11, log_m_sd=2.7,
 #'     \code{log(feature_mean) ~ rnorm(mean=log_m_mean, sd=log_m_sd)}.
 #'   Dispersion of feature CVs: 
 #'     \code{log(feature_cv) ~ rnorm(mean=log_cv_mean, sd=log_cv_sd)}.
+#'   Setting \code{p_drop > 0} when \code{peps_per_gene >= 2}, 
+#'     can (if \code{p_drop} is high enough) result in a heterogenous
+#'     number of peptides per gene.
 #'   MNAR: \code{logit(p(mnar|log(m))) ~ mnar_c0 + mnar_c1 * log(m + mnar_off)}.
 #'   For no MNAR, set \code{mnar_c0=-Inf, mnar_c1=0}.
 #'   For no MCAR, set \code{mcar_p=0}.
@@ -129,7 +144,7 @@ f.sim1 <- function(n_obs, n_feats, log_m_mean=11, log_m_sd=2.7,
 #' @param n_genes Scalar number of gene groups to simulate, with \code{n_genes >= 2}. 
 #' @param n_genes_signif Number of significant (affected) genes. Scalar numeric, 
 #'   with \code{0 <= n_genes_signif <= n_genes}.
-#' @param fold_change Fold change for \code{n_sig} features. Scalar numeric.
+#' @param fold_change \code{log2(fold_change)} for \code{n_sig} features. Scalar numeric.
 #' @param peps_per_gene Number of peptides to simulate per gene. 
 #' @param reps_per_sample Number of technical replicates to simulate per sample.
 #' @param cv_reps Coeffient of variation between technical replicates.
@@ -141,6 +156,8 @@ f.sim1 <- function(n_obs, n_feats, log_m_mean=11, log_m_sd=2.7,
 #'   feature means. Scalar numeric, with \code{log_cv_mean > 0}.
 #' @param log_cv_sd Standard deviation of coefficient of variation of features 
 #'   around respective feature means. Scalar numeric, with \code{log_cv_sd > 0}.
+#' @param p_drop Probability for dropping individual peptides across all 
+#'   samples. 
 #' @param mnar_c0 Intercept of logistic fit of \code{p(mnar|log(intensity))}. 
 #'   Scalar numeric.
 #' @param mnar_c1 Slope of logistic fit of \code{p(mnar|log(intensity))}. 
@@ -175,14 +192,14 @@ f.sim1 <- function(n_obs, n_feats, log_m_mean=11, log_m_sd=2.7,
 f.sim2 <- function(n_samps1, n_samps2, n_genes, n_genes_signif=0, 
     fold_change=0.5, peps_per_gene=1, reps_per_sample=1, cv_reps=0.1, 
     log_m_mean=11, log_m_sd=2.7, log_cv_mean=-0.75, log_cv_sd=0.5, 
-    mnar_c0=4.65, mnar_c1=-0.5, mnar_off=0.0001, mcar_p=0.002) {
+    p_drop=0, mnar_c0=4.65, mnar_c1=-0.5, mnar_off=0.0001, mcar_p=0.002) {
     
   if(n_samps1 < 1 || n_samps2 < 1) stop("n_samps1 < 1 || n_samps2 < 1")
   if(n_genes < 2 || n_genes_signif < 0) stop("n_genes < 2 || n_genes_signif < 0")
   
   ## feature mean, cv, and sds:
-  cv <- exp(stats::rnorm(n=n_genes * peps_per_gene, mean=log_cv_mean, sd=log_cv_sd))
-  m1 <- exp(stats::rnorm(n=n_genes * peps_per_gene, mean=log_m_mean, sd=log_m_sd))
+  cv <- exp(stats::rnorm(n_genes * peps_per_gene, mean=log_cv_mean, sd=log_cv_sd))
+  m1 <- exp(f.rnorm_pos(n=n_genes * peps_per_gene, m=log_m_mean, s=log_m_sd))
   s1 <- m1 * cv
   
   ## genes, significance, peptides, and labels:
@@ -226,7 +243,7 @@ f.sim2 <- function(n_samps1, n_samps2, n_genes, n_genes_signif=0,
         if(is.na(val)) {
           return(rep(NA, reps_per_sample))
         } else {
-          return(stats::rnorm(reps_per_sample, mean=val, sd=cv_reps * val))
+          return(f.rnorm_pos(n=reps_per_sample, m=val, s=cv_reps * val))
         }
       }
       return(list(t(sapply(v, f0))))
@@ -238,6 +255,12 @@ f.sim2 <- function(n_samps1, n_samps2, n_genes, n_genes_signif=0,
       colnames(tmp_list[[nom]]) <- paste0(nom, "_rep", 1:reps_per_sample)
     }
     mat <- do.call(cbind, tmp_list)
+  }
+  
+  ## heterogenous number of peptides per gene if p_drop > 0:
+  if(p_drop > 0 && peps_per_gene >= 2) {
+    i_drop <- as.logical(stats::rbinom(nrow(mat), 1, 1-p_drop))
+    mat <- mat[i_drop, ]
   }
   
   ## mnar:

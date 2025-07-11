@@ -37,6 +37,8 @@ export(f.impute_rf)
 export(f.impute_glmnet)
 export(f.impute)
 
+export(f.test_deqms)
+export(f.test_msqrob)
 export(f.test_voom)
 export(f.test_trend)
 export(f.test)

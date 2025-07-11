@@ -17,6 +17,7 @@ f.sim2(
   log_m_sd = 2.7,
   log_cv_mean = -0.75,
   log_cv_sd = 0.5,
+  p_drop = 0,
   mnar_c0 = 4.65,
   mnar_c1 = -0.5,
   mnar_off = 1e-04,
@@ -33,7 +34,7 @@ f.sim2(
 \item{n_genes_signif}{Number of significant (affected) genes. Scalar numeric, 
 with \code{0 <= n_genes_signif <= n_genes}.}
 
-\item{fold_change}{Fold change for \code{n_sig} features. Scalar numeric.}
+\item{fold_change}{\code{log2(fold_change)} for \code{n_sig} features. Scalar numeric.}
 
 \item{peps_per_gene}{Number of peptides to simulate per gene.}
 
@@ -52,6 +53,9 @@ feature means. Scalar numeric, with \code{log_cv_mean > 0}.}
 
 \item{log_cv_sd}{Standard deviation of coefficient of variation of features 
 around respective feature means. Scalar numeric, with \code{log_cv_sd > 0}.}
+
+\item{p_drop}{Probability for dropping individual peptides across all 
+samples.}
 
 \item{mnar_c0}{Intercept of logistic fit of \code{p(mnar|log(intensity))}. 
 Scalar numeric.}
@@ -86,6 +90,9 @@ For \code{n_genes_signif} features out of \code{n_genes} will have a 50:50 chanc
     \code{log(feature_mean) ~ rnorm(mean=log_m_mean, sd=log_m_sd)}.
   Dispersion of feature CVs: 
     \code{log(feature_cv) ~ rnorm(mean=log_cv_mean, sd=log_cv_sd)}.
+  Setting \code{p_drop > 0} when \code{peps_per_gene >= 2}, 
+    can (if \code{p_drop} is high enough) result in a heterogenous
+    number of peptides per gene.
   MNAR: \code{logit(p(mnar|log(m))) ~ mnar_c0 + mnar_c1 * log(m + mnar_off)}.
   For no MNAR, set \code{mnar_c0=-Inf, mnar_c1=0}.
   For no MCAR, set \code{mcar_p=0}.

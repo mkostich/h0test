@@ -1,3 +1,249 @@
+#' Hypothesis testing using the \code{DEqMS} package
+#' @description
+#'   Tests for differential expression using the \code{DEqMS::spectraCounteBayes()} function.
+#' @details
+#'   The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm} 
+#'     and a moderated t-test is performed for whether the effect of 
+#'     \code{config$test_term} on \code{state$expression} is zero. 
+#'   Flow is:
+#'     \tabular{l}{
+#'       1. for each gene, count number of associated peptides. \cr
+#'       2. Fit linear model to \code{config$frm} using \code{limma::lmFit()}. \cr
+#'       3. Calculate statistics using \code{limma::eBayes()} on fitted model. \cr
+#'       4. Append peptide counts to model returned by \code{limma::eBayes()}. \cr
+#'       5. Adjust statistics using \code{DEqMS::spectraCounteBayes()}. \cr
+#'       6. Generate hit table with \code{DEqMS::outputResult()}. \cr
+#'     }
+#' @param state List with elements like those returned by \code{f.read_data()}:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{gene_id_col}    \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
+#'     \code{feat_col}       \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
+#'     \code{obs_col}        \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
+#'     \code{frm}            \cr \tab Formula (formula) to be fit \cr
+#'     \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
+#'   }
+#' @param trend Logical scalar. Whether \code{limma::eBayes()} should use trended dispersion estimate.
+#' @return
+#'   A data.frame with results of test. Columns include: 
+#'     \code{c("logFC", "AveExpr", "t", "P.Value", "adj.P.Val", "B", "gene", "count", "sca.t", "sca.P.Value", "sca.adj.pval")}.
+#'   Initial statistics from \code{limma}. Columns beginning with \code{sca.} 
+#'     added by \code{DEqMS}.
+#' @examples
+#' ## lengthy setup of expression data:
+#' set.seed(101)
+#' nsamps <- 6
+#' sim <- h0testr::f.sim2(
+#'   n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
+#'   fold_change=1, peps_per_gene=10, reps_per_sample=1, 
+#'   p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0
+#' )
+#' exprs <- sim$mat
+#' gene <- strsplit(rownames(exprs), "_")
+#' gene <- sapply(gene, function(v) unlist(v)[1])
+#' feats <- data.frame(pep=rownames(exprs), gene=gene)
+#' samps <- data.frame(
+#'   obs=colnames(exprs), 
+#'   grp=c(rep("ctl", nsamps), rep("trt", nsamps)),
+#'   sex=rep(c("M", "F"), round(ncol(exprs) / 2))
+#' )
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' rm(sim, exprs, gene, feats, samps)
+#'
+#' ## setup config and prep variables of interest for testing:
+#' config <- list(
+#'   obs_id_col="obs",
+#'   sample_id_col="obs",
+#'   feat_id_col="pep",
+#'   gene_id_col="gene",
+#'   frm=~grp+sex+grp:sex, 
+#'   test_term="grp",
+#'   sample_factors=list( 
+#'     grp=c("ctl", "trt"), 
+#'     sex=c("F", "M")
+#'   )
+#' )
+#' out <- h0testr::f.initialize(state, config, minimal=TRUE)
+#' 
+#' ## actual test:
+#' tbl <- h0testr::f.test_deqms(out$state, out$config)
+#' head(tbl)
+
+f.test_deqms <- function(state, config, trend=FALSE) {
+  
+  f.check_config(config)
+  f.check_state(state, config)
+  
+  tbl <- table(state$features[, config$gene_id_col], useNA="ifany")
+  tbl <- as.data.frame(tbl)
+  counts <- tbl$Freq
+  names(counts) <- tbl$Var1
+
+  out <- h0testr::f.combine_peps(state, config, method="medianPolish", rescale=TRUE)
+  state <- out$state
+  config <- out$config
+  design <- stats::model.matrix(config$frm, data=state$samples)
+  cols_des <- colnames(design)
+  
+  frm0 <- stats::as.formula(paste("~0 + ", config$test_term))
+  cols_pick <- colnames(stats::model.matrix(frm0, data=state$samples))
+  cols_pick <- cols_pick[cols_pick %in% cols_des]
+  idx <- which(cols_des %in% cols_pick)
+  if(length(idx) != 1) f.err("length(idx) != 1", config=config)
+
+  fit <- limma::lmFit(state$expression, design)
+  fit <- limma::eBayes(fit, trend=trend)
+  fit$count <- counts[rownames(fit$coefficients)]
+  fit <- DEqMS::spectraCounteBayes(fit, fit.method="loess")
+  tbl <- DEqMS::outputResult(fit, coef_col=idx)
+
+  return(tbl)
+}
+
+#' Hypothesis testing using the \code{msqrob2} package
+#' @description
+#'   Tests for differential expression using the \code{msqrob2::msqrob()} function.
+#' @details
+#'   The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm} 
+#'     and a moderated t-test is performed for whether the effect of 
+#'     \code{config$test_term} on \code{state$expression} is zero. 
+#'   Flow is:
+#'     \tabular{l}{
+#'       1. Create a \code{QFeatures} object with \code{QFeatures::readQFeatures()}. 
+#'       2. Convert \code{NA}s to zero using \code{QFeatures::zeroIsNA()}. 
+#'       3. Make gene/protein-group expression with \code{QFeatures::aggregateFeatures()}.
+#'       4. Estimate model parameters using \code{msqrob2::msqrob()}.
+#'       5. Calculate test statistics with \code{msqrob2::hypothesisTest()}.
+#'     }
+#' @param state List with elements like those returned by \code{f.read_data()}:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{gene_id_col}    \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
+#'     \code{feat_col}       \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
+#'     \code{obs_col}        \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
+#'     \code{frm}            \cr \tab Formula (formula) to be fit \cr
+#'     \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
+#'   }
+#' @param maxit Integer scalar >= 1. How many iterations to use for \code{rlm} fitting.
+#' @return
+#'   A data.frame with test results. Columns include \code{config$gene_id_col} and: 
+#'     \code{c("nNonZero .n", "logFC", "se", "df", "t", "pval", "adjPval")}.
+#' @examples
+#' ## lengthy setup of expression data:
+#' set.seed(101)
+#' nsamps <- 6
+#' sim <- h0testr::f.sim2(
+#'   n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
+#'   fold_change=1, peps_per_gene=10, reps_per_sample=1, 
+#'   p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0
+#' )
+#' exprs <- sim$mat
+#' gene <- strsplit(rownames(exprs), "_")
+#' gene <- sapply(gene, function(v) unlist(v)[1])
+#' feats <- data.frame(pep=rownames(exprs), gene=gene)
+#' samps <- data.frame(
+#'   obs=colnames(exprs), 
+#'   grp=c(rep("ctl", nsamps), rep("trt", nsamps)),
+#'   sex=rep(c("M", "F"), round(ncol(exprs) / 2))
+#' )
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' rm(sim, exprs, gene, feats, samps)
+#'
+#' ## setup config and prep variables of interest for testing:
+#' config <- list(
+#'   obs_id_col="obs",
+#'   sample_id_col="obs",
+#'   feat_id_col="pep",
+#'   gene_id_col="gene",
+#'   frm=~grp+sex+grp:sex, 
+#'   test_term="grp",
+#'   sample_factors=list( 
+#'     grp=c("ctl", "trt"), 
+#'     sex=c("F", "M")
+#'   )
+#' )
+#' out <- h0testr::f.initialize(state, config, minimal=TRUE)
+#' 
+#' ## actual test:
+#' tbl <- h0testr::f.test_msqrob(out$state, out$config)
+#' head(tbl)
+
+f.test_msqrob <- function(state, config, maxit=20) {
+
+  f.check_config(config)
+  f.check_state(state, config)
+
+  exprs <- as.data.frame(state$expression)
+  n_non0 <- apply(exprs, 1, function(v) sum(v > 0, na.rm=T))
+  exprs <- cbind(fnames=rownames(exprs), exprs)
+  rownames(exprs) <- NULL
+  obj <- QFeatures::readQFeatures(table=exprs, ecol=2:ncol(exprs), 
+    fnames="fnames", name="features")  
+
+  ## SummarizedExperiment::rowData(obj[["features"]]) <- S4Vectors::DataFrame(state$features)
+  feats <- state$features
+  for(nom in names(feats)) {
+    if(is.factor(feats[[nom]])) {
+      SummarizedExperiment::rowData(obj[["features"]])[[nom]] <- as.character(feats[[nom]])
+    } else {
+      SummarizedExperiment::rowData(obj[["features"]])[[nom]] <- feats[[nom]]
+    }
+  }
+  SummarizedExperiment::rowData(obj[["features"]])$nNonZero <- n_non0
+
+  samps <- state$samples
+  for(nom in names(samps)) {
+    if(is.factor(samps[[nom]])) {
+      SummarizedExperiment::colData(obj)[[nom]] <- as.character(samps[[nom]])
+    } else {
+      SummarizedExperiment::colData(obj)[[nom]] <- samps[[nom]]
+    }
+  }
+  
+  ## convert NA to 0:
+  obj <- QFeatures::zeroIsNA(obj, i="features")
+  
+  ## aggregate peptides into genes:
+  obj <- QFeatures::aggregateFeatures(obj, i="features", 
+    fcol=config$gene_id_col, na.rm=T, name="genes", fun=base::colMeans)
+  
+  obj <- msqrob2::msqrob(object=obj, i="genes", formula=config$frm, maxitRob=maxit)
+  
+  cols_des <- colnames(stats::model.matrix(config$frm, data=state$samples))
+  frm0 <- stats::as.formula(paste("~0 + ", config$test_term))
+  cols_pick <- colnames(stats::model.matrix(frm0, data=state$samples))
+  cols_pick <- cols_pick[cols_pick %in% cols_des]
+  idx <- which(cols_des %in% cols_pick)
+  if(length(idx) != 1) f.err("length(idx) != 1", config=config)
+  cols_pick <- cols_des[idx]
+  
+  con <- msqrob2::makeContrast(contrasts=paste0(cols_pick, "=0"), 
+    parameterNames=c(cols_pick))
+  
+  obj <- msqrob2::hypothesisTest(object=obj, i="genes", contrast=con, 
+    modelColumn="msqrobModels")
+  
+  dat <- SummarizedExperiment::rowData(obj[["genes"]])    
+  tbl <- dat[[cols_pick]]
+  dat <- dat[, c(config$gene_id_col, "nNonZero", ".n")]
+  dat <- as.data.frame(dat)
+  tbl <- cbind(dat[rownames(tbl), ], tbl)
+  tbl <- tbl[order(tbl$adjPval, -abs(tbl$logFC)), ]
+  rownames(tbl) <- NULL
+  
+  return(tbl)
+}
+
 #' Hypothesis testing using \code{limma::voom}
 #' @description
 #'   Tests for differential expression using the \code{limma::voom()} function.
@@ -72,6 +318,7 @@ f.test_voom <- function(state, config, normalize.method="none") {
   return(tbl)
 }
 
+
 #' Hypothesis testing using \code{limma} trend.
 #' @description
 #'   Test for differential expression using the \code{limma} 
@@ -144,6 +391,7 @@ f.test_trend <- function(state, config) {
   
   return(tbl)
 }
+
 
 #' Hypothesis testing
 #' @description
