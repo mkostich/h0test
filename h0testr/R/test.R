@@ -244,6 +244,254 @@ f.test_msqrob <- function(state, config, maxit=20) {
   return(tbl)
 }
 
+
+#' Hypothesis testing using the \code{proDA} package
+#' @description
+#'   Tests for differential expression using the \code{proDA::proDA()} function.
+#' @details
+#'   Uses the \code{proDA::proDA()} function. Returned results sorted by p-value.
+#' @param state List with elements like those returned by \code{f.read_data()}:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{gene_id_col}    \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
+#'     \code{feat_col}       \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
+#'     \code{obs_col}        \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
+#'     \code{frm}            \cr \tab Formula (formula) to be fit \cr
+#'     \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
+#'     \code{norm_method}    \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
+#'   }
+#' @param is_log_transformed Logical scalar indicating if \code{state$expression} has been log transformed.
+#' @param prior_df Strictly positive count (\code{location_prior_df}) indicating number of dfs for prior.
+#' @param maxit Strictly positive count indicating maximum number of iterations for \code{proDA::proDA()} algorithm.
+#' @return
+#'   A data.frame with test results. Columns include \code{config$gene_id_col} and: 
+#'     \code{c("nNonZero .n", "logFC", "se", "df", "t", "pval", "adjPval")}.
+#' @examples
+#' ## lengthy setup of expression data:
+#' set.seed(101)
+#' nsamps <- 6
+#' sim <- h0testr::f.sim2(
+#'   n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
+#'   fold_change=1, peps_per_gene=10, reps_per_sample=1, 
+#'   p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0
+#' )
+#' exprs <- sim$mat
+#' gene <- strsplit(rownames(exprs), "_")
+#' gene <- sapply(gene, function(v) unlist(v)[1])
+#' feats <- data.frame(pep=rownames(exprs), gene=gene)
+#' samps <- data.frame(
+#'   obs=colnames(exprs), 
+#'   grp=c(rep("ctl", nsamps), rep("trt", nsamps)),
+#'   sex=rep(c("M", "F"), round(ncol(exprs) / 2))
+#' )
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' rm(sim, exprs, gene, feats, samps)
+#'
+#' ## setup config and prep variables of interest for testing:
+#' config <- list(
+#'   obs_id_col="obs",
+#'   sample_id_col="obs",
+#'   feat_id_col="pep",
+#'   gene_id_col="gene",
+#'   frm=~grp+sex+grp:sex, 
+#'   test_term="grp",
+#'   sample_factors=list( 
+#'     grp=c("ctl", "trt"), 
+#'     sex=c("F", "M")
+#'   )
+#' )
+#' out <- h0testr::f.initialize(state, config, minimal=TRUE)
+#' 
+#' ## actual test:
+#' tbl <- h0testr::f.test_proda(out$state, out$config, is_log_transformed=FALSE)
+#' head(tbl)
+
+f.test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit=20) {
+
+  if(is.null(is_log_transformed) || is_log_transformed %in% "") {
+    if(is.null(config$norm_method) || config$norm_method %in% "") {
+      f.err("f.test_proda: is_log_transformed and config$norm_method both unset", 
+        config=config)
+    }
+    if(config$norm_method %in% c("none")) {
+      is_log_transformed <- FALSE 
+    } else {
+      is_log_transformed <- TRUE
+    }
+  }
+
+  fit <- proDA::proDA(state$expression, design=config$frm, col_data=state$samples, 
+    data_is_log_transformed=is_log_transformed, location_prior_df=prior_df, max_iter=maxit)
+
+  frm0 <- stats::as.formula(paste("~0 + ", config$test_term))
+  cols <- colnames(stats::model.matrix(frm0, data=state$samples))
+  i <- grepl(":", cols)
+  if(any(i)) cols[i] <- paste0("`", cols[i], "`")
+
+  cols2 <- proDA::result_names(fit)
+  i <- cols %in% cols2
+  if(sum(i) != 1) {
+    f.err("f.test_proda: multi-column match; cols: ", cols, "; cols2: ", 
+      cols2, config=config)
+  } 
+  col_pick <- cols[i]
+
+  tbl <- proDA::test_diff(fit, contrast=col_pick, sort_by="pval")
+  return(tbl)
+}
+
+
+#' Hypothesis testing using the \code{prolfq} package
+#' @description
+#'   Tests for differential expression using the \code{prolfq::build_model()} function.
+#' @details
+#'   Uses the \code{proDA::proDA()} function. Returned results sorted by p-value.
+#'     Only works if all terms in \code{config$frm} are \code{factor} or 
+#'     \code{character}. Error otherwise.
+#'   Flow is:
+#'     \tabular{l}{
+#'       1. Reshape data into long format with intensities, feature meta, and sample meta. 
+#'       2. Make and populate \code{prolfqua::AnalysisTableAnnotation} object. 
+#'       3. Make \code{prolfqua::LFQData} object from data and 
+#'            \code{prolfqua::AnalysisTableAnnotation} object.
+#'       4. Make \code{prolfqua::strategy_lm} object from \code{config$frm}.
+#'       5. Build \code{prolfqua} model from \code{prolfqua::LFQData} and 
+#'            \code{prolfqua::strategy_lm} objects.
+#'       5. Return sub-table of ANOVA results corresponding to \code{config$test_term}.
+#'     }
+#' @param state List with elements like those returned by \code{f.read_data()}:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   }
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{gene_id_col}    \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
+#'     \code{feat_col}       \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
+#'     \code{obs_col}        \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
+#'     \code{frm}            \cr \tab Formula (formula) to be fit \cr
+#'     \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
+#'     \code{sample_factors} \cr \tab List with one character vector per variable, with factor level ordering. \cr
+#'     \code{norm_method}    \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
+#'   }
+#' @param is_log_transformed Logical scalar indicating if \code{state$expression} has been log transformed.
+#' @return
+#'   A data.frame with test results. Columns include \code{config$gene_id_col} and: 
+#'     \code{c("nNonZero .n", "logFC", "se", "df", "t", "pval", "adjPval")}.
+#' @examples
+#' ## lengthy setup of expression data:
+#' set.seed(101)
+#' nsamps <- 6
+#' sim <- h0testr::f.sim2(
+#'   n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
+#'   fold_change=1, peps_per_gene=10, reps_per_sample=1, 
+#'   p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0
+#' )
+#' exprs <- sim$mat
+#' gene <- strsplit(rownames(exprs), "_")
+#' gene <- sapply(gene, function(v) unlist(v)[1])
+#' feats <- data.frame(pep=rownames(exprs), gene=gene)
+#' samps <- data.frame(
+#'   obs=colnames(exprs), 
+#'   grp=c(rep("ctl", nsamps), rep("trt", nsamps)),
+#'   sex=rep(c("M", "F"), round(ncol(exprs) / 2))
+#' )
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' rm(sim, exprs, gene, feats, samps)
+#'
+#' ## setup config and prep variables of interest for testing:
+#' config <- list(
+#'   obs_id_col="obs",
+#'   sample_id_col="obs",
+#'   feat_id_col="pep",
+#'   gene_id_col="gene",
+#'   frm=~grp+sex+grp:sex, 
+#'   test_term="grp",
+#'   sample_factors=list( 
+#'     grp=c("ctl", "trt"), 
+#'     sex=c("F", "M")
+#'   )
+#' )
+#' out <- h0testr::f.initialize(state, config, minimal=TRUE)
+#' 
+#' ## actual test:
+#' tbl <- h0testr::f.test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
+#' head(tbl)
+
+f.test_prolfqua <- function(state, config, is_log_transformed=NULL) {
+
+  if(is.null(is_log_transformed) || is_log_transformed %in% "") {
+    if(is.null(config$norm_method) || config$norm_method %in% "") {
+      f.err("f.test_proda: is_log_transformed and config$norm_method both unset", 
+        config=config)
+    }
+    if(config$norm_method %in% c("none")) {
+      is_log_transformed <- FALSE 
+    } else {
+      is_log_transformed <- TRUE
+    }
+  }
+  
+  dat <- data.frame(
+    state$features[, c(config$gene_id_col, config$feat_id_col)], 
+    state$expression
+  )
+  
+  dat <- stats::reshape(dat, direction="long", varying=colnames(state$expression), 
+    v.names="intensity", idvar=c(config$gene_id_col, config$feat_id_col), 
+    timevar="sample", times=colnames(state$expression))
+  rownames(dat) <- NULL
+  
+  samps <- state$samples
+  if(any(duplicated(samps[, config$obs_col, drop=T]))) {
+    f.err("f.test_prolfqua: duplicated state$samples[, config$obs_col]; obs_col: ", 
+      config$obs_col, config=config)
+  }
+  rownames(samps) <- samps[, config$obs_col, drop=T]
+  if(!all(dat$sample %in% rownames(samps))) {
+    i <- !(dat$sample %in% rownames(samps))
+    f.err("f.test_prolfqua: observation mismatch: ", 
+      paste(dat$sample[i], collapse=", "), config=config)
+  }
+  
+  frm <- paste(as.character(config$frm), collapse="")
+  frm <- gsub("[[:space:]]", "", frm)
+  frm <- sub("~", "", frm)
+  trms <- sort(unique(unlist(strsplit(frm, "[+*:]"))))
+  
+  meta <- prolfqua::AnalysisTableAnnotation$new()
+  meta$workIntensity <- "intensity"
+  meta$hierarchy[[config$gene_id_col]] <- config$gene_id_col
+  meta$hierarchy[[config$feat_id_col]] <- config$feat_id_col
+  
+  for(trm in trms) {
+    if(!(trm %in% names(config$sample_factors))) {
+      f.err("f.test_prolfqua: !(trm %in% config$sample_factors); trm: ", 
+        trm, config=config)
+    }
+    meta$factors[[trm]] <- trm
+    dat[, trm] <- as.character(samps[dat$sample, trm])
+  }
+  obj <- prolfqua::LFQData$new(data=dat, config=meta)
+  
+  frm <- paste(c("intensity", as.character(config$frm)), collapse=" ")
+  strgy <- prolfqua::strategy_lm(frm)
+  
+  model <- prolfqua::build_model(data=obj$data, model_strategy=strgy, 
+    subject_Id=obj$config$hierarchy_keys())
+  
+  tbl <- as.data.frame(model$get_anova())
+  
+  return(tbl[tbl$factor %in% config$test_term, , drop=F])
+}
+
+
 #' Hypothesis testing using \code{limma::voom}
 #' @description
 #'   Tests for differential expression using the \code{limma::voom()} function.
@@ -392,6 +640,40 @@ f.test_trend <- function(state, config) {
   return(tbl)
 }
 
+## helper for f.test:
+
+f.format_deqms <- function(tbl, config) {
+  tbl_out <- tbl
+  return(tbl_out)
+}
+
+## helper for f.test:
+
+f.format_msqrob <- function(tbl, config) {
+  tbl_out <- tbl
+  return(tbl_out)
+}
+
+## helper for f.test:
+
+f.format_proda <- function(tbl, config) {
+  tbl_out <- tbl
+  return(tbl_out)
+}
+
+## helper for f.test:
+
+f.format_prolfqua <- function(tbl, config) {
+  tbl_out <- tbl
+  return(tbl_out)
+}
+
+## helper for f.test:
+
+f.format_limma <- function(tbl, config) {
+  tbl_out <- tbl
+  return(tbl_out)
+}
 
 #' Hypothesis testing
 #' @description
@@ -445,10 +727,24 @@ f.test <- function(state, config) {
 
   f.report_config(config)
 
-  if(config$test_method %in% "voom") {
+  if(config$test_method %in% "deqms") {
+    tbl <- f.test_deqms(state, config)
+    tbl <- f.format_deqms(tbl, config)
+  } else if(config$test_method %in% "msqrob") {
+    tbl <- f.test_msqrob(state, config)
+    tbl <- f.format_msqrob(tbl, config)
+  } else if(config$test_method %in% "proda") {
+    tbl <- f.test_proda(state, config)
+    tbl <- f.format_proda(tbl, config)
+  } else if(config$test_method %in% "prolfqua") {
+    tbl <- f.test_prolfqua(state, config)
+    tbl <- f.format_prolfqua(tbl, config)
+  } else if(config$test_method %in% "voom") {
     tbl <- f.test_voom(state, config)
+    tbl <- f.format_limma(tbl, config)
   } else if(config$test_method %in% "trend") {
     tbl <- f.test_trend(state, config)
+    tbl <- f.format_limma(tbl, config)
   } else if(config$test_method %in% "none") {
     f.msg("skipping testing: TEST_METHOD %in% 'none'", config=config)
     return(NULL)

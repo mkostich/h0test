@@ -6,7 +6,8 @@ Author: Mitch Kostich
 Maintainer: Mitch Kostich <mitch.kostich@jax.org>
 Depends: R (>= 3.1)
 Imports: utils, stats, methods, glmnet, randomForest, limma, edgeR, 
-  MsCoreUtils, DEqMS, QFeatures, SummarizedExperiment, msqrob2
+  MsCoreUtils, DEqMS, QFeatures, SummarizedExperiment, msqrob2,
+  proDA, prolfqua
 Description: Toolkit providing R-based functionality for analyzing 
   non-negative numeric expression matrices. Provides functions to normalize, 
   transform, combine technical replicates, impute and perform hypothesis 

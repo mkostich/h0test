@@ -39,6 +39,8 @@ export(f.impute)
 
 export(f.test_deqms)
 export(f.test_msqrob)
+export(f.test_proda)
+export(f.test_prolfqua)
 export(f.test_voom)
 export(f.test_trend)
 export(f.test)
