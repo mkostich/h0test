@@ -45,6 +45,8 @@ Tests for differential expression using the \code{proDA::proDA()} function.
 }
 \details{
 Uses the \code{proDA::proDA()} function. Returned results sorted by p-value.
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 ## lengthy setup of expression data:

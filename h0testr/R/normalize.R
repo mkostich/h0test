@@ -3,6 +3,8 @@
 #'   Normalize expression using functionality from \code{edgeR} package.
 #' @details Inter-observation normalization. Uses \code{edgeR::calcNormFactors()}. 
 #'   Returned values on a counts-per-million scale.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -97,6 +99,8 @@ f.normalize_edger <- function(state, config, method=NULL, p=NULL) {
 #'     to median scaling with median calculated after exclusion of missing 
 #'     values. Similarly, setting \code{p < 0.75} is upperquartile normalization 
 #'     ignoring missing values. 
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -159,6 +163,8 @@ f.normalize_quantile <- function(state, config, norm_quantile=NULL, multiplier=1
 #'   Inter-observation normalization, based on total expression
 #'     in each observation. Makes total expression (excluding missing values)
 #'     equal in each observation.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -206,6 +212,8 @@ f.normalize_cpm <- function(state, config, multiplier=1e6) {
 #'   Inter-observation normalization. Uses \code{limma::normalizeVSN()}. 
 #'     Unlike most other normalization methods, results are returned on a 
 #'     log2-like scale.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -255,6 +263,8 @@ f.normalize_vsn <- function(state, config) {
 #'     \code{f.normalize_qquantile()}. This is a slow method, especially if
 #'     \code{method \%in\% c("affy", "pairs")}, which scale quadratically. Calls
 #'     \code{limma::normalizeCyclicLoess()} under the hood.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by `f.read_data()`:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -305,6 +315,8 @@ f.normalize_loess <- function(state, config, span=0.7, method="affy") {
 #'   Inter-observation normalization resulting in nearly identical
 #'     signal distributions across all samples, so all quantiles in \code{0:1} match
 #'     across all samples. Calls \code{limma::normalizeQuantiles()} under the hood.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -354,6 +366,8 @@ f.normalize_qquantile <- function(state, config) {
 #' @details 
 #'   Inter-observation normalization using any of the methods available in this package.
 #'     See individual methods for more details.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr

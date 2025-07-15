@@ -117,7 +117,9 @@ f.new_config <- function() {
 #'   Check configuration list for recognizable names and proper value types.
 #' @details
 #'   Only checks parameters in the configuration. Does not complain about 
-#'     missing settings.
+#'     missing settings. 
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param config List with configuration values like those returned by \code{f.new_config()}.
 #' @return Logical scalar \code{TRUE} if configuration ok. Otherwise throws error.
 #' @examples
@@ -291,6 +293,8 @@ f.check_config <- function(config) {
 #'   written to standard out (console or terminal). Only supports non-lists
 #'     and lists of non-lists (not lists of lists) as \code{config} values.
 #'   Throws error if \code{config$test_term} is not compatible with \code{config$frm}.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param config List with configuration values.
 #' @return NULL
 #' @examples

@@ -34,6 +34,8 @@ Reads expression data, feature metadata, and observation metadata files.
 Expression data from \code{config$data_file_in} in \code{config$dir_in}.
   Feature metadata from \code{config$feature_file_in} in \code{config$dir_in}.
   Observation metadata from \code{config$sample_file_in} in \code{config$dir_in}.
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 config <- h0testr::f.new_config()

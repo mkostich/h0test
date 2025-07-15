@@ -14,6 +14,8 @@
 #'       5. Adjust statistics using \code{DEqMS::spectraCounteBayes()}. \cr
 #'       6. Generate hit table with \code{DEqMS::outputResult()}. \cr
 #'     }
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state List with elements like those returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -120,6 +122,8 @@ f.test_deqms <- function(state, config, trend=FALSE) {
 #'       4. Estimate model parameters using \code{msqrob2::msqrob()}.
 #'       5. Calculate test statistics with \code{msqrob2::hypothesisTest()}.
 #'     }
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state List with elements like those returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -250,6 +254,8 @@ f.test_msqrob <- function(state, config, maxit=20) {
 #'   Tests for differential expression using the \code{proDA::proDA()} function.
 #' @details
 #'   Uses the \code{proDA::proDA()} function. Returned results sorted by p-value.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state List with elements like those returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -312,7 +318,7 @@ f.test_msqrob <- function(state, config, maxit=20) {
 #' head(tbl)
 
 f.test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit=20) {
-
+  
   if(is.null(is_log_transformed) || is_log_transformed %in% "") {
     if(is.null(config$norm_method) || config$norm_method %in% "") {
       f.err("f.test_proda: is_log_transformed and config$norm_method both unset", 
@@ -324,15 +330,15 @@ f.test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, max
       is_log_transformed <- TRUE
     }
   }
-
+  
   fit <- proDA::proDA(state$expression, design=config$frm, col_data=state$samples, 
     data_is_log_transformed=is_log_transformed, location_prior_df=prior_df, max_iter=maxit)
-
+  
   frm0 <- stats::as.formula(paste("~0 + ", config$test_term))
   cols <- colnames(stats::model.matrix(frm0, data=state$samples))
   i <- grepl(":", cols)
   if(any(i)) cols[i] <- paste0("`", cols[i], "`")
-
+  
   cols2 <- proDA::result_names(fit)
   i <- cols %in% cols2
   if(sum(i) != 1) {
@@ -340,7 +346,7 @@ f.test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, max
       cols2, config=config)
   } 
   col_pick <- cols[i]
-
+  
   tbl <- proDA::test_diff(fit, contrast=col_pick, sort_by="pval")
   return(tbl)
 }
@@ -364,6 +370,8 @@ f.test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, max
 #'            \code{prolfqua::strategy_lm} objects.
 #'       5. Return sub-table of ANOVA results corresponding to \code{config$test_term}.
 #'     }
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state List with elements like those returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -467,6 +475,7 @@ f.test_prolfqua <- function(state, config, is_log_transformed=NULL) {
   
   meta <- prolfqua::AnalysisTableAnnotation$new()
   meta$workIntensity <- "intensity"
+  meta$is_response_transformed <- is_log_transformed
   meta$hierarchy[[config$gene_id_col]] <- config$gene_id_col
   meta$hierarchy[[config$feat_id_col]] <- config$feat_id_col
   
@@ -499,6 +508,8 @@ f.test_prolfqua <- function(state, config, is_log_transformed=NULL) {
 #'   The \code{limma::voom()} model is fit to \code{config$frm} and an F-test 
 #'     is performed for whether the effect of \code{config$test_term} on 
 #'     \code{state$expression} is zero. 
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state List with elements like those returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -576,6 +587,8 @@ f.test_voom <- function(state, config, normalize.method="none") {
 #'     \code{lmFit()}, then \code{eBayes()}, then \code{topTable()}. Model is fit 
 #'     to \code{config$frm} and an F-test is performed for whether the effect of 
 #'     \code{config$test_term} on \code{state$expression} is zero. 
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -643,36 +656,51 @@ f.test_trend <- function(state, config) {
 ## helper for f.test:
 
 f.format_deqms <- function(tbl, config) {
-  tbl_out <- tbl
-  return(tbl_out)
+  tbl <- data.frame(feature=rownames(tbl), expr=tbl[, "AveExpr"], logfc=tbl[, "logFC"], 
+    stat=tbl[, "t"], lod=tbl[, "B"], pval=tbl[, "P.Value"], adj_pval=tbl[, "adj.P.Val"])
+  tbl <- tbl[order(tbl$pval, decreasing=F), ]
+  rownames(tbl) <- NULL
+  return(tbl)
 }
 
 ## helper for f.test:
 
 f.format_msqrob <- function(tbl, config) {
-  tbl_out <- tbl
-  return(tbl_out)
+  tbl <- data.frame(feature=tbl[, "gene"], expr=as.numeric(NA), logfc=tbl[, "logFC"], 
+    stat=tbl[, "t"], lod=as.numeric(NA), pval=tbl[, "pval"], adj_pval=tbl[, "adjPval"])
+  tbl <- tbl[order(tbl$pval, decreasing=F), ]
+  rownames(tbl) <- NULL
+  return(tbl)
 }
 
 ## helper for f.test:
 
 f.format_proda <- function(tbl, config) {
-  tbl_out <- tbl
-  return(tbl_out)
+  tbl <- data.frame(feature=tbl[, "name"], expr=tbl[, "avg_abundance"], logfc=tbl[, "diff"], 
+    stat=tbl[, "t_statistic"], lod=as.numeric(NA), pval=tbl[, "pval"], adj_pval=tbl[, "adj_pval"])
+  tbl <- tbl[order(tbl$pval, decreasing=F), ]
+  rownames(tbl) <- NULL
+  return(tbl)
 }
 
 ## helper for f.test:
 
 f.format_prolfqua <- function(tbl, config) {
-  tbl_out <- tbl
-  return(tbl_out)
+  tbl <- data.frame(feature=tbl[, config$feat_id_col], expr=as.numeric(NA), logfc=as.numeric(NA), 
+    stat=tbl[, "F.value"], lod=as.numeric(NA), pval=tbl[, "p.value"], adj_pval=tbl[, "FDR"])
+  tbl <- tbl[order(tbl$pval, decreasing=F), ]
+  rownames(tbl) <- NULL
+  return(tbl)
 }
 
 ## helper for f.test:
 
 f.format_limma <- function(tbl, config) {
-  tbl_out <- tbl
-  return(tbl_out)
+  tbl <- data.frame(feature=rownames(tbl), expr=tbl[, "AveExpr"], logfc=tbl[, "logFC"], 
+    stat=tbl[, "t"], lod=tbl[, "B"], pval=tbl[, "P.Value"], adj_pval=tbl[, "adj.P.Val"])
+  tbl <- tbl[order(tbl$pval, decreasing=F), ]
+  rownames(tbl) <- NULL
+  return(tbl)
 }
 
 #' Hypothesis testing
@@ -681,6 +709,8 @@ f.format_limma <- function(tbl, config) {
 #' @details
 #'   Tests for differential expression using method specified in config. 
 #'   See invididual \code{f.test_*} methods for more details.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by `f.read_data()`:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -696,7 +726,20 @@ f.format_limma <- function(tbl, config) {
 #'     \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
 #'     \code{test_method}    \cr \tab Character scalar in \code{c("trend", "voom")}. \cr
 #'   }
-#' @return A data.frame containing results of test.
+#' @return A list with the following elements:
+#'   \tabular{ll}{
+#'     \code{original} \cr \tab A \code{data.frame} with results in native format returned by test.\cr
+#'     \code{standard} \cr \tab A \code{data.frame} with the following standard fields: \cr
+#'     \tabular{ll}{
+#'       \code{feature}   \cr \tab Name of feature tested. \cr
+#'       \code{expr}      \cr \tab Average feature expression. \cr
+#'       \code{logfc}     \cr \tab Estimated log fold-change between conditions. \cr
+#'       \code{stat}      \cr \tab Value of test statistic. \cr
+#'       \code{lod}       \cr \tab Log-odds of differential expression. \cr
+#'       \code{pval}      \cr \tab Raw p-value resulting from test. \cr
+#'       \code{adj_pval}  \cr \tab Adjusted (for multiple testing) p-value. \cr
+#'     }
+#'   }
 #' @examples
 #' set.seed(101)
 #' ## no missing values: mnar_c0=-Inf, mnar_c1=0, mcar_p=0
@@ -721,7 +764,8 @@ f.format_limma <- function(tbl, config) {
 #' out <- h0testr::f.initialize(state, config)
 #' 
 #' out <- h0testr::f.test(state, config)
-#' print(out)
+#' head(out$original)
+#' head(out$standard)
 
 f.test <- function(state, config) {
 
@@ -729,22 +773,22 @@ f.test <- function(state, config) {
 
   if(config$test_method %in% "deqms") {
     tbl <- f.test_deqms(state, config)
-    tbl <- f.format_deqms(tbl, config)
+    tbl2 <- f.format_deqms(tbl, config)
   } else if(config$test_method %in% "msqrob") {
     tbl <- f.test_msqrob(state, config)
-    tbl <- f.format_msqrob(tbl, config)
+    tbl2 <- f.format_msqrob(tbl, config)
   } else if(config$test_method %in% "proda") {
     tbl <- f.test_proda(state, config)
-    tbl <- f.format_proda(tbl, config)
+    tbl2 <- f.format_proda(tbl, config)
   } else if(config$test_method %in% "prolfqua") {
     tbl <- f.test_prolfqua(state, config)
-    tbl <- f.format_prolfqua(tbl, config)
+    tbl2 <- f.format_prolfqua(tbl, config)
   } else if(config$test_method %in% "voom") {
     tbl <- f.test_voom(state, config)
-    tbl <- f.format_limma(tbl, config)
+    tbl2 <- f.format_limma(tbl, config)
   } else if(config$test_method %in% "trend") {
     tbl <- f.test_trend(state, config)
-    tbl <- f.format_limma(tbl, config)
+    tbl2 <- f.format_limma(tbl, config)
   } else if(config$test_method %in% "none") {
     f.msg("skipping testing: TEST_METHOD %in% 'none'", config=config)
     return(NULL)
@@ -766,6 +810,6 @@ f.test <- function(state, config) {
     f.save_tsv(tbl, file_out)
   }
   
-  return(tbl)
+  return(list(original=tbl, standard=tbl2))
 }
 

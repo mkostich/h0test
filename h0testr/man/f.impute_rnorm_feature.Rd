@@ -40,6 +40,8 @@ Missing values are draws from
   \code{sd}. If you want \code{0} to be considered missing, and have 
   \code{0} in the data, do something like \code{exprs[exprs \%in\% 0] <- NA} 
   prior to imputing. All values are gauranteed non-negative.
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 set.seed(101)

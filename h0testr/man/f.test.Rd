@@ -25,7 +25,20 @@ f.test(state, config)
 }}
 }
 \value{
-A data.frame containing results of test.
+A list with the following elements:
+  \tabular{ll}{
+    \code{original} \cr \tab A \code{data.frame} with results in native format returned by test.\cr
+    \code{standard} \cr \tab A \code{data.frame} with the following standard fields: \cr
+    \tabular{ll}{
+      \code{feature}   \cr \tab Name of feature tested. \cr
+      \code{expr}      \cr \tab Average feature expression. \cr
+      \code{logfc}     \cr \tab Estimated log fold-change between conditions. \cr
+      \code{stat}      \cr \tab Value of test statistic. \cr
+      \code{lod}       \cr \tab Log-odds of differential expression. \cr
+      \code{pval}      \cr \tab Raw p-value resulting from test. \cr
+      \code{adj_pval}  \cr \tab Adjusted (for multiple testing) p-value. \cr
+    }
+  }
 }
 \description{
 Test hypotheses using .
@@ -33,6 +46,8 @@ Test hypotheses using .
 \details{
 Tests for differential expression using method specified in config. 
   See invididual \code{f.test_*} methods for more details.
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 set.seed(101)
@@ -58,5 +73,6 @@ config$save_state <- FALSE
 out <- h0testr::f.initialize(state, config)
 
 out <- h0testr::f.test(state, config)
-print(out)
+head(out$original)
+head(out$standard)
 }

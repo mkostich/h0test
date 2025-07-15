@@ -35,7 +35,9 @@ Tests for differential expression using the \code{limma::voom()} function.
 \details{
 The \code{limma::voom()} model is fit to \code{config$frm} and an F-test 
     is performed for whether the effect of \code{config$test_term} on 
-    \code{state$expression} is zero.
+    \code{state$expression} is zero. 
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 set.seed(101)

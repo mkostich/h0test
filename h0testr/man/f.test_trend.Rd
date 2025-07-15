@@ -34,7 +34,9 @@ Test for differential expression using the \code{limma}
 Tests for differential expression using the \code{limma} pakcage by running 
     \code{lmFit()}, then \code{eBayes()}, then \code{topTable()}. Model is fit 
     to \code{config$frm} and an F-test is performed for whether the effect of 
-    \code{config$test_term} on \code{state$expression} is zero.
+    \code{config$test_term} on \code{state$expression} is zero. 
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 set.seed(101)

@@ -5,6 +5,8 @@
 #'   Expression data from \code{config$data_file_in} in \code{config$dir_in}.
 #'   Feature metadata from \code{config$feature_file_in} in \code{config$dir_in}.
 #'   Observation metadata from \code{config$sample_file_in} in \code{config$dir_in}.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param config List with configuration values. Requires the following keys:
 #'   \tabular{ll}{
 #'     \code{dir_in}    \cr \tab Path to directory where input files located (character). \cr
@@ -202,12 +204,23 @@ f.set_covariate_factor_levels <- function(state, config) {
 #'     \code{state$samples}, subsets only the needed variables into 
 #'     \code{state$samples}, and sets covariate factor levels 
 #'     according to \code{config$sample_factors}.
-#'   Wrapper for \code{f.check_covariates()}, then \code{f.subset_covariates()}, 
-#'     followed by \code{f.set_covariate_factor_levels()}. If \code{initialized=FALSE}, 
-#'     then checks if \code{state$features} has columns with names in 
+#'   Flow is:
+#'     \tabular{l}{
+#'       1. \code{f.check_config()}. 
+#'       2. Subset covariates in \code{config$frm} by calling \code{f.check_parameters()}. 
+#'       3. Check feat_col and obs_col.
+#'       4. \code{f.subset_covariates(}.
+#'       5. \code{f.set_covariate_factor_levels}.
+#'       5. Return sub-table of ANOVA results corresponding to 
+#'            \code{config$test_term}.
+#'     }
+#'   If \code{initialized=FALSE}, then checks if \code{state$features} has 
+#'     columns with names in 
 #'     \code{c(config$n_samples_expr_col, config$median_raw_col)}; and if 
-#'     \code{state$samples} has a column named \code{config$n_features_expr_col}. If either
-#'     is \code{TRUE}, results in error.
+#'     \code{state$samples} has a column named \code{config$n_features_expr_col}. 
+#'     If either is \code{TRUE}, results in error.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -233,7 +246,12 @@ f.set_covariate_factor_levels <- function(state, config) {
 #'   has filter statistics initialized. 
 #' @param minimal Logical scalar indicating whether only minimal set of 
 #'   parameters needed for formula processing should be required.
-#' @return A list (the processed state) with the following elements:
+#' @return A list with the following two elements:
+#'   \tabular{ll}{
+#'     \code{state}   \cr \tab List with elements \code{c("expression", "features", "samples")}.
+#'     \code{config}  \cr \tab List with configuration settings.
+#'   }
+#'   The element \code{state} is a list with the following three elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -305,6 +323,8 @@ f.initialize <- function(state, config, initialized=F, minimal=F) {
 #' @details 
 #'   Wrapper for \code{f.samples_per_feature()}, \code{f.feature_median_expression()}, 
 #'     \code{f.features_per_sample()}. Also reports quantiles of distributions. 
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -373,6 +393,8 @@ f.add_filter_stats <- function(state, config) {
 #' @details 
 #'   Wrapper for \code{f.samples_per_feature()}, \code{f.feature_median_expression()}, 
 #'     \code{f.features_per_sample()}. Also reports quantiles of distributions. 
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -426,6 +448,8 @@ f.prefilter <- function(state, config, n_samples_min=2, n_features_min=2) {
 #' @description Permute observation covariate 
 #' @details If variable is \code{NULL}, uses \code{config$permute_var} instead. If variable is 
 #'   \code{NULL} and \code{config$permute_var == ""}, skips permutation (normal execution).
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -487,6 +511,8 @@ f.permute <- function(state, config, variable=NULL) {
 #'   Load data and metadata from files, format, and save initial copies 
 #' @details Loads data from files specified in \code{config}. Prefilter uninformative rows
 #'   and columns. Permute variable if requested. Save final copies.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param config List with configuration values. Requires the following keys:
 #'   \tabular{ll}{
 #'     \code{dir_in}          \cr \tab Path to directory where input files located (character). \cr

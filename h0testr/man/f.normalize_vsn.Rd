@@ -31,6 +31,8 @@ Normalize expression using variance stabilizing transformation.
 Inter-observation normalization. Uses \code{limma::normalizeVSN()}. 
     Unlike most other normalization methods, results are returned on a 
     log2-like scale.
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 set.seed(101)

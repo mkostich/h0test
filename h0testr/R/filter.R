@@ -3,6 +3,8 @@
 #'   Filter features based on number of samples expressing feature.
 #' @details Feature considered expressed if \code{state$expression > 0}; 
 #'   \code{NA}s count as no expression.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -66,6 +68,8 @@ f.filter_features <- function(state, config, n_samples_min=NULL) {
 #' @details 
 #'   Feature considered expressed if \code{state$expression > 0}; \code{NA}s 
 #'     count as no expression.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -132,6 +136,8 @@ f.filter_samples <- function(state, config, n_features_min=NULL) {
 #'   Calculates the number of samples expressing each feature
 #' @details Feature considered expressed if \code{state$expression > 0}; 
 #'   \code{NA}s count as no expression.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -169,6 +175,8 @@ f.samples_per_feature <- function(state, config) {
 #' Median expression of each feature in each expressing sample
 #' @description
 #'   Calculates the median expression of each feature in each expressing sample. 
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @details 
 #'   Sample considered to express feature if \code{state$expression > 0}; 
 #'     \code{NA}s count as no expression.
@@ -215,6 +223,8 @@ f.feature_median_expression <- function(state, config) {
 #' @details 
 #'   Features are considered to be expressed if \code{state$expression > 0}; 
 #'     \code{NA}s count as no expression.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by `f.read_data()`:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -257,6 +267,8 @@ f.features_per_sample <- function(state, config) {
 #'   Filters out features with too few expressing samples, and filters out 
 #'     samples with too few expressed features. Features are considered to be 
 #'     expressed if \code{state$expression > 0}; \code{NA}s count as no expression.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by `f.read_data()`:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr

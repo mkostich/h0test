@@ -49,6 +49,8 @@ Uses the \code{proDA::proDA()} function. Returned results sorted by p-value.
            \code{prolfqua::strategy_lm} objects.
       5. Return sub-table of ANOVA results corresponding to \code{config$test_term}.
     }
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 ## lengthy setup of expression data:

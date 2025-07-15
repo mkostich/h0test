@@ -36,6 +36,8 @@ Permute observation covariate
 \details{
 If variable is \code{NULL}, uses \code{config$permute_var} instead. If variable is 
   \code{NULL} and \code{config$permute_var == ""}, skips permutation (normal execution).
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 set.seed(101)

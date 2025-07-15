@@ -33,6 +33,8 @@ Load data and metadata from files, format, and save initial copies
 \details{
 Loads data from files specified in \code{config}. Prefilter uninformative rows
   and columns. Permute variable if requested. Save final copies.
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 config <- h0testr::f.new_config()

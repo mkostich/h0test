@@ -8,6 +8,8 @@
 #'   \code{0} to be considered missing, and have \code{0} in the data, do 
 #'   something like \code{state$expression[state$expression \%in\% 0] <- NA} 
 #'   prior to imputing.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -81,6 +83,8 @@ f.impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
 #'   detection. Only \code{NA} values are considered as missing, so if you 
 #'   want \code{0} to be considered missing, and have \code{0} in the data, do 
 #'   something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -148,6 +152,8 @@ f.impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
 #'   detection (LOD). Only \code{NA} values are considered as missing, so if you 
 #'   want \code{0} to be considered missing, and have \code{0} in the data, do 
 #'   something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -198,6 +204,8 @@ f.impute_sample_lod <- function(state, config) {
 #'   \code{sd}. If you want \code{0} to be considered missing, and have 
 #'   \code{0} in the data, do something like \code{exprs[exprs \%in\% 0] <- NA} 
 #'   prior to imputing. All values are gauranteed non-negative.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -289,6 +297,8 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 #'   where intensity is assumed to be previously log transformed. If you  
 #'   want \code{0} to be considered missing, and have \code{0} in the data, do 
 #'   something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. 
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -366,6 +376,8 @@ f.impute_glm_binom <- function(state, config, n_pts=NULL, off=1,
 #'   intensity is assumed to be previously log transformed. If you want 
 #'   \code{0} to be considered missing, and have \code{0} in the data, do 
 #'   something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. 
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -486,6 +498,8 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
 #'   \code{0} to be considered missing, and have \code{0} in the data, do 
 #'   something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. 
 #'   Augmentation uses \code{f.augment_affine()}.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -615,6 +629,8 @@ f.impute_rf <- function(state, config, f_imp=f.impute_unif_sample_lod, ntree=100
 #'     and have \code{0} in the data, do something like 
 #'     \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. Augmentation uses 
 #'     \code{f.aug_mult()}.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -740,6 +756,8 @@ f.impute_glmnet <- function(state, config, f_imp=f.impute_unif_sample_lod,
 #'     and have \code{0} in the data, do something like 
 #'     \code{exprs[exprs \%in\% 0] <- 0} prior to imputing. See invidual 
 #'     \code{f.impute_*} methods for more details.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr

@@ -40,6 +40,8 @@ Filter features and samples based on expression.
 Filters out features with too few expressing samples, and filters out 
     samples with too few expressed features. Features are considered to be 
     expressed if \code{state$expression > 0}; \code{NA}s count as no expression.
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 set.seed(101)

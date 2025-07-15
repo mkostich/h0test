@@ -60,6 +60,8 @@ Run a basic tuning loop that iterates over parameter combinations,
     Do one run with \code{config$permute_var=""}, and \code{N} runs (we 
     recommend \code{N >= 20} with \code{config$permute_var} set to the 
     name of a variable in \code{config$test_term}.
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 config <- h0testr::f.new_config()
@@ -84,7 +86,7 @@ out1 <- h0testr::f.tune(config,
   impute_methods=c("sample_lod", "unif_sample_lod", "none"),
   impute_quantiles=c(0, 0.1, 0.25)
 )
-## write.table("0.condition.tune.tsv", quote=F, sep="\t", row.names=F)
+## write.table(out1, "0.condition.tune.tsv", quote=F, sep="\t", row.names=F)
 
 ## one run with permuted data; run 20+ such runs w/ suffices 1:20:
 config$permute_var <- "condition"   ## permute variable in test_term
@@ -94,5 +96,5 @@ out2 <- h0testr::f.tune(config,
   impute_methods=c("sample_lod", "unif_sample_lod", "none"),
   impute_quantiles=c(0, 0.1, 0.25)
 )
-## write.table("1.condition.tune.tsv", quote=F, sep="\t", row.names=F)
+## write.table(out2, "1.condition.tune.tsv", quote=F, sep="\t", row.names=F)
 }

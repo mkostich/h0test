@@ -38,6 +38,8 @@ Imports data from basic tuning loop, comparing results from unpermuted
     data with those from permuted data. FDR is estimated from the permuted
     data results. Recommend that tuning use at least 20 iterations with
     permuted data.
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 dir_in <- system.file("extdata/tune", package="h0testr")

@@ -40,7 +40,9 @@ Normalize expression using variant of quantile normalization which
 Inter-observation normalization. Setting \code{p <- 0.5} is equivalent 
     to median scaling with median calculated after exclusion of missing 
     values. Similarly, setting \code{p < 0.75} is upperquartile normalization 
-    ignoring missing values.
+    ignoring missing values. 
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 set.seed(101)

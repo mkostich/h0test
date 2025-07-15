@@ -25,6 +25,8 @@ Run a basic workflow according to: \code{config$run_order}.
 Run a basic workflow: \code{f.load_data -> config$run_order -> f.test}, 
     where \code{config$run_order} is vector of functions which are run in 
     the specified order.
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 config <- h0testr::f.new_config()
@@ -45,5 +47,6 @@ config$save_state <- FALSE
 print(config$run_order)
 
 out <- h0testr::f.run(config)   ## run workflow
-print(out$tbl)                  ## hit table
+head(out$original)              ## hit table as returned by underlying software
+head(out$standard)              ## hit table in a standardized format
 }

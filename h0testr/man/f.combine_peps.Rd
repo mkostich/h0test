@@ -57,6 +57,8 @@ Combines signals from lower-level features, like peptides,
     Then \code{median_column_effect} is returned, after shifted to 
       ensure all values strictly positive: \code{all(expression > 0, na.rm=TRUE)}.
   Uses \code{MsCoreUtils::medianPolish} and \code{MsCoreUtils::robustSummary}.
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 ## set up data for examples:

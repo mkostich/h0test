@@ -33,6 +33,8 @@ Missing values are set to an estimate observation limit of
   detection (LOD). Only \code{NA} values are considered as missing, so if you 
   want \code{0} to be considered missing, and have \code{0} in the data, do 
   something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing.
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 set.seed(101)

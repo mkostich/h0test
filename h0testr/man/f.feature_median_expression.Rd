@@ -21,7 +21,9 @@ A numeric vector of length \code{nrow(state$expression)} with median expression 
   each expressing sample.
 }
 \description{
-Calculates the median expression of each feature in each expressing sample.
+Calculates the median expression of each feature in each expressing sample. 
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \details{
 Sample considered to express feature if \code{state$expression > 0}; 

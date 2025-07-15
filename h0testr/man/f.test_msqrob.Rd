@@ -44,6 +44,8 @@ The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm}
       4. Estimate model parameters using \code{msqrob2::msqrob()}.
       5. Calculate test statistics with \code{msqrob2::hypothesisTest()}.
     }
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 ## lengthy setup of expression data:

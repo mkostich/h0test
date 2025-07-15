@@ -6,6 +6,8 @@
 #'     \code{config$sample_id_col}.
 #'   Sets \code{config$obs_col} and \code{config$obs_id_col} to 
 #'     \code{config$sample_id_col}.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by 
 #'   \code{f.read_data()}:
 #'   \tabular{ll}{
@@ -162,6 +164,8 @@ f.combine_peps_robust_summary <- function(state, config) {
 #'     Then \code{median_column_effect} is returned, after shifted to 
 #'       ensure all values strictly positive: \code{all(expression > 0, na.rm=TRUE)}.
 #'   Uses \code{MsCoreUtils::medianPolish} and \code{MsCoreUtils::robustSummary}.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr

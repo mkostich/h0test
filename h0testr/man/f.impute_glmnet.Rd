@@ -81,6 +81,8 @@ Imputes missing values using a \code{glmnet::cv.glmnet} model trained
     and have \code{0} in the data, do something like 
     \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. Augmentation uses 
     \code{f.aug_mult()}.
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 set.seed(101)

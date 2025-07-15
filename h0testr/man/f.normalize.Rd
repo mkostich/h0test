@@ -37,6 +37,8 @@ Normalize expression data to reduce effects of technical differences
 \details{
 Inter-observation normalization using any of the methods available in this package.
     See individual methods for more details.
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 set.seed(101)

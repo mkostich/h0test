@@ -47,6 +47,8 @@ The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm}
       5. Adjust statistics using \code{DEqMS::spectraCounteBayes()}. \cr
       6. Generate hit table with \code{DEqMS::outputResult()}. \cr
     }
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 ## lengthy setup of expression data:

@@ -5,6 +5,8 @@
 #'   Run a basic workflow: \code{f.load_data -> config$run_order -> f.test}, 
 #'     where \code{config$run_order} is vector of functions which are run in 
 #'     the specified order.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param config List with configuration values like those returned by 
 #'   \code{f.new_config()}.
 #' @return A list with the following elements:
@@ -32,7 +34,8 @@
 #' print(config$run_order)
 #'
 #' out <- h0testr::f.run(config)   ## run workflow
-#' print(out$tbl)                  ## hit table
+#' head(out$original)              ## hit table as returned by underlying software
+#' head(out$standard)              ## hit table in a standardized format
 
 f.run <- function(config) {
 
@@ -49,9 +52,10 @@ f.run <- function(config) {
   }
   
   f.log_block("starting f.test", config=out$config)
-  tbl <- f.test(out$state, out$config)
+  tbl_list <- f.test(out$state, out$config)
   
-  return(list(state=out$state, config=out$config, tbl=tbl))
+  return(list(state=out$state, config=out$config, 
+    original=tbl_list$original, standard=tbl_list$standard))
 }
 
 
@@ -82,7 +86,8 @@ f.tune2 <- function(state, config) {
   
   out <- f.filter(state, config)
   out <- f.impute(out$state, out$config)
-  tbl <- f.test(out$state, out$config)
+  tbl_list <- f.test(out$state, out$config)
+  tbl <- tbl_list$standard
     
   rslt <- data.frame(norm=config$norm_method, norm_quant=config$norm_quantile, 
     impute=config$impute_method, imp_quant=config$impute_quantile, 
@@ -103,6 +108,8 @@ f.tune2 <- function(state, config) {
 #'     Do one run with \code{config$permute_var=""}, and \code{N} runs (we 
 #'     recommend \code{N >= 20} with \code{config$permute_var} set to the 
 #'     name of a variable in \code{config$test_term}.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param config List with configuration values like those returned by \code{f.new_config()}.
 #' @param norm_methods Character vector of methods to try. One or more of:
 #'   \code{c("TMM", "TMMwsp", "RLE", "upperquartile", "q50", "q75", "cpm", "vsn", "qquantile", "log2", "none")}.
@@ -150,7 +157,7 @@ f.tune2 <- function(state, config) {
 #'   impute_methods=c("sample_lod", "unif_sample_lod", "none"),
 #'   impute_quantiles=c(0, 0.1, 0.25)
 #' )
-#' ## write.table("0.condition.tune.tsv", quote=F, sep="\t", row.names=F)
+#' ## write.table(out1, "0.condition.tune.tsv", quote=F, sep="\t", row.names=F)
 #' 
 #' ## one run with permuted data; run 20+ such runs w/ suffices 1:20:
 #' config$permute_var <- "condition"   ## permute variable in test_term
@@ -160,7 +167,7 @@ f.tune2 <- function(state, config) {
 #'   impute_methods=c("sample_lod", "unif_sample_lod", "none"),
 #'   impute_quantiles=c(0, 0.1, 0.25)
 #' )
-#' ## write.table("1.condition.tune.tsv", quote=F, sep="\t", row.names=F)
+#' ## write.table(out2, "1.condition.tune.tsv", quote=F, sep="\t", row.names=F)
 
 f.tune <- function(
     config,  
@@ -245,6 +252,8 @@ f.tune <- function(
 #'     data with those from permuted data. FDR is estimated from the permuted
 #'     data results. Recommend that tuning use at least 20 iterations with
 #'     permuted data.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
 #' @param dir_in Character scalar with path to directory containing tuning results.
 #' @param sfx Character scalar with distinctive suffix of tuning results files.
 #' @param config List with at least \code{log_file} defined (can be \code{""}).

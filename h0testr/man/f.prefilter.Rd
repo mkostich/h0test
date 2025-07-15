@@ -38,7 +38,9 @@ Adds filtering-related statistics to \code{state$features},
 }
 \details{
 Wrapper for \code{f.samples_per_feature()}, \code{f.feature_median_expression()}, 
-    \code{f.features_per_sample()}. Also reports quantiles of distributions.
+    \code{f.features_per_sample()}. Also reports quantiles of distributions. 
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 set.seed(101)

@@ -35,6 +35,8 @@ Filter features based on number of samples expressing feature.
 \details{
 Feature considered expressed if \code{state$expression > 0}; 
   \code{NA}s count as no expression.
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 set.seed(101)

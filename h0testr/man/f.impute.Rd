@@ -45,6 +45,8 @@ Imputes missing values using a method and parameters specified in
     and have \code{0} in the data, do something like 
     \code{exprs[exprs \%in\% 0] <- 0} prior to imputing. See invidual 
     \code{f.impute_*} methods for more details.
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 set.seed(101)

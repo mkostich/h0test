@@ -37,7 +37,12 @@ has filter statistics initialized.}
 parameters needed for formula processing should be required.}
 }
 \value{
-A list (the processed state) with the following elements:
+A list with the following two elements:
+  \tabular{ll}{
+    \code{state}   \cr \tab List with elements \code{c("expression", "features", "samples")}.
+    \code{config}  \cr \tab List with configuration settings.
+  }
+  The element \code{state} is a list with the following three elements:
   \tabular{ll}{
     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -55,12 +60,23 @@ Checks to make sure columns specified in \code{config} parameters are
     \code{state$samples}, subsets only the needed variables into 
     \code{state$samples}, and sets covariate factor levels 
     according to \code{config$sample_factors}.
-  Wrapper for \code{f.check_covariates()}, then \code{f.subset_covariates()}, 
-    followed by \code{f.set_covariate_factor_levels()}. If \code{initialized=FALSE}, 
-    then checks if \code{state$features} has columns with names in 
+  Flow is:
+    \tabular{l}{
+      1. \code{f.check_config()}. 
+      2. Subset covariates in \code{config$frm} by calling \code{f.check_parameters()}. 
+      3. Check feat_col and obs_col.
+      4. \code{f.subset_covariates(}.
+      5. \code{f.set_covariate_factor_levels}.
+      5. Return sub-table of ANOVA results corresponding to 
+           \code{config$test_term}.
+    }
+  If \code{initialized=FALSE}, then checks if \code{state$features} has 
+    columns with names in 
     \code{c(config$n_samples_expr_col, config$median_raw_col)}; and if 
-    \code{state$samples} has a column named \code{config$n_features_expr_col}. If either
-    is \code{TRUE}, results in error.
+    \code{state$samples} has a column named \code{config$n_features_expr_col}. 
+    If either is \code{TRUE}, results in error.
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat

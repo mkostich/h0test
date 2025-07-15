@@ -45,6 +45,8 @@ Combines signals for each feature across technical replicates by taking median.
     \code{config$sample_id_col}.
   Sets \code{config$obs_col} and \code{config$obs_id_col} to 
     \code{config$sample_id_col}.
+  See documentation for \code{h0testr::f.new_config()} 
+    for more detailed description of configuration parameters.
 }
 \examples{
 set.seed(101)
