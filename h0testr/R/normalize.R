@@ -359,13 +359,92 @@ f.normalize_qquantile <- function(state, config) {
   return(state)
 }
 
+
+#' Normalize expression data using \code{MsCoreUtils} package
+#' @description
+#'   Normalization using the \code{MsCoreUtils::normalize_matrix()} function.
+#' @details
+#'   Uses the \code{MsCoreUtils::normalize_matrix()} function to normalize
+#'     expression data in \code{state$expression}. Does not affect 
+#'     \code{state$features} or \code{state$samples}. Potential values 
+#'     for \code{method} are restricted to those that always yield non-negative 
+#'     values from non-negative inputs. Also excluded 
+#'     \code{c("vsn", "quantiles")} because already available elsewhere 
+#'     (as \code{h0testr::f.normalize_vsn()} and 
+#'     \code{h0testr::f.normalize_qquantile()}). 
+#'     Acceptable \code{method} values include:
+#'       \code{c("sum", "max", "div.mean", "div.median", "quantiles.robust")}.
+#'   See documentation for \code{MsCoreUtils::normalize_matrix()} for details of each method.
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
+#' @param state List with elements like those returned by \code{f.read_data()}:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
+#' @param config List with configuration values. The only optional setting used is
+#'   \code{norm_method}, which is used to set \code{method} if \code{is.null(method)}.
+#' @param method Name (character scalar) of method to use for normalization. See details.
+#' @return A list with elements: 
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with normalized expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   }
+#' @examples
+#' set.seed(101)
+#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12, mnar_c0=-Inf)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list()
+#' state2 <- h0testr::f.normalize_mscoreutils(state, config, method="quantiles.robust")
+#' print(state$expression)
+#' print(state2$expression)
+#'
+#' ## afterwards, quantiles more similar across observations:
+#' apply(state$expression, 2, quantile, probs=c(0.1, 0.25, 0.5, 0.75, 0.9), na.rm=TRUE)
+#' apply(state2$expression, 2, quantile, probs=c(0.1, 0.25, 0.5, 0.75, 0.9), na.rm=TRUE)
+
+f.normalize_mscoreutils <- function(state, config, method=NULL) {
+  
+  if(is.null(method) || method %in% "") {
+    if(is.null(config$norm_method) || config$norm_method %in% "") {
+      f.err("f.normalize_mscoreutils: method and config$norm_method both unset", 
+        config=config)
+    }
+    method <- config$norm_method
+  }
+  
+  ## restricted to subset which yield non-negative if fed non-negative:
+  allowed <- c("sum", "max", "div.mean", "div.median", "quantiles.robust")
+  
+  if(!(method %in% allowed)) {
+    f.err("f.normalize_mscoreutils: unrecognized method:", 
+      method, config=config)
+  }
+  
+  if(!is.matrix(state$expression)) {
+    f.err("f.normalize_mscoreutils: !is.matrix(state$expression)", 
+      config=config)
+  }
+  
+  state$expression <- MsCoreUtils::normalize_matrix(state$expression, method=method)
+  
+  return(state)
+}
+
+
 #' Inter-sample normalization
 #' @description
 #'   Normalize expression data to reduce effects of technical differences 
 #'     between samples.
 #' @details 
-#'   Inter-observation normalization using any of the methods available in this package.
-#'     See individual methods for more details.
+#'   Inter-observation normalization using any of the methods available in 
+#'     the \code{h0testr} package. See individual methods for more details. 
+#'     Normalizes \code{state$expression}. Does not affect 
+#'     \code{state$features} or \code{state$samples}.
 #'   See documentation for \code{h0testr::f.new_config()} 
 #'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by \code{f.read_data()}:
@@ -383,7 +462,7 @@ f.normalize_qquantile <- function(state, config) {
 #'   }
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{expression} \cr \tab Numeric matrix with normalized expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
@@ -426,6 +505,8 @@ f.normalize <- function(state, config) {
     state <- f.normalize_vsn(state, config)
   } else if(config$norm_method %in% "qquantile") {
     state <- f.normalize_qquantile(state, config)
+  } else if(config$norm_method %in% c("sum", "max", "div.mean", "div.median", "quantiles.robust")) {
+    state <- f.normalize_mscoreutils(state, config)
   } else if(config$norm_method %in% "log2") {
     f.msg("config$norm_method %in% 'log2'", config=config)
   } else if(config$norm_method %in% "none") {
@@ -435,7 +516,7 @@ f.normalize <- function(state, config) {
     f.err("f.normalize: unexpected config$norm_method:", config$norm_method, 
       config=config)
   }
-  
+    
   if(!(config$norm_method %in% c("vsn", "none"))) {
     f.log("transforming data", config=config)
     state$expression <- log2(state$expression + 1)

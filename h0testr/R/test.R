@@ -80,12 +80,12 @@ f.test_deqms <- function(state, config, trend=FALSE) {
   
   f.check_config(config)
   f.check_state(state, config)
-  
+
   tbl <- table(state$features[, config$gene_id_col], useNA="ifany")
   tbl <- as.data.frame(tbl)
   counts <- tbl$Freq
   names(counts) <- tbl$Var1
-
+  
   out <- h0testr::f.combine_peps(state, config, method="medianPolish", rescale=TRUE)
   state <- out$state
   config <- out$config
@@ -111,9 +111,6 @@ f.test_deqms <- function(state, config, trend=FALSE) {
 #' @description
 #'   Tests for differential expression using the \code{msqrob2::msqrob()} function.
 #' @details
-#'   The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm} 
-#'     and a moderated t-test is performed for whether the effect of 
-#'     \code{config$test_term} on \code{state$expression} is zero. 
 #'   Flow is:
 #'     \tabular{l}{
 #'       1. Create a \code{QFeatures} object with \code{QFeatures::readQFeatures()}. 
@@ -656,8 +653,9 @@ f.test_trend <- function(state, config) {
 ## helper for f.test:
 
 f.format_deqms <- function(tbl, config) {
-  tbl <- data.frame(feature=rownames(tbl), expr=tbl[, "AveExpr"], logfc=tbl[, "logFC"], 
-    stat=tbl[, "t"], lod=tbl[, "B"], pval=tbl[, "P.Value"], adj_pval=tbl[, "adj.P.Val"])
+  tbl <- data.frame(feature=rownames(tbl), expr=tbl[, "AveExpr"], 
+    logfc=tbl[, "logFC"], stat=tbl[, "t"], lod=tbl[, "B"], 
+    pval=tbl[, "P.Value"], adj_pval=tbl[, "adj.P.Val"])
   tbl <- tbl[order(tbl$pval, decreasing=F), ]
   rownames(tbl) <- NULL
   return(tbl)
@@ -666,8 +664,9 @@ f.format_deqms <- function(tbl, config) {
 ## helper for f.test:
 
 f.format_msqrob <- function(tbl, config) {
-  tbl <- data.frame(feature=tbl[, "gene"], expr=as.numeric(NA), logfc=tbl[, "logFC"], 
-    stat=tbl[, "t"], lod=as.numeric(NA), pval=tbl[, "pval"], adj_pval=tbl[, "adjPval"])
+  tbl <- data.frame(feature=tbl[, config$feat_id], expr=as.numeric(NA), 
+    logfc=tbl[, "logFC"], stat=tbl[, "t"], lod=as.numeric(NA), 
+    pval=tbl[, "pval"], adj_pval=tbl[, "adjPval"])
   tbl <- tbl[order(tbl$pval, decreasing=F), ]
   rownames(tbl) <- NULL
   return(tbl)
@@ -676,8 +675,9 @@ f.format_msqrob <- function(tbl, config) {
 ## helper for f.test:
 
 f.format_proda <- function(tbl, config) {
-  tbl <- data.frame(feature=tbl[, "name"], expr=tbl[, "avg_abundance"], logfc=tbl[, "diff"], 
-    stat=tbl[, "t_statistic"], lod=as.numeric(NA), pval=tbl[, "pval"], adj_pval=tbl[, "adj_pval"])
+  tbl <- data.frame(feature=tbl[, "name"], expr=tbl[, "avg_abundance"], 
+    logfc=tbl[, "diff"], stat=tbl[, "t_statistic"], lod=as.numeric(NA), 
+    pval=tbl[, "pval"], adj_pval=tbl[, "adj_pval"])
   tbl <- tbl[order(tbl$pval, decreasing=F), ]
   rownames(tbl) <- NULL
   return(tbl)
@@ -686,8 +686,9 @@ f.format_proda <- function(tbl, config) {
 ## helper for f.test:
 
 f.format_prolfqua <- function(tbl, config) {
-  tbl <- data.frame(feature=tbl[, config$feat_id_col], expr=as.numeric(NA), logfc=as.numeric(NA), 
-    stat=tbl[, "F.value"], lod=as.numeric(NA), pval=tbl[, "p.value"], adj_pval=tbl[, "FDR"])
+  tbl <- data.frame(feature=tbl[, config$feat_id_col], expr=as.numeric(NA), 
+    logfc=as.numeric(NA), stat=tbl[, "F.value"], lod=as.numeric(NA), 
+    pval=tbl[, "p.value"], adj_pval=tbl[, "FDR"])
   tbl <- tbl[order(tbl$pval, decreasing=F), ]
   rownames(tbl) <- NULL
   return(tbl)
@@ -696,8 +697,9 @@ f.format_prolfqua <- function(tbl, config) {
 ## helper for f.test:
 
 f.format_limma <- function(tbl, config) {
-  tbl <- data.frame(feature=rownames(tbl), expr=tbl[, "AveExpr"], logfc=tbl[, "logFC"], 
-    stat=tbl[, "t"], lod=tbl[, "B"], pval=tbl[, "P.Value"], adj_pval=tbl[, "adj.P.Val"])
+  tbl <- data.frame(feature=rownames(tbl), expr=tbl[, "AveExpr"], 
+    logfc=tbl[, "logFC"], stat=tbl[, "t"], lod=tbl[, "B"], 
+    pval=tbl[, "P.Value"], adj_pval=tbl[, "adj.P.Val"])
   tbl <- tbl[order(tbl$pval, decreasing=F), ]
   rownames(tbl) <- NULL
   return(tbl)
@@ -795,8 +797,8 @@ f.test <- function(state, config) {
   } else f.err("f.test: unexpected TEST_METHOD:", config$test_method, config=config)
   
   rownames(state$features) <- state$features[[config$feat_col]]
-  if(!all(rownames(tbl) %in% rownames(state$features))) {
-    f.err("f.test: !all(rownames(tbl) %in% rownames(state$features))", config=config)
+  if(!all(tbl2$feature %in% rownames(state$features))) {
+    f.err("f.test: !all(tbl2$feature %in% rownames(state$features))", config=config)
   }
   
   tbl0 <- state$features[rownames(tbl), , drop=F]

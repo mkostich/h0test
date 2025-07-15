@@ -46,6 +46,8 @@ Combine e.g. peptide signals into gene group signals
 \details{
 Combines signals from lower-level features, like peptides, 
     into higher level features, like gene groups or protein groups.
+  If \code{config$gene_id_col == config$feat_col}, then no changes
+    made to \code{state} or \code{config}.
   Sets \code{config$feat_col} and \code{config$feat_id_col} to 
     \code{config$gene_id_col}.
   If \code{rescale \%in\% TRUE}, peptides rescaled by dividing by 

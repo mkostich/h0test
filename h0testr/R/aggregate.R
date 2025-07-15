@@ -153,6 +153,8 @@ f.combine_peps_robust_summary <- function(state, config) {
 #' @details
 #'   Combines signals from lower-level features, like peptides, 
 #'     into higher level features, like gene groups or protein groups.
+#'   If \code{config$gene_id_col == config$feat_col}, then no changes
+#'     made to \code{state} or \code{config}.
 #'   Sets \code{config$feat_col} and \code{config$feat_id_col} to 
 #'     \code{config$gene_id_col}.
 #'   If \code{rescale \%in\% TRUE}, peptides rescaled by dividing by 
@@ -229,8 +231,14 @@ f.combine_peps_robust_summary <- function(state, config) {
 #' str(out$config)
 
 f.combine_peps <- function(state, config, method=NULL, rescale=FALSE) {
-
+  
   f.check_config(config)
+  
+  if(config$gene_id_col == config$feat_col) {
+    f.msg("f.combine_peps: config$gene_id_col == config$feat_col; ", 
+      "returning unchanged state and config.", config=config)
+    return(list(state=state, config=config))
+  }
   
   if(is.null(method) || method %in% "") method <- config$feature_aggregation
   if(is.null(method) || method %in% "") {

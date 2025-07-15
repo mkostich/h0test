@@ -33,10 +33,7 @@ A data.frame with test results. Columns include \code{config$gene_id_col} and:
 Tests for differential expression using the \code{msqrob2::msqrob()} function.
 }
 \details{
-The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm} 
-    and a moderated t-test is performed for whether the effect of 
-    \code{config$test_term} on \code{state$expression} is zero. 
-  Flow is:
+Flow is:
     \tabular{l}{
       1. Create a \code{QFeatures} object with \code{QFeatures::readQFeatures()}. 
       2. Convert \code{NA}s to zero using \code{QFeatures::zeroIsNA()}. 

@@ -25,7 +25,7 @@ f.normalize(state, config)
 \value{
 A list (the processed state) with the following elements:
   \tabular{ll}{
-    \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+    \code{expression} \cr \tab Numeric matrix with normalized expression values. \cr
     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
   }
@@ -35,8 +35,10 @@ Normalize expression data to reduce effects of technical differences
     between samples.
 }
 \details{
-Inter-observation normalization using any of the methods available in this package.
-    See individual methods for more details.
+Inter-observation normalization using any of the methods available in 
+    the \code{h0testr} package. See individual methods for more details. 
+    Normalizes \code{state$expression}. Does not affect 
+    \code{state$features} or \code{state$samples}.
   See documentation for \code{h0testr::f.new_config()} 
     for more detailed description of configuration parameters.
 }

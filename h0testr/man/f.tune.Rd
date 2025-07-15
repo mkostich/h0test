@@ -6,14 +6,14 @@
 \usage{
 f.tune(
   config,
-  norm_methods = c("TMM", "TMMwsp", "RLE", "upperquartile", "q50", "q75", "cpm", "vsn",
-    "qquantile", "log2", "none"),
+  norm_methods = c("TMMwsp", "RLE", "upperquartile", "q50", "q75", "max", "div.mean",
+    "cpm", "vsn", "qquantile", "quantiles.robust", "log2", "none"),
   impute_methods = c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature",
     "glm_binom", "loess_logit", "glmnet", "rf", "none"),
   impute_quantiles = c(0, 0.01, 0.05, 0.1, 0.25),
   impute_scales = c(1, 0.5, 0.25, 0.1),
   impute_spans = c(0.25, 0.5, 0.75),
-  test_methods = c("voom", "trend")
+  test_methods = c("voom", "trend", "deqms", "msqrob", "proda", "prolfqua")
 )
 }
 \arguments{
@@ -82,9 +82,10 @@ config$save_state <- FALSE
 config$permute_var <- ""            ## no permutation
 set.seed(101)
 out1 <- h0testr::f.tune(config,
-  norm_methods=c("TMM", "RLE", "q75", "cpm", "log2", "none"),
+  norm_methods=c("RLE", "q75", "cpm", "log2"),
   impute_methods=c("sample_lod", "unif_sample_lod", "none"),
-  impute_quantiles=c(0, 0.1, 0.25)
+  impute_quantiles=c(0, 0.05, 0.1),
+  test_methods=c("trend", "msqrob", "proda", "prolfqua")
 )
 ## write.table(out1, "0.condition.tune.tsv", quote=F, sep="\t", row.names=F)
 
@@ -92,9 +93,10 @@ out1 <- h0testr::f.tune(config,
 config$permute_var <- "condition"   ## permute variable in test_term
 set.seed(101)
 out2 <- h0testr::f.tune(config,
-  norm_methods=c("TMM", "RLE", "q75", "cpm", "log2", "none"),
+  norm_methods=c("RLE", "q75", "cpm", "log2"),
   impute_methods=c("sample_lod", "unif_sample_lod", "none"),
-  impute_quantiles=c(0, 0.1, 0.25)
+  impute_quantiles=c(0, 0.05, 0.1),
+  test_methods=c("trend", "msqrob", "proda", "prolfqua")
 )
 ## write.table(out2, "1.condition.tune.tsv", quote=F, sep="\t", row.names=F)
 }
