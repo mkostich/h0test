@@ -745,6 +745,206 @@ f.impute_glmnet <- function(state, config, f_imp=f.impute_unif_sample_lod,
   return(list(state=state, log=tbl))
 }
 
+#' Impute missing values with \code{impute::impute.knn()}.
+#' @description
+#'   Blocks larger than \code{maxp} are recursively divided into smaller 
+#'     sub-blocks prior to imputation.
+#'   Impute missing values with \code{impute::impute.knn()}.
+#' @details
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
+#' @param state A list with elements like that returned by \code{f.read_data()}:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
+#' @param config List with configuration values. Does not use any keys so can pass empty list.
+#' @param k Number of nearest neighbors (features) to use, with \code{1 <= k < n_features}.
+#' @param rowmax Maximum proportion missing per row, else use row means; \code{0 < rowmax <= 1}.
+#' @param colmax Maximum proportion missing per column, else use column means; \code{0 < colmax <= 1}.
+#' @param maxp Scalar max number of genes per imputation block; \code{0 < maxp <= n_features}.
+#' @return 
+#'   An updated \code{state} list with the following elements:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative imputed 
+#'       expression values. \cr
+#'     \code{features}   \cr \tab Feature meta-data \code{data.frame} 
+#'       corresponding to rows of \code{expression}. \cr
+#'     \code{samples}    \cr \tab Observation meta-data \code{data.frame} 
+#'       corresponding to columns of \code{expression}. \cr
+#'   } 
+#' @examples
+#' ## setup state and config, including prefiltering:
+#' set.seed(101)
+#' nsamps <- 6
+#' sim <- h0testr::f.sim2(n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
+#'   fold_change=1, peps_per_gene=1, reps_per_sample=1)
+#' exprs <- sim$mat
+#' feats <- data.frame(gene=rownames(exprs))
+#' samps <- data.frame(
+#'   obs=colnames(exprs), 
+#'   grp=factor(c(rep("ctl", nsamps), rep("trt", nsamps))),
+#'   sex=factor(rep(c("M", "F"), nsamps))
+#' )
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' rm(nsamps, sim, exprs, feats, samps)
+#' config <- list(obs_col="obs", feat_col="gene")
+#' state <- h0testr::f.filter_features(state, config, n_samples_min=3)
+#' state <- h0testr::f.filter_observations(state, config, n_features_min=30)
+#'
+#' ## impute:
+#' state2 <- h0testr::f.impute_knn(state, config)
+#' summary(state$expression)
+#' summary(state2$expression)
+#' head(state$expression)
+#' round(head(state2$expression))
+
+f.impute_knn <- function(state, config, k=10, rowmax=0.5, colmax=0.8, maxp=1500) {
+  
+  if(!is.matrix(state$expression)) {
+    f.err("f.impute_knn: !is.matrix(state$expression)", config=config)
+  }
+  
+  out <- impute::impute.knn(state$expression, k=k, rowmax=rowmax, colmax=colmax, maxp=maxp)
+  state$expression <- out$data
+
+  return(state)
+}
+
+#' Impute missing values with \code{pcaMethods::pca()}.
+#' @description
+#'   Impute missing values with \code{pcaMethods::pca()}.
+#' @details
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
+#' @param state A list with elements like that returned by \code{f.read_data()}:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
+#' @param config List with configuration values. Does not use any keys so can pass empty list.
+#' @param n_pcs Number (scalar numeric >= 1) of principle components to compute.
+#' @param is_log_transformed Logical scalar whether \code{state$expression} has been log transformed.
+#' @return 
+#'   An updated \code{state} list with the following elements:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative imputed 
+#'       expression values. \cr
+#'     \code{features}   \cr \tab Feature meta-data \code{data.frame} 
+#'       corresponding to rows of \code{expression}. \cr
+#'     \code{samples}    \cr \tab Observation meta-data \code{data.frame} 
+#'       corresponding to columns of \code{expression}. \cr
+#'   } 
+#' @examples
+#' ## setup state and config, including prefiltering:
+#' set.seed(101)
+#' nsamps <- 6
+#' sim <- h0testr::f.sim2(n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
+#'   fold_change=1, peps_per_gene=1, reps_per_sample=1)
+#' exprs <- sim$mat
+#' feats <- data.frame(gene=rownames(exprs))
+#' samps <- data.frame(
+#'   obs=colnames(exprs), 
+#'   grp=factor(c(rep("ctl", nsamps), rep("trt", nsamps))),
+#'   sex=factor(rep(c("M", "F"), nsamps))
+#' )
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' rm(nsamps, sim, exprs, feats, samps)
+#' config <- list(obs_col="obs", feat_col="gene")
+#' state <- h0testr::f.filter_features(state, config, n_samples_min=3)
+#' state <- h0testr::f.filter_observations(state, config, n_features_min=30)
+#'
+#' ## impute:
+#' state2 <- h0testr::f.impute_pca(state, config)
+#' summary(state$expression)
+#' summary(state2$expression)
+#' head(state$expression)
+#' round(head(state2$expression))
+
+f.impute_pca <- function(state, config, n_pcs=3, is_log_transformed=FALSE) {
+    
+  if(!is.matrix(state$expression)) {
+    f.err("f.impute_pca: !is.matrix(state$expression)", config=config)
+  }
+
+  mat <- state$expression
+  if(!is_log_transformed) mat <- log2(mat + 1)  ## otherwise can get negative
+
+  ## wants sample rows and 'variables' as columns:
+  obj <- pcaMethods::pca(t(mat), nPcs=n_pcs, method="bpca")
+  mat <- pcaMethods::completeObs(obj) 
+  
+  if(!is_log_transformed) mat <- (2^mat) - 1
+  state$expression <- t(mat)
+
+  return(state)
+}
+
+#' Impute missing values with \code{missForest::missForest()}.
+#' @description
+#'   Impute missing values with \code{missForest::missForest()}.
+#' @details
+#'   See documentation for \code{h0testr::f.new_config()} 
+#'     for more detailed description of configuration parameters. 
+#' @param state A list with elements like that returned by \code{f.read_data()}:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
+#' @param config List with configuration values. Does not use any keys so can pass empty list.
+#' @param maxit Maximum number of iterations used during fitting.
+#' @param ntree Number of trees to grow in forest.
+#' @return 
+#'   An updated \code{state} list with the following elements:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative imputed 
+#'       expression values. \cr
+#'     \code{features}   \cr \tab Feature meta-data \code{data.frame} 
+#'       corresponding to rows of \code{expression}. \cr
+#'     \code{samples}    \cr \tab Observation meta-data \code{data.frame} 
+#'       corresponding to columns of \code{expression}. \cr
+#'   } 
+#' @examples
+#' ## setup state and config, including prefiltering:
+#' set.seed(101)
+#' nsamps <- 6
+#' sim <- h0testr::f.sim2(n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
+#'   fold_change=1, peps_per_gene=1, reps_per_sample=1)
+#' exprs <- sim$mat
+#' feats <- data.frame(gene=rownames(exprs))
+#' samps <- data.frame(
+#'   obs=colnames(exprs), 
+#'   grp=factor(c(rep("ctl", nsamps), rep("trt", nsamps))),
+#'   sex=factor(rep(c("M", "F"), nsamps))
+#' )
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' rm(nsamps, sim, exprs, feats, samps)
+#' config <- list(obs_col="obs", feat_col="gene")
+#' state <- h0testr::f.filter_features(state, config, n_samples_min=3)
+#' state <- h0testr::f.filter_observations(state, config, n_features_min=30)
+#'
+#' ## impute:
+#' state2 <- h0testr::f.impute_missforest(state, config)
+#' summary(state$expression)
+#' summary(state2$expression)
+#' head(state$expression)
+#' round(head(state2$expression))
+
+f.impute_missforest <- function(state, config, maxit=10, ntree=100) {
+    
+  if(!is.matrix(state$expression)) {
+    stop("f.impute_missforest: !is.matrix(state$expression)")
+  }
+  
+  obj <- missForest::missForest(t(state$expression), maxiter=maxit, ntree=ntree)
+  state$expression <- t(obj$ximp)
+
+  return(state)
+}
+
 #' Impute missing values
 #' @description
 #'   Impute missing values in \code{state$expression} according to settings
@@ -827,10 +1027,16 @@ f.impute <- function(state, config) {
   
   f.check_state(state, config)
   f.report_state(state, config)
-  i <- config$run_order %in% "impute"
-  prfx <- paste0(which(i)[1] + 2, ".imputed")
+  
+  if(!is.null(config$run_order)) {
+    i <- config$run_order %in% "impute"
+    if(any(i)) {
+      prfx <- paste0(which(i)[1] + 2, ".imputed")
+    } else {
+      prfx <- "imputed"
+    }
+  }
   f.save_state(state, config, prefix=prfx)
   
   return(list(state=state, config=config))
 }
-

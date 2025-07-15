@@ -94,21 +94,21 @@ f.filter_features <- function(state, config, n_samples_min=NULL) {
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list(n_features_min=4)
-#' state2 <- h0testr::f.filter_samples(state, config)
+#' state2 <- h0testr::f.filter_observations(state, config)
 #' print(state)
 #' print(state2)
 
-f.filter_samples <- function(state, config, n_features_min=NULL) {
+f.filter_observations <- function(state, config, n_features_min=NULL) {
 
   f.check_config(config)
 
   if(!is.matrix(state$expression)) {
-    f.err("f.filter_samples: !is.matrix(state$expression)", config=config)
+    f.err("f.filter_observations: !is.matrix(state$expression)", config=config)
   }
   
   if(is.null(n_features_min)) n_features_min <- config$n_features_min
   if(is.null(n_features_min)) {
-    f.err("f.filter_samples: n_features_min unset", config=config)
+    f.err("f.filter_observations: n_features_min unset", config=config)
   }
   
   f <- function(v) {
@@ -118,15 +118,12 @@ f.filter_samples <- function(state, config, n_features_min=NULL) {
   }
   i <- apply(state$expression, 2, f)
 
-  f.msg("filtering", sum(!i), "samples, keeping", sum(i), config=config)
+  f.msg("filtering", sum(!i), "observations, keeping", sum(i), config=config)
   state$expression <- state$expression[, i, drop=F]
   state$samples <- state$samples[i, , drop=F]
-  f.msg(
-    "n_features_min:", n_features_min, 
-    "; samples filtered: nrow(state$expression):", nrow(state$expression), 
-    "; ncol(state$expression):", ncol(state$expression), 
-    config=config
-  )
+  f.msg("n_features_min:", n_features_min, config=config)
+  f.msg("observations filtered:", sum(!i), config=config)
+  f.msg("observations left:", nrow(state$expression), config=config)
 
   return(state)
 }
@@ -310,12 +307,12 @@ f.features_per_sample <- function(state, config) {
 #' str(out$config)
 
 f.filter <- function(state, config) {
-
+  
   f.check_config(config)
-
+  
   state <- f.filter_features(state, config)  
-  state <- f.filter_samples(state, config)
-
+  state <- f.filter_observations(state, config)
+  
   n <- f.samples_per_feature(state, config)
   state$features[, config$n_samples_expr_col] <- n
   
@@ -327,8 +324,15 @@ f.filter <- function(state, config) {
   
   f.check_state(state, config)
   f.report_state(state, config)
-  i <- config$run_order %in% "filter"
-  prfx <- paste0(which(i)[1] + 2, ".filtered")
+  
+  if(!is.null(config$run_order)) {
+    i <- config$run_order %in% "filter"
+    if(any(i)) {
+      prfx <- paste0(which(i)[1] + 2, ".filtered")
+    } else {
+      prfx <- "filtered"
+    }
+  }
   f.save_state(state, config, prefix=prfx)
   
   return(list(state=state, config=config))

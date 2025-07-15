@@ -40,14 +40,14 @@ Uses the \code{proDA::proDA()} function. Returned results sorted by p-value.
     \code{character}. Error otherwise.
   Flow is:
     \tabular{l}{
-      1. Reshape data into long format with intensities, feature meta, and sample meta. 
-      2. Make and populate \code{prolfqua::AnalysisTableAnnotation} object. 
+      1. Reshape data into long format with intensities, feature meta, and sample meta. \cr
+      2. Make and populate \code{prolfqua::AnalysisTableAnnotation} object. \cr
       3. Make \code{prolfqua::LFQData} object from data and 
-           \code{prolfqua::AnalysisTableAnnotation} object.
-      4. Make \code{prolfqua::strategy_lm} object from \code{config$frm}.
+           \code{prolfqua::AnalysisTableAnnotation} object. \cr
+      4. Make \code{prolfqua::strategy_lm} object from \code{config$frm}. \cr
       5. Build \code{prolfqua} model from \code{prolfqua::LFQData} and 
-           \code{prolfqua::strategy_lm} objects.
-      5. Return sub-table of ANOVA results corresponding to \code{config$test_term}.
+           \code{prolfqua::strategy_lm} objects. \cr
+      5. Return sub-table of ANOVA results corresponding to \code{config$test_term}. \cr
     }
   See documentation for \code{h0testr::f.new_config()} 
     for more detailed description of configuration parameters.

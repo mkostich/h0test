@@ -117,11 +117,11 @@ f.test_deqms <- function(state, config, trend=FALSE) {
 #'     peptide/precursor-level input.
 #'   Flow is:
 #'     \tabular{l}{
-#'       1. Create a \code{QFeatures} object with \code{QFeatures::readQFeatures()}. 
-#'       2. Convert \code{NA}s to zero using \code{QFeatures::zeroIsNA()}. 
-#'       3. Make gene/protein-group expression with \code{QFeatures::aggregateFeatures()}.
-#'       4. Estimate model parameters using \code{msqrob2::msqrob()}.
-#'       5. Calculate test statistics with \code{msqrob2::hypothesisTest()}.
+#'       1. Create a \code{QFeatures} object with \code{QFeatures::readQFeatures()}. \cr
+#'       2. Convert \code{NA}s to zero using \code{QFeatures::zeroIsNA()}. \cr
+#'       3. Make gene/protein-group expression with \code{QFeatures::aggregateFeatures()}. \cr
+#'       4. Estimate model parameters using \code{msqrob2::msqrob()}. \cr
+#'       5. Calculate test statistics with \code{msqrob2::hypothesisTest()}. \cr
 #'     }
 #'   See documentation for \code{h0testr::f.new_config()} 
 #'     for more detailed description of configuration parameters. 
@@ -249,7 +249,6 @@ f.test_msqrob <- function(state, config, maxit=20) {
   return(tbl)
 }
 
-
 #' Hypothesis testing using the \code{proDA} package
 #' @description
 #'   Tests for differential expression using the \code{proDA::proDA()} function.
@@ -357,7 +356,6 @@ f.test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, max
   return(tbl)
 }
 
-
 #' Hypothesis testing using the \code{prolfq} package
 #' @description
 #'   Tests for differential expression using the \code{prolfq::build_model()} function.
@@ -367,14 +365,14 @@ f.test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, max
 #'     \code{character}. Error otherwise.
 #'   Flow is:
 #'     \tabular{l}{
-#'       1. Reshape data into long format with intensities, feature meta, and sample meta. 
-#'       2. Make and populate \code{prolfqua::AnalysisTableAnnotation} object. 
+#'       1. Reshape data into long format with intensities, feature meta, and sample meta. \cr
+#'       2. Make and populate \code{prolfqua::AnalysisTableAnnotation} object. \cr
 #'       3. Make \code{prolfqua::LFQData} object from data and 
-#'            \code{prolfqua::AnalysisTableAnnotation} object.
-#'       4. Make \code{prolfqua::strategy_lm} object from \code{config$frm}.
+#'            \code{prolfqua::AnalysisTableAnnotation} object. \cr
+#'       4. Make \code{prolfqua::strategy_lm} object from \code{config$frm}. \cr
 #'       5. Build \code{prolfqua} model from \code{prolfqua::LFQData} and 
-#'            \code{prolfqua::strategy_lm} objects.
-#'       5. Return sub-table of ANOVA results corresponding to \code{config$test_term}.
+#'            \code{prolfqua::strategy_lm} objects. \cr
+#'       5. Return sub-table of ANOVA results corresponding to \code{config$test_term}. \cr
 #'     }
 #'   See documentation for \code{h0testr::f.new_config()} 
 #'     for more detailed description of configuration parameters. 
@@ -506,7 +504,6 @@ f.test_prolfqua <- function(state, config, is_log_transformed=NULL) {
   return(tbl[tbl$factor %in% config$test_term, , drop=F])
 }
 
-
 #' Hypothesis testing using \code{limma::voom}
 #' @description
 #'   Tests for differential expression using the \code{limma::voom()} function.
@@ -582,7 +579,6 @@ f.test_voom <- function(state, config, normalize.method="none") {
   
   return(tbl)
 }
-
 
 #' Hypothesis testing using \code{limma} trend.
 #' @description
@@ -830,4 +826,3 @@ f.test <- function(state, config) {
   
   return(list(original=tbl, standard=tbl2))
 }
-

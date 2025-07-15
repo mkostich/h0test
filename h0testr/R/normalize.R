@@ -359,7 +359,6 @@ f.normalize_qquantile <- function(state, config) {
   return(state)
 }
 
-
 #' Normalize expression data using \code{MsCoreUtils} package
 #' @description
 #'   Normalization using the \code{MsCoreUtils::normalize_matrix()} function.
@@ -434,7 +433,6 @@ f.normalize_mscoreutils <- function(state, config, method=NULL) {
   
   return(state)
 }
-
 
 #' Inter-sample normalization
 #' @description
@@ -524,11 +522,16 @@ f.normalize <- function(state, config) {
 
   f.check_state(state, config)
   f.report_state(state, config)
-  i <- config$run_order %in% "normalize"
-  prfx <- paste0(which(i)[1] + 2, ".normalized")
+  
+  if(!is.null(config$run_order)) {
+    i <- config$run_order %in% "normalize"
+    if(any(i)) {
+      prfx <- paste0(which(i)[1] + 2, ".normalized")
+    } else {
+      prfx <- "normalized"
+    }
+  }
   f.save_state(state, config, prefix=prfx)
   
   return(list(state=state, config=config))
 }
-
-

@@ -58,7 +58,6 @@ f.run <- function(config) {
     original=tbl_list$original, standard=tbl_list$standard))
 }
 
-
 ## helper for f.tune():
 
 f.tune1 <- function(state, config, norm_method) {

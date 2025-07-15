@@ -37,11 +37,11 @@ Returns gene-level hypothesis testing results based on
     peptide/precursor-level input.
   Flow is:
     \tabular{l}{
-      1. Create a \code{QFeatures} object with \code{QFeatures::readQFeatures()}. 
-      2. Convert \code{NA}s to zero using \code{QFeatures::zeroIsNA()}. 
-      3. Make gene/protein-group expression with \code{QFeatures::aggregateFeatures()}.
-      4. Estimate model parameters using \code{msqrob2::msqrob()}.
-      5. Calculate test statistics with \code{msqrob2::hypothesisTest()}.
+      1. Create a \code{QFeatures} object with \code{QFeatures::readQFeatures()}. \cr
+      2. Convert \code{NA}s to zero using \code{QFeatures::zeroIsNA()}. \cr
+      3. Make gene/protein-group expression with \code{QFeatures::aggregateFeatures()}. \cr
+      4. Estimate model parameters using \code{msqrob2::msqrob()}. \cr
+      5. Calculate test statistics with \code{msqrob2::hypothesisTest()}. \cr
     }
   See documentation for \code{h0testr::f.new_config()} 
     for more detailed description of configuration parameters.

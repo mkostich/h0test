@@ -436,7 +436,7 @@ f.prefilter <- function(state, config, n_samples_min=2, n_features_min=2) {
   f.msg("after filtering features", config=config)
   f.report_state(state, config)
   
-  state <- f.filter_samples(state, config, n_features_min=n_features_min)
+  state <- f.filter_observations(state, config, n_features_min=n_features_min)
   f.msg("after filtering samples", config=config)
   f.report_state(state, config)
   
@@ -577,4 +577,3 @@ f.load_data <- function(config) {
   
   return(list(state=state, config=config))
 }
-

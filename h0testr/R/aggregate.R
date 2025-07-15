@@ -75,9 +75,11 @@ f.combine_reps <- function(state, config) {
   
   if(!is.null(config$run_order)) {
     i <- config$run_order %in% "combine_reps"
-    prfx <- paste0(which(i)[1] + 2, ".combined_reps")
-  } else {
-    prfx <- "combined_reps"
+    if(any(i)) {
+      prfx <- paste0(which(i)[1] + 2, ".combine_reps")
+    } else {
+      prfx <- "combine_reps"
+    }
   }
   f.save_state(state, config, prefix=prfx)
   
@@ -275,9 +277,11 @@ f.combine_peps <- function(state, config, method=NULL, rescale=FALSE) {
   
   if(!is.null(config$run_order)) {
     i <- config$run_order %in% "combine_peps"
-    prfx <- paste0(which(i)[1] + 2, ".combine_peps")
-  } else {
-    prfx <- "combine_peps"
+    if(any(i)) {
+      prfx <- paste0(which(i)[1] + 2, ".combine_peps")
+    } else {
+      prfx <- "combine_peps"
+    }
   }
   f.save_state(state, config, prefix=prfx)
   
