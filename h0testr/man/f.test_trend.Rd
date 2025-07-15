@@ -27,8 +27,7 @@ f.test_trend(state, config)
 A \code{data.frame} containing results of test.
 }
 \description{
-Test for differential expression using the \code{limma} 
-  package \code{trend} approach.
+Test for differential expression using \code{limma::eBayes(trend=TRUE)}.
 }
 \details{
 Tests for differential expression using the \code{limma} pakcage by running 

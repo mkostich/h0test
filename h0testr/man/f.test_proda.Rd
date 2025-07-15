@@ -45,6 +45,11 @@ Tests for differential expression using the \code{proDA::proDA()} function.
 }
 \details{
 Uses the \code{proDA::proDA()} function. Returned results sorted by p-value.
+  Returns peptide/precursor/gene-level hypothesis testing results based on 
+    peptide/precursor/gene-level input. That is, testing is on features of 
+    the input, so have to aggregate data to the desired level for 
+    hypothesis testing first. Main feature of this method is its native 
+    handling of missing values.
   See documentation for \code{h0testr::f.new_config()} 
     for more detailed description of configuration parameters.
 }

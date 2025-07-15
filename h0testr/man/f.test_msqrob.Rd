@@ -33,7 +33,9 @@ A data.frame with test results. Columns include \code{config$gene_id_col} and:
 Tests for differential expression using the \code{msqrob2::msqrob()} function.
 }
 \details{
-Flow is:
+Returns gene-level hypothesis testing results based on 
+    peptide/precursor-level input.
+  Flow is:
     \tabular{l}{
       1. Create a \code{QFeatures} object with \code{QFeatures::readQFeatures()}. 
       2. Convert \code{NA}s to zero using \code{QFeatures::zeroIsNA()}. 

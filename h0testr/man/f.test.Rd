@@ -21,7 +21,7 @@ f.test(state, config)
   \code{frm}            \cr \tab Formula (formula) to be fit \cr
   \code{test_term}      \cr \tab Term (character scalar) to be tested for non-zero coefficient. \cr
   \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
-  \code{test_method}    \cr \tab Character scalar in \code{c("trend", "voom")}. \cr
+  \code{test_method}    \cr \tab Character scalar in \code{c("voom", "trend", "deqms", "msqrob", "proda"}. \cr
 }}
 }
 \value{
@@ -45,7 +45,15 @@ Test hypotheses using .
 }
 \details{
 Tests for differential expression using method specified in config. 
-  See invididual \code{f.test_*} methods for more details.
+  See invididual \code{f.test_*} methods for more details. 
+  The \code{method} setting meanings are: 
+  \tabular{ll}{
+    \code{trend}  \cr \tab Use \code{limma::eBayes(trend=TRUE)}. \cr
+    \code{deqms}  \cr \tab Use \code{DEqMS::spectraCounteBayes()}. \cr
+    \code{msqrob} \cr \tab Use \code{msqrob2::msqrob()}. \cr
+    \code{proda}  \cr \tab Use \code{proDA::proDA()}. \cr
+    \code{voom}   \cr \tab Use \code{limma::voom()}. \cr
+  } 
   See documentation for \code{h0testr::f.new_config()} 
     for more detailed description of configuration parameters.
 }

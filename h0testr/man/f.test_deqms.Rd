@@ -38,6 +38,8 @@ Tests for differential expression using the \code{DEqMS::spectraCounteBayes()} f
 The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm} 
     and a moderated t-test is performed for whether the effect of 
     \code{config$test_term} on \code{state$expression} is zero. 
+  Returns gene-level hypothesis testing results based on 
+    peptide/precursor-level input.
   Flow is:
     \tabular{l}{
       1. for each gene, count number of associated peptides. \cr

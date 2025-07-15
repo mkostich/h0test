@@ -13,7 +13,7 @@ f.tune(
   impute_quantiles = c(0, 0.01, 0.05, 0.1, 0.25),
   impute_scales = c(1, 0.5, 0.25, 0.1),
   impute_spans = c(0.25, 0.5, 0.75),
-  test_methods = c("voom", "trend", "deqms", "msqrob", "proda", "prolfqua")
+  test_methods = c("voom", "trend", "deqms", "msqrob", "proda")
 )
 }
 \arguments{
@@ -33,7 +33,8 @@ See \code{f.impute_rnorm_feature()} \code{scale}. parameter.}
 
 \item{impute_spans}{Numeric vector of spans to try for \code{f.impute_loess_logit}.}
 
-\item{test_methods}{Character vector with one or more of: \code{c("trend", "voom")}.}
+\item{test_methods}{Character vector with one or more of: 
+\code{c("voom", "trend", "deqms", "msqrob", "proda")}.}
 }
 \value{
 A data.frame with the following columns:
@@ -96,7 +97,7 @@ out2 <- h0testr::f.tune(config,
   norm_methods=c("RLE", "q75", "cpm", "log2"),
   impute_methods=c("sample_lod", "unif_sample_lod", "none"),
   impute_quantiles=c(0, 0.05, 0.1),
-  test_methods=c("trend", "msqrob", "proda", "prolfqua")
+  test_methods=c("trend", "msqrob", "proda")
 )
 ## write.table(out2, "1.condition.tune.tsv", quote=F, sep="\t", row.names=F)
 }
