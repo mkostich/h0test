@@ -5,6 +5,8 @@
 #'   The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm} 
 #'     and a moderated t-test is performed for whether the effect of 
 #'     \code{config$test_term} on \code{state$expression} is zero. 
+#'   Returns gene-level hypothesis testing results based on 
+#'     peptide/precursor-level input.
 #'   Flow is:
 #'     \tabular{l}{
 #'       1. for each gene, count number of associated peptides. \cr
@@ -111,6 +113,8 @@ f.test_deqms <- function(state, config, trend=FALSE) {
 #' @description
 #'   Tests for differential expression using the \code{msqrob2::msqrob()} function.
 #' @details
+#'   Returns gene-level hypothesis testing results based on 
+#'     peptide/precursor-level input.
 #'   Flow is:
 #'     \tabular{l}{
 #'       1. Create a \code{QFeatures} object with \code{QFeatures::readQFeatures()}. 
@@ -251,6 +255,11 @@ f.test_msqrob <- function(state, config, maxit=20) {
 #'   Tests for differential expression using the \code{proDA::proDA()} function.
 #' @details
 #'   Uses the \code{proDA::proDA()} function. Returned results sorted by p-value.
+#'   Returns peptide/precursor/gene-level hypothesis testing results based on 
+#'     peptide/precursor/gene-level input. That is, testing is on features of 
+#'     the input, so have to aggregate data to the desired level for 
+#'     hypothesis testing first. Main feature of this method is its native 
+#'     handling of missing values.
 #'   See documentation for \code{h0testr::f.new_config()} 
 #'     for more detailed description of configuration parameters. 
 #' @param state List with elements like those returned by \code{f.read_data()}:
@@ -577,8 +586,7 @@ f.test_voom <- function(state, config, normalize.method="none") {
 
 #' Hypothesis testing using \code{limma} trend.
 #' @description
-#'   Test for differential expression using the \code{limma} 
-#'   package \code{trend} approach.
+#'   Test for differential expression using \code{limma::eBayes(trend=TRUE)}.
 #' @details
 #'   Tests for differential expression using the \code{limma} pakcage by running 
 #'     \code{lmFit()}, then \code{eBayes()}, then \code{topTable()}. Model is fit 
@@ -710,7 +718,15 @@ f.format_limma <- function(tbl, config) {
 #'   Test hypotheses using .
 #' @details
 #'   Tests for differential expression using method specified in config. 
-#'   See invididual \code{f.test_*} methods for more details.
+#'   See invididual \code{f.test_*} methods for more details. 
+#'   The \code{method} setting meanings are: 
+#'   \tabular{ll}{
+#'     \code{trend}  \cr \tab Use \code{limma::eBayes(trend=TRUE)}. \cr
+#'     \code{deqms}  \cr \tab Use \code{DEqMS::spectraCounteBayes()}. \cr
+#'     \code{msqrob} \cr \tab Use \code{msqrob2::msqrob()}. \cr
+#'     \code{proda}  \cr \tab Use \code{proDA::proDA()}. \cr
+#'     \code{voom}   \cr \tab Use \code{limma::voom()}. \cr
+#'   } 
 #'   See documentation for \code{h0testr::f.new_config()} 
 #'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by `f.read_data()`:
@@ -726,7 +742,7 @@ f.format_limma <- function(tbl, config) {
 #'     \code{frm}            \cr \tab Formula (formula) to be fit \cr
 #'     \code{test_term}      \cr \tab Term (character scalar) to be tested for non-zero coefficient. \cr
 #'     \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
-#'     \code{test_method}    \cr \tab Character scalar in \code{c("trend", "voom")}. \cr
+#'     \code{test_method}    \cr \tab Character scalar in \code{c("voom", "trend", "deqms", "msqrob", "proda"}. \cr
 #'   }
 #' @return A list with the following elements:
 #'   \tabular{ll}{

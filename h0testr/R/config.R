@@ -98,7 +98,7 @@ f.new_config <- function() {
     impute_scale=1,                      ## for rnorm_feature, adjustment on sd of distribution [1: no change];
     impute_span=0.5,                     ## loess span for f.impute_loess_logit
     impute_n_pts=1e7,                    ## granularity of imputed values for f.impute_glm_binom and f.impute_loess_logit
-    test_method="trend",                 ## in c("voom", "trend")
+    test_method="trend",                 ## in c("voom", "trend", "deqms", "msqrob", "proda")
     ## run_order character vector with elements from {"normalize", "combine_reps", "filter", "impute"}:
     run_order=c("normalize", "combine_reps", "combine_peps", "filter", "impute"),   ## order of workflow operations
     
