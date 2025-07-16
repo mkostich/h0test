@@ -20,7 +20,7 @@ f.impute_rnorm_feature(state, config, scale. = NULL)
 }}
 
 \item{scale.}{Numeric greater than zero, linearly scaling the
-dispersion around the feature mean.}
+dispersion around the feature mean. Default: \code{1.0}.}
 }
 \value{
 An updated \code{state} list with the following elements:
@@ -50,8 +50,25 @@ exprs <- log2(exprs + 1)
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(impute_scale=1)
+
+summary(c(state$expression))     ## note number of NAs
+head(state$expression)
+
+## impute using default scale. parameter:
+config <- list()    
 state2 <- h0testr::f.impute_rnorm_feature(state, config)
-summary(c(state$expression))   ## note number of NAs
-summary(c(state2$expression))  ## note number of NAs
+summary(c(state2$expression))    ## note number of NAs
+round(head(state2$expression))
+
+## impute using passed scale. parameter:
+config <- list()    
+state2 <- h0testr::f.impute_rnorm_feature(state, config, scale.=2)
+summary(c(state2$expression))    ## note number of NAs
+round(head(state2$expression))
+
+## impute using impute_scale parameter from config:
+config <- list(impute_scale=0.5)    
+state2 <- h0testr::f.impute_rnorm_feature(state, config)
+summary(c(state2$expression))    ## note number of NAs
+round(head(state2$expression))
 }

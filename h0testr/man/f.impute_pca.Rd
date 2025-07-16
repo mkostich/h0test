@@ -4,7 +4,13 @@
 \alias{f.impute_pca}
 \title{Impute missing values with \code{pcaMethods::pca()}.}
 \usage{
-f.impute_pca(state, config, n_pcs = 3, is_log_transformed = FALSE)
+f.impute_pca(
+  state,
+  config,
+  is_log_transformed = FALSE,
+  n_pcs = 5,
+  method = "bpca"
+)
 }
 \arguments{
 \item{state}{A list with elements like that returned by \code{f.read_data()}:
@@ -16,9 +22,12 @@ f.impute_pca(state, config, n_pcs = 3, is_log_transformed = FALSE)
 
 \item{config}{List with configuration values. Does not use any keys so can pass empty list.}
 
+\item{is_log_transformed}{Logical scalar: if \code{state$expression} has 
+been log transformed.}
+
 \item{n_pcs}{Number (scalar numeric >= 1) of principle components to compute.}
 
-\item{is_log_transformed}{Logical scalar whether \code{state$expression} has been log transformed.}
+\item{method}{Method to use. Scalar character in \code{c("bpca", "ppca", "svdImpute")}.}
 }
 \value{
 An updated \code{state} list with the following elements:
@@ -37,7 +46,14 @@ Impute missing values with \code{pcaMethods::pca()}.
 \details{
 Only \code{NAs} considered missing. If you want \code{0} to be considered 
     missing, do something like \code{exprs[exprs \%in\% 0] <- NA} prior to 
-    imputing.
+    imputing. 
+  Options for parameter \code{method} are described more fully in 
+    the \code{pcaMethods} package documentation. Acceptable values include:
+  \tabular{ll}{
+    \code{bpca}      \cr \tab Bayesian PCA (https://doi.org/10.1093/bioinformatics/btg287). \cr
+    \code{ppca}      \cr \tab Probabilistic PCA (https://dl.acm.org/doi/10.5555/3008904.3008993). \cr
+    \code{svdImpute} \cr \tab Use svdImpute (https://doi.org/10.1093/bioinformatics/17.6.520). \cr
+  }
 }
 \examples{
 ## setup state and config, including prefiltering:
@@ -58,10 +74,21 @@ config <- list()
 state <- h0testr::f.filter_features(state, config, n_samples_min=3)
 state <- h0testr::f.filter_observations(state, config, n_features_min=30)
 
-## impute:
-state2 <- h0testr::f.impute_pca(state, config)
-summary(state$expression)
-summary(state2$expression)
+summary(c(state$expression))    ## Note number of NAs
 head(state$expression)
+
+## impute using bayesian pca:
+state2 <- h0testr::f.impute_pca(state, config, method="bpca")
+summary(c(state2$expression))   ## Note number of NAs
+round(head(state2$expression))
+
+## impute using probabilistic pca:
+state2 <- h0testr::f.impute_pca(state, config, method="ppca")
+summary(c(state2$expression))   ## Note number of NAs
+round(head(state2$expression))
+
+## impute as linear combo of \code{n_pcs} eigengenes:
+state2 <- h0testr::f.impute_pca(state, config, method="svdImpute")
+summary(c(state2$expression))   ## Note number of NAs
 round(head(state2$expression))
 }

@@ -27,11 +27,12 @@ It is assumed that state$expression has been previously \code{log2(x+1)} transfo
   \code{impute_n_pts}  \cr \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain.
 }}
 
-\item{is_log_transformed}{Scalar logical: if \code{state$expression} is log transformed.}
+\item{is_log_transformed}{Logical scalar: if \code{state$expression} has 
+been log transformed.}
 
 \item{n_pts}{Numeric greater than one. Granularity of prediction 
 grid. Larger values lead to less chance of duplicate imputed values.
-Larger values require more compute time and memory.}
+Larger values require more compute time and memory. Default: 1e7.}
 
 \item{off}{Numeric offset for calculating 
 \code{p.missing = (n.missing + off) / (n.total + off)}.}
@@ -64,14 +65,23 @@ Impute random draws by drawing from the estimated density of
 \examples{
 set.seed(101)
 exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
-exprs <- log2(exprs + 1)
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
 config <- list(impute_n_pts=1e7)
+
+## untransformed example:
 state2 <- h0testr::f.impute_glm_binom(state, config)
-summary(c(state$expression))   ## note number of NAs
-summary(c(state2$expression))  ## note number of NAs
+summary(c(state$expression))    ## Note number of NAs
+summary(c(state2$expression))   ## Note number of NAs
 head(state$expression)
-head(state2$expression)
+round(head(state2$expression))
+
+## log-transformed example:
+state$expression <- log2(state$expression + 1)
+state2 <- h0testr::f.impute_glm_binom(state, config, is_log_transformed=TRUE)
+summary(c(state$expression))    ## Note number of NAs
+summary(c(state2$expression))   ## Note number of NAs
+head(state$expression)
+round(head(state2$expression))
 }

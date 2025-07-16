@@ -7,6 +7,7 @@
 f.impute_glmnet(
   state,
   config,
+  is_log_transformed = F,
   f_imp = f.impute_unif_sample_lod,
   nfolds = 5,
   alpha = 1,
@@ -14,7 +15,6 @@ f.impute_glmnet(
   aug_mult = 0.33,
   aug_add = 0,
   aug_steps = 3,
-  unlog2 = T,
   verbose = T
 )
 }
@@ -24,10 +24,13 @@ f.impute_glmnet(
     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
-  } 
+  }
 It is assumed that state$expression has been previously \code{log2(x+1)} transformed.}
 
 \item{config}{List with configuration values. Does not use any keys so can pass empty list.}
+
+\item{is_log_transformed}{Logical scalar: if \code{state$expression} has 
+been log transformed.}
 
 \item{f_imp}{Function to use for initial rough imputation.}
 
@@ -45,10 +48,6 @@ during cross-validation tuning of \code{lambda} value for \code{glmnet}.}
 
 \item{aug_steps}{Numeric (non-negative) number of augmentation steps. Set to
 \code{0} to skip augmentation.}
-
-\item{unlog2}{Logical if \code{TRUE}, treats \code{state$expression} as if 
-\code{log2} transformed (the usual case). Set to \code{FALSE} for
-raw data.}
 
 \item{verbose}{Logical if \code{TRUE}, emits progress messages.}
 }
@@ -87,13 +86,27 @@ Imputes missing values using a \code{glmnet::cv.glmnet} model trained
 \examples{
 set.seed(101)
 exprs <- h0testr::f.sim1(n_obs=20, n_feats=30)$mat
-exprs <- log2(exprs + 1)
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
 config <- list()
+
+## example with untransformed data:
 out <- h0testr::f.impute_glmnet(state, config, verbose=FALSE)
-summary(c(state$expression))   ## note number of NAs
-summary(c(out$state$expression))  ## note number of NAs
+state2 <- out$state
+summary(c(state$expression))    ## Note number of NAs
+summary(c(state2$expression))   ## Note number of NAs
+head(state$expression)
+round(head(state2$expression))
+print(out$log)
+
+## example with log-transformed data:
+state$expression <- log2(state$expression + 1)
+out <- h0testr::f.impute_glmnet(state, config, is_log_transformed=TRUE, verbose=FALSE)
+state2 <- out$state
+summary(c(state$expression))    ## Note number of NAs
+summary(c(state2$expression))   ## Note number of NAs
+head(state$expression)
+round(head(state2$expression))
 print(out$log)
 }

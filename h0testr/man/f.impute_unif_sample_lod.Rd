@@ -21,7 +21,7 @@ f.impute_unif_sample_lod(state, config, impute_quantile = NULL)
 
 \item{impute_quantile}{Numeric between 0 and 1 specifying 
 minimum non-zero/\code{NA} expression value in each observation to use as the
-observation-specific LOD (limit of detection).}
+observation-specific LOD (limit of detection). Default: \code{0}.}
 }
 \value{
 An updated \code{state} list with the following elements:
@@ -55,4 +55,6 @@ config <- list(impute_quantile=0.05)
 state2 <- h0testr::f.impute_unif_sample_lod(state, config)
 summary(c(state$expression))   ## note number of NAs
 summary(c(state2$expression))  ## note number of NAs
+head(state$expression)
+round(head(state2$expression))
 }

@@ -21,7 +21,8 @@ f.impute_unif_global_lod(state, config, impute_quantile = NULL)
 
 \item{impute_quantile}{Numeric between 0 and 1 specifying 
 minimum non-zero/\code{NA} expression value for each feature to use as global
-LOD (limit of detection). If \code{NULL}, \code{config$impute_quantile} used.}
+LOD (limit of detection). If \code{NULL}, \code{config$impute_quantile} used.
+Default: \code{0}.}
 }
 \value{
 An updated `state` list with the following elements:
@@ -57,4 +58,6 @@ config <- list(impute_quantile=0.05)
 state2 <- h0testr::f.impute_unif_global_lod(state, config)
 summary(c(state$expression))   ## note number of NAs
 summary(c(state2$expression))  ## note number of NAs
+head(state$expression)
+round(head(state2$expression))
 }

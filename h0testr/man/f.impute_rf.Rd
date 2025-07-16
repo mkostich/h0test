@@ -7,13 +7,13 @@
 f.impute_rf(
   state,
   config,
+  is_log_transformed = T,
   f_imp = f.impute_unif_sample_lod,
   ntree = 100,
   mtry = NULL,
   aug_mult = 0.33,
   aug_add = 0,
   aug_steps = 3,
-  unlog2 = T,
   verbose = T
 )
 }
@@ -27,6 +27,9 @@ f.impute_rf(
 It is assumed that state$expression has been previously \code{log2(x+1)} transformed.}
 
 \item{config}{List with configuration values. Does not use any keys, so can pass empty list.}
+
+\item{is_log_transformed}{Logical scalar: if \code{state$expression} has 
+been log transformed.}
 
 \item{f_imp}{Function to use for initial rough imputation.}
 
@@ -42,10 +45,6 @@ node in each tree. \code{randomForest} \code{mtry} parameter.}
 
 \item{aug_steps}{Numeric (non-negative) number of augmentation steps. Set to
 \code{0} to skip augmentation.}
-
-\item{unlog2}{Logical if \code{TRUE}, treats \code{state$expression} as if 
-\code{log2} transformed (the normal case). Set to \code{FALSE} for raw 
-data.}
 
 \item{verbose}{Logical if TRUE, emits progress messages.}
 }
@@ -89,8 +88,23 @@ feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
 config <- list()
+
+## untransformed example:
 out <- h0testr::f.impute_rf(state, config, verbose=FALSE)
-summary(c(state$expression))   ## note number of NAs
-summary(c(out$state$expression))  ## note number of NAs
+state2 <- out$state
+summary(c(state$expression))    ## Note number of NAs
+summary(c(state2$expression))   ## Note number of NAs
+head(state$expression)
+round(head(state2$expression))
+print(out$log)
+
+## log-transformed example:
+state$expression <- log2(state$expression + 1)
+out <- h0testr::f.impute_rf(state, config, is_log_transformed=TRUE, verbose=FALSE)
+state2 <- out$state
+summary(c(state$expression))    ## Note number of NAs
+summary(c(state2$expression))   ## Note number of NAs
+head(state$expression)
+round(head(state2$expression))
 print(out$log)
 }

@@ -94,10 +94,14 @@ f.new_config <- function() {
     feature_aggregation_scaled=FALSE,    ## whether to rescale peptide features prior to aggregation into protein/gene group.
     ## in: c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", "none")
     impute_method="unif_sample_lod",
-    impute_quantile=0.05,                ## quantile for unif_ imputation methods
+    impute_quantile=0.01,                ## quantile for unif_ imputation methods
     impute_scale=1,                      ## for rnorm_feature, adjustment on sd of distribution [1: no change];
     impute_span=0.5,                     ## loess span for f.impute_loess_logit
+    impute_k=7,                          ## k for f.impute_knn() or f.impute_lls()
+    impute_npcs=5,                       ## number of PCs for PCA-based imputations "bpca", "ppca", and "svdImpute"
+    impute_alpha=1,                      ## alpha mixing parameter for f.impute_glmnet()
     impute_n_pts=1e7,                    ## granularity of imputed values for f.impute_glm_binom and f.impute_loess_logit
+    impute_aug_steps=3,                  ## data augmentation iterations for f.impute_rf() and f.impute_glmnet()
     test_method="trend",                 ## in c("voom", "trend", "deqms", "msqrob", "proda")
     ## run_order character vector with elements from {"normalize", "combine_reps", "filter", "impute"}:
     run_order=c("normalize", "combine_reps", "combine_peps", "filter", "impute"),   ## order of workflow operations
@@ -146,11 +150,12 @@ f.check_config <- function(config) {
     "median_raw_col", "n_features_expr_col", "log_file", "feature_mid_out", 
     "sample_mid_out", "data_mid_out", "result_mid_out", "suffix_out", 
     "norm_method", "feature_aggregation", "impute_method", "test_method")
-    
-  scalar_counts <- c("n_samples_min", "n_features_min", "impute_n_pts", "width")
-  scalar_props <- c("norm_quantile", "impute_quantile", 
-    "impute_scale", "impute_span")
-  scalar_positive <- c("impute_span")
+  
+  scalar_counts <- c("n_samples_min", "n_features_min", "impute_n_pts", 
+    "impute_k", "impute_npcs", "impute_aug_steps", "width")
+  
+  scalar_props <- c("norm_quantile", "impute_quantile", "impute_span", "impute_alpha")
+  scalar_positive <- c("impute_scale")
   scalar_logical <- c("feature_aggregation_scaled", "save_state", "verbose")
   scalar_formula <- c("frm")
   vector_character <- c("run_order")

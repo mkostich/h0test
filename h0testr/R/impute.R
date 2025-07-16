@@ -23,6 +23,7 @@
 #' @param impute_quantile Numeric between 0 and 1 specifying 
 #'   minimum non-zero/\code{NA} expression value for each feature to use as global
 #'   LOD (limit of detection). If \code{NULL}, \code{config$impute_quantile} used.
+#'   Default: \code{0}.
 #' @return An updated `state` list with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -41,13 +42,16 @@
 #' state2 <- h0testr::f.impute_unif_global_lod(state, config)
 #' summary(c(state$expression))   ## note number of NAs
 #' summary(c(state2$expression))  ## note number of NAs
+#' head(state$expression)
+#' round(head(state2$expression))
 
 f.impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
 
   f.check_config(config)
 
   if(!is.matrix(state$expression)) {
-     f.err("f.impute_unif_global_lod: !is.matrix(state$expression)", config=config)
+     f.err("f.impute_unif_global_lod: !is.matrix(state$expression)", 
+       config=config)
   }
   if(is.null(impute_quantile)) impute_quantile <- config$impute_quantile
   if(is.null(impute_quantile)) impute_quantile <- 0
@@ -57,7 +61,9 @@ f.impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
   v <- v[v > 0]        ## minimum non-zero values for each gene (with non-0 vals)
   
   max_val <- stats::quantile(v, probs=impute_quantile[1], na.rm=T)    ## quantile of min vals
-  if(is.na(max_val)) f.err("f.impute_unif_global_lod: is.na(max_val)", config=config)
+  if(is.na(max_val)) {
+    f.err("f.impute_unif_global_lod: is.na(max_val)", config=config)
+  }
   names(max_val) <- NULL
   f.msg("f.impute_unif_global_lod: inpute_quantile: ", impute_quantile, 
     "; max_val:", max_val, config=config)
@@ -97,7 +103,7 @@ f.impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
 #'   }
 #' @param impute_quantile Numeric between 0 and 1 specifying 
 #'   minimum non-zero/\code{NA} expression value in each observation to use as the
-#'   observation-specific LOD (limit of detection).
+#'   observation-specific LOD (limit of detection). Default: \code{0}.
 #' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -115,6 +121,8 @@ f.impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
 #' state2 <- h0testr::f.impute_unif_sample_lod(state, config)
 #' summary(c(state$expression))   ## note number of NAs
 #' summary(c(state2$expression))  ## note number of NAs
+#' head(state$expression)
+#' round(head(state2$expression))
 
 f.impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
 
@@ -178,6 +186,8 @@ f.impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
 #' state2 <- h0testr::f.impute_sample_lod(state, config)
 #' summary(c(state$expression))   ## note number of NAs
 #' summary(c(state2$expression))  ## note number of NAs
+#' head(state$expression)
+#' round(head(state2$expression))
 
 f.impute_sample_lod <- function(state, config) {
 
@@ -217,7 +227,7 @@ f.impute_sample_lod <- function(state, config) {
 #'     \code{impute_scale}  \cr \tab Factor (numeric) rescaling variance of normal distribution from which draws are made. See details.
 #'   }
 #' @param scale. Numeric greater than zero, linearly scaling the
-#'   dispersion around the feature mean.
+#'   dispersion around the feature mean. Default: \code{1.0}.
 #' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -231,10 +241,27 @@ f.impute_sample_lod <- function(state, config) {
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(impute_scale=1)
+#' 
+#' summary(c(state$expression))     ## note number of NAs
+#' head(state$expression)
+#' 
+#' ## impute using default scale. parameter:
+#' config <- list()    
 #' state2 <- h0testr::f.impute_rnorm_feature(state, config)
-#' summary(c(state$expression))   ## note number of NAs
-#' summary(c(state2$expression))  ## note number of NAs
+#' summary(c(state2$expression))    ## note number of NAs
+#' round(head(state2$expression))
+#'
+#' ## impute using passed scale. parameter:
+#' config <- list()    
+#' state2 <- h0testr::f.impute_rnorm_feature(state, config, scale.=2)
+#' summary(c(state2$expression))    ## note number of NAs
+#' round(head(state2$expression))
+#'
+#' ## impute using impute_scale parameter from config:
+#' config <- list(impute_scale=0.5)    
+#' state2 <- h0testr::f.impute_rnorm_feature(state, config)
+#' summary(c(state2$expression))    ## note number of NAs
+#' round(head(state2$expression))
 
 f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 
@@ -251,15 +278,13 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
       config=config)
   }
   if(is.null(scale.)) scale. <- config$impute_scale
-  if(is.null(scale.)) {
-    f.err("f.impute_rnorm_feature: scale. and config$impute_scale unset", 
-      config=config)
-  }
+  if(is.null(scale.)) scale. <- 1.0
   
   f <- function(v) {
     i <- is.na(v)
     if(all(i)) {
-      f.err("f.impute_rnorm_feature: all(is.na(state$expression[row,]))")
+      f.err("f.impute_rnorm_feature: all(is.na(state$expression[row,]))",
+        config=config)
     }
     if(any(i)) {
       m <- mean(v[!i])
@@ -311,10 +336,11 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 #'   \tabular{ll}{
 #'     \code{impute_n_pts}  \cr \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain.
 #'   }
-#' @param is_log_transformed Scalar logical: if \code{state$expression} is log transformed.
+#' @param is_log_transformed Logical scalar: if \code{state$expression} has 
+#'   been log transformed.
 #' @param n_pts Numeric greater than one. Granularity of prediction 
 #'   grid. Larger values lead to less chance of duplicate imputed values.
-#'   Larger values require more compute time and memory.
+#'   Larger values require more compute time and memory. Default: 1e7.
 #' @param off Numeric offset for calculating 
 #'   \code{p.missing = (n.missing + off) / (n.total + off)}.
 #' @param f_mid Function to use for calculating central tendency of 
@@ -328,20 +354,29 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 #' @examples
 #' set.seed(101)
 #' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
-#' exprs <- log2(exprs + 1)
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list(impute_n_pts=1e7)
+#' 
+#' ## untransformed example:
 #' state2 <- h0testr::f.impute_glm_binom(state, config)
-#' summary(c(state$expression))   ## note number of NAs
-#' summary(c(state2$expression))  ## note number of NAs
+#' summary(c(state$expression))    ## Note number of NAs
+#' summary(c(state2$expression))   ## Note number of NAs
 #' head(state$expression)
-#' head(state2$expression)
+#' round(head(state2$expression))
+#' 
+#' ## log-transformed example:
+#' state$expression <- log2(state$expression + 1)
+#' state2 <- h0testr::f.impute_glm_binom(state, config, is_log_transformed=TRUE)
+#' summary(c(state$expression))    ## Note number of NAs
+#' summary(c(state2$expression))   ## Note number of NAs
+#' head(state$expression)
+#' round(head(state2$expression))
 
 f.impute_glm_binom <- function(state, config, is_log_transformed=FALSE, 
     n_pts=NULL, off=1, f_mid=stats::median) {
-    
+  
   f.check_config(config)
   
   if(!is.matrix(state$expression)) {
@@ -352,10 +387,7 @@ f.impute_glm_binom <- function(state, config, is_log_transformed=FALSE,
   if(!is_log_transformed) mat <- log2(mat + 1) 
   
   if(is.null(n_pts)) n_pts <- config$impute_n_pts
-  if(is.null(n_pts)) {
-    f.err("f.impute_glm_binom: n_pts and config$impute_n_pts unset", 
-    config=config)
-  }
+  if(is.null(n_pts)) n_pts <- 1e7
   if(n_pts <= 0) f.err("f.impute_glm_binom: n_pts <= 0", config=config)
   
   m <- apply(mat, 1, f_mid, na.rm=T)
@@ -406,10 +438,10 @@ f.impute_glm_binom <- function(state, config, is_log_transformed=FALSE,
 #'     \code{impute_n_pts}  \cr \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain.
 #'     \code{impute_span}   \cr \tab Span (numeric between zero and 1) for \code{loess} fit.
 #'   }
-#' @param span. Span for loess fit. Numeric in the open interval \code{(0, 1)}.
+#' @param span Span for loess fit. Scalar with \code{0 < span < 1}. Default: \code{0.5}.
 #' @param n_pts Numeric greater than one. Granularity of prediction 
 #'   grid. Larger values lead to less chance of duplicate imputed values.
-#'   Larger values require more compute time and memory.
+#'   Larger values require more compute time and memory. Default: \code{1e7}.
 #' @param off Numeric offset for calculating 
 #'   \code{p.missing = (n.missing + off) / (n.total + off)}.
 #' @param f_mid Function to use for calculating central tendency of 
@@ -434,8 +466,10 @@ f.impute_glm_binom <- function(state, config, is_log_transformed=FALSE,
 #' state2 <- h0testr::f.impute_loess_logit(state, config)
 #' summary(c(state$expression))     ## note number of NAs
 #' summary(c(state2$expression))    ## note number of NAs
+#' head(state$expression)
+#' round(head(state2$expression))
 
-f.impute_loess_logit <- function(state, config, span.=NULL, n_pts=NULL, 
+f.impute_loess_logit <- function(state, config, span=NULL, n_pts=NULL, 
     off=0.1, f_mid=stats::median, degree=1, fam="symmetric") {
     
   f.check_config(config)
@@ -443,8 +477,8 @@ f.impute_loess_logit <- function(state, config, span.=NULL, n_pts=NULL,
   if(!is.matrix(state$expression)) {
     f.err("f.impute_loess_logit: !is.matrix(state$expression)", config=config)
   }
-  if(is.null(span.)) span. <- config$impute_span
-  if(is.null(span.)) span. <- 0.5
+  if(is.null(span)) span <- config$impute_span
+  if(is.null(span)) span <- 0.5
   if(is.null(n_pts)) n_pts <- config$impute_n_pts
   if(is.null(n_pts)) n_pts <- 1e7
 
@@ -456,7 +490,7 @@ f.impute_loess_logit <- function(state, config, span.=NULL, n_pts=NULL,
   p <- (n0 + off) / (ncol(state$expression) + 2 * off)       ## p.missing
   dat <- data.frame(n0=n0, n1=n1, p=p, m=m)
   
-  fit <- stats::loess(log(p/(1-p)) ~ m, data=dat, span=span., 
+  fit <- stats::loess(log(p/(1-p)) ~ m, data=dat, span=span, 
     degree=degree, family=fam)
     
   m_new <- seq(from=max(c(state$expression), na.rm=T) / n_pts, 
@@ -524,6 +558,8 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
 #'   } 
 #' It is assumed that state$expression has been previously \code{log2(x+1)} transformed.
 #' @param config List with configuration values. Does not use any keys, so can pass empty list.
+#' @param is_log_transformed Logical scalar: if \code{state$expression} has 
+#'   been log transformed.
 #' @param f_imp Function to use for initial rough imputation.
 #' @param ntree Numeric (greater than 0) number of trees in random forest.
 #'   \code{randomForest} \code{ntree} parameter.
@@ -533,9 +569,6 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
 #' @param aug_add Numeric affine shift for training data augmentation.
 #' @param aug_steps Numeric (non-negative) number of augmentation steps. Set to
 #'   \code{0} to skip augmentation.
-#' @param unlog2 Logical if \code{TRUE}, treats \code{state$expression} as if 
-#'   \code{log2} transformed (the normal case). Set to \code{FALSE} for raw 
-#'   data.
 #' @param verbose Logical if TRUE, emits progress messages.
 #' @return A list with the following elements:
 #'   \tabular{llll}{
@@ -558,13 +591,29 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list()
+#'
+#' ## untransformed example:
 #' out <- h0testr::f.impute_rf(state, config, verbose=FALSE)
-#' summary(c(state$expression))   ## note number of NAs
-#' summary(c(out$state$expression))  ## note number of NAs
+#' state2 <- out$state
+#' summary(c(state$expression))    ## Note number of NAs
+#' summary(c(state2$expression))   ## Note number of NAs
+#' head(state$expression)
+#' round(head(state2$expression))
+#' print(out$log)
+#' 
+#' ## log-transformed example:
+#' state$expression <- log2(state$expression + 1)
+#' out <- h0testr::f.impute_rf(state, config, is_log_transformed=TRUE, verbose=FALSE)
+#' state2 <- out$state
+#' summary(c(state$expression))    ## Note number of NAs
+#' summary(c(state2$expression))   ## Note number of NAs
+#' head(state$expression)
+#' round(head(state2$expression))
 #' print(out$log)
 
-f.impute_rf <- function(state, config, f_imp=f.impute_unif_sample_lod, ntree=100, 
-    mtry=NULL, aug_mult=0.33, aug_add=0, aug_steps=3, unlog2=T, verbose=T) {
+f.impute_rf <- function(state, config, is_log_transformed=T, 
+    f_imp=f.impute_unif_sample_lod, ntree=100, mtry=NULL, aug_mult=0.33, 
+    aug_add=0, aug_steps=3, verbose=T) {
   
   f.check_config(config)
   
@@ -585,9 +634,9 @@ f.impute_rf <- function(state, config, f_imp=f.impute_unif_sample_lod, ntree=100
     if(any(is.na(c(x_train)))) {
       f.err("f.impute_rf: f_imp returned NAs", config=config)
     }
-    if(unlog2) x_train <- 2^x_train - 1
+    if(is_log_transformed) x_train <- 2^x_train - 1
     x_train <- f.augment_affine(x_train, mult=aug_mult, add=aug_add, steps=aug_steps)
-    if(unlog2) x_train <- log2(x_train + 1)
+    if(is_log_transformed) x_train <- log2(x_train + 1)
     
     y <- state$expression[idx_feat, , drop=T]
     i_miss <- is.na(y) | y %in% 0
@@ -652,9 +701,11 @@ f.impute_rf <- function(state, config, f_imp=f.impute_unif_sample_lod, ntree=100
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
-#'   } 
+#'   }
 #' It is assumed that state$expression has been previously \code{log2(x+1)} transformed.
 #' @param config List with configuration values. Does not use any keys so can pass empty list.
+#' @param is_log_transformed Logical scalar: if \code{state$expression} has 
+#'   been log transformed.
 #' @param f_imp Function to use for initial rough imputation.
 #' @param alpha Numeric (between 0 and 1) number of trees in random forest.
 #' @param nfolds Numeric (greater than or equal to 2) number of folds for 
@@ -665,9 +716,6 @@ f.impute_rf <- function(state, config, f_imp=f.impute_unif_sample_lod, ntree=100
 #' @param aug_add Numeric affine shift for training data augmentation.
 #' @param aug_steps Numeric (non-negative) number of augmentation steps. Set to
 #'   \code{0} to skip augmentation.
-#' @param unlog2 Logical if \code{TRUE}, treats \code{state$expression} as if 
-#'   \code{log2} transformed (the usual case). Set to \code{FALSE} for
-#'   raw data.
 #' @param verbose Logical if \code{TRUE}, emits progress messages.
 #' @return A list with the following elements:
 #'   \tabular{llll}{
@@ -685,19 +733,33 @@ f.impute_rf <- function(state, config, f_imp=f.impute_unif_sample_lod, ntree=100
 #' @examples
 #' set.seed(101)
 #' exprs <- h0testr::f.sim1(n_obs=20, n_feats=30)$mat
-#' exprs <- log2(exprs + 1)
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list()
+#'
+#' ## example with untransformed data:
 #' out <- h0testr::f.impute_glmnet(state, config, verbose=FALSE)
-#' summary(c(state$expression))   ## note number of NAs
-#' summary(c(out$state$expression))  ## note number of NAs
+#' state2 <- out$state
+#' summary(c(state$expression))    ## Note number of NAs
+#' summary(c(state2$expression))   ## Note number of NAs
+#' head(state$expression)
+#' round(head(state2$expression))
+#' print(out$log)
+#' 
+#' ## example with log-transformed data:
+#' state$expression <- log2(state$expression + 1)
+#' out <- h0testr::f.impute_glmnet(state, config, is_log_transformed=TRUE, verbose=FALSE)
+#' state2 <- out$state
+#' summary(c(state$expression))    ## Note number of NAs
+#' summary(c(state2$expression))   ## Note number of NAs
+#' head(state$expression)
+#' round(head(state2$expression))
 #' print(out$log)
 
-f.impute_glmnet <- function(state, config, f_imp=f.impute_unif_sample_lod, 
-    nfolds=5, alpha=1, measure="mae", aug_mult=0.33, aug_add=0, 
-    aug_steps=3, unlog2=T, verbose=T) {
+f.impute_glmnet <- function(state, config, is_log_transformed=F,
+    f_imp=f.impute_unif_sample_lod, nfolds=5, alpha=1, measure="mae", 
+    aug_mult=0.33, aug_add=0, aug_steps=3, verbose=T) {
   
   f.check_config(config)
   
@@ -715,9 +777,9 @@ f.impute_glmnet <- function(state, config, f_imp=f.impute_unif_sample_lod,
     f.msg("processing", rownames(state$expression)[idx_feat], config=config)
     
     x_train <- f_imp(state, config)$expression
-    if(unlog2) x_train <- 2^x_train - 1
+    if(is_log_transformed) x_train <- 2^x_train - 1
     x_train <- f.augment_affine(x_train, mult=aug_mult, add=aug_add, steps=aug_steps)
-    if(unlog2) x_train <- log2(x_train + 1)   
+    if(is_log_transformed) x_train <- log2(x_train + 1)   
     
     y <- state$expression[idx_feat, , drop=T]
     i_miss <- is.na(y) | y %in% 0
@@ -809,8 +871,8 @@ f.impute_glmnet <- function(state, config, f_imp=f.impute_unif_sample_lod,
 #'
 #' ## impute:
 #' state2 <- h0testr::f.impute_knn(state, config)
-#' summary(state$expression)
-#' summary(state2$expression)
+#' summary(c(state$expression))    ## Note number of NAs
+#' summary(c(state2$expression))   ## Note number of NAs
 #' head(state$expression)
 #' round(head(state2$expression))
 
@@ -820,7 +882,9 @@ f.impute_knn <- function(state, config, k=10, rowmax=0.5, colmax=0.8, maxp=1500)
     f.err("f.impute_knn: !is.matrix(state$expression)", config=config)
   }
   
-  out <- impute::impute.knn(state$expression, k=k, rowmax=rowmax, colmax=colmax, maxp=maxp)
+  out <- impute::impute.knn(state$expression, k=k, 
+    rowmax=rowmax, colmax=colmax, maxp=maxp)
+  
   state$expression <- out$data
 
   return(state)
@@ -839,8 +903,10 @@ f.impute_knn <- function(state, config, k=10, rowmax=0.5, colmax=0.8, maxp=1500)
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values. Does not use any keys so can pass empty list.
-#' @param q Quantile to use for imputation; a numeric scalar with \code{0 <= q < 1.0}.
+#' @param config List with configuration values. Does not require any keys so 
+#'   can pass empty list.
+#' @param impute_quantile Quantile for imputation; scalar with 
+#'   \code{0 <= q < 1.0}. Default: \code{0.01}.
 #' @return 
 #'   An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
@@ -871,19 +937,22 @@ f.impute_knn <- function(state, config, k=10, rowmax=0.5, colmax=0.8, maxp=1500)
 #' state <- h0testr::f.filter_observations(state, config, n_features_min=30)
 #'
 #' ## impute:
-#' state2 <- h0testr::f.impute_mindet(state, config)
-#' summary(state$expression)
-#' summary(state2$expression)
+#' state2 <- h0testr::f.impute_min_det(state, config)
+#' summary(c(state$expression))    ## Note number of NAs
+#' summary(c(state2$expression))   ## Note number of NAs
 #' head(state$expression)
 #' round(head(state2$expression))
 
-f.impute_mindet <- function(state, config, q=0.01) {
-
+f.impute_min_det <- function(state, config, impute_quantile=NULL) {
+  
   if(!is.matrix(state$expression)) {
-    f.err("f.impute_mindet: !is.matrix(state$expression)", config=config)
+    f.err("f.impute_min_det: !is.matrix(state$expression)", config=config)
   }
   
-  state$expression <- imputeLCMD::impute.MinDet(state$expression, q=q)
+  if(is.null(impute_quantile)) impute_quantile <- config$impute_quantile
+  if(is.null(impute_quantile)) impute_quantile <- 0.01
+  
+  state$expression <- imputeLCMD::impute.MinDet(state$expression, q=impute_quantile)
   
   return(state)
 }
@@ -901,10 +970,14 @@ f.impute_mindet <- function(state, config, q=0.01) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values. Does not use any keys so can pass empty list.
-#' @param is_log_transformed Logical scalar: whether \code{state$expression} is log transformed.
-#' @param q Quantile to use for imputation; numeric scalar with \code{0 <= q < 1.0}.
-#' @param s Scaling parameter for normal distribution; numeric scalar with \code{0 < s}.
+#' @param config List with configuration values. Does not use any keys so 
+#'   can pass empty list.
+#' @param is_log_transformed Logical scalar: if \code{state$expression} has 
+#'   been log transformed.
+#' @param impute_quantile Quantile to use for imputation; scalar with 
+#'   \code{0 <= impute_quantile < 1.0}. Default: \code{0.01}.
+#' @param scale. Scale parameter for normal distribution; scalar 
+#'   with \code{0 < scale.}. Default: \code{1.0}.
 #' @return 
 #'   An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
@@ -919,8 +992,8 @@ f.impute_mindet <- function(state, config, q=0.01) {
 #' ## setup state and config, including prefiltering:
 #' set.seed(101)
 #' nsamps <- 6
-#' sim <- h0testr::f.sim2(n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
-#'   fold_change=1, peps_per_gene=1, reps_per_sample=1)
+#' sim <- h0testr::f.sim2(n_samps1=nsamps, n_samps2=nsamps, n_genes=100, 
+#'   n_genes_signif=20, fold_change=1, peps_per_gene=1, reps_per_sample=1)
 #' exprs <- sim$mat
 #' feats <- data.frame(gene=rownames(exprs))
 #' samps <- data.frame(
@@ -934,23 +1007,37 @@ f.impute_mindet <- function(state, config, q=0.01) {
 #' state <- h0testr::f.filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::f.filter_observations(state, config, n_features_min=30)
 #'
-#' ## impute:
-#' state2 <- h0testr::f.impute_minprob(state, config)
-#' summary(state$expression)
-#' summary(state2$expression)
+#' ## untransformed example:
+#' state2 <- h0testr::f.impute_min_prob(state, config)
+#' summary(c(state$expression))    ## Note number of NAs
+#' summary(c(state2$expression))   ## Note number of NAs
+#' head(state$expression)
+#' round(head(state2$expression))
+#' 
+#' ## log-transformed example:
+#' state$expression <- log2(state$expression + 1)
+#' state2 <- h0testr::f.impute_min_prob(state, config, is_log_transformed=TRUE)
+#' summary(c(state$expression))    ## Note number of NAs
+#' summary(c(state2$expression))   ## Note number of NAs
 #' head(state$expression)
 #' round(head(state2$expression))
 
-f.impute_minprob <- function(state, config, is_log_transformed=FALSE, q=0.01, s=1.0) {
-
+f.impute_min_prob <- function(state, config, is_log_transformed=FALSE, 
+    impute_quantile=NULL, scale.=NULL) {
+  
   if(!is.matrix(state$expression)) {
-    f.err("f.impute_minprob: !is.matrix(state$expression)", config=config)
+    f.err("f.impute_min_prob: !is.matrix(state$expression)", config=config)
   }
+  
+  if(is.null(impute_quantile)) impute_quantile <- config$impute_quantile
+  if(is.null(impute_quantile)) impute_quantile <- 0.01
+  if(is.null(scale.)) scale. <- config$impute_scale
+  if(is.null(scale.)) scale. <- 1.0
   
   mat <- state$expression
   if(!is_log_transformed) mat <- log2(mat + 1)  ## otherwise can get negative
   
-  mat <- imputeLCMD::impute.MinProb(mat, q=q, tune.sigma=s)
+  mat <- imputeLCMD::impute.MinProb(mat, q=impute_quantile, tune.sigma=scale.)
   
   if(!is_log_transformed) mat <- (2^mat) - 1
   state$expression <- mat
@@ -971,9 +1058,12 @@ f.impute_minprob <- function(state, config, is_log_transformed=FALSE, q=0.01, s=
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values. Does not use any keys so can pass empty list.
-#' @param is_log_transformed Logical scalar: whether \code{state$expression} is log transformed.
-#' @param s Scaling parameter for normal distribution; numeric scalar with \code{0 < s}.
+#' @param config List with configuration values. Does not use any keys so can 
+#'   pass empty list.
+#' @param is_log_transformed Logical scalar: if \code{state$expression} has 
+#'   been log transformed.
+#' @param scale. Scaling parameter for normal distribution; numeric scalar 
+#'   with \code{0 < scale.}. Default: \code{1.0}.
 #' @return 
 #'   An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
@@ -988,8 +1078,8 @@ f.impute_minprob <- function(state, config, is_log_transformed=FALSE, q=0.01, s=
 #' ## setup state and config, including prefiltering:
 #' set.seed(101)
 #' nsamps <- 6
-#' sim <- h0testr::f.sim2(n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
-#'   fold_change=1, peps_per_gene=1, reps_per_sample=1)
+#' sim <- h0testr::f.sim2(n_samps1=nsamps, n_samps2=nsamps, n_genes=100, 
+#'   n_genes_signif=20, fold_change=1, peps_per_gene=1, reps_per_sample=1)
 #' exprs <- sim$mat
 #' feats <- data.frame(gene=rownames(exprs))
 #' samps <- data.frame(
@@ -1002,24 +1092,35 @@ f.impute_minprob <- function(state, config, is_log_transformed=FALSE, q=0.01, s=
 #' config <- list()
 #' state <- h0testr::f.filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::f.filter_observations(state, config, n_features_min=30)
-#'
-#' ## impute:
+#' 
+#' ## untransformed example:
 #' state2 <- h0testr::f.impute_qrilc(state, config)
-#' summary(state$expression)
-#' summary(state2$expression)
+#' summary(c(state$expression))    ## Note number of NAs
+#' summary(c(state2$expression))   ## Note number of NAs
+#' head(state$expression)
+#' round(head(state2$expression))
+#' 
+#' ## log-transformed example:
+#' state$expression <- log2(state$expression + 1)
+#' state2 <- h0testr::f.impute_qrilc(state, config, is_log_transformed=TRUE)
+#' summary(c(state$expression))    ## Note number of NAs
+#' summary(c(state2$expression))   ## Note number of NAs
 #' head(state$expression)
 #' round(head(state2$expression))
 
-f.impute_qrilc <- function(state, config, is_log_transformed=FALSE, s=1.0) {
+f.impute_qrilc <- function(state, config, is_log_transformed=FALSE, scale.=NULL) {
 
   if(!is.matrix(state$expression)) {
     f.err("f.impute_qrilc: !is.matrix(state$expression)", config=config)
   }
   
+  if(is.null(scale.)) scale. <- config$impute_scale
+  if(is.null(scale.)) scale. <- 1.0
+  
   mat <- state$expression
   if(!is_log_transformed) mat <- log2(mat + 1)  ## otherwise can get negative
   
-  obj <- imputeLCMD::impute.QRILC(mat, tune.sigma=s)
+  obj <- imputeLCMD::impute.QRILC(mat, tune.sigma=scale.)
   
   mat <- obj[[1]]
   if(!is_log_transformed) mat <- (2^mat) - 1
@@ -1035,6 +1136,13 @@ f.impute_qrilc <- function(state, config, is_log_transformed=FALSE, s=1.0) {
 #'   Only \code{NAs} considered missing. If you want \code{0} to be considered 
 #'     missing, do something like \code{exprs[exprs \%in\% 0] <- NA} prior to 
 #'     imputing. 
+#'   Options for parameter \code{method} are described more fully in 
+#'     the \code{pcaMethods} package documentation. Acceptable values include:
+#'   \tabular{ll}{
+#'     \code{bpca}      \cr \tab Bayesian PCA (https://doi.org/10.1093/bioinformatics/btg287). \cr
+#'     \code{ppca}      \cr \tab Probabilistic PCA (https://dl.acm.org/doi/10.5555/3008904.3008993). \cr
+#'     \code{svdImpute} \cr \tab Use svdImpute (https://doi.org/10.1093/bioinformatics/17.6.520). \cr
+#'   }
 #' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -1042,8 +1150,10 @@ f.impute_qrilc <- function(state, config, is_log_transformed=FALSE, s=1.0) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Does not use any keys so can pass empty list.
+#' @param is_log_transformed Logical scalar: if \code{state$expression} has 
+#'   been log transformed.
 #' @param n_pcs Number (scalar numeric >= 1) of principle components to compute.
-#' @param is_log_transformed Logical scalar whether \code{state$expression} has been log transformed.
+#' @param method Method to use. Scalar character in \code{c("bpca", "ppca", "svdImpute")}.
 #' @return 
 #'   An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
@@ -1073,29 +1183,134 @@ f.impute_qrilc <- function(state, config, is_log_transformed=FALSE, s=1.0) {
 #' state <- h0testr::f.filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::f.filter_observations(state, config, n_features_min=30)
 #'
-#' ## impute:
-#' state2 <- h0testr::f.impute_pca(state, config)
-#' summary(state$expression)
-#' summary(state2$expression)
+#' summary(c(state$expression))    ## Note number of NAs
 #' head(state$expression)
+#'
+#' ## impute using bayesian pca:
+#' state2 <- h0testr::f.impute_pca(state, config, method="bpca")
+#' summary(c(state2$expression))   ## Note number of NAs
+#' round(head(state2$expression))
+#'
+#' ## impute using probabilistic pca:
+#' state2 <- h0testr::f.impute_pca(state, config, method="ppca")
+#' summary(c(state2$expression))   ## Note number of NAs
+#' round(head(state2$expression))
+#'
+#' ## impute as linear combo of \code{n_pcs} eigengenes:
+#' state2 <- h0testr::f.impute_pca(state, config, method="svdImpute")
+#' summary(c(state2$expression))   ## Note number of NAs
 #' round(head(state2$expression))
 
-f.impute_pca <- function(state, config, n_pcs=3, is_log_transformed=FALSE) {
+f.impute_pca <- function(state, config, is_log_transformed=FALSE,
+    n_pcs=5, method="bpca") {
     
   if(!is.matrix(state$expression)) {
-    f.err("f.impute_pca: !is.matrix(state$expression)", config=config)
+    stop("f.impute_pca: !is.matrix(state$expression)")
+  }
+
+  allowed <- c("bpca", "ppca", "svdImpute")
+
+  if(!(method %in% allowed)) {
+    f.err("f.impute_pca: !(method %in% allowed); method:", method, config=config)
   }
 
   mat <- state$expression
   if(!is_log_transformed) mat <- log2(mat + 1)  ## otherwise can get negative
 
   ## wants sample rows and 'variables' as columns:
-  obj <- pcaMethods::pca(t(mat), nPcs=n_pcs, method="bpca")
+  obj <- pcaMethods::pca(t(mat), nPcs=n_pcs, method=method)
   mat <- pcaMethods::completeObs(obj) 
-  
-  if(!is_log_transformed) mat <- (2^mat) - 1
+
+  if(!is_log_transformed) mat <- (2^mat)
   state$expression <- t(mat)
 
+  return(state)
+}
+
+#' Impute missing values with \code{pcaMethods::llsImpute()}.
+#' @description
+#'   Impute missing values with \code{pcaMethods::llsImpute()}.
+#' @details
+#'   Impute using local least squares.
+#'   Only \code{NAs} considered missing. If you want \code{0} to be considered 
+#'     missing, do something like \code{exprs[exprs \%in\% 0] <- NA} prior to 
+#'     imputing. 
+#' @param state A list with elements like that returned by \code{f.read_data()}:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
+#' @param config List with configuration values. Does not use any keys so can 
+#'   pass empty list.
+#' @param is_log_transformed Logical scalar: if \code{state$expression} has 
+#'   been log transformed.
+#' @param method Name of correlation method; scalar character in 
+#'   \code{c("pearson", "kendall", "spearman")}
+#' @param k Number (scalar numeric with \code{k >= 2}) of features per local cluster.
+#' @param maxit Maximum number of iterations. Scalar numeric with \code{maxit >= 2}.
+#' @return 
+#'   An updated \code{state} list with the following elements:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative imputed 
+#'       expression values. \cr
+#'     \code{features}   \cr \tab Feature meta-data \code{data.frame} 
+#'       corresponding to rows of \code{expression}. \cr
+#'     \code{samples}    \cr \tab Observation meta-data \code{data.frame} 
+#'       corresponding to columns of \code{expression}. \cr
+#'   } 
+#' @examples
+#' ## setup state and config, including prefiltering:
+#' set.seed(101)
+#' nsamps <- 6
+#' sim <- h0testr::f.sim2(n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
+#'   fold_change=1, peps_per_gene=1, reps_per_sample=1)
+#' exprs <- sim$mat
+#' feats <- data.frame(gene=rownames(exprs))
+#' samps <- data.frame(
+#'   obs=colnames(exprs), 
+#'   grp=factor(c(rep("ctl", nsamps), rep("trt", nsamps))),
+#'   sex=factor(rep(c("M", "F"), nsamps))
+#' )
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' rm(nsamps, sim, exprs, feats, samps)
+#' config <- list()
+#' state <- h0testr::f.filter_features(state, config, n_samples_min=3)
+#' state <- h0testr::f.filter_observations(state, config, n_features_min=30)
+#'
+#' ## example with untransformed data:
+#' state2 <- h0testr::f.impute_lls(state, config)
+#' summary(c(state$expression))    ## Note number of NAs
+#' summary(c(state2$expression))   ## Note number of NAs
+#' head(state$expression)
+#' round(head(state2$expression))
+#' 
+#' ## example with log-transformed data:
+#' state$expression <- log2(state$expression + 1)
+#' state2 <- h0testr::f.impute_lls(state, config, is_log_transformed=TRUE)
+#' summary(c(state$expression))    ## Note number of NAs
+#' summary(c(state2$expression))   ## Note number of NAs
+#' head(state$expression)
+#' round(head(state2$expression))
+
+f.impute_lls <- function(state, config, is_log_transformed=FALSE, 
+    k=5, method="pearson", maxit=100) {
+  
+  if(!is.matrix(state$expression)) {
+    f.err("f.impute_pca: !is.matrix(state$expression)", config=config)
+  }
+  
+  mat <- state$expression
+  if(!is_log_transformed) mat <- log2(mat + 1)  ## otherwise can get negative
+  
+  ## wants sample rows and 'variables' as columns:
+  obj <- pcaMethods::llsImpute(t(mat), k=k, center=F, completeObs=T,
+    correlation=method, allVariables=F, maxSteps=maxit, xval=NULL, verbose=F)
+  
+  mat <- pcaMethods::completeObs(obj) 
+  if(!is_log_transformed) mat <- (2^mat)
+  state$expression <- t(mat)
+  
   return(state)
 }
 
@@ -1146,8 +1361,8 @@ f.impute_pca <- function(state, config, n_pcs=3, is_log_transformed=FALSE) {
 #'
 #' ## impute:
 #' state2 <- h0testr::f.impute_missforest(state, config)
-#' summary(state$expression)
-#' summary(state2$expression)
+#' summary(state$expression)     ## Note number of NAs
+#' summary(state2$expression)    ## Note number of NAs
 #' head(state$expression)
 #' round(head(state2$expression))
 
@@ -1161,6 +1376,30 @@ f.impute_missforest <- function(state, config, maxit=10, ntree=100) {
   state$expression <- t(obj$ximp)
 
   return(state)
+}
+
+#' Get choices for \code{method} parameter of \code{h0testr::f.impute()}.
+#' @description 
+#'   Returns valid values for \code{method} parameter of \code{h0testr::f.impute()}
+#' @details
+#'   Corresponding methods have prefix \code{f.impute_}.
+#' @return
+#'   Character vector with options for \code{method} parameter of \code{h0testr::f.impute()}.
+#' @examples
+#' impute_methods <- h0testr::f.impute_methods()
+#' cat("available methods:\n")
+#' for(method in impute_methods) {
+#'   cat("method:", method, "\n")
+#' }
+
+f.impute_methods <- function() {
+  return(
+    c("unif_global_lod", "unif_sample_lod", "sample_lod", 
+      "rnorm_feature", "glm_binom", "loess_logit", "rf", "glmnet", 
+      "knn", "min_det", "min_prob", "qrilc", "bpca", "ppca", "svdImpute", 
+      "missforest"
+    )
+  )
 }
 
 #' Impute missing values
@@ -1182,17 +1421,40 @@ f.impute_missforest <- function(state, config, maxit=10, ntree=100) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   }
-#' It is assumed that \code{state$expression} has been previously \code{log2(x+1)} transformed.
-#' @param config List with configuration values. Uses the following keys:
+#' @param config List with configuration values. Required keys are 
+#'   \code{feat_col} and \code{obs_col}. Recognizes the following keys:
 #'   \tabular{ll}{
-#'     \code{feat_col}         \cr \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}. \cr
-#'     \code{obs_col}          \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
-#'     \code{impute_method}    \cr \tab In \code{c("unif_global_lod","unif_sample_lod","sample_lod","rnorm_feature","glm_binom","loess_logit","glmnet","rf","none")} \cr
-#'     \code{impute_quantile}  \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD). \cr
-#'     \code{impute_scale}     \cr \tab Factor (numeric) rescaling variance of normal distribution from which draws are made for \code{impute_method \%in\% "rnorm"}. \cr
-#'     \code{impute_n_pts}     \cr \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain. \cr
-#'     \code{impute_span}      \cr \tab Span (numeric between zero and 1) for \code{loess} fit. \cr
+#'     \code{feat_col}          \cr \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}. \cr
+#'     \code{obs_col}           \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
+#'     \code{impute_method}     \cr \tab Name of a method in list returned by \code{h0testr::f.impute_methods()}. \cr
+#'     \code{impute_quantile}   \cr \tab Used if parameter \code{impute_quantile} is unset. \cr
+#'     \code{impute_scale}      \cr \tab Used if parameter \code{scale.} is unset. \cr
+#'     \code{impute_span}       \cr \tab Used if parameter \code{span} is unset. \cr
+#'     \code{impute_k}          \cr \tab Used if parameter \code{k} is unset. \cr
+#'     \code{impute_n_pcs}      \cr \tab Used if parameter \code{n_pcs} is unset. \cr
+#'     \code{impute_aug_steps}  \cr \tab Used if parameter \code{aug_steps} is unset. \cr
+#'     \code{impute_n_pts}      \cr \tab Used if parameter \code{n_pts} is unset. \cr
 #'   }
+#' @param method Method to use. A character scalar from the list returned by 
+#'   \code{h0testr::impute_methods()}.
+#' @param is_log_transformed Logical scalar: if \code{state$expression} has 
+#'   been log transformed.
+#' @param k Number of nearest neighbors passed to methods for 
+#'   \code{c("knn", "lls")}.
+#' @param span Span passed to method for \code{"loess_logit"}.
+#' @param n_pcs Number of PCs passed to methods for 
+#'   \code{c("bpca", "ppca", "svdImpute")}.
+#' @param impute_quantile Passed to methods for 
+#'   \code{c("unif_global_lod", "unif_sample_lod", "min_det", "min_prob")}.
+#' @param scale. Scale parameter passed to methods for 
+#'   \code{c("rnorm_feature", "qrilc")}.
+#' @param aug_steps Number of augmentations passed to methods for 
+#'   \code{c("glmnet", "rf")}.
+#' @param alpha Mixing parameter passed to method for \code{"glmnet"}.
+#' @param n_pts Points in prediction grid; passed to methods for 
+#'   \code{c("glm_binom", "loess_logit")}.
+#' @param verbose Logical scalar passed to methods for 
+#'   \code{c("glmnet", "rf")}.
 #' @return Updated \code{state} list with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -1206,43 +1468,107 @@ f.impute_missforest <- function(state, config, maxit=10, ntree=100) {
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(impute_method="unif_sample_lod", impute_quantile=0, 
-#'   feat_col="feature_id", obs_col="observation_id", save_state=FALSE)
+#' config <- list(feat_col="feature_id", obs_col="observation_id")
+#'
+#' cat("available methods:\n")
+#' print(h0testr::f.impute_methods())
+#'
+#' ## impute using method passed as parameter:
+#' out <- h0testr::f.impute(state, config, method="unif_sample_lod")
+#' summary(c(state$expression))        ## note number of NAs
+#' summary(c(out$state$expression))    ## note number of NAs
+#' head(state$expression)
+#' round(head(out$state$expression))
+#'
+#' ## impute using method passed in configuration:
+#' config$impute_method <- "unif_sample_lod"
 #' out <- h0testr::f.impute(state, config)
-#' summary(c(state$expression))      ## note number of NAs
-#' summary(c(out$state$expression))  ## note number of NAs
+#' summary(c(state$expression))        ## note number of NAs
+#' summary(c(out$state$expression))    ## note number of NAs
+#' head(state$expression)
+#' round(head(out$state$expression))
 
-f.impute <- function(state, config) {
+f.impute <- function(state, config, method=NULL, is_log_transformed=FALSE, 
+    k=NULL, span=NULL, n_pcs=NULL, impute_quantile=NULL, scale.=NULL, 
+    aug_steps=NULL, alpha=NULL, n_pts=NULL, verbose=NULL) {
 
   f.check_config(config)
   f.check_state(state, config)
+  
+  if(is.null(method)) method <- config$impute_method
+  if(is.null(method)) {
+    f.err("f.impute: both method and config$impute_method are unset", 
+      config=config)
+  }
+  
+  ## corresponding methods should have reasonable defaults for NULLs in config:
+  if(is.null(k)) k <- config$impute_k
+  if(is.null(span)) span <- config$impute_span
+  if(is.null(n_pcs)) n_pcs <- config$impute_npcs
+  if(is.null(impute_quantile)) impute_quantile <- config$impute_quantile
+  if(is.null(scale.)) scale. <- config$impute_scale
+  if(is.null(aug_steps)) aug_steps <- config$impute_aug_steps
+  if(is.null(alpha)) alpha <- config$impute_alpha
+  if(is.null(n_pts)) n_pts <- config$impute_n_pts
+  if(is.null(verbose)) verbose <- config$verbose
+  if(is.null(verbose)) verbose <- TRUE
 
-  if(config$impute_method %in% "unif_global_lod") {
-    state <- f.impute_unif_global_lod(state, config)
-  } else if(config$impute_method %in% "sample_lod") {
+  if(method %in% "unif_global_lod") {
+    state <- f.impute_unif_global_lod(state, config, 
+      impute_quantile=impute_quantile)
+  } else if(method %in% "sample_lod") {
     state <- f.impute_sample_lod(state, config)
-  } else if(config$impute_method %in% "unif_sample_lod") {
-    state <- f.impute_unif_sample_lod(state, config)
-  } else if(config$impute_method %in% "rnorm_feature") {
-    state <- f.impute_rnorm_feature(state, config)
-  } else if(config$impute_method %in% "glm_binom") {
-    state <- f.impute_glm_binom(state, config)
-  } else if(config$impute_method %in% "loess_logit") {
-    state <- f.impute_loess_logit(state, config)
-  } else if(config$impute_method %in% "glmnet") {
-    out <- f.impute_glmnet(state, config)
+  } else if(method %in% "unif_sample_lod") {
+    state <- f.impute_unif_sample_lod(state, config, 
+      impute_quantile=impute_quantile)
+  } else if(method %in% "rnorm_feature") {
+    state <- f.impute_rnorm_feature(state, config, scale.=scale.)
+  } else if(method %in% "glm_binom") {
+    state <- f.impute_glm_binom(state, config, 
+      is_log_transformed=is_log_transformed, n_pts=n_pts)
+  } else if(method %in% "loess_logit") {
+    state <- f.impute_loess_logit(state, config, span=span, n_pts=n_pts)
+  } else if(method %in% "glmnet") {
+    out <- f.impute_glmnet(state, config, 
+      is_log_transformed=is_log_transformed, 
+      alpha=alpha, aug_steps=aug_steps, verbose=verbose)
     state <- out$state
-  } else if(config$impute_method %in% "rf") {
-    out <- f.impute_rf(state, config)
+  } else if(method %in% "rf") {
+    out <- f.impute_rf(state, config, is_log_transformed=is_log_transformed, 
+      aug_steps=aug_steps, verbose=verbose)
     state <- out$state
-  } else if(config$impute_method %in% "none") {
+  } else if(method %in% "missforest") {
+    state <- f.impute_missforest(state, config)
+  } else if(method %in% "knn") {
+    state <- f.impute_knn(state, config, k=k)
+  } else if(method %in% "lls") {
+    state <- f.impute_lls(state, config, 
+      is_log_transformed=is_log_transformed, k=k)
+  } else if(method %in% "bpca") {
+    state <- f.impute_pca(state, config, is_log_transformed=is_log_transformed, 
+      n_pcs=n_pcs, method="bpca")
+  } else if(method %in% "ppca") {
+    state <- f.impute_pca(state, config, is_log_transformed=is_log_transformed, 
+      n_pcs=n_pcs, method="ppca")
+  } else if(method %in% "svdImpute") {
+    state <- f.impute_pca(state, config, is_log_transformed=is_log_transformed, 
+      n_pcs=n_pcs, method="svdImpute")
+  } else if(method %in% "min_det") {
+    state <- f.impute_min_det(state, config, impute_quantile=impute_quantile)
+  } else if(method %in% "min_prob") {
+    state <- f.impute_min_prob(state, config, 
+      is_log_transformed=is_log_transformed, 
+      impute_quantile=impute_quantile, scale.=scale.)
+  } else if(method %in% "qrilc") {
+    state <- f.impute_qrilc(state, config, 
+      is_log_transformed=is_log_transformed, scale.=scale.)
+  } else if(method %in% "none") {
     f.msg("skipping imputation: config$impute_method %in% 'none'", 
       config=config)
   } else {
-    f.err("f.impute: unexpected config$impute_method:", 
-      config$impute_method, config=config)
+    f.err("f.impute: unexpected method:", method, config=config)
   }
-  
+    
   f.check_state(state, config)
   f.report_state(state, config)
   

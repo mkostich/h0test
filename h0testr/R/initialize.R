@@ -123,11 +123,13 @@ f.check_parameters <- function(state, config, initialized=F, minimal=F) {
   }
     
   if(any(duplicated(state$features[[config$feat_id_col]]))) {
-    f.err("f.check_parameters: any(duplicated(state$features[[config$feat_id_col]]))")
+    f.err("f.check_parameters: any(duplicated(state$features[[config$feat_id_col]]))",
+      config=config)
   }
     
   if(any(duplicated(state$samples[[config$obs_id_col]]))) {
-    f.err("f.check_parameters: any(duplicated(state$samples[[config$obs_id_col]]))")
+    f.err("f.check_parameters: any(duplicated(state$samples[[config$obs_id_col]]))",
+      config=config)
   }
     
   return(TRUE)
@@ -149,11 +151,13 @@ f.subset_covariates <- function(state, config) {
   
   ## make sure all needed variables in samps:
   if(!all(vars %in% names(state$samples))) {
-    f.err("f.subset_covariates: !all(vars %in% names(state$samples)); vars:", vars, config=config)
+    f.err("f.subset_covariates: !all(vars %in% names(state$samples)); vars:", 
+      vars, config=config)
   }
   
   if(!all(names(config$sample_factors) %in% vars)) {
-    f.err("f.subset_covariates: !all(names(config$sample_factors) %in% config$frm); vars:", vars, config=config)
+    f.err("f.subset_covariates: !all(names(config$sample_factors) %in% config$frm); vars:", 
+      vars, config=config)
   }
   
   f.msg("subsetting sample metadata", config=config)
@@ -172,16 +176,19 @@ f.set_covariate_factor_levels <- function(state, config) {
     
     ## check for potential misconfiguration first:
     if(!(nom %in% names(state$samples))) {
-      f.err("f.set_covariate_factor_levels: !(nom %in% names(state$samples)); nom:", nom, config=config)
+      f.err("f.set_covariate_factor_levels: !(nom %in% names(state$samples)); nom:", 
+        nom, config=config)
     }
     
     lvls1 <- config$sample_factors[[nom]]
     lvls2 <- sort(unique(as.character(state$samples[[nom]])))
     if(!all(lvls1 %in% lvls2)) {
-      f.err("f.set_covariate_factor_levels: !all(lvls1 %in% lvls2) for nom:", nom, config=config)
+      f.err("f.set_covariate_factor_levels: !all(lvls1 %in% lvls2) for nom:", 
+        nom, config=config)
     }
     if(!all(lvls2 %in% lvls1)) {
-      f.err("f.set_covariate_factor_levels: !all(lvls2 %in% lvls1) for nom:", nom, config=config)
+      f.err("f.set_covariate_factor_levels: !all(lvls2 %in% lvls1) for nom:", 
+        nom, config=config)
     }
     state$samples[[nom]] <- as.character(state$samples[[nom]])
     state$samples[[nom]] <- factor(
@@ -359,19 +366,22 @@ f.add_filter_stats <- function(state, config) {
   
   n <- f.samples_per_feature(state, config)
   if(!all(names(n) == state$features[, config$feat_col, drop=T])) {
-    f.err("f.add_filter_stats: !all(names(n) == state$features[, config$feat_col])", config=config)
+    f.err("f.add_filter_stats: !all(names(n) == state$features[, config$feat_col])", 
+      config=config)
   }
   state$features[, config$n_samples_expr_col] <- n
   
   m <- f.feature_median_expression(state, config)
   if(!all(names(m) == state$features[, config$feat_col, drop=T])) {
-    f.err("f.add_filter_stats: !all(names(m) == state$features[, config$feat_col, drop=T])", config=config)
+    f.err("f.add_filter_stats: !all(names(m) == state$features[, config$feat_col, drop=T])", 
+      config=config)
   }
   state$features[, config$median_raw_col] <- m
   
   n <- f.features_per_sample(state, config)
   if(!all(names(n) == state$samples[, config$obs_col, drop=T])) {
-    f.err("f.add_filter_stats: !all(names(n) == state$samples[, config$obs_col])", config=config)
+    f.err("f.add_filter_stats: !all(names(n) == state$samples[, config$obs_col])", 
+      config=config)
   } 
   state$samples[, config$n_features_expr_col] <- n
   

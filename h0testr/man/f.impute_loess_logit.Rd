@@ -7,7 +7,7 @@
 f.impute_loess_logit(
   state,
   config,
-  span. = NULL,
+  span = NULL,
   n_pts = NULL,
   off = 0.1,
   f_mid = stats::median,
@@ -30,11 +30,11 @@ It is assumed that state$expression has been previously \code{log2(x+1)} transfo
   \code{impute_span}   \cr \tab Span (numeric between zero and 1) for \code{loess} fit.
 }}
 
-\item{span.}{Span for loess fit. Numeric in the open interval \code{(0, 1)}.}
+\item{span}{Span for loess fit. Scalar with \code{0 < span < 1}. Default: \code{0.5}.}
 
 \item{n_pts}{Numeric greater than one. Granularity of prediction 
 grid. Larger values lead to less chance of duplicate imputed values.
-Larger values require more compute time and memory.}
+Larger values require more compute time and memory. Default: \code{1e7}.}
 
 \item{off}{Numeric offset for calculating 
 \code{p.missing = (n.missing + off) / (n.total + off)}.}
@@ -80,4 +80,6 @@ config <- list(impute_n_pts=1e7, impute_span=0.5)
 state2 <- h0testr::f.impute_loess_logit(state, config)
 summary(c(state$expression))     ## note number of NAs
 summary(c(state2$expression))    ## note number of NAs
+head(state$expression)
+round(head(state2$expression))
 }

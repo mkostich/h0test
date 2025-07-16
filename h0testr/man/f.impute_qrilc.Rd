@@ -4,7 +4,7 @@
 \alias{f.impute_qrilc}
 \title{Impute missing values with \code{imputeLCMD::impute.QRILC()}.}
 \usage{
-f.impute_qrilc(state, config, is_log_transformed = FALSE, s = 1)
+f.impute_qrilc(state, config, is_log_transformed = FALSE, scale. = NULL)
 }
 \arguments{
 \item{state}{A list with elements like that returned by \code{f.read_data()}:
@@ -14,11 +14,14 @@ f.impute_qrilc(state, config, is_log_transformed = FALSE, s = 1)
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration values. Does not use any keys so can pass empty list.}
+\item{config}{List with configuration values. Does not use any keys so can 
+pass empty list.}
 
-\item{is_log_transformed}{Logical scalar: whether \code{state$expression} is log transformed.}
+\item{is_log_transformed}{Logical scalar: if \code{state$expression} has 
+been log transformed.}
 
-\item{s}{Scaling parameter for normal distribution; numeric scalar with \code{0 < s}.}
+\item{scale.}{Scaling parameter for normal distribution; numeric scalar 
+with \code{0 < scale.}. Default: \code{1.0}.}
 }
 \value{
 An updated \code{state} list with the following elements:
@@ -43,8 +46,8 @@ Only \code{NAs} considered missing. If you want \code{0} to be considered
 ## setup state and config, including prefiltering:
 set.seed(101)
 nsamps <- 6
-sim <- h0testr::f.sim2(n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
-  fold_change=1, peps_per_gene=1, reps_per_sample=1)
+sim <- h0testr::f.sim2(n_samps1=nsamps, n_samps2=nsamps, n_genes=100, 
+  n_genes_signif=20, fold_change=1, peps_per_gene=1, reps_per_sample=1)
 exprs <- sim$mat
 feats <- data.frame(gene=rownames(exprs))
 samps <- data.frame(
@@ -58,10 +61,18 @@ config <- list()
 state <- h0testr::f.filter_features(state, config, n_samples_min=3)
 state <- h0testr::f.filter_observations(state, config, n_features_min=30)
 
-## impute:
+## untransformed example:
 state2 <- h0testr::f.impute_qrilc(state, config)
-summary(state$expression)
-summary(state2$expression)
+summary(c(state$expression))    ## Note number of NAs
+summary(c(state2$expression))   ## Note number of NAs
+head(state$expression)
+round(head(state2$expression))
+
+## log-transformed example:
+state$expression <- log2(state$expression + 1)
+state2 <- h0testr::f.impute_qrilc(state, config, is_log_transformed=TRUE)
+summary(c(state$expression))    ## Note number of NAs
+summary(c(state2$expression))   ## Note number of NAs
 head(state$expression)
 round(head(state2$expression))
 }

@@ -60,8 +60,8 @@ state <- h0testr::f.filter_observations(state, config, n_features_min=30)
 
 ## impute:
 state2 <- h0testr::f.impute_missforest(state, config)
-summary(state$expression)
-summary(state2$expression)
+summary(state$expression)     ## Note number of NAs
+summary(state2$expression)    ## Note number of NAs
 head(state$expression)
 round(head(state2$expression))
 }

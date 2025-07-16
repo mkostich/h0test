@@ -47,4 +47,6 @@ config <- list()
 state2 <- h0testr::f.impute_sample_lod(state, config)
 summary(c(state$expression))   ## note number of NAs
 summary(c(state2$expression))  ## note number of NAs
+head(state$expression)
+round(head(state2$expression))
 }

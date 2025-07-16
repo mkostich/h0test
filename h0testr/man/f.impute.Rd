@@ -4,27 +4,75 @@
 \alias{f.impute}
 \title{Impute missing values}
 \usage{
-f.impute(state, config)
+f.impute(
+  state,
+  config,
+  method = NULL,
+  is_log_transformed = FALSE,
+  k = NULL,
+  span = NULL,
+  n_pcs = NULL,
+  impute_quantile = NULL,
+  scale. = NULL,
+  aug_steps = NULL,
+  alpha = NULL,
+  n_pts = NULL,
+  verbose = NULL
+)
 }
 \arguments{
 \item{state}{A list with elements like that returned by \code{f.read_data()}:
-  \tabular{ll}{
-    \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-    \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-    \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
-  }
-It is assumed that \code{state$expression} has been previously \code{log2(x+1)} transformed.}
-
-\item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{feat_col}         \cr \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}. \cr
-  \code{obs_col}          \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
-  \code{impute_method}    \cr \tab In \code{c("unif_global_lod","unif_sample_lod","sample_lod","rnorm_feature","glm_binom","loess_logit","glmnet","rf","none")} \cr
-  \code{impute_quantile}  \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD). \cr
-  \code{impute_scale}     \cr \tab Factor (numeric) rescaling variance of normal distribution from which draws are made for \code{impute_method \%in\% "rnorm"}. \cr
-  \code{impute_n_pts}     \cr \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain. \cr
-  \code{impute_span}      \cr \tab Span (numeric between zero and 1) for \code{loess} fit. \cr
+  \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+  \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+  \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
+
+\item{config}{List with configuration values. Required keys are 
+\code{feat_col} and \code{obs_col}. Recognizes the following keys:
+\tabular{ll}{
+  \code{feat_col}          \cr \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}. \cr
+  \code{obs_col}           \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
+  \code{impute_method}     \cr \tab Name of a method in list returned by \code{h0testr::f.impute_methods()}. \cr
+  \code{impute_quantile}   \cr \tab Used if parameter \code{impute_quantile} is unset. \cr
+  \code{impute_scale}      \cr \tab Used if parameter \code{scale.} is unset. \cr
+  \code{impute_span}       \cr \tab Used if parameter \code{span} is unset. \cr
+  \code{impute_k}          \cr \tab Used if parameter \code{k} is unset. \cr
+  \code{impute_n_pcs}      \cr \tab Used if parameter \code{n_pcs} is unset. \cr
+  \code{impute_aug_steps}  \cr \tab Used if parameter \code{aug_steps} is unset. \cr
+  \code{impute_n_pts}      \cr \tab Used if parameter \code{n_pts} is unset. \cr
+}}
+
+\item{method}{Method to use. A character scalar from the list returned by 
+\code{h0testr::impute_methods()}.}
+
+\item{is_log_transformed}{Logical scalar: if \code{state$expression} has 
+been log transformed.}
+
+\item{k}{Number of nearest neighbors passed to methods for 
+\code{c("knn", "lls")}.}
+
+\item{span}{Span passed to method for \code{"loess_logit"}.}
+
+\item{n_pcs}{Number of PCs passed to methods for 
+\code{c("bpca", "ppca", "svdImpute")}.}
+
+\item{impute_quantile}{Passed to methods for 
+\code{c("unif_global_lod", "unif_sample_lod", "min_det", "min_prob")}.}
+
+\item{scale.}{Scale parameter passed to methods for 
+\code{c("rnorm_feature", "qrilc")}.}
+
+\item{aug_steps}{Number of augmentations passed to methods for 
+\code{c("glmnet", "rf")}.}
+
+\item{alpha}{Mixing parameter passed to method for \code{"glmnet"}.}
+
+\item{n_pts}{Points in prediction grid; passed to methods for 
+\code{c("glm_binom", "loess_logit")}.}
+
+\item{verbose}{Logical scalar passed to methods for 
+\code{c("glmnet", "rf")}.}
 }
 \value{
 Updated \code{state} list with the following elements:
@@ -55,9 +103,23 @@ exprs <- log2(exprs + 1)
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(impute_method="unif_sample_lod", impute_quantile=0, 
-  feat_col="feature_id", obs_col="observation_id", save_state=FALSE)
+config <- list(feat_col="feature_id", obs_col="observation_id")
+
+cat("available methods:\n")
+print(h0testr::f.impute_methods())
+
+## impute using method passed as parameter:
+out <- h0testr::f.impute(state, config, method="unif_sample_lod")
+summary(c(state$expression))        ## note number of NAs
+summary(c(out$state$expression))    ## note number of NAs
+head(state$expression)
+round(head(out$state$expression))
+
+## impute using method passed in configuration:
+config$impute_method <- "unif_sample_lod"
 out <- h0testr::f.impute(state, config)
-summary(c(state$expression))      ## note number of NAs
-summary(c(out$state$expression))  ## note number of NAs
+summary(c(state$expression))        ## note number of NAs
+summary(c(out$state$expression))    ## note number of NAs
+head(state$expression)
+round(head(out$state$expression))
 }
