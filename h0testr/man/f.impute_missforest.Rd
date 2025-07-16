@@ -35,8 +35,9 @@ An updated \code{state} list with the following elements:
 Impute missing values with \code{missForest::missForest()}.
 }
 \details{
-See documentation for \code{h0testr::f.new_config()} 
-    for more detailed description of configuration parameters.
+Only \code{NAs} considered missing. If you want \code{0} to be considered 
+    missing, do something like \code{exprs[exprs \%in\% 0] <- NA} prior to 
+    imputing.
 }
 \examples{
 ## setup state and config, including prefiltering:
@@ -53,7 +54,7 @@ samps <- data.frame(
 )
 state <- list(expression=exprs, features=feats, samples=samps)
 rm(nsamps, sim, exprs, feats, samps)
-config <- list(obs_col="obs", feat_col="gene")
+config <- list()
 state <- h0testr::f.filter_features(state, config, n_samples_min=3)
 state <- h0testr::f.filter_observations(state, config, n_features_min=30)
 

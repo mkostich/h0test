@@ -291,12 +291,13 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 #' @description
 #'   Impute missing values by randomly drawing from an estimated density 
 #'     of \code{p(missing|intensity)}.
-#' @details Impute random draws by drawing from the estimated density of 
-#'   \code{p(missing|intensity)}. Estimates \code{p(missing|intensity)} using 
-#'   a binomial glm with formula \code{cbind(n.missing, n.found) ~ intensity},
-#'   where intensity is assumed to be previously log transformed. If you  
-#'   want \code{0} to be considered missing, and have \code{0} in the data, do 
-#'   something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. 
+#' @details 
+#'   Impute random draws by drawing from the estimated density of 
+#'     \code{p(missing|intensity)}. Estimates \code{p(missing|intensity)} using 
+#'     a binomial glm with formula \code{cbind(n.missing, n.found) ~ intensity},
+#'     where intensity is assumed to be previously log transformed. If you  
+#'     want \code{0} to be considered missing, and have \code{0} in the data, do 
+#'     something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. 
 #'   See documentation for \code{h0testr::f.new_config()} 
 #'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{f.read_data()}:
@@ -310,6 +311,7 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 #'   \tabular{ll}{
 #'     \code{impute_n_pts}  \cr \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain.
 #'   }
+#' @param is_log_transformed Scalar logical: if \code{state$expression} is log transformed.
 #' @param n_pts Numeric greater than one. Granularity of prediction 
 #'   grid. Larger values lead to less chance of duplicate imputed values.
 #'   Larger values require more compute time and memory.
@@ -334,34 +336,47 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 #' state2 <- h0testr::f.impute_glm_binom(state, config)
 #' summary(c(state$expression))   ## note number of NAs
 #' summary(c(state2$expression))  ## note number of NAs
+#' head(state$expression)
+#' head(state2$expression)
 
-f.impute_glm_binom <- function(state, config, n_pts=NULL, off=1, 
-    f_mid=stats::median) {
+f.impute_glm_binom <- function(state, config, is_log_transformed=FALSE, 
+    n_pts=NULL, off=1, f_mid=stats::median) {
     
   f.check_config(config)
   
   if(!is.matrix(state$expression)) {
     f.err("f.impute_glm_binom: !is.matrix(state$expression)", config=config)
   }
+  
+  mat <- state$expression
+  if(!is_log_transformed) mat <- log2(mat + 1) 
+  
   if(is.null(n_pts)) n_pts <- config$impute_n_pts
-  if(is.null(n_pts)) f.err("f.impute_glm_binom: n_pts and config$impute_n_pts unset", 
+  if(is.null(n_pts)) {
+    f.err("f.impute_glm_binom: n_pts and config$impute_n_pts unset", 
     config=config)
+  }
   if(n_pts <= 0) f.err("f.impute_glm_binom: n_pts <= 0", config=config)
   
-  m <- apply(state$expression, 1, f_mid, na.rm=T)
+  m <- apply(mat, 1, f_mid, na.rm=T)
   m[is.na(m)] <- 0
-  n0 <- apply(state$expression, 1, function(v) sum(is.na(v) | v %in% 0))  ## n.missing
-  n1 <- ncol(state$expression) - n0                                     
-  p <- (n0 + off) / (ncol(state$expression) + off)
+  n0 <- apply(mat, 1, function(v) sum(is.na(v) | v %in% 0))  ## n.missing
+  n1 <- ncol(mat) - n0                                     
+  p <- (n0 + off) / (ncol(mat) + off)
   dat <- data.frame(n0=n0, n1=n1, p=p, m=m)
   
   fit <- stats::glm(cbind(n0, n1) ~ m, data=dat, family="binomial")
-  m_new <- seq(from=max(c(state$expression), na.rm=T) / n_pts, 
-    to=max(c(state$expression), na.rm=T), length.out=n_pts)
+  
+  m_new <- seq(from=max(c(mat), na.rm=T) / n_pts, 
+    to=max(c(mat), na.rm=T), length.out=n_pts)
+  
   p_hat <- stats::predict(fit, newdata=data.frame(m=m_new), type="response")
   p_hat[is.na(p_hat)] <- min(p_hat, na.rm=T)
-  i_na <- is.na(c(state$expression))
-  state$expression[i_na] <- sample(m_new, sum(i_na), replace=T, prob=p_hat)
+  i_na <- is.na(c(mat))
+  mat[i_na] <- sample(m_new, sum(i_na), replace=T, prob=p_hat)
+  
+  if(!is_log_transformed) mat <- 2^mat
+  state$expression <- mat
   
   return(state)
 }
@@ -370,12 +385,13 @@ f.impute_glm_binom <- function(state, config, n_pts=NULL, off=1,
 #' @description
 #'   Impute missing values by randomly drawing from an estimated density 
 #'     of \code{p(missing|intensity)}.
-#' @details Impute random draws by drawing from the estimated density of 
-#'   \code{p(missing|intensity)}. Estimates \code{p(missing|intensity)} using 
-#'   a loess fit with form \code{log(p_missing/p_found) ~ intensity}, where 
-#'   intensity is assumed to be previously log transformed. If you want 
-#'   \code{0} to be considered missing, and have \code{0} in the data, do 
-#'   something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. 
+#' @details 
+#'   Impute random draws by drawing from the estimated density of 
+#'     \code{p(missing|intensity)}. Estimates \code{p(missing|intensity)} using 
+#'     a loess fit with form \code{log(p_missing/p_found) ~ intensity}, where 
+#'     intensity is assumed to be previously log transformed. If you want 
+#'     \code{0} to be considered missing, and have \code{0} in the data, do 
+#'     something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. 
 #'   See documentation for \code{h0testr::f.new_config()} 
 #'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{f.read_data()}:
@@ -747,12 +763,10 @@ f.impute_glmnet <- function(state, config, f_imp=f.impute_unif_sample_lod,
 
 #' Impute missing values with \code{impute::impute.knn()}.
 #' @description
-#'   Blocks larger than \code{maxp} are recursively divided into smaller 
-#'     sub-blocks prior to imputation.
 #'   Impute missing values with \code{impute::impute.knn()}.
 #' @details
-#'   See documentation for \code{h0testr::f.new_config()} 
-#'     for more detailed description of configuration parameters. 
+#'   Blocks larger than \code{maxp} are recursively divided into smaller 
+#'     sub-blocks prior to imputation.
 #' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -789,7 +803,7 @@ f.impute_glmnet <- function(state, config, f_imp=f.impute_unif_sample_lod,
 #' )
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' rm(nsamps, sim, exprs, feats, samps)
-#' config <- list(obs_col="obs", feat_col="gene")
+#' config <- list()
 #' state <- h0testr::f.filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::f.filter_observations(state, config, n_features_min=30)
 #'
@@ -812,12 +826,215 @@ f.impute_knn <- function(state, config, k=10, rowmax=0.5, colmax=0.8, maxp=1500)
   return(state)
 }
 
+#' Impute missing values with \code{imputeLCMD::impute.MinDet()}.
+#' @description
+#'   Impute missing values with \code{imputeLCMD::impute.MinDet()}.
+#' @details
+#'   Only \code{NAs} considered missing. If you want \code{0} to be considered 
+#'     missing, do something like \code{exprs[exprs \%in\% 0] <- NA} prior to 
+#'     imputing. 
+#' @param state A list with elements like that returned by \code{f.read_data()}:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
+#' @param config List with configuration values. Does not use any keys so can pass empty list.
+#' @param q Quantile to use for imputation; a numeric scalar with \code{0 <= q < 1.0}.
+#' @return 
+#'   An updated \code{state} list with the following elements:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative imputed 
+#'       expression values. \cr
+#'     \code{features}   \cr \tab Feature meta-data \code{data.frame} 
+#'       corresponding to rows of \code{expression}. \cr
+#'     \code{samples}    \cr \tab Observation meta-data \code{data.frame} 
+#'       corresponding to columns of \code{expression}. \cr
+#'   } 
+#' @examples
+#' ## setup state and config, including prefiltering:
+#' set.seed(101)
+#' nsamps <- 6
+#' sim <- h0testr::f.sim2(n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
+#'   fold_change=1, peps_per_gene=1, reps_per_sample=1)
+#' exprs <- sim$mat
+#' feats <- data.frame(gene=rownames(exprs))
+#' samps <- data.frame(
+#'   obs=colnames(exprs), 
+#'   grp=factor(c(rep("ctl", nsamps), rep("trt", nsamps))),
+#'   sex=factor(rep(c("M", "F"), nsamps))
+#' )
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' rm(nsamps, sim, exprs, feats, samps)
+#' config <- list()
+#' state <- h0testr::f.filter_features(state, config, n_samples_min=3)
+#' state <- h0testr::f.filter_observations(state, config, n_features_min=30)
+#'
+#' ## impute:
+#' state2 <- h0testr::f.impute_mindet(state, config)
+#' summary(state$expression)
+#' summary(state2$expression)
+#' head(state$expression)
+#' round(head(state2$expression))
+
+f.impute_mindet <- function(state, config, q=0.01) {
+
+  if(!is.matrix(state$expression)) {
+    f.err("f.impute_mindet: !is.matrix(state$expression)", config=config)
+  }
+  
+  state$expression <- imputeLCMD::impute.MinDet(state$expression, q=q)
+  
+  return(state)
+}
+
+#' Impute missing values with \code{imputeLCMD::impute.MinProb()}.
+#' @description
+#'   Impute missing values with \code{imputeLCMD::impute.MinProb()}.
+#' @details
+#'   Only \code{NAs} considered missing. If you want \code{0} to be considered 
+#'     missing, do something like \code{exprs[exprs \%in\% 0] <- NA} prior to 
+#'     imputing. 
+#' @param state A list with elements like that returned by \code{f.read_data()}:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
+#' @param config List with configuration values. Does not use any keys so can pass empty list.
+#' @param is_log_transformed Logical scalar: whether \code{state$expression} is log transformed.
+#' @param q Quantile to use for imputation; numeric scalar with \code{0 <= q < 1.0}.
+#' @param s Scaling parameter for normal distribution; numeric scalar with \code{0 < s}.
+#' @return 
+#'   An updated \code{state} list with the following elements:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative imputed 
+#'       expression values. \cr
+#'     \code{features}   \cr \tab Feature meta-data \code{data.frame} 
+#'       corresponding to rows of \code{expression}. \cr
+#'     \code{samples}    \cr \tab Observation meta-data \code{data.frame} 
+#'       corresponding to columns of \code{expression}. \cr
+#'   } 
+#' @examples
+#' ## setup state and config, including prefiltering:
+#' set.seed(101)
+#' nsamps <- 6
+#' sim <- h0testr::f.sim2(n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
+#'   fold_change=1, peps_per_gene=1, reps_per_sample=1)
+#' exprs <- sim$mat
+#' feats <- data.frame(gene=rownames(exprs))
+#' samps <- data.frame(
+#'   obs=colnames(exprs), 
+#'   grp=factor(c(rep("ctl", nsamps), rep("trt", nsamps))),
+#'   sex=factor(rep(c("M", "F"), nsamps))
+#' )
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' rm(nsamps, sim, exprs, feats, samps)
+#' config <- list()
+#' state <- h0testr::f.filter_features(state, config, n_samples_min=3)
+#' state <- h0testr::f.filter_observations(state, config, n_features_min=30)
+#'
+#' ## impute:
+#' state2 <- h0testr::f.impute_minprob(state, config)
+#' summary(state$expression)
+#' summary(state2$expression)
+#' head(state$expression)
+#' round(head(state2$expression))
+
+f.impute_minprob <- function(state, config, is_log_transformed=FALSE, q=0.01, s=1.0) {
+
+  if(!is.matrix(state$expression)) {
+    f.err("f.impute_minprob: !is.matrix(state$expression)", config=config)
+  }
+  
+  mat <- state$expression
+  if(!is_log_transformed) mat <- log2(mat + 1)  ## otherwise can get negative
+  
+  mat <- imputeLCMD::impute.MinProb(mat, q=q, tune.sigma=s)
+  
+  if(!is_log_transformed) mat <- (2^mat) - 1
+  state$expression <- mat
+  
+  return(state)
+}
+
+#' Impute missing values with \code{imputeLCMD::impute.QRILC()}.
+#' @description
+#'   Impute missing values with \code{imputeLCMD::impute.QRILC()}.
+#' @details
+#'   Only \code{NAs} considered missing. If you want \code{0} to be considered 
+#'     missing, do something like \code{exprs[exprs \%in\% 0] <- NA} prior to 
+#'     imputing. 
+#' @param state A list with elements like that returned by \code{f.read_data()}:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
+#' @param config List with configuration values. Does not use any keys so can pass empty list.
+#' @param is_log_transformed Logical scalar: whether \code{state$expression} is log transformed.
+#' @param s Scaling parameter for normal distribution; numeric scalar with \code{0 < s}.
+#' @return 
+#'   An updated \code{state} list with the following elements:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative imputed 
+#'       expression values. \cr
+#'     \code{features}   \cr \tab Feature meta-data \code{data.frame} 
+#'       corresponding to rows of \code{expression}. \cr
+#'     \code{samples}    \cr \tab Observation meta-data \code{data.frame} 
+#'       corresponding to columns of \code{expression}. \cr
+#'   } 
+#' @examples
+#' ## setup state and config, including prefiltering:
+#' set.seed(101)
+#' nsamps <- 6
+#' sim <- h0testr::f.sim2(n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
+#'   fold_change=1, peps_per_gene=1, reps_per_sample=1)
+#' exprs <- sim$mat
+#' feats <- data.frame(gene=rownames(exprs))
+#' samps <- data.frame(
+#'   obs=colnames(exprs), 
+#'   grp=factor(c(rep("ctl", nsamps), rep("trt", nsamps))),
+#'   sex=factor(rep(c("M", "F"), nsamps))
+#' )
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' rm(nsamps, sim, exprs, feats, samps)
+#' config <- list()
+#' state <- h0testr::f.filter_features(state, config, n_samples_min=3)
+#' state <- h0testr::f.filter_observations(state, config, n_features_min=30)
+#'
+#' ## impute:
+#' state2 <- h0testr::f.impute_qrilc(state, config)
+#' summary(state$expression)
+#' summary(state2$expression)
+#' head(state$expression)
+#' round(head(state2$expression))
+
+f.impute_qrilc <- function(state, config, is_log_transformed=FALSE, s=1.0) {
+
+  if(!is.matrix(state$expression)) {
+    f.err("f.impute_qrilc: !is.matrix(state$expression)", config=config)
+  }
+  
+  mat <- state$expression
+  if(!is_log_transformed) mat <- log2(mat + 1)  ## otherwise can get negative
+  
+  obj <- imputeLCMD::impute.QRILC(mat, tune.sigma=s)
+  
+  mat <- obj[[1]]
+  if(!is_log_transformed) mat <- (2^mat) - 1
+  state$expression <- mat
+  
+  return(state)
+}
+
 #' Impute missing values with \code{pcaMethods::pca()}.
 #' @description
 #'   Impute missing values with \code{pcaMethods::pca()}.
 #' @details
-#'   See documentation for \code{h0testr::f.new_config()} 
-#'     for more detailed description of configuration parameters. 
+#'   Only \code{NAs} considered missing. If you want \code{0} to be considered 
+#'     missing, do something like \code{exprs[exprs \%in\% 0] <- NA} prior to 
+#'     imputing. 
 #' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -852,7 +1069,7 @@ f.impute_knn <- function(state, config, k=10, rowmax=0.5, colmax=0.8, maxp=1500)
 #' )
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' rm(nsamps, sim, exprs, feats, samps)
-#' config <- list(obs_col="obs", feat_col="gene")
+#' config <- list()
 #' state <- h0testr::f.filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::f.filter_observations(state, config, n_features_min=30)
 #'
@@ -886,8 +1103,9 @@ f.impute_pca <- function(state, config, n_pcs=3, is_log_transformed=FALSE) {
 #' @description
 #'   Impute missing values with \code{missForest::missForest()}.
 #' @details
-#'   See documentation for \code{h0testr::f.new_config()} 
-#'     for more detailed description of configuration parameters. 
+#'   Only \code{NAs} considered missing. If you want \code{0} to be considered 
+#'     missing, do something like \code{exprs[exprs \%in\% 0] <- NA} prior to 
+#'     imputing. 
 #' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -922,7 +1140,7 @@ f.impute_pca <- function(state, config, n_pcs=3, is_log_transformed=FALSE) {
 #' )
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' rm(nsamps, sim, exprs, feats, samps)
-#' config <- list(obs_col="obs", feat_col="gene")
+#' config <- list()
 #' state <- h0testr::f.filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::f.filter_observations(state, config, n_features_min=30)
 #'

@@ -61,11 +61,11 @@ Impute missing values by randomly drawing from an estimated density
 }
 \details{
 Impute random draws by drawing from the estimated density of 
-  \code{p(missing|intensity)}. Estimates \code{p(missing|intensity)} using 
-  a loess fit with form \code{log(p_missing/p_found) ~ intensity}, where 
-  intensity is assumed to be previously log transformed. If you want 
-  \code{0} to be considered missing, and have \code{0} in the data, do 
-  something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. 
+    \code{p(missing|intensity)}. Estimates \code{p(missing|intensity)} using 
+    a loess fit with form \code{log(p_missing/p_found) ~ intensity}, where 
+    intensity is assumed to be previously log transformed. If you want 
+    \code{0} to be considered missing, and have \code{0} in the data, do 
+    something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. 
   See documentation for \code{h0testr::f.new_config()} 
     for more detailed description of configuration parameters.
 }

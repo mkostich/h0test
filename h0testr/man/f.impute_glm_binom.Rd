@@ -4,7 +4,14 @@
 \alias{f.impute_glm_binom}
 \title{Impute by drawing from \code{p(missing|intensity)} from binomial glm.}
 \usage{
-f.impute_glm_binom(state, config, n_pts = NULL, off = 1, f_mid = stats::median)
+f.impute_glm_binom(
+  state,
+  config,
+  is_log_transformed = FALSE,
+  n_pts = NULL,
+  off = 1,
+  f_mid = stats::median
+)
 }
 \arguments{
 \item{state}{A list with elements like that returned by \code{f.read_data()}:
@@ -19,6 +26,8 @@ It is assumed that state$expression has been previously \code{log2(x+1)} transfo
 \tabular{ll}{
   \code{impute_n_pts}  \cr \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain.
 }}
+
+\item{is_log_transformed}{Scalar logical: if \code{state$expression} is log transformed.}
 
 \item{n_pts}{Numeric greater than one. Granularity of prediction 
 grid. Larger values lead to less chance of duplicate imputed values.
@@ -44,11 +53,11 @@ Impute missing values by randomly drawing from an estimated density
 }
 \details{
 Impute random draws by drawing from the estimated density of 
-  \code{p(missing|intensity)}. Estimates \code{p(missing|intensity)} using 
-  a binomial glm with formula \code{cbind(n.missing, n.found) ~ intensity},
-  where intensity is assumed to be previously log transformed. If you  
-  want \code{0} to be considered missing, and have \code{0} in the data, do 
-  something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. 
+    \code{p(missing|intensity)}. Estimates \code{p(missing|intensity)} using 
+    a binomial glm with formula \code{cbind(n.missing, n.found) ~ intensity},
+    where intensity is assumed to be previously log transformed. If you  
+    want \code{0} to be considered missing, and have \code{0} in the data, do 
+    something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. 
   See documentation for \code{h0testr::f.new_config()} 
     for more detailed description of configuration parameters.
 }
@@ -63,4 +72,6 @@ config <- list(impute_n_pts=1e7)
 state2 <- h0testr::f.impute_glm_binom(state, config)
 summary(c(state$expression))   ## note number of NAs
 summary(c(state2$expression))  ## note number of NAs
+head(state$expression)
+head(state2$expression)
 }
