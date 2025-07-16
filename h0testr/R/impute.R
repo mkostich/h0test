@@ -360,7 +360,7 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 #' config <- list(impute_n_pts=1e7)
 #' 
 #' ## untransformed example:
-#' state2 <- h0testr::f.impute_glm_binom(state, config)
+#' state2 <- h0testr::f.impute_glm_binom(state, config, is_log_transformed=FALSE)
 #' summary(c(state$expression))    ## Note number of NAs
 #' summary(c(state2$expression))   ## Note number of NAs
 #' head(state$expression)
@@ -374,13 +374,17 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
 #' head(state$expression)
 #' round(head(state2$expression))
 
-f.impute_glm_binom <- function(state, config, is_log_transformed=FALSE, 
+f.impute_glm_binom <- function(state, config, is_log_transformed=NULL, 
     n_pts=NULL, off=1, f_mid=stats::median) {
   
   f.check_config(config)
   
   if(!is.matrix(state$expression)) {
     f.err("f.impute_glm_binom: !is.matrix(state$expression)", config=config)
+  }
+  
+  if(!is.logical(is_log_transformed)) {
+    f.err("f.impute_glm_binom: !is.logical(is_log_transformed)", config=config)
   }
   
   mat <- state$expression
@@ -593,7 +597,7 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
 #' config <- list()
 #'
 #' ## untransformed example:
-#' out <- h0testr::f.impute_rf(state, config, verbose=FALSE)
+#' out <- h0testr::f.impute_rf(state, config, is_log_transformed=FALSE, verbose=FALSE)
 #' state2 <- out$state
 #' summary(c(state$expression))    ## Note number of NAs
 #' summary(c(state2$expression))   ## Note number of NAs
@@ -611,11 +615,15 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
 #' round(head(state2$expression))
 #' print(out$log)
 
-f.impute_rf <- function(state, config, is_log_transformed=T, 
+f.impute_rf <- function(state, config, is_log_transformed=NULL, 
     f_imp=f.impute_unif_sample_lod, ntree=100, mtry=NULL, aug_mult=0.33, 
     aug_add=0, aug_steps=3, verbose=T) {
   
   f.check_config(config)
+  
+  if(!is.logical(is_log_transformed)) {
+    f.err("f.impute_rf: !is.logical(is_log_transformed)", config=config)
+  }
   
   if(!is.matrix(state$expression)) {
     f.err("f.impute_rf: !is.matrix(exprs)", config=config)
@@ -739,7 +747,7 @@ f.impute_rf <- function(state, config, is_log_transformed=T,
 #' config <- list()
 #'
 #' ## example with untransformed data:
-#' out <- h0testr::f.impute_glmnet(state, config, verbose=FALSE)
+#' out <- h0testr::f.impute_glmnet(state, config, is_log_transformed=FALSE, verbose=FALSE)
 #' state2 <- out$state
 #' summary(c(state$expression))    ## Note number of NAs
 #' summary(c(state2$expression))   ## Note number of NAs
@@ -757,11 +765,15 @@ f.impute_rf <- function(state, config, is_log_transformed=T,
 #' round(head(state2$expression))
 #' print(out$log)
 
-f.impute_glmnet <- function(state, config, is_log_transformed=F,
+f.impute_glmnet <- function(state, config, is_log_transformed=NULL,
     f_imp=f.impute_unif_sample_lod, nfolds=5, alpha=1, measure="mae", 
     aug_mult=0.33, aug_add=0, aug_steps=3, verbose=T) {
   
   f.check_config(config)
+  
+  if(!is.logical(is_log_transformed)) {
+    f.err("f.impute_glmnet: !is.logical(is_log_transformed)", config=config)
+  }
   
   if(!is.matrix(state$expression)) {
     f.err("f.impute_glmnet: !is.matrix(state$expression)", config=config)
@@ -878,6 +890,8 @@ f.impute_glmnet <- function(state, config, is_log_transformed=F,
 
 f.impute_knn <- function(state, config, k=10, rowmax=0.5, colmax=0.8, maxp=1500) {
   
+  f.check_config(config)
+
   if(!is.matrix(state$expression)) {
     f.err("f.impute_knn: !is.matrix(state$expression)", config=config)
   }
@@ -945,6 +959,8 @@ f.impute_knn <- function(state, config, k=10, rowmax=0.5, colmax=0.8, maxp=1500)
 
 f.impute_min_det <- function(state, config, impute_quantile=NULL) {
   
+  f.check_config(config)
+  
   if(!is.matrix(state$expression)) {
     f.err("f.impute_min_det: !is.matrix(state$expression)", config=config)
   }
@@ -1008,7 +1024,7 @@ f.impute_min_det <- function(state, config, impute_quantile=NULL) {
 #' state <- h0testr::f.filter_observations(state, config, n_features_min=30)
 #'
 #' ## untransformed example:
-#' state2 <- h0testr::f.impute_min_prob(state, config)
+#' state2 <- h0testr::f.impute_min_prob(state, config, is_log_transformed=FALSE)
 #' summary(c(state$expression))    ## Note number of NAs
 #' summary(c(state2$expression))   ## Note number of NAs
 #' head(state$expression)
@@ -1022,8 +1038,14 @@ f.impute_min_det <- function(state, config, impute_quantile=NULL) {
 #' head(state$expression)
 #' round(head(state2$expression))
 
-f.impute_min_prob <- function(state, config, is_log_transformed=FALSE, 
+f.impute_min_prob <- function(state, config, is_log_transformed=NULL, 
     impute_quantile=NULL, scale.=NULL) {
+    
+  f.check_config(config)
+  
+  if(!is.logical(is_log_transformed)) {
+    f.err("f.impute_min_prob: !is.logical(is_log_transformed)", config=config)
+  }
   
   if(!is.matrix(state$expression)) {
     f.err("f.impute_min_prob: !is.matrix(state$expression)", config=config)
@@ -1094,7 +1116,7 @@ f.impute_min_prob <- function(state, config, is_log_transformed=FALSE,
 #' state <- h0testr::f.filter_observations(state, config, n_features_min=30)
 #' 
 #' ## untransformed example:
-#' state2 <- h0testr::f.impute_qrilc(state, config)
+#' state2 <- h0testr::f.impute_qrilc(state, config, is_log_transformed=FALSE)
 #' summary(c(state$expression))    ## Note number of NAs
 #' summary(c(state2$expression))   ## Note number of NAs
 #' head(state$expression)
@@ -1108,8 +1130,14 @@ f.impute_min_prob <- function(state, config, is_log_transformed=FALSE,
 #' head(state$expression)
 #' round(head(state2$expression))
 
-f.impute_qrilc <- function(state, config, is_log_transformed=FALSE, scale.=NULL) {
-
+f.impute_qrilc <- function(state, config, is_log_transformed=NULL, scale.=NULL) {
+  
+  f.check_config(config)
+  
+  if(!is.logical(is_log_transformed)) {
+    f.err("f.impute_qrilc: !is.logical(is_log_transformed)", config=config)
+  }
+  
   if(!is.matrix(state$expression)) {
     f.err("f.impute_qrilc: !is.matrix(state$expression)", config=config)
   }
@@ -1187,23 +1215,32 @@ f.impute_qrilc <- function(state, config, is_log_transformed=FALSE, scale.=NULL)
 #' head(state$expression)
 #'
 #' ## impute using bayesian pca:
-#' state2 <- h0testr::f.impute_pca(state, config, method="bpca")
+#' state2 <- h0testr::f.impute_pca(state, config, method="bpca", 
+#'   is_log_transformed=FALSE)
 #' summary(c(state2$expression))   ## Note number of NAs
 #' round(head(state2$expression))
 #'
 #' ## impute using probabilistic pca:
-#' state2 <- h0testr::f.impute_pca(state, config, method="ppca")
+#' state2 <- h0testr::f.impute_pca(state, config, method="ppca", 
+#'   is_log_transformed=FALSE)
 #' summary(c(state2$expression))   ## Note number of NAs
 #' round(head(state2$expression))
 #'
 #' ## impute as linear combo of \code{n_pcs} eigengenes:
-#' state2 <- h0testr::f.impute_pca(state, config, method="svdImpute")
+#' state2 <- h0testr::f.impute_pca(state, config, method="svdImpute", 
+#'   is_log_transformed=FALSE)
 #' summary(c(state2$expression))   ## Note number of NAs
 #' round(head(state2$expression))
 
-f.impute_pca <- function(state, config, is_log_transformed=FALSE,
+f.impute_pca <- function(state, config, is_log_transformed=NULL,
     n_pcs=5, method="bpca") {
-    
+  
+  f.check_config(config)
+  
+  if(!is.logical(is_log_transformed)) {
+    f.err("f.impute_pca: !is.logical(is_log_transformed)", config=config)
+  }
+  
   if(!is.matrix(state$expression)) {
     stop("f.impute_pca: !is.matrix(state$expression)")
   }
@@ -1279,7 +1316,7 @@ f.impute_pca <- function(state, config, is_log_transformed=FALSE,
 #' state <- h0testr::f.filter_observations(state, config, n_features_min=30)
 #'
 #' ## example with untransformed data:
-#' state2 <- h0testr::f.impute_lls(state, config)
+#' state2 <- h0testr::f.impute_lls(state, config, is_log_transformed=FALSE)
 #' summary(c(state$expression))    ## Note number of NAs
 #' summary(c(state2$expression))   ## Note number of NAs
 #' head(state$expression)
@@ -1293,8 +1330,14 @@ f.impute_pca <- function(state, config, is_log_transformed=FALSE,
 #' head(state$expression)
 #' round(head(state2$expression))
 
-f.impute_lls <- function(state, config, is_log_transformed=FALSE, 
+f.impute_lls <- function(state, config, is_log_transformed=NULL, 
     k=5, method="pearson", maxit=100) {
+  
+  f.check_config(config)
+  
+  if(!is.logical(is_log_transformed)) {
+    f.err("f.impute_pca: !is.logical(is_log_transformed)", config=config)
+  }
   
   if(!is.matrix(state$expression)) {
     f.err("f.impute_pca: !is.matrix(state$expression)", config=config)
@@ -1474,7 +1517,8 @@ f.impute_methods <- function() {
 #' print(h0testr::f.impute_methods())
 #'
 #' ## impute using method passed as parameter:
-#' out <- h0testr::f.impute(state, config, method="unif_sample_lod")
+#' out <- h0testr::f.impute(state, config, method="unif_sample_lod", 
+#'   is_log_transformed=FALSE)
 #' summary(c(state$expression))        ## note number of NAs
 #' summary(c(out$state$expression))    ## note number of NAs
 #' head(state$expression)
@@ -1482,13 +1526,13 @@ f.impute_methods <- function() {
 #'
 #' ## impute using method passed in configuration:
 #' config$impute_method <- "unif_sample_lod"
-#' out <- h0testr::f.impute(state, config)
+#' out <- h0testr::f.impute(state, config, is_log_transformed=FALSE)
 #' summary(c(state$expression))        ## note number of NAs
 #' summary(c(out$state$expression))    ## note number of NAs
 #' head(state$expression)
 #' round(head(out$state$expression))
 
-f.impute <- function(state, config, method=NULL, is_log_transformed=FALSE, 
+f.impute <- function(state, config, method=NULL, is_log_transformed=NULL, 
     k=NULL, span=NULL, n_pcs=NULL, impute_quantile=NULL, scale.=NULL, 
     aug_steps=NULL, alpha=NULL, n_pts=NULL, verbose=NULL) {
 
@@ -1499,6 +1543,10 @@ f.impute <- function(state, config, method=NULL, is_log_transformed=FALSE,
   if(is.null(method)) {
     f.err("f.impute: both method and config$impute_method are unset", 
       config=config)
+  }
+  
+  if(method %in% c("", "", "") && !is.logical(is_log_transformed)) {
+    f.err("f.impute: !is.logical(is_log_transformed)", config=config)
   }
   
   ## corresponding methods should have reasonable defaults for NULLs in config:

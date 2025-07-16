@@ -7,7 +7,7 @@
 f.impute_glmnet(
   state,
   config,
-  is_log_transformed = F,
+  is_log_transformed = NULL,
   f_imp = f.impute_unif_sample_lod,
   nfolds = 5,
   alpha = 1,
@@ -92,7 +92,7 @@ state <- list(expression=exprs, features=feats, samples=samps)
 config <- list()
 
 ## example with untransformed data:
-out <- h0testr::f.impute_glmnet(state, config, verbose=FALSE)
+out <- h0testr::f.impute_glmnet(state, config, is_log_transformed=FALSE, verbose=FALSE)
 state2 <- out$state
 summary(c(state$expression))    ## Note number of NAs
 summary(c(state2$expression))   ## Note number of NAs

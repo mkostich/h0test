@@ -7,7 +7,7 @@
 f.impute_pca(
   state,
   config,
-  is_log_transformed = FALSE,
+  is_log_transformed = NULL,
   n_pcs = 5,
   method = "bpca"
 )
@@ -78,17 +78,20 @@ summary(c(state$expression))    ## Note number of NAs
 head(state$expression)
 
 ## impute using bayesian pca:
-state2 <- h0testr::f.impute_pca(state, config, method="bpca")
+state2 <- h0testr::f.impute_pca(state, config, method="bpca", 
+  is_log_transformed=FALSE)
 summary(c(state2$expression))   ## Note number of NAs
 round(head(state2$expression))
 
 ## impute using probabilistic pca:
-state2 <- h0testr::f.impute_pca(state, config, method="ppca")
+state2 <- h0testr::f.impute_pca(state, config, method="ppca", 
+  is_log_transformed=FALSE)
 summary(c(state2$expression))   ## Note number of NAs
 round(head(state2$expression))
 
 ## impute as linear combo of \code{n_pcs} eigengenes:
-state2 <- h0testr::f.impute_pca(state, config, method="svdImpute")
+state2 <- h0testr::f.impute_pca(state, config, method="svdImpute", 
+  is_log_transformed=FALSE)
 summary(c(state2$expression))   ## Note number of NAs
 round(head(state2$expression))
 }

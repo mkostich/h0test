@@ -70,23 +70,24 @@ f.read_data <- function(config) {
 ## set up types and levels of covariates; uses config$feat_id_col:
 
 f.check_parameters <- function(state, config, initialized=F, minimal=F) {
-
+  
   if(minimal) {
-    reqd_params <- c("sample_id_col", "feat_id_col", "gene_id_col", 
+    reqd_params <- c("obs_id_col", "sample_id_col", 
+      "feat_id_col", "gene_id_col", 
       "frm", "test_term", "sample_factors")
   } else {
     reqd_params <- c("n_samples_expr_col", "median_raw_col", 
       "n_features_expr_col", "obs_id_col", "sample_id_col", "feat_id_col", 
       "gene_id_col", "frm", "test_term", "sample_factors")
   }
-      
+  
   for(param in reqd_params) {
     if(!(param %in% names(config))) {
       f.err("f.check_parameters: !(param %in% names(config)), for param:", 
         param, config=config)
     }
   }
-    
+  
   if(!is.null(config$save_state) && config$save_state) {
     reqd_params <- c("dir_out", "data_mid_out", "feature_mid_out", 
       "sample_mid_out", "suffix_out")
@@ -97,7 +98,7 @@ f.check_parameters <- function(state, config, initialized=F, minimal=F) {
       }
     }
   }
-    
+  
   if(!initialized) {
     noms <- c(config$n_samples_expr_col, config$median_raw_col, config$n_features_expr_col)
     for(nom in noms) {
@@ -107,31 +108,31 @@ f.check_parameters <- function(state, config, initialized=F, minimal=F) {
       }
     }
   }
-    
+  
   for(nom in c(config$obs_id_col, config$sample_id_col)) {
     if(!(nom %in% names(state$samples))) {
       f.err("f.check_parameters: !(nom %in% names(state$samples)); nom:", 
         nom, config=config)
     }
   }
-    
+  
   for(nom in c(config$feat_id_col, config$gene_id_col)) {
     if(!(nom %in% names(state$features))) {
       f.err("f.check_parameters: !(nom %in% names(state$features)); nom:",
         nom, config=config)
     }
   }
-    
+  
   if(any(duplicated(state$features[[config$feat_id_col]]))) {
     f.err("f.check_parameters: any(duplicated(state$features[[config$feat_id_col]]))",
       config=config)
   }
-    
+  
   if(any(duplicated(state$samples[[config$obs_id_col]]))) {
     f.err("f.check_parameters: any(duplicated(state$samples[[config$obs_id_col]]))",
       config=config)
   }
-    
+      
   return(TRUE)
 }
 
@@ -306,18 +307,18 @@ f.initialize <- function(state, config, initialized=F, minimal=F) {
   f.log("initializing", config=config)
   f.check_config(config)  
   f.check_parameters(state, config, initialized=initialized, minimal=minimal)
-    
+  
   if(is.null(config$feat_col) || config$feat_col %in% "") {
     config$feat_col <- config$feat_id_col  ## as soon as confirm feat_id_col exists
   }
-    
+  
   if(is.null(config$obs_col) || config$obs_col %in% "") {
     config$obs_col <- config$obs_id_col    ## as soon as confirm obs_id_col exists
   }
-    
+  
   state <- f.subset_covariates(state, config)
   state <- f.set_covariate_factor_levels(state, config)
-    
+  
   return(list(state=state, config=config))
 }
 
@@ -554,7 +555,6 @@ f.permute <- function(state, config, variable=NULL) {
 #' config$test_term <- "condition"
 #' config$test_method <- "trend"
 #' config$sample_factors <- list(condition=c("placebo", "drug"))
-#' config$save_state <- FALSE
 #' 
 #' output <- h0testr::f.load_data(config)
 #' 

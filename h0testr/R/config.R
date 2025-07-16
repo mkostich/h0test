@@ -88,6 +88,7 @@ f.new_config <- function() {
     ##   for dda: usually works ok: quantile:0.75:unif_sample_lod:0 for norm_method:norm_quantile:impute_method:impute_quantile
     norm_method="RLE",                   ## in c("TMM", "TMMwsp", "RLE", "upperquartile", "quantile", "cpm", "vsn", "qquantile", "log2", "none")
     norm_quantile=0.75,                  ## for quantile normalization; 0.5 is median; 0.75 is upper quartile;
+    norm_span=0.7,                       ## span for f.norm_loess
     n_samples_min=2,                     ## min samples/feature w/ feature expression > 0 to keep feature
     n_features_min=1000,                 ## min features/sample w/ expression > 0 to keep sample
     feature_aggregation="medianPolish",  ## in c("medianPolish", "robustSummary", "none")
@@ -103,6 +104,7 @@ f.new_config <- function() {
     impute_n_pts=1e7,                    ## granularity of imputed values for f.impute_glm_binom and f.impute_loess_logit
     impute_aug_steps=3,                  ## data augmentation iterations for f.impute_rf() and f.impute_glmnet()
     test_method="trend",                 ## in c("voom", "trend", "deqms", "msqrob", "proda")
+    test_prior_df=3,                     ## prior df for f.test_proda()
     ## run_order character vector with elements from {"normalize", "combine_reps", "filter", "impute"}:
     run_order=c("normalize", "combine_reps", "combine_peps", "filter", "impute"),   ## order of workflow operations
     
@@ -152,9 +154,11 @@ f.check_config <- function(config) {
     "norm_method", "feature_aggregation", "impute_method", "test_method")
   
   scalar_counts <- c("n_samples_min", "n_features_min", "impute_n_pts", 
-    "impute_k", "impute_npcs", "impute_aug_steps", "width")
+    "impute_k", "impute_npcs", "impute_aug_steps", "test_prior_df", 
+    "width")
   
-  scalar_props <- c("norm_quantile", "impute_quantile", "impute_span", "impute_alpha")
+  scalar_props <- c("norm_quantile", "impute_quantile", "impute_span", 
+    "impute_alpha", "norm_span")
   scalar_positive <- c("impute_scale")
   scalar_logical <- c("feature_aggregation_scaled", "save_state", "verbose")
   scalar_formula <- c("frm")

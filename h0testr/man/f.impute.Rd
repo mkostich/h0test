@@ -8,7 +8,7 @@ f.impute(
   state,
   config,
   method = NULL,
-  is_log_transformed = FALSE,
+  is_log_transformed = NULL,
   k = NULL,
   span = NULL,
   n_pcs = NULL,
@@ -109,7 +109,8 @@ cat("available methods:\n")
 print(h0testr::f.impute_methods())
 
 ## impute using method passed as parameter:
-out <- h0testr::f.impute(state, config, method="unif_sample_lod")
+out <- h0testr::f.impute(state, config, method="unif_sample_lod", 
+  is_log_transformed=FALSE)
 summary(c(state$expression))        ## note number of NAs
 summary(c(out$state$expression))    ## note number of NAs
 head(state$expression)
@@ -117,7 +118,7 @@ round(head(out$state$expression))
 
 ## impute using method passed in configuration:
 config$impute_method <- "unif_sample_lod"
-out <- h0testr::f.impute(state, config)
+out <- h0testr::f.impute(state, config, is_log_transformed=FALSE)
 summary(c(state$expression))        ## note number of NAs
 summary(c(out$state$expression))    ## note number of NAs
 head(state$expression)

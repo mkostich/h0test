@@ -4,7 +4,7 @@
 \alias{f.impute_qrilc}
 \title{Impute missing values with \code{imputeLCMD::impute.QRILC()}.}
 \usage{
-f.impute_qrilc(state, config, is_log_transformed = FALSE, scale. = NULL)
+f.impute_qrilc(state, config, is_log_transformed = NULL, scale. = NULL)
 }
 \arguments{
 \item{state}{A list with elements like that returned by \code{f.read_data()}:
@@ -62,7 +62,7 @@ state <- h0testr::f.filter_features(state, config, n_samples_min=3)
 state <- h0testr::f.filter_observations(state, config, n_features_min=30)
 
 ## untransformed example:
-state2 <- h0testr::f.impute_qrilc(state, config)
+state2 <- h0testr::f.impute_qrilc(state, config, is_log_transformed=FALSE)
 summary(c(state$expression))    ## Note number of NAs
 summary(c(state2$expression))   ## Note number of NAs
 head(state$expression)

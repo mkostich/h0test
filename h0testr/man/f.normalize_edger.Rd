@@ -4,7 +4,7 @@
 \alias{f.normalize_edger}
 \title{Normalize expression using \code{edgeR}}
 \usage{
-f.normalize_edger(state, config, method = NULL, p = NULL)
+f.normalize_edger(state, config, method = NULL, norm_quantile = NULL)
 }
 \arguments{
 \item{state}{List with elements formatted like the list returned by \code{f.read_data()}:
@@ -14,18 +14,18 @@ f.normalize_edger(state, config, method = NULL, p = NULL)
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration values. Uses the following keys:
+\item{config}{List with configuration values. None required. Uses the following keys:
 \tabular{ll}{
-  \code{norm_method}     \cr \tab Normalization method in \code{c("TMM", "TMMwsp", "RLE", "upperquartile")}. \cr
-  \code{norm_quantile}   \cr \tab Quantile to use for \code{norm_method \%in\% c("quantile", "upperquartile")}. \cr
+  \code{norm_method}     \cr \tab Used if \code{is.null(method)}. \cr
+  \code{norm_quantile}   \cr \tab Used if \code{is.null(norm_quantile)}. \cr
 }}
 
 \item{method}{Character in set
-\code{c("TMM", "TMMwsp", "RLE", "upperquartile", "none")}. Can be set with
+\code{c("RLE", "upperquartile", "TMM", "TMMwsp", "none")}. Can be set with
 \code{config$norm_method}.}
 
-\item{p}{Numeric in closed interval \code{[0, 1]} specifying quantile to use for method 
-\code{upperquartile}. Can be set with \code{config$norm_quantile}.}
+\item{norm_quantile}{Numeric where \code{0 <= norm_quantile <= 1.0}; quantile for method 
+\code{upperquartile}. Can set with \code{config$norm_quantile}.}
 }
 \value{
 A list (the processed state) with the following elements:
@@ -51,14 +51,21 @@ feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
 
+## example configured via parameters:
+config <- list()
+state2 <- h0testr::f.normalize_edger(state, config, 
+  method="upperquartile", norm_quantile=0.75)
+print(state$expression)
+print(state2$expression)
+
+## example configured with settings in config:
 config <- list(norm_method="upperquartile", norm_quantile=0.75)
 state2 <- h0testr::f.normalize_edger(state, config)
 print(state$expression)
 print(state2$expression)
 
-## norm_quantile ignored for norm_method="TMM":
-config <- list(norm_method="TMM", norm_quantile=0)
-state2 <- h0testr::f.normalize_edger(state, config)
+## norm_quantile not needed for e.g. method="RLE":
+state2 <- h0testr::f.normalize_edger(state, config, method="RLE")
 print(state$expression)
 print(state2$expression)
 }

@@ -7,7 +7,7 @@
 f.impute_glm_binom(
   state,
   config,
-  is_log_transformed = FALSE,
+  is_log_transformed = NULL,
   n_pts = NULL,
   off = 1,
   f_mid = stats::median
@@ -71,7 +71,7 @@ state <- list(expression=exprs, features=feats, samples=samps)
 config <- list(impute_n_pts=1e7)
 
 ## untransformed example:
-state2 <- h0testr::f.impute_glm_binom(state, config)
+state2 <- h0testr::f.impute_glm_binom(state, config, is_log_transformed=FALSE)
 summary(c(state$expression))    ## Note number of NAs
 summary(c(state2$expression))   ## Note number of NAs
 head(state$expression)

@@ -58,7 +58,7 @@ config$test_term <- "condition"
 config$sample_factors <- list(condition=c("placebo", "drug"))
 
 ## set up and check configuration, including covariates:
-out <- h0testr::f.initialize(state, config)
+out <- h0testr::f.initialize(state, config, minimal=TRUE)
 
 tbl <- h0testr::f.test_voom(out$state, out$config)
 print(tbl)

@@ -50,7 +50,6 @@ config$frm <- ~condition
 config$test_term <- "condition"
 config$test_method <- "trend"
 config$sample_factors <- list(condition=c("placebo", "drug"))
-config$save_state <- FALSE
 
 output <- h0testr::f.load_data(config)
 

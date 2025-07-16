@@ -4,7 +4,7 @@
 \alias{f.normalize}
 \title{Inter-sample normalization}
 \usage{
-f.normalize(state, config)
+f.normalize(state, config, method = NULL, norm_quantile = NULL, span = NULL)
 }
 \arguments{
 \item{state}{List with elements formatted like the list returned by \code{f.read_data()}:
@@ -21,13 +21,19 @@ f.normalize(state, config)
   \code{feat_col}      \cr \tab Column of \code{state$features} matching \code{rownames(state$expression)}. \cr
   \code{obs_col}       \cr \tab Column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
 }}
+
+\item{method}{Name of method to use, where scalar \code{method \%in\% h0testr::f.norm_methods()}.}
+
+\item{norm_quantile}{Quantile for methods \code{c("quantile", "upperquartile")}, where \code{0 <= norm_quantile <= 1}.}
+
+\item{span}{Span for method \code{"loess"}, where \code{0 < span < 1}.}
 }
 \value{
 A list (the processed state) with the following elements:
   \tabular{ll}{
     \code{expression} \cr \tab Numeric matrix with normalized expression values. \cr
-    \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-    \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+    \code{features}   \cr \tab Feature meta-data \code{data.frame} corresponding to rows of \code{expression}. \cr
+    \code{samples}    \cr \tab Observation meta-data \code{data.frame} corresponding to columns of \code{expression}. \cr
   }
 }
 \description{
@@ -43,6 +49,7 @@ Inter-observation normalization using any of the methods available in
     for more detailed description of configuration parameters.
 }
 \examples{
+## some toy data:
 set.seed(101)
 exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
 exprs[, 4:6] <- exprs[, 4:6] * 2
@@ -50,14 +57,21 @@ feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
 
-config <- list(save_state=FALSE, norm_method="RLE", 
-  feat_col="feature_id", obs_col="observation_id")
-out <- h0testr::f.normalize(state, config)
+norm_methods <- h0testr::f.normalize_methods()
+cat("Available normalization methods:\n")
+for(method in norm_methods) {
+  cat("method:", method, "\n")
+}
+
+## example configured using parameters:
+config <- list(feat_col="feature_id", obs_col="observation_id")
+out <- h0testr::f.normalize(state, config, method="RLE")
 summary(apply(state$expression, 2, sd, na.rm=TRUE))
 summary(apply(out$state$expression, 2, sd, na.rm=TRUE))
 summary(apply(state$expression, 1, sd, na.rm=TRUE))
 summary(apply(out$state$expression, 1, sd, na.rm=TRUE))
 
+## example configured using config:
 config$norm_method <- "quantile"
 config$norm_quantile <- 0.5
 out <- h0testr::f.normalize(state, config)

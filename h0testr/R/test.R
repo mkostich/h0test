@@ -549,7 +549,7 @@ f.test_prolfqua <- function(state, config, is_log_transformed=NULL) {
 #' config$sample_factors <- list(condition=c("placebo", "drug"))
 #'
 #' ## set up and check configuration, including covariates:
-#' out <- h0testr::f.initialize(state, config)
+#' out <- h0testr::f.initialize(state, config, minimal=TRUE)
 #' 
 #' tbl <- h0testr::f.test_voom(out$state, out$config)
 #' print(tbl)
@@ -624,7 +624,7 @@ f.test_voom <- function(state, config, normalize.method="none") {
 #' config$sample_factors <- list(condition=c("placebo", "drug"))
 #'
 #' ## set up and check covariates and parameters:
-#' out <- h0testr::f.initialize(state, config)
+#' out <- h0testr::f.initialize(state, config, minimal=TRUE)
 #' 
 #' tbl <- h0testr::f.test_trend(state, config)
 #' print(tbl)
@@ -709,6 +709,12 @@ f.format_limma <- function(tbl, config) {
   return(tbl)
 }
 
+f.test_methods <- function() {
+  return(
+    c("trend", "deqms", "msqrob", "proda", "prolfqua", "voom")
+  )
+}
+
 #' Hypothesis testing
 #' @description
 #'   Test hypotheses using .
@@ -735,11 +741,19 @@ f.format_limma <- function(tbl, config) {
 #'   \tabular{ll}{
 #'     \code{feat_col}       \cr \tab Name of column in \code{state$fetaures} matching \code{rownames(state$expression)}. \cr
 #'     \code{obs_col}        \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
+#'     \code{gene_id_col}    \cr \tab Name of column in \code{state$fetaures} with gene/protein-group ids. \cr
 #'     \code{frm}            \cr \tab Formula (formula) to be fit \cr
 #'     \code{test_term}      \cr \tab Term (character scalar) to be tested for non-zero coefficient. \cr
 #'     \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
 #'     \code{test_method}    \cr \tab Character scalar in \code{c("voom", "trend", "deqms", "msqrob", "proda"}. \cr
 #'   }
+#' @param method Name of test method where 
+#'   \code{method \%in\% h0testr::f.test_methods()}.
+#' @param is_log_transformed Logical scalar: if \code{state$expression} has 
+#'   been log transformed. Required if 
+#'   \code{method \%in\% c("proda", "prolfqua")}.
+#' @param prior_df Prior degrees of freedom for method \code{proda}; 
+#'   where \code{2 <= prior_df <= n_features}.
 #' @return A list with the following elements:
 #'   \tabular{ll}{
 #'     \code{original} \cr \tab A \code{data.frame} with results in native format returned by test.\cr
@@ -765,45 +779,57 @@ f.format_limma <- function(tbl, config) {
 #'   condition=c(rep("placebo", 6), rep("drug", 6)))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' 
-#' config <- h0testr::f.new_config()
-#' config$feat_id_col <- config$gene_id_col <- config$feat_col <- "feature_id"
-#' config$obs_id_col <- config$sample_id_col <- config$obs_col <- "observation_id"
-#' config$frm <- ~condition
-#' config$test_term <- "condition"
-#' config$sample_factors <- list(condition=c("placebo", "drug"))
-#' config$test_method <- "trend"
-#' config$save_state <- FALSE
+#' config <- list(feat_id_col="feature_id", gene_id_col="feature_id", 
+#'   obs_id_col="observation_id", sample_id_col="observation_id", 
+#'   frm=~condition, test_term="condition",
+#'   sample_factors=list(condition=c("placebo", "drug"))
+#' )
 #' 
 #' ## set up and check covariates and parameters:
-#' out <- h0testr::f.initialize(state, config)
+#' out <- h0testr::f.initialize(state, config, minimal=TRUE)
+#' state <- out$state
+#' config <- out$config
 #' 
-#' out <- h0testr::f.test(state, config)
+#' out <- h0testr::f.test(state, config, method="trend")
 #' head(out$original)
 #' head(out$standard)
 
-f.test <- function(state, config) {
+f.test <- function(state, config, method=NULL, 
+    is_log_transformed=NULL, prior_df=NULL) {
 
   f.report_config(config)
-
-  if(config$test_method %in% "deqms") {
-    tbl <- f.test_deqms(state, config)
-    tbl2 <- f.format_deqms(tbl, config)
-  } else if(config$test_method %in% "msqrob") {
-    tbl <- f.test_msqrob(state, config)
-    tbl2 <- f.format_msqrob(tbl, config)
-  } else if(config$test_method %in% "proda") {
-    tbl <- f.test_proda(state, config)
-    tbl2 <- f.format_proda(tbl, config)
-  } else if(config$test_method %in% "prolfqua") {
-    tbl <- f.test_prolfqua(state, config)
-    tbl2 <- f.format_prolfqua(tbl, config)
-  } else if(config$test_method %in% "voom") {
-    tbl <- f.test_voom(state, config)
-    tbl2 <- f.format_limma(tbl, config)
-  } else if(config$test_method %in% "trend") {
+  
+  if(is.null(method) || method %in% "") method <- config$test_method
+  if(is.null(method) || method %in% "") {
+    f.err("f.test: method and config$test_method both unset", config=config)
+  }
+  if(method %in% c("proda", "prolfqua") && !is.logical(is_log_transformed)) {
+    f.err("f.test: method %in% c('proda', 'prolfqua') && !is.logical(is_log_transformed)", 
+      config=config)
+  }
+  if(is.null(prior_df)) prior_df <- config$test_prior_df
+  
+  if(method %in% "trend") {
     tbl <- f.test_trend(state, config)
     tbl2 <- f.format_limma(tbl, config)
-  } else if(config$test_method %in% "none") {
+  } else if(method %in% "deqms") {
+    tbl <- f.test_deqms(state, config)
+    tbl2 <- f.format_deqms(tbl, config)
+  } else if(method %in% "msqrob") {
+    tbl <- f.test_msqrob(state, config)
+    tbl2 <- f.format_msqrob(tbl, config)
+  } else if(method %in% "proda") {
+    tbl <- f.test_proda(state, config, 
+      is_log_transformed=is_log_transformed, prior_df=prior_df)
+    tbl2 <- f.format_proda(tbl, config)
+  } else if(method %in% "prolfqua") {
+    tbl <- f.test_prolfqua(state, config, 
+      is_log_transformed=is_log_transformed)
+    tbl2 <- f.format_prolfqua(tbl, config)
+  } else if(method %in% "voom") {
+    tbl <- f.test_voom(state, config)
+    tbl2 <- f.format_limma(tbl, config)
+  } else if(method %in% "none") {
     f.msg("skipping testing: TEST_METHOD %in% 'none'", config=config)
     return(NULL)
   } else f.err("f.test: unexpected TEST_METHOD:", config$test_method, config=config)
@@ -817,7 +843,7 @@ f.test <- function(state, config) {
   tbl <- cbind(tbl0, tbl)
   rownames(tbl) <- NULL
   
-  if(config$save_state) {
+  if((!is.null(config$save_state)) && config$save_state) {
     file_out <- paste0(config$dir_out, "/", length(config$run_order) + 3, 
       config$result_mid_out, config$suffix_out)
     f.log("writing results to", file_out, config=config)

@@ -23,6 +23,7 @@ export(f.normalize_vsn)
 export(f.normalize_loess)
 export(f.normalize_qquantile)
 export(f.normalize_mscoreutils)
+export(f.normalize_methods)
 export(f.normalize)
 
 export(f.combine_reps)

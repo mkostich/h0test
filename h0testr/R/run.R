@@ -29,7 +29,6 @@
 #' config$sample_factors <- list(condition=c("placebo", "drug"))
 #' config$n_features_min <- 10     ## default 1000 too big for small demo dataset
 #' config$run_order <- c("normalize", "combine_reps", "filter", "impute")
-#' config$save_state <- FALSE
 #'
 #' print(config$run_order)
 #'
@@ -147,7 +146,6 @@ f.tune2 <- function(state, config) {
 #' config$test_method <- "trend"
 #' config$sample_factors <- list(condition=c("placebo", "drug"))
 #' config$n_features_min <- 10         ## default 1000 too big for small demo dataset
-#' config$save_state <- FALSE
 #' 
 #' ## one run with unpermuted data:
 #' config$permute_var <- ""            ## no permutation

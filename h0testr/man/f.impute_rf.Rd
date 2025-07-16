@@ -7,7 +7,7 @@
 f.impute_rf(
   state,
   config,
-  is_log_transformed = T,
+  is_log_transformed = NULL,
   f_imp = f.impute_unif_sample_lod,
   ntree = 100,
   mtry = NULL,
@@ -90,7 +90,7 @@ state <- list(expression=exprs, features=feats, samples=samps)
 config <- list()
 
 ## untransformed example:
-out <- h0testr::f.impute_rf(state, config, verbose=FALSE)
+out <- h0testr::f.impute_rf(state, config, is_log_transformed=FALSE, verbose=FALSE)
 state2 <- out$state
 summary(c(state$expression))    ## Note number of NAs
 summary(c(state2$expression))   ## Note number of NAs

@@ -4,7 +4,7 @@
 \alias{f.normalize_loess}
 \title{Cyclic loess normalization.}
 \usage{
-f.normalize_loess(state, config, span = 0.7, method = "affy")
+f.normalize_loess(state, config, span = NULL, method = "affy")
 }
 \arguments{
 \item{state}{List with elements formatted like the list returned by `f.read_data()`:

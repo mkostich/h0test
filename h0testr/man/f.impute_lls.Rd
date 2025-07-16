@@ -7,7 +7,7 @@
 f.impute_lls(
   state,
   config,
-  is_log_transformed = FALSE,
+  is_log_transformed = NULL,
   k = 5,
   method = "pearson",
   maxit = 100
@@ -74,7 +74,7 @@ state <- h0testr::f.filter_features(state, config, n_samples_min=3)
 state <- h0testr::f.filter_observations(state, config, n_features_min=30)
 
 ## example with untransformed data:
-state2 <- h0testr::f.impute_lls(state, config)
+state2 <- h0testr::f.impute_lls(state, config, is_log_transformed=FALSE)
 summary(c(state$expression))    ## Note number of NAs
 summary(c(state2$expression))   ## Note number of NAs
 head(state$expression)

@@ -4,7 +4,13 @@
 \alias{f.test}
 \title{Hypothesis testing}
 \usage{
-f.test(state, config)
+f.test(
+  state,
+  config,
+  method = NULL,
+  is_log_transformed = NULL,
+  prior_df = NULL
+)
 }
 \arguments{
 \item{state}{List with elements formatted like the list returned by `f.read_data()`:
@@ -18,11 +24,22 @@ f.test(state, config)
 \tabular{ll}{
   \code{feat_col}       \cr \tab Name of column in \code{state$fetaures} matching \code{rownames(state$expression)}. \cr
   \code{obs_col}        \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
+  \code{gene_id_col}    \cr \tab Name of column in \code{state$fetaures} with gene/protein-group ids. \cr
   \code{frm}            \cr \tab Formula (formula) to be fit \cr
   \code{test_term}      \cr \tab Term (character scalar) to be tested for non-zero coefficient. \cr
   \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
   \code{test_method}    \cr \tab Character scalar in \code{c("voom", "trend", "deqms", "msqrob", "proda"}. \cr
 }}
+
+\item{method}{Name of test method where 
+\code{method \%in\% h0testr::f.test_methods()}.}
+
+\item{is_log_transformed}{Logical scalar: if \code{state$expression} has 
+been log transformed. Required if 
+\code{method \%in\% c("proda", "prolfqua")}.}
+
+\item{prior_df}{Prior degrees of freedom for method \code{proda}; 
+where \code{2 <= prior_df <= n_features}.}
 }
 \value{
 A list with the following elements:
@@ -68,19 +85,18 @@ samps <- data.frame(observation_id=colnames(exprs),
   condition=c(rep("placebo", 6), rep("drug", 6)))
 state <- list(expression=exprs, features=feats, samples=samps)
 
-config <- h0testr::f.new_config()
-config$feat_id_col <- config$gene_id_col <- config$feat_col <- "feature_id"
-config$obs_id_col <- config$sample_id_col <- config$obs_col <- "observation_id"
-config$frm <- ~condition
-config$test_term <- "condition"
-config$sample_factors <- list(condition=c("placebo", "drug"))
-config$test_method <- "trend"
-config$save_state <- FALSE
+config <- list(feat_id_col="feature_id", gene_id_col="feature_id", 
+  obs_id_col="observation_id", sample_id_col="observation_id", 
+  frm=~condition, test_term="condition",
+  sample_factors=list(condition=c("placebo", "drug"))
+)
 
 ## set up and check covariates and parameters:
-out <- h0testr::f.initialize(state, config)
+out <- h0testr::f.initialize(state, config, minimal=TRUE)
+state <- out$state
+config <- out$config
 
-out <- h0testr::f.test(state, config)
+out <- h0testr::f.test(state, config, method="trend")
 head(out$original)
 head(out$standard)
 }

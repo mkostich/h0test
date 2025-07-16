@@ -301,7 +301,6 @@ f.features_per_sample <- function(state, config) {
 #' config$obs_col <- config$obs_id_col
 #' config$n_features_min <- 6
 #' config$n_samples_min <- 2
-#' config$save_state <- FALSE           ## so doesn't write output file
 #' out <- h0testr::f.filter(state, config)
 #' print(out$state)
 #' str(out$config)
