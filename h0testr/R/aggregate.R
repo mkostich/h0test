@@ -50,25 +50,31 @@
 f.combine_reps <- function(state, config) {
 
   f.check_config(config)
+  
+  if(is.null(config$sample_id_col) || !(config$sample_id_col %in% names(state$samples))) {
+    f.err("f.combine_reps: config$sample_id_col %in% names(state$samples);",
+      "config$sample_id_col:", config$sample_id_col, 
+      "; names(state$samples):", names(state$samples), config=config)
+  }
 
   f <- function(v, s) tapply(v, s, stats::median, na.rm=T)
-  sample_ids <- state$samples[, config$sample_id_col, drop=T]
+  sample_ids <- state$samples[[config$sample_id_col]]
   state$expression <- t(apply(state$expression, 1, f, sample_ids))
-  state$samples <- state$samples[!duplicated(sample_ids), ]
+  state$samples <- state$samples[!duplicated(sample_ids), , drop=F]
   
   if(!is.null(config$obs_id_col)) {
     if(config$obs_id_col != config$sample_id_col) {
-      state$samples[, config$obs_id_col] <- NULL
+      state$samples[[config$obs_id_col]] <- NULL
     }
   }
   config$obs_col <- config$obs_id_col <- config$sample_id_col
   
-  sample_ids <- state$samples[, config$sample_id_col, drop=T]
+  sample_ids <- state$samples[[config$sample_id_col]]
   if(!all(sample_ids %in% colnames(state$expression))) {
-    f.err("f.combine_reps: !all(samples[, config$sample_id_col] %in% colnames(expression))", 
+    f.err("f.combine_reps: !all(samples[[config$sample_id_col]] %in% colnames(expression))", 
       config=config)
   }  
-  state$expression <- state$expression[, sample_ids]
+  state$expression <- state$expression[, sample_ids, drop=F]
   
   f.check_state(state, config)
   f.report_state(state, config)
@@ -91,13 +97,13 @@ f.combine_reps <- function(state, config) {
 
 f.combine_peps_median_polish <- function(state, config) {
 
-  genes <- state$features[, config$gene_id_col, drop=T]
+  genes <- state$features[[config$gene_id_col]]
   
   feats <- state$features
   feats <- feats[!duplicated(genes), , drop=F]
   if(!is.null(config$feat_id_col)) {
     if(config$feat_id_col != config$gene_id_col) {
-      feats[, config$feat_id_col] <- NULL
+      feats[[config$feat_id_col]] <- NULL
     }
   }
   config$feat_col <- config$feat_id_col <- config$gene_id_col
@@ -109,7 +115,7 @@ f.combine_peps_median_polish <- function(state, config) {
   }
   exprs <- tapply(1:nrow(state$expression), genes, f)
   exprs <- do.call(rbind, exprs)
-  genes2 <- feats[, config$gene_id_col, drop=T]
+  genes2 <- feats[[config$gene_id_col]]
   exprs <- exprs[genes2, , drop=F]
   
   state <- list(expression=exprs, features=feats, samples=state$samples)
@@ -122,13 +128,13 @@ f.combine_peps_median_polish <- function(state, config) {
 
 f.combine_peps_robust_summary <- function(state, config) {
 
-  genes <- state$features[, config$gene_id_col, drop=T]
+  genes <- state$features[[config$gene_id_col]]
   
   feats <- state$features
   feats <- feats[!duplicated(genes), , drop=F]
   if(!is.null(config$feat_id_col)) {
     if(config$feat_id_col != config$gene_id_col) {
-      feats[, config$feat_id_col] <- NULL
+      feats[[config$feat_id_col]] <- NULL
     }
   }
   config$feat_col <- config$feat_id_col <- config$gene_id_col
@@ -141,7 +147,7 @@ f.combine_peps_robust_summary <- function(state, config) {
   
   exprs <- tapply(1:nrow(state$expression), genes, f)
   exprs <- do.call(rbind, exprs)
-  genes2 <- feats[, config$gene_id_col, drop=T]
+  genes2 <- feats[[config$gene_id_col]]
   exprs <- exprs[genes2, , drop=F]
   
   state <- list(expression=exprs, features=feats, samples=state$samples)
@@ -236,8 +242,14 @@ f.combine_peps <- function(state, config, method=NULL, rescale=FALSE) {
   
   f.check_config(config)
   
-  if(config$gene_id_col == config$feat_col) {
-    f.msg("f.combine_peps: config$gene_id_col == config$feat_col; ", 
+  if(is.null(config$gene_id_col) || !(config$gene_id_col %in% names(state$features))) {
+    f.err("f.combine_reps: config$gene_id_col %in% names(state$features);",
+      "config$gene_id_col:", config$gene_id_col, 
+      "; names(state$features):", names(state$features), config=config)
+  }
+  
+  if(config$gene_id_col %in% config$feat_col) {
+    f.msg("f.combine_peps: config$gene_id_col %in% config$feat_col; ", 
       "returning unchanged state and config.", config=config)
     return(list(state=state, config=config))
   }
@@ -247,10 +259,10 @@ f.combine_peps <- function(state, config, method=NULL, rescale=FALSE) {
     f.err("f.combine_peps: method and config$feature_aggregation both unset", 
       config=config)
   }
-  if(is.null(rescale) || rescale %in% "") {
+  if(is.null(rescale)) {
     rescale <- config$feature_aggregation_scaled
   }
-  if(is.null(rescale) || rescale %in% "") {
+  if(is.null(rescale)) {
     f.err("f.combine_peps: rescale and config$feature_aggregation_scaled both unset", 
       config=config)
   }

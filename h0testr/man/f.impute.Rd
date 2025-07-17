@@ -43,11 +43,11 @@ f.impute(
   \code{impute_n_pts}      \cr \tab Used if parameter \code{n_pts} is unset. \cr
 }}
 
-\item{method}{Method to use. A character scalar from the list returned by 
-\code{h0testr::impute_methods()}.}
+\item{method}{Method to use (required). A character scalar from the list 
+returned by \code{h0testr::impute_methods()}.}
 
-\item{is_log_transformed}{Logical scalar: if \code{state$expression} has 
-been log transformed.}
+\item{is_log_transformed}{Logical scalar (required): if 
+\code{state$expression} has been log transformed.}
 
 \item{k}{Number of nearest neighbors passed to methods for 
 \code{c("knn", "lls")}.}

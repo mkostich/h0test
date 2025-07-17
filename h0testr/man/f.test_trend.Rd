@@ -30,10 +30,16 @@ A \code{data.frame} containing results of test.
 Test for differential expression using \code{limma::eBayes(trend=TRUE)}.
 }
 \details{
-Tests for differential expression using the \code{limma} pakcage by running 
-    \code{lmFit()}, then \code{eBayes()}, then \code{topTable()}. Model is fit 
-    to \code{config$frm} and an F-test is performed for whether the effect of 
-    \code{config$test_term} on \code{state$expression} is zero. 
+Wrapper for the \code{limma} pakcage.
+  Flow is:
+    \tabular{l}{
+      1. Fit linear model with \code{lmFit()}. \cr
+      2. Compute moderated statistics with \code{eBayes(trend=TRUE)}. \cr
+      3. Generate a \code{data.frame} with results using \code{topTable()}. \cr
+    }
+ The \code{lmFit()} model is fit to \code{config$frm} and an F-test is 
+   performed on each \code{config$feat_col} for whether the effect of 
+   \code{config$test_term} on \code{state$expression} is zero. 
   See documentation for \code{h0testr::f.new_config()} 
     for more detailed description of configuration parameters.
 }
@@ -48,7 +54,8 @@ samps <- data.frame(observation_id=colnames(exprs),
   condition=c(rep("placebo", 6), rep("drug", 6)))
 state <- list(expression=exprs, features=feats, samples=samps)
 
-config <- h0testr::f.new_config()
+config <- h0testr::f.new_config()    ## defaults
+config$save_state <- FALSE           ## default is TRUE
 config$feat_col <- config$feat_id_col <- config$gene_id_col <- "feature_id"
 config$obs_col <- config$obs_id_col <- config$sample_id_col <- "observation_id"
 config$frm <- ~condition

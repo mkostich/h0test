@@ -26,6 +26,7 @@
 #'   }
 #' @examples
 #' config <- h0testr::f.new_config()
+#' config$save_state <- FALSE
 #' config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
 #' config$feature_file_in <- "features.tsv"
 #' config$sample_file_in <- "samples.tsv"
@@ -56,8 +57,9 @@ f.read_data <- function(config) {
   exprs <- utils::read.table(file_path, header=T, sep="\t", quote="", as.is=T)
   exprs <- as.matrix(exprs)
   
-  if(!(typeof(exprs) %in% "double")) {
-    f.err("f.read_data: !(typeof(exprs) %in% 'double')", config=config)
+  if(!(typeof(exprs) %in% c("double", "integer"))) {
+    f.err("f.read_data: !(typeof(exprs) %in% c('double', 'integer'))", 
+      "typof(exprs):", typeof(exprs), config=config)
   }
   
   state <- list(expression=exprs, features=feats, samples=samps)
@@ -239,16 +241,16 @@ f.set_covariate_factor_levels <- function(state, config) {
 #'   \code{c("n_samples_expr_col", "median_raw_col", "n_features_expr_col")} 
 #'     not needed if \code{minimal=TRUE}:
 #'   \tabular{ll}{
-#'     \code{obs_id_col}           \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
-#'     \code{sample_id_col}        \cr \tab Name of column in \code{state$samples} with unique sample labels. \cr
-#'     \code{feat_id_col}          \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
-#'     \code{gene_id_col}          \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
+#'     \code{obs_id_col}           \cr \tab Column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
+#'     \code{sample_id_col}        \cr \tab Column in \code{state$samples} with unique sample labels. \cr
+#'     \code{feat_id_col}          \cr \tab Column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
+#'     \code{gene_id_col}          \cr \tab Column in \code{state$features} with unique gene/protein group ids. \cr
 #'     \code{frm}                  \cr \tab Formula object specifying formula to be fit. \cr
 #'     \code{test_term}            \cr \tab Term (character) in \code{config$frm} to test for significance. \cr
-#'     \code{sample_factors}       \cr \tab List specifying levels of factor variables in \code{config$frm}. \cr
-#'     \code{n_samples_expr_col}   \cr \tab Name of column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
-#'     \code{median_raw_col}       \cr \tab Name of column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
-#'     \code{n_features_expr_col}  \cr \tab Name of column in \code{state$samples} that corresponds to columns of \code{data_file_in}. \cr
+#'     \code{sample_factors}       \cr \tab List with levels of factor variables in \code{config$frm}. \cr
+#'     \code{n_samples_expr_col}   \cr \tab Column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
+#'     \code{median_raw_col}       \cr \tab Column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
+#'     \code{n_features_expr_col}  \cr \tab Column in \code{state$samples} that corresponds to columns of \code{data_file_in}. \cr
 #'   }
 #' @param initialized Logical scalar indicating if \code{state} has already 
 #'   has filter statistics initialized. 
@@ -355,7 +357,8 @@ f.initialize <- function(state, config, initialized=F, minimal=F) {
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- h0testr::f.new_config()
+#' config <- h0testr::f.new_config()      ## defaults
+#' config$save_state <- FALSE             ## default is TRUE
 #' config$feat_col <- config$feat_id_col
 #' config$obs_col <- config$obs_id_col
 #' state <- h0testr::f.add_filter_stats(state, config)
@@ -366,21 +369,21 @@ f.add_filter_stats <- function(state, config) {
   f.check_config(config)
   
   n <- f.samples_per_feature(state, config)
-  if(!all(names(n) == state$features[, config$feat_col, drop=T])) {
-    f.err("f.add_filter_stats: !all(names(n) == state$features[, config$feat_col])", 
+  if(!all(names(n) == state$features[[config$feat_col]])) {
+    f.err("f.add_filter_stats: !all(names(n) == state$features[[config$feat_col]])", 
       config=config)
   }
   state$features[, config$n_samples_expr_col] <- n
   
   m <- f.feature_median_expression(state, config)
-  if(!all(names(m) == state$features[, config$feat_col, drop=T])) {
-    f.err("f.add_filter_stats: !all(names(m) == state$features[, config$feat_col, drop=T])", 
+  if(!all(names(m) == state$features[[config$feat_col]])) {
+    f.err("f.add_filter_stats: !all(names(m) == state$features[[config$feat_col]])", 
       config=config)
   }
   state$features[, config$median_raw_col] <- m
   
   n <- f.features_per_sample(state, config)
-  if(!all(names(n) == state$samples[, config$obs_col, drop=T])) {
+  if(!all(names(n) == state$samples[[config$obs_col]])) {
     f.err("f.add_filter_stats: !all(names(n) == state$samples[, config$obs_col])", 
       config=config)
   } 
@@ -452,6 +455,7 @@ f.prefilter <- function(state, config, n_samples_min=2, n_features_min=2) {
   f.report_state(state, config)
   
   f.check_state(state, config)
+  
   return(state)
 }
 
@@ -509,8 +513,8 @@ f.permute <- function(state, config, variable=NULL) {
       drop=T
     ]
     rownames(tmp) <- tmp[, config$sample_id_col]
-    tmp[, variable] <- sample(tmp[, variable, drop=T], nrow(tmp), replace=F)
-    state$samples[, variable] <- tmp[state$samples[, config$sample_id_col], variable, drop=T]
+    tmp[, variable] <- sample(tmp[[variable]], nrow(tmp), replace=F)
+    state$samples[, variable] <- tmp[state$samples[[config$sample_id_col]], variable, drop=T]
   } 
   
   f.check_state(state, config)
@@ -542,7 +546,8 @@ f.permute <- function(state, config, variable=NULL) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#' config <- h0testr::f.new_config()
+#' config <- h0testr::f.new_config()     ## defaults
+#' config$save_state <- FALSE            ## default is TRUE
 #' config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
 #' config$feature_file_in <- "features.tsv"
 #' config$sample_file_in <- "samples.tsv"

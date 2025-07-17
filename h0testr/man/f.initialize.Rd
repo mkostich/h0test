@@ -18,16 +18,16 @@ f.initialize(state, config, initialized = F, minimal = F)
 \code{c("n_samples_expr_col", "median_raw_col", "n_features_expr_col")} 
   not needed if \code{minimal=TRUE}:
 \tabular{ll}{
-  \code{obs_id_col}           \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
-  \code{sample_id_col}        \cr \tab Name of column in \code{state$samples} with unique sample labels. \cr
-  \code{feat_id_col}          \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
-  \code{gene_id_col}          \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
+  \code{obs_id_col}           \cr \tab Column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
+  \code{sample_id_col}        \cr \tab Column in \code{state$samples} with unique sample labels. \cr
+  \code{feat_id_col}          \cr \tab Column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
+  \code{gene_id_col}          \cr \tab Column in \code{state$features} with unique gene/protein group ids. \cr
   \code{frm}                  \cr \tab Formula object specifying formula to be fit. \cr
   \code{test_term}            \cr \tab Term (character) in \code{config$frm} to test for significance. \cr
-  \code{sample_factors}       \cr \tab List specifying levels of factor variables in \code{config$frm}. \cr
-  \code{n_samples_expr_col}   \cr \tab Name of column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
-  \code{median_raw_col}       \cr \tab Name of column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
-  \code{n_features_expr_col}  \cr \tab Name of column in \code{state$samples} that corresponds to columns of \code{data_file_in}. \cr
+  \code{sample_factors}       \cr \tab List with levels of factor variables in \code{config$frm}. \cr
+  \code{n_samples_expr_col}   \cr \tab Column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
+  \code{median_raw_col}       \cr \tab Column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
+  \code{n_features_expr_col}  \cr \tab Column in \code{state$samples} that corresponds to columns of \code{data_file_in}. \cr
 }}
 
 \item{initialized}{Logical scalar indicating if \code{state} has already 

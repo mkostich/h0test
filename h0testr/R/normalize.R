@@ -162,8 +162,6 @@ f.normalize_quantile <- function(state, config, norm_quantile=NULL, multiplier=1
 #'   Inter-observation normalization, based on total expression
 #'     in each observation. Makes total expression (excluding missing values)
 #'     equal in each observation.
-#'   See documentation for \code{h0testr::f.new_config()} 
-#'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -212,8 +210,6 @@ f.normalize_cpm <- function(state, config, multiplier=1e6) {
 #'   Inter-observation normalization. Uses \code{limma::normalizeVSN()}. 
 #'     Unlike most other normalization methods, results are returned on a 
 #'     log2-like scale.
-#'   See documentation for \code{h0testr::f.new_config()} 
-#'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -264,8 +260,6 @@ f.normalize_vsn <- function(state, config) {
 #'     \code{f.normalize_qquantile()}. This is a slow method, especially if
 #'     \code{method \%in\% c("affy", "pairs")}, which scale quadratically. Calls
 #'     \code{limma::normalizeCyclicLoess()} under the hood.
-#'   See documentation for \code{h0testr::f.new_config()} 
-#'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by `f.read_data()`:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -319,8 +313,6 @@ f.normalize_loess <- function(state, config, span=NULL, method="affy") {
 #'   Inter-observation normalization resulting in nearly identical
 #'     signal distributions across all samples, so all quantiles in \code{0:1} match
 #'     across all samples. Calls \code{limma::normalizeQuantiles()} under the hood.
-#'   See documentation for \code{h0testr::f.new_config()} 
-#'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -433,6 +425,8 @@ f.normalize_mscoreutils <- function(state, config, method=NULL) {
       config=config)
   }
   
+  ## does not work with integer:
+  state$expression <- apply(state$expression, 2, as.numeric)
   state$expression <- MsCoreUtils::normalize_matrix(state$expression, method=method)
   
   return(state)
@@ -442,7 +436,7 @@ f.normalize_mscoreutils <- function(state, config, method=NULL) {
 #' @description
 #'   Get a vector with acceptable values of \code{method} parameter for \code{h0testr::f.normalize}.
 #' @return
-#'   A character vector with names of acceptable values for \code{h0testr::f.normalize(method=)}.
+#'   Character vector with names of acceptable values for \code{h0testr::f.normalize(method=)}.
 #' @examples
 #' norm_methods <- h0testr::f.normalize_methods()
 #' cat("Available normalization methods:\n")
@@ -455,7 +449,7 @@ f.normalize_methods <- function() {
     c("quantile", "cpm", "vsn", "loess", "qquantile",
       "RLE", "upperquartile", "TMM", "TMMwsp", 
       "sum", "max", "div.mean", "div.median", "quantiles.robust", 
-      "none")
+      "log2", "none")
   )
 }
 

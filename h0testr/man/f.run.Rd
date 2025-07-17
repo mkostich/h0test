@@ -11,11 +11,12 @@ f.run(config)
 \code{f.new_config()}.}
 }
 \value{
-A list with the following elements:
+A list with the following elements: 
   \tabular{ll}{
-    \code{state}  \cr \tab A list with elements \code{$expression}, \code{$features}, and \code{$samples}. \cr
-    \code{config} \cr \tab A list with configuration settings. \cr
-    \code{tbl}    \cr \tab A data.frame containing results of test.. \cr
+    \code{state}    \cr \tab List with elements \code{$expression}, \code{$features}, and \code{$samples}. \cr
+    \code{config}   \cr \tab List with configuration settings. \cr
+    \code{original} \cr \tab A \code{data.frame} with native results of test. \cr
+    \code{standard} \cr \tab A \code{data.frame} with results in standardized format.
   }
 }
 \description{
@@ -29,7 +30,8 @@ Run a basic workflow: \code{f.load_data -> config$run_order -> f.test},
     for more detailed description of configuration parameters.
 }
 \examples{
-config <- h0testr::f.new_config()
+config <- h0testr::f.new_config()        ## defaults
+config$save_state <- FALSE               ## default is TRUE
 config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
 config$feature_file_in <- "features.tsv"
 config$sample_file_in <- "samples.tsv"

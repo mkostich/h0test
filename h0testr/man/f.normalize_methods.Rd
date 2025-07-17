@@ -7,7 +7,7 @@
 f.normalize_methods()
 }
 \value{
-A character vector with names of acceptable values for \code{h0testr::f.normalize(method=)}.
+Character vector with names of acceptable values for \code{h0testr::f.normalize(method=)}.
 }
 \description{
 Get a vector with acceptable values of \code{method} parameter for \code{h0testr::f.normalize}.

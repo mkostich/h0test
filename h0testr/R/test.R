@@ -1,6 +1,7 @@
 #' Hypothesis testing using the \code{DEqMS} package
 #' @description
-#'   Tests for differential expression using the \code{DEqMS::spectraCounteBayes()} function.
+#'   Tests for differential expression using the 
+#'     \code{DEqMS::spectraCounteBayes()} function.
 #' @details
 #'   The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm} 
 #'     and a moderated t-test is performed for whether the effect of 
@@ -131,7 +132,7 @@ f.test_deqms <- function(state, config, trend=FALSE) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values. Uses the following keys:
+#' @param config List with configuration values. Requires the following keys:
 #'   \tabular{ll}{
 #'     \code{gene_id_col}    \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
 #'     \code{feat_col}       \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
@@ -412,7 +413,7 @@ f.test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, max
 #' samps <- data.frame(
 #'   obs=colnames(exprs), 
 #'   grp=c(rep("ctl", nsamps), rep("trt", nsamps)),
-#'   sex=rep(c("M", "F"), round(ncol(exprs) / 2))
+#'   sex=rep(c("M", "F"), nsamps)
 #' )
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' rm(sim, exprs, gene, feats, samps)
@@ -461,11 +462,11 @@ f.test_prolfqua <- function(state, config, is_log_transformed=NULL) {
   rownames(dat) <- NULL
   
   samps <- state$samples
-  if(any(duplicated(samps[, config$obs_col, drop=T]))) {
+  if(any(duplicated(samps[[config$obs_col]]))) {
     f.err("f.test_prolfqua: duplicated state$samples[, config$obs_col]; obs_col: ", 
       config$obs_col, config=config)
   }
-  rownames(samps) <- samps[, config$obs_col, drop=T]
+  rownames(samps) <- samps[[config$obs_col]]
   if(!all(dat$sample %in% rownames(samps))) {
     i <- !(dat$sample %in% rownames(samps))
     f.err("f.test_prolfqua: observation mismatch: ", 
@@ -541,7 +542,8 @@ f.test_prolfqua <- function(state, config, is_log_transformed=NULL) {
 #'   condition=c(rep("placebo", 6), rep("drug", 6)))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' 
-#' config <- h0testr::f.new_config()
+#' config <- h0testr::f.new_config()    ## defaults
+#' config$save_state <- FALSE           ## default is TRUE
 #' config$feat_col <- config$feat_id_col <- config$gene_id_col <- "feature_id"
 #' config$obs_col <- config$obs_id_col <- config$sample_id_col <- "observation_id"
 #' config$frm <- ~condition
@@ -584,10 +586,16 @@ f.test_voom <- function(state, config, normalize.method="none") {
 #' @description
 #'   Test for differential expression using \code{limma::eBayes(trend=TRUE)}.
 #' @details
-#'   Tests for differential expression using the \code{limma} pakcage by running 
-#'     \code{lmFit()}, then \code{eBayes()}, then \code{topTable()}. Model is fit 
-#'     to \code{config$frm} and an F-test is performed for whether the effect of 
-#'     \code{config$test_term} on \code{state$expression} is zero. 
+#'   Wrapper for the \code{limma} pakcage.
+#'   Flow is:
+#'     \tabular{l}{
+#'       1. Fit linear model with \code{lmFit()}. \cr
+#'       2. Compute moderated statistics with \code{eBayes(trend=TRUE)}. \cr
+#'       3. Generate a \code{data.frame} with results using \code{topTable()}. \cr
+#'     }
+#'  The \code{lmFit()} model is fit to \code{config$frm} and an F-test is 
+#'    performed on each \code{config$feat_col} for whether the effect of 
+#'    \code{config$test_term} on \code{state$expression} is zero. 
 #'   See documentation for \code{h0testr::f.new_config()} 
 #'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by \code{f.read_data()}:
@@ -616,7 +624,8 @@ f.test_voom <- function(state, config, normalize.method="none") {
 #'   condition=c(rep("placebo", 6), rep("drug", 6)))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' 
-#' config <- h0testr::f.new_config()
+#' config <- h0testr::f.new_config()    ## defaults
+#' config$save_state <- FALSE           ## default is TRUE
 #' config$feat_col <- config$feat_id_col <- config$gene_id_col <- "feature_id"
 #' config$obs_col <- config$obs_id_col <- config$sample_id_col <- "observation_id"
 #' config$frm <- ~condition
@@ -657,55 +666,135 @@ f.test_trend <- function(state, config) {
 ## helper for f.test:
 
 f.format_deqms <- function(tbl, config) {
-  tbl <- data.frame(feature=rownames(tbl), expr=tbl[, "AveExpr"], 
-    logfc=tbl[, "logFC"], stat=tbl[, "t"], lod=tbl[, "B"], 
-    pval=tbl[, "P.Value"], adj_pval=tbl[, "adj.P.Val"])
-  tbl <- tbl[order(tbl$pval, decreasing=F), ]
+  
+  if(!is.data.frame(tbl)) {
+    f.err("f.format_deqms: !is.data.frame(tbl); class(tbl): ", 
+      class(tbl), config=config)
+  }
+  
+  nom <- c("AveExpr", "logFC", "t", "B", "P.Value", "adj.P.Val")
+  if(!all(nom %in% names(tbl))) {
+    f.err("f.format_deqms: expected names not %in% names(tbl); names(tbl):", 
+      names(tbl), config=config)
+  }
+  
+  tbl <- data.frame(feature=rownames(tbl), expr=tbl$AveExpr, 
+    logfc=tbl$logFC, stat=tbl$t, lod=tbl$B, pval=tbl$P.Value, 
+    adj_pval=tbl$adj.P.Val)
+  
+  tbl <- tbl[order(tbl$pval, decreasing=F), , drop=F]
   rownames(tbl) <- NULL
+  
   return(tbl)
 }
 
 ## helper for f.test:
 
 f.format_msqrob <- function(tbl, config) {
-  tbl <- data.frame(feature=tbl[, config$feat_id], expr=as.numeric(NA), 
-    logfc=tbl[, "logFC"], stat=tbl[, "t"], lod=as.numeric(NA), 
-    pval=tbl[, "pval"], adj_pval=tbl[, "adjPval"])
-  tbl <- tbl[order(tbl$pval, decreasing=F), ]
+  
+  if(!is.data.frame(tbl)) {
+    f.err("f.format_msqrob: !is.data.frame(tbl); class(tbl): ", 
+      class(tbl), config=config)
+  }
+  
+  if(!(config$gene_id_col %in% names(tbl))) {
+    f.err("f.format_msqrob: expected names not %in% names(tbl); names(tbl):", 
+      names(tbl), config=config)
+  }
+  
+  nom <- c("logFC", "t", "pval", "adjPval")
+  if(!all(nom %in% names(tbl))) {
+    f.err("f.format_msqrob: expected names not %in% names(tbl); names(tbl):", 
+      names(tbl), config=config)
+  }
+  
+  tbl <- data.frame(feature=tbl[[config$gene_id_col]], expr=as.numeric(NA), 
+    logfc=tbl$logFC, stat=tbl$t, lod=as.numeric(NA), 
+    pval=tbl$pval, adj_pval=tbl$adjPval)
+  
+  tbl <- tbl[order(tbl$pval, decreasing=F), , drop=F]
   rownames(tbl) <- NULL
+  
   return(tbl)
 }
 
 ## helper for f.test:
 
 f.format_proda <- function(tbl, config) {
-  tbl <- data.frame(feature=tbl[, "name"], expr=tbl[, "avg_abundance"], 
-    logfc=tbl[, "diff"], stat=tbl[, "t_statistic"], lod=as.numeric(NA), 
-    pval=tbl[, "pval"], adj_pval=tbl[, "adj_pval"])
-  tbl <- tbl[order(tbl$pval, decreasing=F), ]
+  
+  if(!is.data.frame(tbl)) {
+    f.err("f.format_proda: !is.data.frame(tbl); class(tbl): ", 
+      class(tbl), config=config)
+  }
+
+  nom <- c("name", "avg_abundance", "diff", "t_statistic", "pval", "adj_pval")
+  if(!all(nom %in% names(tbl))) {
+    f.err("f.format_proda: expected names not %in% names(tbl); names(tbl):", 
+      names(tbl), config=config)
+  }
+  
+  tbl <- data.frame(feature=tbl$name, expr=tbl$avg_abundance, 
+    logfc=tbl$diff, stat=tbl$t_statistic, lod=as.numeric(NA), 
+    pval=tbl$pval, adj_pval=tbl$adj_pval)
+    
+  tbl <- tbl[order(tbl$pval, decreasing=F), , drop=F]
   rownames(tbl) <- NULL
+  
   return(tbl)
 }
 
 ## helper for f.test:
 
 f.format_prolfqua <- function(tbl, config) {
-  tbl <- data.frame(feature=tbl[, config$feat_id_col], expr=as.numeric(NA), 
-    logfc=as.numeric(NA), stat=tbl[, "F.value"], lod=as.numeric(NA), 
-    pval=tbl[, "p.value"], adj_pval=tbl[, "FDR"])
-  tbl <- tbl[order(tbl$pval, decreasing=F), ]
+  
+  if(!is.data.frame(tbl)) {
+    f.err("f.format_prolfqua: !is.data.frame(tbl); class(tbl): ", 
+      class(tbl), config=config)
+  }
+  
+  if(!(config$feat_col %in% names(tbl))) {
+    f.err("f.format_prolfqua: config$feat_col:", config$feat_col, 
+      "not %in% names(tbl); names(tbl):", names(tbl), config=config)
+  }
+  
+  nom <- c("F.value", "p.value", "FDR")
+  if(!all(nom %in% names(tbl))) {
+    f.err("f.format_prolfqua: expected names not %in% names(tbl); names(tbl):", 
+      names(tbl), config=config)
+  }
+  
+  tbl <- data.frame(feature=tbl[[config$feat_col]], expr=as.numeric(NA), 
+    logfc=as.numeric(NA), stat=tbl$F.value, lod=as.numeric(NA), 
+    pval=tbl$p.value, adj_pval=tbl$FDR)
+  
+  tbl <- tbl[order(tbl$pval, decreasing=F), , drop=F]
   rownames(tbl) <- NULL
+  
   return(tbl)
 }
 
 ## helper for f.test:
 
 f.format_limma <- function(tbl, config) {
-  tbl <- data.frame(feature=rownames(tbl), expr=tbl[, "AveExpr"], 
-    logfc=tbl[, "logFC"], stat=tbl[, "t"], lod=tbl[, "B"], 
-    pval=tbl[, "P.Value"], adj_pval=tbl[, "adj.P.Val"])
-  tbl <- tbl[order(tbl$pval, decreasing=F), ]
+  
+  if(!is.data.frame(tbl)) {
+    f.err("f.format_limma: !is.data.frame(tbl); class(tbl): ", 
+      class(tbl), config=config)
+  }
+    
+  nom <- c("AveExpr", "logFC", "t", "B", "P.Value", "adj.P.Val")
+  if(!all(nom %in% names(tbl))) {
+    f.err("f.format_limma: expected names not %in% names(tbl); names(tbl):", 
+      names(tbl), config=config)
+  }
+  
+  tbl <- data.frame(feature=rownames(tbl), expr=tbl$AveExpr, 
+    logfc=tbl$logFC, stat=tbl$t, lod=tbl$B, 
+    pval=tbl$P.Value, adj_pval=tbl$adj.P.Val)
+  
+  tbl <- tbl[order(tbl$pval, decreasing=F), , drop=F]
   rownames(tbl) <- NULL
+  
   return(tbl)
 }
 
@@ -834,12 +923,22 @@ f.test <- function(state, config, method=NULL,
     return(NULL)
   } else f.err("f.test: unexpected TEST_METHOD:", config$test_method, config=config)
   
-  rownames(state$features) <- state$features[[config$feat_col]]
-  if(!all(tbl2$feature %in% rownames(state$features))) {
-    f.err("f.test: !all(tbl2$feature %in% rownames(state$features))", config=config)
+  feats <- state$features
+  if(method %in% c("deqms", "msqrob")) {
+    test_col <- config$gene_id_col
+    feats <- feats[!duplicated(feats[[test_col]]), ]
+    if(!(config$feat_id_col %in% config$gene_id_col)) {
+      feats[[config$feat_id_col]] <- NULL
+    }
+  } else {
+    test_col <- config$feat_col
+  }
+  rownames(feats) <- feats[[test_col]]
+  if(!all(tbl2$feature %in% rownames(feats))) {
+    f.err("f.test: !all(tbl2$feature %in% rownames(feats))", config=config)
   }
   
-  tbl0 <- state$features[rownames(tbl), , drop=F]
+  tbl0 <- feats[rownames(tbl), , drop=F]
   tbl <- cbind(tbl0, tbl)
   rownames(tbl) <- NULL
   

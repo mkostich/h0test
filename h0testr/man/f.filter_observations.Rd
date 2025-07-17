@@ -4,7 +4,12 @@
 \alias{f.filter_observations}
 \title{Filter samples based on number of features}
 \usage{
-f.filter_observations(state, config, n_features_min = NULL)
+f.filter_observations(
+  state,
+  config,
+  n_features_min = NULL,
+  remove_constant = TRUE
+)
 }
 \arguments{
 \item{state}{A list with elements like that returned by \code{f.read_data()}:
@@ -20,6 +25,8 @@ f.filter_observations(state, config, n_features_min = NULL)
 }}
 
 \item{n_features_min}{Minimum number of features expressed per sample. Non-negative numeric.}
+
+\item{remove_constant}{Logical scalar: if constant observations of \code{state$expression} should be removed.}
 }
 \value{
 An updated \code{state} list with the following elements:
@@ -30,11 +37,12 @@ An updated \code{state} list with the following elements:
   }
 }
 \description{
-Filters samples based on number of features with \code{state$expression > 0}.
+Filter samples based on number of features with \code{state$expression > 0}.
 }
 \details{
 Feature considered expressed if \code{state$expression > 0}; \code{NA}s 
     count as no expression.
+  Sample constant if \code{length(unique(expression_values)) \%in\% 1)}.
   See documentation for \code{h0testr::f.new_config()} 
     for more detailed description of configuration parameters.
 }

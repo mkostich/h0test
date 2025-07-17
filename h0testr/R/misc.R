@@ -51,7 +51,7 @@ f.check_state <- function(state, config) {
   if(is.null(config$feat_col) || config$feat_col %in% "") {
     f.err("f.check_state: config$feat_col unset", config=config) 
   }
-  feats <- state$features[, config$feat_col, drop=T]
+  feats <- state$features[[config$feat_col]]
   if(!all(rownames(state$expression) == feats)) {
     f.err("f.check_state: state$features do not match rows of state$expression", 
       "config$feat_col: ", config$feat_col, config=config)
@@ -60,7 +60,7 @@ f.check_state <- function(state, config) {
   if(is.null(config$obs_col) || config$obs_col %in% "") {
     f.err("f.check_state: config$obs_col unset", config=config)
   }
-  samps <- state$samples[, config$obs_col, drop=T]
+  samps <- state$samples[[config$obs_col]]
   if(!all(colnames(state$expression) == samps)) {
     f.err("f.check_state: state$samples do not match columns of state$expression", 
       "config$obs_col: ", config$obs_col, config=config)

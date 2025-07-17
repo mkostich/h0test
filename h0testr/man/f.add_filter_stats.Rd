@@ -43,7 +43,8 @@ exprs <- h0testr::f.sim1(n_obs=6, n_feats=8)$mat
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- h0testr::f.new_config()
+config <- h0testr::f.new_config()      ## defaults
+config$save_state <- FALSE             ## default is TRUE
 config$feat_col <- config$feat_id_col
 config$obs_col <- config$obs_id_col
 state <- h0testr::f.add_filter_stats(state, config)

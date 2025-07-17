@@ -39,6 +39,7 @@ Expression data from \code{config$data_file_in} in \code{config$dir_in}.
 }
 \examples{
 config <- h0testr::f.new_config()
+config$save_state <- FALSE
 config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
 config$feature_file_in <- "features.tsv"
 config$sample_file_in <- "samples.tsv"

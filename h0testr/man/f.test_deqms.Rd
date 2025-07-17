@@ -32,7 +32,8 @@ A data.frame with results of test. Columns include:
     added by \code{DEqMS}.
 }
 \description{
-Tests for differential expression using the \code{DEqMS::spectraCounteBayes()} function.
+Tests for differential expression using the 
+    \code{DEqMS::spectraCounteBayes()} function.
 }
 \details{
 The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm} 

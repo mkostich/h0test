@@ -4,7 +4,7 @@
 \alias{f.filter}
 \title{Filter features and samples}
 \usage{
-f.filter(state, config)
+f.filter(state, config, remove_constant = TRUE)
 }
 \arguments{
 \item{state}{A list with elements like that returned by `f.read_data()`:
@@ -24,6 +24,8 @@ f.filter(state, config)
   \code{n_samples_expr_col}  \cr \tab Name (character) of new column in feature metadata to hold number of expressing samples. \cr
   \code{n_features_expr_col} \cr \tab Name (character) of new column in sample metadata to hold number of expressed features. \cr
 }}
+
+\item{remove_constant}{Logical scalar: if constant rows and columns of \code{state$expression} should be removed.}
 }
 \value{
 A list with elements like that returned by `f.read_data()`:
@@ -40,6 +42,8 @@ Filter features and samples based on expression.
 Filters out features with too few expressing samples, and filters out 
     samples with too few expressed features. Features are considered to be 
     expressed if \code{state$expression > 0}; \code{NA}s count as no expression.
+  Features and/or samples considered constant if 
+    \code{length(unique(expression_values)) \%in\% 1}.
   See documentation for \code{h0testr::f.new_config()} 
     for more detailed description of configuration parameters.
 }
@@ -51,7 +55,8 @@ samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
 
 ## assume default median_raw_col, n_samples_expr_col, and n_features_expr_col are ok:
-config <- h0testr::f.new_config()
+config <- h0testr::f.new_config()      ## defaults
+config$save_state <- FALSE             ## default is TRUE
 config$feat_col <- config$feat_id_col
 config$obs_col <- config$obs_id_col
 config$n_features_min <- 6

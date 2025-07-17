@@ -9,14 +9,16 @@
 #'     for more detailed description of configuration parameters. 
 #' @param config List with configuration values like those returned by 
 #'   \code{f.new_config()}.
-#' @return A list with the following elements:
+#' @return A list with the following elements: 
 #'   \tabular{ll}{
-#'     \code{state}  \cr \tab A list with elements \code{$expression}, \code{$features}, and \code{$samples}. \cr
-#'     \code{config} \cr \tab A list with configuration settings. \cr
-#'     \code{tbl}    \cr \tab A data.frame containing results of test.. \cr
+#'     \code{state}    \cr \tab List with elements \code{$expression}, \code{$features}, and \code{$samples}. \cr
+#'     \code{config}   \cr \tab List with configuration settings. \cr
+#'     \code{original} \cr \tab A \code{data.frame} with native results of test. \cr
+#'     \code{standard} \cr \tab A \code{data.frame} with results in standardized format.
 #'   }
 #' @examples
-#' config <- h0testr::f.new_config()
+#' config <- h0testr::f.new_config()        ## defaults
+#' config$save_state <- FALSE               ## default is TRUE
 #' config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
 #' config$feature_file_in <- "features.tsv"
 #' config$sample_file_in <- "samples.tsv"
@@ -42,12 +44,26 @@ f.run <- function(config) {
 
   f.log_block("starting f.load_data", config=config)
   out <- f.load_data(config)
+  is_log_transformed <- FALSE
   
-  for(f in config$run_order) {
-    f <- paste0("f.", f)
-    f.log_block("starting", f, config=config)
-    f <- get(f)
-    out <- f(out$state, out$config)
+  for(f_name in config$run_order) {
+  
+    f_name <- paste0("f.", f_name)
+    f.log_block("starting", f_name, config=config)
+    fn <- get(f_name)
+    
+    if(f_name %in% c("f.impute", "f.test")) {
+      out <- fn(out$state, out$config, 
+        is_log_transformed=is_log_transformed)
+    } else {
+      out <- fn(out$state, out$config)
+    }
+    
+    if(f_name %in% "normalize") {
+      if(!config$norm_method %in% c("none")) {
+        is_log_transformed <- TRUE
+      }
+    }
   }
   
   f.log_block("starting f.test", config=out$config)
@@ -57,7 +73,7 @@ f.run <- function(config) {
     original=tbl_list$original, standard=tbl_list$standard))
 }
 
-## helper for f.tune():
+## helper for f.tune(); normalize and combine reps:
 
 f.tune1 <- function(state, config, norm_method) {
 
@@ -71,28 +87,47 @@ f.tune1 <- function(state, config, norm_method) {
       config$norm_quantile <- 0.75
     }
     
+    f.msg("f.tune:1: config:", config=config)
+    f.report_config(config)
+    
     ## normalize and combine reps:
+    f.msg("f.tune:1: normalize", config=config)
     out <- f.normalize(state, config)
+    
+    f.msg("f.tune:1: combine_reps", config=config)
     out <- f.combine_reps(out$state, out$config)
     
+    f.msg("f.tune:1: return", config=config)
     return(out)
 }
 
-## helper for f.tune():
+## helper for f.tune(); filter, impute, and test:
 
-f.tune2 <- function(state, config) {
+f.tune2 <- function(state, config, is_log_transformed=is_log_transformed) {
+
+  f.msg("f.tune:2: config:", config=config)
+  f.report_config(config)
   
+  f.msg("f.tune:2: filter", config=config)
   out <- f.filter(state, config)
-  out <- f.impute(out$state, out$config)
-  tbl_list <- f.test(out$state, out$config)
+  
+  f.msg("f.tune:2: impute", config=config)
+  out <- f.impute(out$state, out$config, 
+    is_log_transformed=is_log_transformed)
+  
+  f.msg("f.tune:2: test", config=config)
+  tbl_list <- f.test(out$state, out$config, 
+    is_log_transformed=is_log_transformed)
+  
   tbl <- tbl_list$standard
-    
+  
   rslt <- data.frame(norm=config$norm_method, norm_quant=config$norm_quantile, 
     impute=config$impute_method, imp_quant=config$impute_quantile, 
     scale=config$impute_scale, span=config$impute_span, test=config$test_method, 
     perm=config$permute_var, nhits=sum(tbl$adj.P.Val < 0.05), ntests=nrow(tbl), 
     time=format(Sys.time(), "%H:%M:%S"), stringsAsFactors=F)
   
+  f.msg("f.tune:2: return", config=config)
   return(rslt)
 }
 
@@ -101,11 +136,20 @@ f.tune2 <- function(state, config) {
 #'   Run a basic tuning loop according.
 #' @details
 #'   Run a basic tuning loop that iterates over parameter combinations, 
-#'     performing: 
-#'     \code{f.normalize() -> f.combine_reps() -> f.filter() -> f.impute()}. 
-#'     Do one run with \code{config$permute_var=""}, and \code{N} runs (we 
-#'     recommend \code{N >= 20} with \code{config$permute_var} set to the 
-#'     name of a variable in \code{config$test_term}.
+#'     performing the following:
+#'     \tabular{l}{
+#'       1. Read data, prefilter, and optionally permute with \code{f.load_data()}. \cr
+#'       1. Inter-observation normalization with \code{f.normalize()}. \cr
+#'       2. Combine replicate observations wtih \code{f.combine_reps()}. \cr
+#'       3. Combine peptides into gene/protein groups with \code{f.combine_peps()}. \cr
+#'       4. Filter uninformative features and observations with \code{f.filter()}. \cr
+#'       5. Impute missing values with \code{f.impute()}. \cr
+#'       6. Hypothesis testing with \code{f.test()}. \cr
+#'     }
+#'   Normally, one does one run with \code{config$permute_var=""}, and 
+#'     \code{N} runs (we recommend \code{N >= 20}) with 
+#'     \code{config$permute_var} set to the name of a variable in 
+#'     \code{config$test_term}.
 #'   See documentation for \code{h0testr::f.new_config()} 
 #'     for more detailed description of configuration parameters. 
 #' @param config List with configuration values like those returned by \code{f.new_config()}.
@@ -134,18 +178,20 @@ f.tune2 <- function(state, config) {
 #'     \code{time}       \cr \tab Timestamp. \cr
 #'   }
 #' @examples
-#' config <- h0testr::f.new_config()
+#' ## set up configuration:
+#' config <- h0testr::f.new_config()   ## defaults
+#' config$save_state <- FALSE          ## default is TRUE
 #' config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
 #' config$feature_file_in <- "features.tsv"
 #' config$sample_file_in <- "samples.tsv"
 #' config$data_file_in <- "expression.tsv" 
 #' config$feat_id_col <- config$gene_id_col <- "feature_id"
 #' config$obs_id_col <- config$sample_id_col <- "observation_id"
+#' config$n_features_min <- 10         ## default 1000 too big for small demo dataset
 #' config$frm <- ~condition
 #' config$test_term <- "condition"
 #' config$test_method <- "trend"
 #' config$sample_factors <- list(condition=c("placebo", "drug"))
-#' config$n_features_min <- 10         ## default 1000 too big for small demo dataset
 #' 
 #' ## one run with unpermuted data:
 #' config$permute_var <- ""            ## no permutation
@@ -171,16 +217,18 @@ f.tune2 <- function(state, config) {
 
 f.tune <- function(
     config,  
-    norm_methods=c("TMMwsp", "RLE", "upperquartile", "q50", "q75", 
-      "max", "div.mean", "cpm", "vsn", "qquantile", "quantiles.robust",
-      "log2", "none"),
+    norm_methods=c("RLE", "upperquartile", "q50", "q75", 
+      "quantiles.robust", "cpm", "max", "div.mean", "TMMwsp", "vsn", 
+      "qquantile", "log2", "none"),
     impute_methods=c("sample_lod", "unif_sample_lod", "unif_global_lod", 
-      "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", "none"),
+      "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", 
+      "knn", "min_det", "min_prob", "qrilc", "bpca", "ppca", "svdImpute", 
+      "missforest", "none"),
     impute_quantiles=c(0, 0.01, 0.05, 0.1, 0.25), 
     impute_scales=c(1, 0.5, 0.25, 0.1),
     impute_spans=c(0.25, 0.5, 0.75),
-    test_methods=c("voom", "trend", "deqms", "msqrob", "proda")) {
-    
+    test_methods=c("trend", "deqms", "msqrob", "proda", "prolfqua", "voom")) {
+        
   f.report_config(config)
 
   ## load data:
@@ -189,53 +237,85 @@ f.tune <- function(
   state1 <- out$state                   ## save for subsequent iterations
   config1 <- out$config                 ## save for subsequent iterations
   rslt <- NULL
+  is_log_transformed <- FALSE
   
   for(norm_method in norm_methods) {
+    
     config1$norm_method <- norm_method
     f.msg("norm_method:", norm_method, config=config)
-    f.log_block("normalize and combine", config=config1)
+    
+    f.log_block("normalize and combine reps", config=config1)
     out <- f.tune1(state1, config1, norm_method=norm_method)
     state2 <- out$state                 ## save for subsequent iterations
     config2 <- out$config               ## save for subsequent iterations
+    if(norm_method %in% c("none")) {
+      is_log_transformed <- FALSE
+    } else {
+      is_log_transformed <- TRUE
+    }
     
     for(test_method in test_methods) {
+      
       config2$test_method <- test_method
       f.msg("test_method:", test_method, config=config2)
+      
+      if(!(test_method %in% c("deqms", "msqrob"))) {
+        ## for methods that do not use peptides for gene testing:
+        f.msg("combine_peps", config=config)
+        out <- f.combine_peps(state2, config2)
+        state3 <- out$state
+        config3 <- out$config
+      } else {
+        ## for methods that do use peptides for gene testing:
+        f.msg("skipping combine_peps", config=config)
+        state3 <- state2
+        config3 <- config2
+      }
+      
       for(impute_method in impute_methods) {
-        config2$impute_method <- impute_method
-        f.msg("impute_method:", impute_method, config=config2)
+        config3$impute_method <- impute_method
+        f.msg("impute_method:", impute_method, config=config3)
+        
         if(impute_method %in% c("unif_global_lod", "unif_sample_lod")) {
           for(impute_quantile in impute_quantiles) {
-            config2$impute_quantile <- impute_quantile
-            f.msg("impute_quantile:", impute_quantile, config=config2)
-            f.log_block("impute and test", config=config2)
-            rslt_i <- f.tune2(state2, config2)
+            f.msg("impute_quantile:", impute_quantile, config=config3)
+            config3$impute_quantile <- impute_quantile
+            
+            f.log_block("filter, impute, and test", config=config3)
+            rslt_i <- f.tune2(state3, config3, 
+              is_log_transformed=is_log_transformed)
             rslt <- rbind(rslt, rslt_i)
-            f.log_obj(rslt, config=config2)
+            f.log_obj(rslt, config=config3)
           }
         } else if(impute_method %in% c("rnorm_feature")) {
           for(impute_scale in impute_scales) {
-            config2$impute_scale <- impute_scale
-            f.msg("impute_scale:", impute_scale, config=config2)
-            f.log_block("impute and test", config=config2)
-            rslt_i <- f.tune2(state2, config2)
+            f.msg("impute_scale:", impute_scale, config=config3)
+            config3$impute_scale <- impute_scale
+            
+            f.log_block("filter, impute, and test", config=config3)
+            rslt_i <- f.tune2(state3, config3, 
+              is_log_transformed=is_log_transformed)
             rslt <- rbind(rslt, rslt_i)
-            f.log_obj(rslt, config=config2)
+            f.log_obj(rslt, config=config3)
           }
         } else if(impute_method %in% c("loess_logit")) {
           for(impute_span in impute_spans) {
-            config2$impute_span <- impute_span
-            f.msg("impute_span:", impute_span, config=config2)
-            f.log_block("impute and test", config=config2)
-            rslt_i <- f.tune2(state2, config2)
+            f.msg("impute_span:", impute_span, config=config3)
+            config3$impute_span <- impute_span
+            
+            f.log_block("filter, impute, and test", config=config3)
+            rslt_i <- f.tune2(state3, config3, 
+              is_log_transformed=is_log_transformed)
             rslt <- rbind(rslt, rslt_i)
-            f.log_obj(rslt, config=config2)
+            f.log_obj(rslt, config=config3)
           }
         } else if(impute_method %in% c("sample_lod", "glm_binom", "glmnet", "rf")) {
-          f.log_block("impute and test", config=config2)
-          rslt_i <- f.tune2(state2, config2)
+          
+          f.log_block("filter, impute, and test", config=config3)
+          rslt_i <- f.tune2(state3, config3, 
+            is_log_transformed=is_log_transformed)
           rslt <- rbind(rslt, rslt_i)
-          f.log_obj(rslt, config=config2)
+          f.log_obj(rslt, config=config3)
         }
       }
     }
@@ -252,9 +332,7 @@ f.tune <- function(
 #'   Imports data from basic tuning loop, comparing results from unpermuted 
 #'     data with those from permuted data. FDR is estimated from the permuted
 #'     data results. Recommend that tuning use at least 20 iterations with
-#'     permuted data.
-#'   See documentation for \code{h0testr::f.new_config()} 
-#'     for more detailed description of configuration parameters. 
+#'     permuted data. 
 #' @param dir_in Character scalar with path to directory containing tuning results.
 #' @param sfx Character scalar with distinctive suffix of tuning results files.
 #' @param config List with at least \code{log_file} defined (can be \code{""}).

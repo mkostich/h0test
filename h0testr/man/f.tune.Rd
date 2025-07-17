@@ -6,14 +6,15 @@
 \usage{
 f.tune(
   config,
-  norm_methods = c("TMMwsp", "RLE", "upperquartile", "q50", "q75", "max", "div.mean",
-    "cpm", "vsn", "qquantile", "quantiles.robust", "log2", "none"),
+  norm_methods = c("RLE", "upperquartile", "q50", "q75", "quantiles.robust", "cpm",
+    "max", "div.mean", "TMMwsp", "vsn", "qquantile", "log2", "none"),
   impute_methods = c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature",
-    "glm_binom", "loess_logit", "glmnet", "rf", "none"),
+    "glm_binom", "loess_logit", "glmnet", "rf", "knn", "min_det", "min_prob", "qrilc",
+    "bpca", "ppca", "svdImpute", "missforest", "none"),
   impute_quantiles = c(0, 0.01, 0.05, 0.1, 0.25),
   impute_scales = c(1, 0.5, 0.25, 0.1),
   impute_spans = c(0.25, 0.5, 0.75),
-  test_methods = c("voom", "trend", "deqms", "msqrob", "proda")
+  test_methods = c("trend", "deqms", "msqrob", "proda", "prolfqua", "voom")
 )
 }
 \arguments{
@@ -56,27 +57,38 @@ Run a basic tuning loop according.
 }
 \details{
 Run a basic tuning loop that iterates over parameter combinations, 
-    performing: 
-    \code{f.normalize() -> f.combine_reps() -> f.filter() -> f.impute()}. 
-    Do one run with \code{config$permute_var=""}, and \code{N} runs (we 
-    recommend \code{N >= 20} with \code{config$permute_var} set to the 
-    name of a variable in \code{config$test_term}.
+    performing the following:
+    \tabular{l}{
+      1. Read data, prefilter, and optionally permute with \code{f.load_data()}. \cr
+      1. Inter-observation normalization with \code{f.normalize()}. \cr
+      2. Combine replicate observations wtih \code{f.combine_reps()}. \cr
+      3. Combine peptides into gene/protein groups with \code{f.combine_peps()}. \cr
+      4. Filter uninformative features and observations with \code{f.filter()}. \cr
+      5. Impute missing values with \code{f.impute()}. \cr
+      6. Hypothesis testing with \code{f.test()}. \cr
+    }
+  Normally, one does one run with \code{config$permute_var=""}, and 
+    \code{N} runs (we recommend \code{N >= 20}) with 
+    \code{config$permute_var} set to the name of a variable in 
+    \code{config$test_term}.
   See documentation for \code{h0testr::f.new_config()} 
     for more detailed description of configuration parameters.
 }
 \examples{
-config <- h0testr::f.new_config()
+## set up configuration:
+config <- h0testr::f.new_config()   ## defaults
+config$save_state <- FALSE          ## default is TRUE
 config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
 config$feature_file_in <- "features.tsv"
 config$sample_file_in <- "samples.tsv"
 config$data_file_in <- "expression.tsv" 
 config$feat_id_col <- config$gene_id_col <- "feature_id"
 config$obs_id_col <- config$sample_id_col <- "observation_id"
+config$n_features_min <- 10         ## default 1000 too big for small demo dataset
 config$frm <- ~condition
 config$test_term <- "condition"
 config$test_method <- "trend"
 config$sample_factors <- list(condition=c("placebo", "drug"))
-config$n_features_min <- 10         ## default 1000 too big for small demo dataset
 
 ## one run with unpermuted data:
 config$permute_var <- ""            ## no permutation

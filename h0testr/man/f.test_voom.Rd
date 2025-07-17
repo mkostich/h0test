@@ -50,7 +50,8 @@ samps <- data.frame(observation_id=colnames(exprs),
   condition=c(rep("placebo", 6), rep("drug", 6)))
 state <- list(expression=exprs, features=feats, samples=samps)
 
-config <- h0testr::f.new_config()
+config <- h0testr::f.new_config()    ## defaults
+config$save_state <- FALSE           ## default is TRUE
 config$feat_col <- config$feat_id_col <- config$gene_id_col <- "feature_id"
 config$obs_col <- config$obs_id_col <- config$sample_id_col <- "observation_id"
 config$frm <- ~condition

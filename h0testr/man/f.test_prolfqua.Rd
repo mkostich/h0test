@@ -68,7 +68,7 @@ feats <- data.frame(pep=rownames(exprs), gene=gene)
 samps <- data.frame(
   obs=colnames(exprs), 
   grp=c(rep("ctl", nsamps), rep("trt", nsamps)),
-  sex=rep(c("M", "F"), round(ncol(exprs) / 2))
+  sex=rep(c("M", "F"), nsamps)
 )
 state <- list(expression=exprs, features=feats, samples=samps)
 rm(sim, exprs, gene, feats, samps)

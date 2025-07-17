@@ -1,8 +1,10 @@
 #' Filter features based on number of samples
 #' @description
 #'   Filter features based on number of samples expressing feature.
-#' @details Feature considered expressed if \code{state$expression > 0}; 
-#'   \code{NA}s count as no expression.
+#' @details
+#'   Feature considered expressed if \code{state$expression > 0}; 
+#'     \code{NA}s count as no expression.
+#'   Feature constant if \code{length(unique(expression_values)) \%in\% 1}.
 #'   See documentation for \code{h0testr::f.new_config()} 
 #'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{f.read_data()}:
@@ -16,6 +18,7 @@
 #'     \code{n_samples_min} \cr \tab Minimum number (non-negative numeric) of samples expressing feature to keep feature. \cr
 #'   }
 #' @param n_samples_min Minimum number of samples expressing feature. Non-negative numeric.
+#' @param remove_constant Logical scalar: if constant features of \code{state$expression} should be removed.
 #' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -33,14 +36,15 @@
 #' print(state)
 #' print(state2)
 
-f.filter_features <- function(state, config, n_samples_min=NULL) {
+f.filter_features <- function(state, config, 
+    n_samples_min=NULL, remove_constant=TRUE) {
 
   f.check_config(config)
-
+  
   if(!is.matrix(state$expression)) {
     f.err("f.filter_features: !is.matrix(state$expression)", config=config)
   }
-
+  
   if(is.null(n_samples_min)) n_samples_min <- config$n_samples_min
   if(is.null(n_samples_min)) {
     f.err("f.filter_features: n_samples_min unset", config=config)
@@ -52,22 +56,41 @@ f.filter_features <- function(state, config, n_samples_min=NULL) {
     return(i)
   }
   i <- apply(state$expression, 1, f)
-
+  
   f.msg("filtering", sum(!i), "features, keeping", sum(i), config=config)
   state$expression <- state$expression[i, , drop=F]
   state$features <- state$features[i, , drop=F]
   f.msg("features filtered: nrow(state$expression):", nrow(state$expression), 
     "; ncol(state$features):", ncol(state$features), config=config)
 
+  if(remove_constant) {
+    f <- function(v) {
+      i_na <- is.na(v)
+      if(any(!i_na)) {
+        return(length(unique(v[!i_na])) >= 2)
+      } else {
+        return(FALSE)
+      }
+    }
+    i <- apply(state$expression, 1, f)
+    i[is.na(i)] <- F
+    f.msg("filtering", sum(!i), "constant features; keeping", sum(i), config=config)
+    state$expression <- state$expression[i, , drop=F]
+    state$features <- state$features[i, , drop=F]
+    f.msg("constant features removed:", sum(!i), config=config)
+    f.msg("non-constant features left:", nrow(state$features), config=config)
+  }
+  
   return(state)
 }
 
 #' Filter samples based on number of features
 #' @description
-#'   Filters samples based on number of features with \code{state$expression > 0}.
+#'   Filter samples based on number of features with \code{state$expression > 0}.
 #' @details 
 #'   Feature considered expressed if \code{state$expression > 0}; \code{NA}s 
 #'     count as no expression.
+#'   Sample constant if \code{length(unique(expression_values)) \%in\% 1)}.
 #'   See documentation for \code{h0testr::f.new_config()} 
 #'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{f.read_data()}:
@@ -81,6 +104,7 @@ f.filter_features <- function(state, config, n_samples_min=NULL) {
 #'     \code{n_features_min} \cr \tab Minimum number (non-negative numeric) of features expressed in observation to keep observation. \cr
 #'   }
 #' @param n_features_min Minimum number of features expressed per sample. Non-negative numeric.
+#' @param remove_constant Logical scalar: if constant observations of \code{state$expression} should be removed.
 #' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -98,7 +122,8 @@ f.filter_features <- function(state, config, n_samples_min=NULL) {
 #' print(state)
 #' print(state2)
 
-f.filter_observations <- function(state, config, n_features_min=NULL) {
+f.filter_observations <- function(state, config, 
+    n_features_min=NULL, remove_constant=TRUE) {
 
   f.check_config(config)
 
@@ -117,13 +142,29 @@ f.filter_observations <- function(state, config, n_features_min=NULL) {
     return(i)
   }
   i <- apply(state$expression, 2, f)
-
   f.msg("filtering", sum(!i), "observations, keeping", sum(i), config=config)
   state$expression <- state$expression[, i, drop=F]
   state$samples <- state$samples[i, , drop=F]
   f.msg("n_features_min:", n_features_min, config=config)
   f.msg("observations filtered:", sum(!i), config=config)
-  f.msg("observations left:", nrow(state$expression), config=config)
+  f.msg("observations left:", ncol(state$expression), config=config)
+  
+  if(remove_constant) {
+    f <- function(v) {
+      i_na <- is.na(v)
+      if(any(!i_na)) {
+        return(length(unique(v[!i_na])) >= 2)
+      } else {
+        return(FALSE)
+      }
+    }
+    i <- apply(state$expression, 2, f)
+    f.msg("filtering", sum(!i), "constant observations, keeping", sum(i), config=config)
+    state$expression <- state$expression[, i, drop=F]
+    state$samples <- state$samples[i, , drop=F]
+    f.msg("constant observations removed:", sum(!i), config=config)
+    f.msg("non-constant observations left:", nrow(state$expression), config=config)
+  }
 
   return(state)
 }
@@ -133,8 +174,6 @@ f.filter_observations <- function(state, config, n_features_min=NULL) {
 #'   Calculates the number of samples expressing each feature
 #' @details Feature considered expressed if \code{state$expression > 0}; 
 #'   \code{NA}s count as no expression.
-#'   See documentation for \code{h0testr::f.new_config()} 
-#'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -172,8 +211,6 @@ f.samples_per_feature <- function(state, config) {
 #' Median expression of each feature in each expressing sample
 #' @description
 #'   Calculates the median expression of each feature in each expressing sample. 
-#'   See documentation for \code{h0testr::f.new_config()} 
-#'     for more detailed description of configuration parameters. 
 #' @details 
 #'   Sample considered to express feature if \code{state$expression > 0}; 
 #'     \code{NA}s count as no expression.
@@ -220,8 +257,6 @@ f.feature_median_expression <- function(state, config) {
 #' @details 
 #'   Features are considered to be expressed if \code{state$expression > 0}; 
 #'     \code{NA}s count as no expression.
-#'   See documentation for \code{h0testr::f.new_config()} 
-#'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by `f.read_data()`:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -264,6 +299,8 @@ f.features_per_sample <- function(state, config) {
 #'   Filters out features with too few expressing samples, and filters out 
 #'     samples with too few expressed features. Features are considered to be 
 #'     expressed if \code{state$expression > 0}; \code{NA}s count as no expression.
+#'   Features and/or samples considered constant if 
+#'     \code{length(unique(expression_values)) \%in\% 1}.
 #'   See documentation for \code{h0testr::f.new_config()} 
 #'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by `f.read_data()`:
@@ -282,6 +319,7 @@ f.features_per_sample <- function(state, config) {
 #'     \code{n_samples_expr_col}  \cr \tab Name (character) of new column in feature metadata to hold number of expressing samples. \cr
 #'     \code{n_features_expr_col} \cr \tab Name (character) of new column in sample metadata to hold number of expressed features. \cr
 #'   }
+#' @param remove_constant Logical scalar: if constant rows and columns of \code{state$expression} should be removed.
 #' @return A list with elements like that returned by `f.read_data()`:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -296,7 +334,8 @@ f.features_per_sample <- function(state, config) {
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #'
 #' ## assume default median_raw_col, n_samples_expr_col, and n_features_expr_col are ok:
-#' config <- h0testr::f.new_config()
+#' config <- h0testr::f.new_config()      ## defaults
+#' config$save_state <- FALSE             ## default is TRUE
 #' config$feat_col <- config$feat_id_col
 #' config$obs_col <- config$obs_id_col
 #' config$n_features_min <- 6
@@ -305,21 +344,23 @@ f.features_per_sample <- function(state, config) {
 #' print(out$state)
 #' str(out$config)
 
-f.filter <- function(state, config) {
+f.filter <- function(state, config, remove_constant=TRUE) {
   
   f.check_config(config)
   
-  state <- f.filter_features(state, config)  
-  state <- f.filter_observations(state, config)
+  state <- f.filter_features(state, config, 
+    remove_constant=remove_constant)  
+  state <- f.filter_observations(state, config, 
+    remove_constant=remove_constant)
   
   n <- f.samples_per_feature(state, config)
-  state$features[, config$n_samples_expr_col] <- n
+  state$features[[config$n_samples_expr_col]] <- n
   
   m <- f.feature_median_expression(state, config)
-  state$features[, config$median_raw_col] <- m
+  state$features[[config$median_raw_col]] <- m
   
   n <- f.features_per_sample(state, config)
-  state$samples[, config$n_features_expr_col] <- n
+  state$samples[[config$n_features_expr_col]] <- n
   
   f.check_state(state, config)
   f.report_state(state, config)

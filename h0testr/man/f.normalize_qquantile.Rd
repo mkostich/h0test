@@ -31,8 +31,6 @@ Normalize expression values using the 'quantile normalization' algorithm.
 Inter-observation normalization resulting in nearly identical
     signal distributions across all samples, so all quantiles in \code{0:1} match
     across all samples. Calls \code{limma::normalizeQuantiles()} under the hood.
-  See documentation for \code{h0testr::f.new_config()} 
-    for more detailed description of configuration parameters.
 }
 \examples{
 set.seed(101)

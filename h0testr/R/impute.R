@@ -160,8 +160,6 @@ f.impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
 #'   detection (LOD). Only \code{NA} values are considered as missing, so if you 
 #'   want \code{0} to be considered missing, and have \code{0} in the data, do 
 #'   something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing.
-#'   See documentation for \code{h0testr::f.new_config()} 
-#'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -552,8 +550,6 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
 #'   \code{0} to be considered missing, and have \code{0} in the data, do 
 #'   something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. 
 #'   Augmentation uses \code{f.augment_affine()}.
-#'   See documentation for \code{h0testr::f.new_config()} 
-#'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -701,9 +697,7 @@ f.impute_rf <- function(state, config, is_log_transformed=NULL,
 #'     \code{log(x+1)} transformed. If you want \code{0} to be considered missing, 
 #'     and have \code{0} in the data, do something like 
 #'     \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. Augmentation uses 
-#'     \code{f.aug_mult()}.
-#'   See documentation for \code{h0testr::f.new_config()} 
-#'     for more detailed description of configuration parameters. 
+#'     \code{f.aug_mult()}. 
 #' @param state A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -1242,7 +1236,7 @@ f.impute_pca <- function(state, config, is_log_transformed=NULL,
   }
   
   if(!is.matrix(state$expression)) {
-    stop("f.impute_pca: !is.matrix(state$expression)")
+    f.err("f.impute_pca: !is.matrix(state$expression)", config=config)
   }
 
   allowed <- c("bpca", "ppca", "svdImpute")
@@ -1412,7 +1406,7 @@ f.impute_lls <- function(state, config, is_log_transformed=NULL,
 f.impute_missforest <- function(state, config, maxit=10, ntree=100) {
     
   if(!is.matrix(state$expression)) {
-    stop("f.impute_missforest: !is.matrix(state$expression)")
+    f.err("f.impute_missforest: !is.matrix(state$expression)", config=config)
   }
   
   obj <- missForest::missForest(t(state$expression), maxiter=maxit, ntree=ntree)
@@ -1478,10 +1472,10 @@ f.impute_methods <- function() {
 #'     \code{impute_aug_steps}  \cr \tab Used if parameter \code{aug_steps} is unset. \cr
 #'     \code{impute_n_pts}      \cr \tab Used if parameter \code{n_pts} is unset. \cr
 #'   }
-#' @param method Method to use. A character scalar from the list returned by 
-#'   \code{h0testr::impute_methods()}.
-#' @param is_log_transformed Logical scalar: if \code{state$expression} has 
-#'   been log transformed.
+#' @param method Method to use (required). A character scalar from the list 
+#'   returned by \code{h0testr::impute_methods()}.
+#' @param is_log_transformed Logical scalar (required): if 
+#'   \code{state$expression} has been log transformed.
 #' @param k Number of nearest neighbors passed to methods for 
 #'   \code{c("knn", "lls")}.
 #' @param span Span passed to method for \code{"loess_logit"}.
@@ -1545,7 +1539,7 @@ f.impute <- function(state, config, method=NULL, is_log_transformed=NULL,
       config=config)
   }
   
-  if(method %in% c("", "", "") && !is.logical(is_log_transformed)) {
+  if(!is.logical(is_log_transformed)) {
     f.err("f.impute: !is.logical(is_log_transformed)", config=config)
   }
   

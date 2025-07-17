@@ -14,7 +14,7 @@ f.test_msqrob(state, config, maxit = 20)
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration values. Uses the following keys:
+\item{config}{List with configuration values. Requires the following keys:
 \tabular{ll}{
   \code{gene_id_col}    \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
   \code{feat_col}       \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr

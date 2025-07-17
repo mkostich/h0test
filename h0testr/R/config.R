@@ -26,9 +26,10 @@
 #'     see examples for the function of interest to see what is needed.
 #' @return list of configuration values
 #' @examples
-#' config <- f.new_config()
+#' config <- f.new_config()    ## all possible settings with defaults
+#' str(config)                 ## check out the default settings
 #' 
-#' ## you must customize frm, test_term, and sample_factors:
+#' ## you MUST customize frm, test_term, and sample_factors:
 #' config$frm <- ~ age + sex + age:sex
 #' config$test_term <- "age:sex"
 #' config$sample_factors <- list(age=c("young", "old"), sex=c("female", "male"))
