@@ -99,7 +99,7 @@ f.test_deqms <- function(state, config, trend=FALSE) {
   cols_pick <- colnames(stats::model.matrix(frm0, data=state$samples))
   cols_pick <- cols_pick[cols_pick %in% cols_des]
   idx <- which(cols_des %in% cols_pick)
-  if(length(idx) != 1) f.err("length(idx) != 1", config=config)
+  if(length(idx) != 1) f.err("f.test_deqms: length(idx) != 1", config=config)
 
   fit <- limma::lmFit(state$expression, design)
   fit <- limma::eBayes(fit, trend=trend)
@@ -441,7 +441,7 @@ f.test_prolfqua <- function(state, config, is_log_transformed=NULL) {
 
   if(is.null(is_log_transformed) || is_log_transformed %in% "") {
     if(is.null(config$norm_method) || config$norm_method %in% "") {
-      f.err("f.test_proda: is_log_transformed and config$norm_method both unset", 
+      f.err("f.test_prolfqua: is_log_transformed and config$norm_method both unset", 
         config=config)
     }
     if(config$norm_method %in% c("none")) {

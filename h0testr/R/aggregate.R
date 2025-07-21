@@ -243,7 +243,7 @@ f.combine_peps <- function(state, config, method=NULL, rescale=FALSE) {
   f.check_config(config)
   
   if(is.null(config$gene_id_col) || !(config$gene_id_col %in% names(state$features))) {
-    f.err("f.combine_reps: config$gene_id_col %in% names(state$features);",
+    f.err("f.combine_peps: config$gene_id_col %in% names(state$features);",
       "config$gene_id_col:", config$gene_id_col, 
       "; names(state$features):", names(state$features), config=config)
   }

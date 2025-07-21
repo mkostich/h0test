@@ -1330,11 +1330,11 @@ f.impute_lls <- function(state, config, is_log_transformed=NULL,
   f.check_config(config)
   
   if(!is.logical(is_log_transformed)) {
-    f.err("f.impute_pca: !is.logical(is_log_transformed)", config=config)
+    f.err("f.impute_lls: !is.logical(is_log_transformed)", config=config)
   }
   
   if(!is.matrix(state$expression)) {
-    f.err("f.impute_pca: !is.matrix(state$expression)", config=config)
+    f.err("f.impute_lls: !is.matrix(state$expression)", config=config)
   }
   
   mat <- state$expression
