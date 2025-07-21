@@ -28,7 +28,7 @@ f.filter(state, config, remove_constant = TRUE)
 \item{remove_constant}{Logical scalar: if constant rows and columns of \code{state$expression} should be removed.}
 }
 \value{
-A list with elements like that returned by `f.read_data()`:
+A list with elements like that returned by \code{f.read_data()}:
   \tabular{ll}{
     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr

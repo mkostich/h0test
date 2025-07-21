@@ -2,7 +2,7 @@
 % Please edit documentation in R/normalize.R
 \name{f.normalize_quantile}
 \alias{f.normalize_quantile}
-\title{Normalize expression using selected quantile as scaling factor.}
+\title{Normalize expression using quantile of expression intensity}
 \usage{
 f.normalize_quantile(state, config, norm_quantile = NULL, multiplier = 1000)
 }

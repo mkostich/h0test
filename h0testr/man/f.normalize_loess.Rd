@@ -2,7 +2,7 @@
 % Please edit documentation in R/normalize.R
 \name{f.normalize_loess}
 \alias{f.normalize_loess}
-\title{Cyclic loess normalization.}
+\title{Cyclic loess normalization}
 \usage{
 f.normalize_loess(state, config, span = NULL, method = "affy")
 }

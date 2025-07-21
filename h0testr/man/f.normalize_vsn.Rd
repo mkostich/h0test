@@ -2,7 +2,7 @@
 % Please edit documentation in R/normalize.R
 \name{f.normalize_vsn}
 \alias{f.normalize_vsn}
-\title{Variance stabilizing transformation.}
+\title{Variance stabilizing transformation}
 \usage{
 f.normalize_vsn(state, config)
 }

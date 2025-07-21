@@ -460,12 +460,14 @@ f.prefilter <- function(state, config, n_samples_min=2, n_features_min=2) {
 }
 
 #' Permute data
-#' @description Permute observation covariate 
-#' @details If variable is \code{NULL}, uses \code{config$permute_var} instead. If variable is 
-#'   \code{NULL} and \code{config$permute_var == ""}, skips permutation (normal execution).
+#' @description Permute observation covariate.
+#' @details If \code{variable} is \code{NULL}, uses \code{config$permute_var} 
+#'   instead. If \code{variable} is \code{NULL} and 
+#'   \code{config$permute_var == ""}, skips permutation (normal execution).
 #'   See documentation for \code{h0testr::f.new_config()} 
 #'     for more detailed description of configuration parameters. 
-#' @param state List with elements formatted like the list returned by \code{f.read_data()}:
+#' @param state List with elements formatted like the list returned by 
+#'   \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -523,7 +525,7 @@ f.permute <- function(state, config, variable=NULL) {
 
 #' Load data
 #' @description 
-#'   Load data and metadata from files, format, and save initial copies 
+#'   Load data and metadata from files, format, and save initial copies.
 #' @details Loads data from files specified in \code{config}. Prefilter uninformative rows
 #'   and columns. Permute variable if requested. Save final copies.
 #'   See documentation for \code{h0testr::f.new_config()} 

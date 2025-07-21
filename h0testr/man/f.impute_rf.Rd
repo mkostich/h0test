@@ -2,7 +2,7 @@
 % Please edit documentation in R/impute.R
 \name{f.impute_rf}
 \alias{f.impute_rf}
-\title{Impute missing values using \code{randomForest}.}
+\title{Impute missing values using \code{randomForest}}
 \usage{
 f.impute_rf(
   state,

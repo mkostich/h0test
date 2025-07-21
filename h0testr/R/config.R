@@ -1,23 +1,23 @@
-#' Get configuration template with mix of defaults and example values.
+#' Get configuration template with default and example values
 #' @description
 #'   Returns a configuration list filled with defaults and
 #'     example values. Configuration meant to be customized then passed to
 #'     other functions.
 #' @details 
 #'   This function is meant to simplify generation of configurations for 
-#'     higher level functions, like \code{h0testr::run()}, 
-#'     \code{h0testr::tune()}, or \code{h0testr::save_state()}. For most 
+#'     higher level functions, like \code{h0testr::f.run()}, 
+#'     \code{h0testr::f.tune()}, or \code{h0testr::f.save_state()}. For most 
 #'     other functions, you can pass a simpler config as a list containing
 #'     only the needed parameters. See documentation and examples for the 
 #'     function of interest for the minimal configuration needed.
 #'   For hypothesis testing or calls to \code{h0testr::f.initialize()}, 
 #'     customize \code{frm}, \code{test_term}, and \code{sample_factors}.
 #'   When using the config to load data from files (e.g. by calling 
-#'     \code{h0testr::load_data(config)}), calling 
+#'     \code{h0testr::f.load_data(config)}), calling 
 #'     \code{h0testr::f.initialize()}, or for aggregating multiple 
-#'     observations per sample (e.g. by calling \code{h0testr::combine_reps()}),
+#'     observations per sample (e.g. by calling \code{h0testr::f.combine_reps()}),
 #'     or for aggregating precursors into gene/protein groups (e.g. by calling 
-#'     \code{h0testr::combine_precursors()}), you should customize 
+#'     \code{h0testr::f.combine_precursors()}), you should customize 
 #'     \code{feat_id_col}, \code{gene_id_col}, \code{sample_id_col}, 
 #'     and \code{obs_id_col}. In these cases, leave \code{feat_col} and
 #'     \code{obs_col} as \code{""} (they will be automatically set and 

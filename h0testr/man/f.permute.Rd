@@ -7,7 +7,8 @@
 f.permute(state, config, variable = NULL)
 }
 \arguments{
-\item{state}{List with elements formatted like the list returned by \code{f.read_data()}:
+\item{state}{List with elements formatted like the list returned by 
+\code{f.read_data()}:
 \tabular{ll}{
   \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
   \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -31,11 +32,12 @@ A list (the permuted state) with the following elements:
   }
 }
 \description{
-Permute observation covariate
+Permute observation covariate.
 }
 \details{
-If variable is \code{NULL}, uses \code{config$permute_var} instead. If variable is 
-  \code{NULL} and \code{config$permute_var == ""}, skips permutation (normal execution).
+If \code{variable} is \code{NULL}, uses \code{config$permute_var} 
+  instead. If \code{variable} is \code{NULL} and 
+  \code{config$permute_var == ""}, skips permutation (normal execution).
   See documentation for \code{h0testr::f.new_config()} 
     for more detailed description of configuration parameters.
 }

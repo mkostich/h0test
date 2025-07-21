@@ -2,7 +2,7 @@
 % Please edit documentation in R/impute.R
 \name{f.impute_rnorm_feature}
 \alias{f.impute_rnorm_feature}
-\title{Impute missing values near the feature mean.}
+\title{Impute missing values near the feature mean}
 \usage{
 f.impute_rnorm_feature(state, config, scale. = NULL)
 }
@@ -35,7 +35,7 @@ Impute missing values normally distributed around the feature mean.
 }
 \details{
 Missing values are draws from 
-  \code{normal(mean=mean(exprs[feature, ]), sd=scale.*sd(exprs[feature, ]))}. 
+  \code{normal(mean=mean(exprs[feature, ]), sd=(scale. * sd(exprs[feature, ])))}. 
   Only non-\code{NA} values are used in calculation of \code{mean} and 
   \code{sd}. If you want \code{0} to be considered missing, and have 
   \code{0} in the data, do something like \code{exprs[exprs \%in\% 0] <- NA} 

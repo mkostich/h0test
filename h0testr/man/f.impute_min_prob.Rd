@@ -2,7 +2,7 @@
 % Please edit documentation in R/impute.R
 \name{f.impute_min_prob}
 \alias{f.impute_min_prob}
-\title{Impute missing values with \code{imputeLCMD::impute.MinProb()}.}
+\title{Impute missing values with \code{imputeLCMD::impute.MinProb()}}
 \usage{
 f.impute_min_prob(
   state,

@@ -17,8 +17,8 @@ f.combine_reps(state, config)
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{feat_col}        \cr \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}.
-  \code{obs_id_col}      \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}.
+  \code{feat_col}        \cr \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}. \cr
+  \code{obs_id_col}      \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
   \code{sample_id_col}   \cr \tab Name of column in \code{state$samples} with unique sample (case) ids. \cr
   \code{save_state}      \cr \tab Logical scalar indicating whether to save new state to disk. \cr
   \code{dir_out}         \cr \tab Output directory path (scalar character); only needed if \code{save_state == TRUE}. \cr

@@ -2,7 +2,7 @@
 % Please edit documentation in R/normalize.R
 \name{f.normalize_cpm}
 \alias{f.normalize_cpm}
-\title{Normalize expression using total expression in each sample.}
+\title{Normalize expression using total expression in each sample}
 \usage{
 f.normalize_cpm(state, config, multiplier = 1e+06)
 }
@@ -32,9 +32,9 @@ A list (the processed state) with the following elements:
 Normalize expression using variant of CPM normalization which excludes missing values.
 }
 \details{
-Inter-observation normalization, based on total expression
-    in each observation. Makes total expression (excluding missing values)
-    equal in each observation.
+Inter-observation normalization, based on dividing each expression value 
+    by total expression in each observation. Makes total expression 
+    (excluding missing values) equal in each observation.
 }
 \examples{
 set.seed(101)

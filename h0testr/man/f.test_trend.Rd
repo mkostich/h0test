@@ -2,7 +2,7 @@
 % Please edit documentation in R/test.R
 \name{f.test_trend}
 \alias{f.test_trend}
-\title{Hypothesis testing using \code{limma} trend.}
+\title{Hypothesis testing using \code{limma} trend}
 \usage{
 f.test_trend(state, config)
 }

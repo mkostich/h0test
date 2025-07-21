@@ -2,7 +2,7 @@
 % Please edit documentation in R/impute.R
 \name{f.impute_pca}
 \alias{f.impute_pca}
-\title{Impute missing values with \code{pcaMethods::pca()}.}
+\title{Impute missing values with \code{pcaMethods::pca()}}
 \usage{
 f.impute_pca(
   state,

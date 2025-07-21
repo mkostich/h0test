@@ -1,4 +1,4 @@
-#' Impute missing values from between 0 and global LOD.
+#' Impute missing values between 0 and global LOD
 #' @description
 #'   Impute missing values by randomly drawing from uniform distribution 
 #'     below an estimated global LOD. 
@@ -80,7 +80,7 @@ f.impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
   return(state)
 }
 
-#' Impute missing values from between 0 and sample LOD.
+#' Impute missing values between 0 and sample LOD
 #' @description
 #'   Impute missing values by randomly drawing from uniform distribution below 
 #'     an estimated observation-specific limit of detection (LOD). 
@@ -152,7 +152,7 @@ f.impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
   return(state)
 }
 
-#' Impute missing values as the sample LOD.
+#' Impute missing values as the sample LOD
 #' @description
 #'   Impute missing values as the minimum observed value in the corresponding 
 #'     observation.
@@ -203,11 +203,11 @@ f.impute_sample_lod <- function(state, config) {
   return(state)
 }
 
-#' Impute missing values near the feature mean.
+#' Impute missing values near the feature mean
 #' @description
 #'   Impute missing values normally distributed around the feature mean.
 #' @details Missing values are draws from 
-#'   \code{normal(mean=mean(exprs[feature, ]), sd=scale.*sd(exprs[feature, ]))}. 
+#'   \code{normal(mean=mean(exprs[feature, ]), sd=(scale. * sd(exprs[feature, ])))}. 
 #'   Only non-\code{NA} values are used in calculation of \code{mean} and 
 #'   \code{sd}. If you want \code{0} to be considered missing, and have 
 #'   \code{0} in the data, do something like \code{exprs[exprs \%in\% 0] <- NA} 
@@ -310,7 +310,7 @@ f.impute_rnorm_feature <- function(state, config, scale.=NULL) {
   return(state)
 }
 
-#' Impute by drawing from \code{p(missing|intensity)} from binomial glm.
+#' Impute by drawing from \code{p(missing|intensity)} from binomial glm
 #' @description
 #'   Impute missing values by randomly drawing from an estimated density 
 #'     of \code{p(missing|intensity)}.
@@ -415,7 +415,7 @@ f.impute_glm_binom <- function(state, config, is_log_transformed=NULL,
   return(state)
 }
 
-#' Impute by drawing from \code{p(missing|intensity)} estimated with loess.
+#' Impute by drawing from \code{p(missing|intensity)} estimated with loess
 #' @description
 #'   Impute missing values by randomly drawing from an estimated density 
 #'     of \code{p(missing|intensity)}.
@@ -537,7 +537,7 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
   return(exprs)
 }
 
-#' Impute missing values using \code{randomForest}.
+#' Impute missing values using \code{randomForest}
 #' @description
 #'   Impute missing values using the \code{randomForest} package.
 #' @details Imputes missing values using a \code{randomForest::randomForest} 
@@ -684,7 +684,7 @@ f.impute_rf <- function(state, config, is_log_transformed=NULL,
   return(list(state=state, log=tbl))
 }
 
-#' Impute missing values using \code{glmnet}.
+#' Impute missing values using \code{glmnet}
 #' @description
 #'   Impute missing values using \code{glmnet} package.
 #' @details 
@@ -829,7 +829,7 @@ f.impute_glmnet <- function(state, config, is_log_transformed=NULL,
   return(list(state=state, log=tbl))
 }
 
-#' Impute missing values with \code{impute::impute.knn()}.
+#' Impute missing values with \code{impute::impute.knn()}
 #' @description
 #'   Impute missing values with \code{impute::impute.knn()}.
 #' @details
@@ -898,7 +898,7 @@ f.impute_knn <- function(state, config, k=10, rowmax=0.5, colmax=0.8, maxp=1500)
   return(state)
 }
 
-#' Impute missing values with \code{imputeLCMD::impute.MinDet()}.
+#' Impute missing values with \code{imputeLCMD::impute.MinDet()}
 #' @description
 #'   Impute missing values with \code{imputeLCMD::impute.MinDet()}.
 #' @details
@@ -967,7 +967,7 @@ f.impute_min_det <- function(state, config, impute_quantile=NULL) {
   return(state)
 }
 
-#' Impute missing values with \code{imputeLCMD::impute.MinProb()}.
+#' Impute missing values with \code{imputeLCMD::impute.MinProb()}
 #' @description
 #'   Impute missing values with \code{imputeLCMD::impute.MinProb()}.
 #' @details
@@ -1061,7 +1061,7 @@ f.impute_min_prob <- function(state, config, is_log_transformed=NULL,
   return(state)
 }
 
-#' Impute missing values with \code{imputeLCMD::impute.QRILC()}.
+#' Impute missing values with \code{imputeLCMD::impute.QRILC()}
 #' @description
 #'   Impute missing values with \code{imputeLCMD::impute.QRILC()}.
 #' @details
@@ -1151,7 +1151,7 @@ f.impute_qrilc <- function(state, config, is_log_transformed=NULL, scale.=NULL) 
   return(state)
 }
 
-#' Impute missing values with \code{pcaMethods::pca()}.
+#' Impute missing values with \code{pcaMethods::pca()}
 #' @description
 #'   Impute missing values with \code{pcaMethods::pca()}.
 #' @details
@@ -1258,7 +1258,7 @@ f.impute_pca <- function(state, config, is_log_transformed=NULL,
   return(state)
 }
 
-#' Impute missing values with \code{pcaMethods::llsImpute()}.
+#' Impute missing values with \code{pcaMethods::llsImpute()}
 #' @description
 #'   Impute missing values with \code{pcaMethods::llsImpute()}.
 #' @details
@@ -1351,7 +1351,7 @@ f.impute_lls <- function(state, config, is_log_transformed=NULL,
   return(state)
 }
 
-#' Impute missing values with \code{missForest::missForest()}.
+#' Impute missing values with \code{missForest::missForest()}
 #' @description
 #'   Impute missing values with \code{missForest::missForest()}.
 #' @details
@@ -1415,7 +1415,7 @@ f.impute_missforest <- function(state, config, maxit=10, ntree=100) {
   return(state)
 }
 
-#' Get choices for \code{method} parameter of \code{h0testr::f.impute()}.
+#' Get choices for \code{method} parameter of \code{h0testr::f.impute()}
 #' @description 
 #'   Returns valid values for \code{method} parameter of \code{h0testr::f.impute()}
 #' @details

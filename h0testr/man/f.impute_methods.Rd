@@ -2,7 +2,7 @@
 % Please edit documentation in R/impute.R
 \name{f.impute_methods}
 \alias{f.impute_methods}
-\title{Get choices for \code{method} parameter of \code{h0testr::f.impute()}.}
+\title{Get choices for \code{method} parameter of \code{h0testr::f.impute()}}
 \usage{
 f.impute_methods()
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/impute.R
 \name{f.impute_missforest}
 \alias{f.impute_missforest}
-\title{Impute missing values with \code{missForest::missForest()}.}
+\title{Impute missing values with \code{missForest::missForest()}}
 \usage{
 f.impute_missforest(state, config, maxit = 10, ntree = 100)
 }

@@ -582,7 +582,7 @@ f.test_voom <- function(state, config, normalize.method="none") {
   return(tbl)
 }
 
-#' Hypothesis testing using \code{limma} trend.
+#' Hypothesis testing using \code{limma} trend
 #' @description
 #'   Test for differential expression using \code{limma::eBayes(trend=TRUE)}.
 #' @details
@@ -806,7 +806,7 @@ f.test_methods <- function() {
 
 #' Hypothesis testing
 #' @description
-#'   Test hypotheses using .
+#'   Wrapper for various hypothesis testing methods.
 #' @details
 #'   Tests for differential expression using method specified in config. 
 #'   See invididual \code{f.test_*} methods for more details. 
@@ -820,7 +820,7 @@ f.test_methods <- function() {
 #'   } 
 #'   See documentation for \code{h0testr::f.new_config()} 
 #'     for more detailed description of configuration parameters. 
-#' @param state List with elements formatted like the list returned by `f.read_data()`:
+#' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -843,19 +843,20 @@ f.test_methods <- function() {
 #'   \code{method \%in\% c("proda", "prolfqua")}.
 #' @param prior_df Prior degrees of freedom for method \code{proda}; 
 #'   where \code{2 <= prior_df <= n_features}.
-#' @return A list with the following elements:
+#' @return A list with the following elements: \cr
 #'   \tabular{ll}{
-#'     \code{original} \cr \tab A \code{data.frame} with results in native format returned by test.\cr
-#'     \code{standard} \cr \tab A \code{data.frame} with the following standard fields: \cr
-#'     \tabular{ll}{
-#'       \code{feature}   \cr \tab Name of feature tested. \cr
-#'       \code{expr}      \cr \tab Average feature expression. \cr
-#'       \code{logfc}     \cr \tab Estimated log fold-change between conditions. \cr
-#'       \code{stat}      \cr \tab Value of test statistic. \cr
-#'       \code{lod}       \cr \tab Log-odds of differential expression. \cr
-#'       \code{pval}      \cr \tab Raw p-value resulting from test. \cr
-#'       \code{adj_pval}  \cr \tab Adjusted (for multiple testing) p-value. \cr
-#'     }
+#'     \code{original} \cr \tab A \code{data.frame} with results in native format returned by test. \cr
+#'     \code{standard} \cr \tab A \code{data.frame} with results in a standardized format \cr
+#'   } \cr
+#'   The \code{standard} \code{data.frame} has the following fields: \cr
+#'   \tabular{ll}{
+#'     \code{feature}   \cr \tab Name of feature tested. \cr
+#'     \code{expr}      \cr \tab Average feature expression. \cr
+#'     \code{logfc}     \cr \tab Estimated log fold-change between conditions. \cr
+#'     \code{stat}      \cr \tab Value of test statistic. \cr
+#'     \code{lod}       \cr \tab Log-odds of differential expression. \cr
+#'     \code{pval}      \cr \tab Raw p-value resulting from test. \cr
+#'     \code{adj_pval}  \cr \tab Adjusted (for multiple testing) p-value. \cr
 #'   }
 #' @examples
 #' set.seed(101)

@@ -2,7 +2,7 @@
 % Please edit documentation in R/normalize.R
 \name{f.normalize_qquantile}
 \alias{f.normalize_qquantile}
-\title{Old-school 'quantile' normalization.}
+\title{Old-school 'quantile' normalization}
 \usage{
 f.normalize_qquantile(state, config)
 }

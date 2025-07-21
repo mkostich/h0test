@@ -2,7 +2,7 @@
 % Please edit documentation in R/impute.R
 \name{f.impute_min_det}
 \alias{f.impute_min_det}
-\title{Impute missing values with \code{imputeLCMD::impute.MinDet()}.}
+\title{Impute missing values with \code{imputeLCMD::impute.MinDet()}}
 \usage{
 f.impute_min_det(state, config, impute_quantile = NULL)
 }

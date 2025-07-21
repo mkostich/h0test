@@ -2,7 +2,7 @@
 % Please edit documentation in R/impute.R
 \name{f.impute_lls}
 \alias{f.impute_lls}
-\title{Impute missing values with \code{pcaMethods::llsImpute()}.}
+\title{Impute missing values with \code{pcaMethods::llsImpute()}}
 \usage{
 f.impute_lls(
   state,

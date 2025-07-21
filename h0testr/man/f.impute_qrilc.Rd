@@ -2,7 +2,7 @@
 % Please edit documentation in R/impute.R
 \name{f.impute_qrilc}
 \alias{f.impute_qrilc}
-\title{Impute missing values with \code{imputeLCMD::impute.QRILC()}.}
+\title{Impute missing values with \code{imputeLCMD::impute.QRILC()}}
 \usage{
 f.impute_qrilc(state, config, is_log_transformed = NULL, scale. = NULL)
 }

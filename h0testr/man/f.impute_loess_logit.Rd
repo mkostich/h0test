@@ -2,7 +2,7 @@
 % Please edit documentation in R/impute.R
 \name{f.impute_loess_logit}
 \alias{f.impute_loess_logit}
-\title{Impute by drawing from \code{p(missing|intensity)} estimated with loess.}
+\title{Impute by drawing from \code{p(missing|intensity)} estimated with loess}
 \usage{
 f.impute_loess_logit(
   state,

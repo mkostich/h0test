@@ -28,7 +28,7 @@ A list (the initial state) with the following elements:
   }
 }
 \description{
-Load data and metadata from files, format, and save initial copies
+Load data and metadata from files, format, and save initial copies.
 }
 \details{
 Loads data from files specified in \code{config}. Prefilter uninformative rows

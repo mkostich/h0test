@@ -2,7 +2,7 @@
 % Please edit documentation in R/impute.R
 \name{f.impute_glmnet}
 \alias{f.impute_glmnet}
-\title{Impute missing values using \code{glmnet}.}
+\title{Impute missing values using \code{glmnet}}
 \usage{
 f.impute_glmnet(
   state,

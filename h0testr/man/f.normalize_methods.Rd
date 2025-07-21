@@ -2,7 +2,7 @@
 % Please edit documentation in R/normalize.R
 \name{f.normalize_methods}
 \alias{f.normalize_methods}
-\title{Get vector of normalization method names.}
+\title{Get vector of normalization method names}
 \usage{
 f.normalize_methods()
 }

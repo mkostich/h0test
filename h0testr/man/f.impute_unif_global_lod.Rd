@@ -2,7 +2,7 @@
 % Please edit documentation in R/impute.R
 \name{f.impute_unif_global_lod}
 \alias{f.impute_unif_global_lod}
-\title{Impute missing values from between 0 and global LOD.}
+\title{Impute missing values between 0 and global LOD}
 \usage{
 f.impute_unif_global_lod(state, config, impute_quantile = NULL)
 }

@@ -320,7 +320,7 @@ f.features_per_sample <- function(state, config) {
 #'     \code{n_features_expr_col} \cr \tab Name (character) of new column in sample metadata to hold number of expressed features. \cr
 #'   }
 #' @param remove_constant Logical scalar: if constant rows and columns of \code{state$expression} should be removed.
-#' @return A list with elements like that returned by `f.read_data()`:
+#' @return A list with elements like that returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr

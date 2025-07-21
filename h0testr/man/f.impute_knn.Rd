@@ -2,7 +2,7 @@
 % Please edit documentation in R/impute.R
 \name{f.impute_knn}
 \alias{f.impute_knn}
-\title{Impute missing values with \code{impute::impute.knn()}.}
+\title{Impute missing values with \code{impute::impute.knn()}}
 \usage{
 f.impute_knn(state, config, k = 10, rowmax = 0.5, colmax = 0.8, maxp = 1500)
 }

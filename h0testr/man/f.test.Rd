@@ -13,7 +13,7 @@ f.test(
 )
 }
 \arguments{
-\item{state}{List with elements formatted like the list returned by `f.read_data()`:
+\item{state}{List with elements formatted like the list returned by \code{f.read_data()}:
 \tabular{ll}{
   \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
   \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -42,23 +42,24 @@ been log transformed. Required if
 where \code{2 <= prior_df <= n_features}.}
 }
 \value{
-A list with the following elements:
+A list with the following elements: \cr
   \tabular{ll}{
-    \code{original} \cr \tab A \code{data.frame} with results in native format returned by test.\cr
-    \code{standard} \cr \tab A \code{data.frame} with the following standard fields: \cr
-    \tabular{ll}{
-      \code{feature}   \cr \tab Name of feature tested. \cr
-      \code{expr}      \cr \tab Average feature expression. \cr
-      \code{logfc}     \cr \tab Estimated log fold-change between conditions. \cr
-      \code{stat}      \cr \tab Value of test statistic. \cr
-      \code{lod}       \cr \tab Log-odds of differential expression. \cr
-      \code{pval}      \cr \tab Raw p-value resulting from test. \cr
-      \code{adj_pval}  \cr \tab Adjusted (for multiple testing) p-value. \cr
-    }
+    \code{original} \cr \tab A \code{data.frame} with results in native format returned by test. \cr
+    \code{standard} \cr \tab A \code{data.frame} with results in a standardized format \cr
+  } \cr
+  The \code{standard} \code{data.frame} has the following fields: \cr
+  \tabular{ll}{
+    \code{feature}   \cr \tab Name of feature tested. \cr
+    \code{expr}      \cr \tab Average feature expression. \cr
+    \code{logfc}     \cr \tab Estimated log fold-change between conditions. \cr
+    \code{stat}      \cr \tab Value of test statistic. \cr
+    \code{lod}       \cr \tab Log-odds of differential expression. \cr
+    \code{pval}      \cr \tab Raw p-value resulting from test. \cr
+    \code{adj_pval}  \cr \tab Adjusted (for multiple testing) p-value. \cr
   }
 }
 \description{
-Test hypotheses using .
+Wrapper for various hypothesis testing methods.
 }
 \details{
 Tests for differential expression using method specified in config. 

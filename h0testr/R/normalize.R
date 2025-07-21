@@ -91,7 +91,7 @@ f.normalize_edger <- function(state, config, method=NULL, norm_quantile=NULL) {
   return(state)
 }
 
-#' Normalize expression using selected quantile as scaling factor.
+#' Normalize expression using quantile of expression intensity
 #' @description
 #'   Normalize expression using variant of quantile normalization which 
 #'     excludes missing values.
@@ -155,13 +155,13 @@ f.normalize_quantile <- function(state, config, norm_quantile=NULL, multiplier=1
   return(state)
 }
 
-#' Normalize expression using total expression in each sample.
+#' Normalize expression using total expression in each sample
 #' @description
 #'   Normalize expression using variant of CPM normalization which excludes missing values.
 #' @details 
-#'   Inter-observation normalization, based on total expression
-#'     in each observation. Makes total expression (excluding missing values)
-#'     equal in each observation.
+#'   Inter-observation normalization, based on dividing each expression value 
+#'     by total expression in each observation. Makes total expression 
+#'     (excluding missing values) equal in each observation.
 #' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -203,7 +203,7 @@ f.normalize_cpm <- function(state, config, multiplier=1e6) {
   return(state)
 }
 
-#' Variance stabilizing transformation.
+#' Variance stabilizing transformation
 #' @description
 #'   Normalize expression using variance stabilizing transformation.
 #' @details 
@@ -251,7 +251,7 @@ f.normalize_vsn <- function(state, config) {
   return(state)
 }
 
-#' Cyclic loess normalization.
+#' Cyclic loess normalization
 #' @description
 #'   Normalize expression using the cyclic-loess algorithm.
 #' @details 
@@ -306,7 +306,7 @@ f.normalize_loess <- function(state, config, span=NULL, method="affy") {
   return(state)
 }
 
-#' Old-school 'quantile' normalization.
+#' Old-school 'quantile' normalization
 #' @description
 #'   Normalize expression values using the 'quantile normalization' algorithm.
 #' @details 
@@ -432,7 +432,7 @@ f.normalize_mscoreutils <- function(state, config, method=NULL) {
   return(state)
 }
 
-#' Get vector of normalization method names.
+#' Get vector of normalization method names
 #' @description
 #'   Get a vector with acceptable values of \code{method} parameter for \code{h0testr::f.normalize}.
 #' @return

@@ -2,7 +2,7 @@
 % Please edit documentation in R/impute.R
 \name{f.impute_glm_binom}
 \alias{f.impute_glm_binom}
-\title{Impute by drawing from \code{p(missing|intensity)} from binomial glm.}
+\title{Impute by drawing from \code{p(missing|intensity)} from binomial glm}
 \usage{
 f.impute_glm_binom(
   state,
