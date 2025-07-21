@@ -124,7 +124,7 @@ f.tune2 <- function(state, config, is_log_transformed=is_log_transformed) {
   rslt <- data.frame(norm=config$norm_method, norm_quant=config$norm_quantile, 
     impute=config$impute_method, imp_quant=config$impute_quantile, 
     scale=config$impute_scale, span=config$impute_span, test=config$test_method, 
-    perm=config$permute_var, nhits=sum(tbl$adj.P.Val < 0.05), ntests=nrow(tbl), 
+    perm=config$permute_var, nhits=sum(tbl$adj_pval < 0.05), ntests=nrow(tbl), 
     time=format(Sys.time(), "%H:%M:%S"), stringsAsFactors=F)
   
   f.msg("f.tune:2: return", config=config)
