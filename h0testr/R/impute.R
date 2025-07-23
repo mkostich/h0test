@@ -1,3 +1,25 @@
+f.pos_mat <- function(mat, config, maxit=10) {
+  
+  n <- 0
+  i <- mat <= 0
+  i[is.na(i)] <- F
+  
+  while(any(c(i))) {
+    n <- n + 1
+    if(n > maxit) break
+    mat[i] <- log2(2^mat[i] + 1)
+    i <- mat <= 0
+    i[is.na(i)] <- F
+  }
+  
+  if(any(c(mat) <= 0)) {
+    f.err("f.pos_mat: min(c(mat)):", min(c(mat)), "after", n-1, 
+      "iterations.", config=config)
+  }
+  
+  return(mat)
+}
+
 #' Impute missing values between 0 and global LOD
 #' @description
 #'   Impute missing values by randomly drawing from uniform distribution 
@@ -76,7 +98,7 @@ f.impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
     v
   }
   mat <- t(apply(state$expression, 1, f, max_val))
-  if(any(c(mat) <= 0)) mat <- log2(2^mat + 1)
+  mat <- f.pos_mat(mat, config)
   state$expression <- mat
   
   return(state)
@@ -150,7 +172,7 @@ f.impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
     v
   }
   mat <- apply(state$expression, 2, f)
-  if(any(c(mat) <= 0)) mat <- log2(2^mat + 1)
+  mat <- f.pos_mat(mat, config)
   state$expression <- mat
   
   return(state)
@@ -414,7 +436,7 @@ f.impute_glm_binom <- function(state, config, is_log_transformed=NULL,
   mat[i_na] <- sample(m_new, sum(i_na), replace=T, prob=p_hat)
   
   if(!is_log_transformed) mat <- 2^mat
-  if(any(c(mat) <= 0)) mat <- log2(2^mat + 1)
+  mat <- f.pos_mat(mat, config)
   state$expression <- mat
   
   return(state)
@@ -938,8 +960,10 @@ f.impute_knn <- function(state, config, k=NULL, rowmax=0.5, colmax=0.8, maxp=150
   
   out <- impute::impute.knn(state$expression, k=k, 
     rowmax=rowmax, colmax=colmax, maxp=maxp)
-  
-  state$expression <- out$data
+    
+  mat <- out$data
+  mat <- f.pos_mat(mat, config)
+  state$expression <- mat
 
   return(state)
 }
@@ -1009,7 +1033,7 @@ f.impute_min_det <- function(state, config, impute_quantile=NULL) {
   if(is.null(impute_quantile)) impute_quantile <- 0.01
   
   mat <- imputeLCMD::impute.MinDet(state$expression, q=impute_quantile)
-  if(any(c(mat) <= 0)) mat <- log2(2^mat + 1)
+  mat <- f.pos_mat(mat, config)
   state$expression <- mat
   
   return(state)
@@ -1104,7 +1128,7 @@ f.impute_min_prob <- function(state, config, is_log_transformed=NULL,
   mat <- imputeLCMD::impute.MinProb(mat, q=impute_quantile, tune.sigma=scale.)
   
   if(!is_log_transformed) mat <- (2^mat) - 1
-  if(any(c(mat) <= 0)) mat <- log2(2^mat + 1)
+  mat <- f.pos_mat(mat, config)
   
   state$expression <- mat
   
@@ -1196,7 +1220,7 @@ f.impute_qrilc <- function(state, config, is_log_transformed=NULL, scale.=NULL) 
   
   mat <- obj[[1]]
   if(!is_log_transformed) mat <- (2^mat) - 1
-  if(any(c(mat) <= 0)) mat <- log2(2^mat + 1)
+  mat <- f.pos_mat(mat, config)
   state$expression <- mat
   
   return(state)
@@ -1308,7 +1332,7 @@ f.impute_pca <- function(state, config, is_log_transformed=NULL,
 
   if(!is_log_transformed) mat <- (2^mat)
   mat <- t(mat)
-  if(any(c(mat) <= 0)) mat <- log2(2^mat + 1)
+  mat <- f.pos_mat(mat, config)
   state$expression <- mat
 
   return(state)
@@ -1410,7 +1434,7 @@ f.impute_lls <- function(state, config, is_log_transformed=NULL,
   mat <- pcaMethods::completeObs(obj) 
   if(!is_log_transformed) mat <- (2^mat)
   mat <- t(mat)
-  if(any(c(mat) <= 0)) mat <- log2(2^mat + 1)
+  mat <- f.pos_mat(mat, config)
   state$expression <- mat
   
   return(state)
@@ -1477,7 +1501,7 @@ f.impute_missforest <- function(state, config, maxit=10, ntree=100) {
   obj <- missForest::missForest(t(state$expression), maxiter=maxit, ntree=ntree)
   
   mat <- t(obj$ximp)
-  if(any(c(mat) <= 0)) mat <- log2(2^mat + 1)
+  mat <- f.pos_mat(mat, config)
   state$expression <- mat
 
   return(state)

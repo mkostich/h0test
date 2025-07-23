@@ -359,6 +359,11 @@ f.tune <- function(
             "rf", "missforest", "none")) {
           
           f.log_block("norm_method:", norm_method, "; test_method:", test_method, "; impute_method:", impute_method, config=config3)
+          if(any(is.na(c(state3$expression))) && test_method %in% c("msqrob")) {
+            f.msg("WARNING: OIL_WATER: skipping test_method", test_method, 
+              "because of NAs in expression", config=config)
+            next
+          }          
           f.log_block("filter, impute, and test", config=config3)
           rslt_i <- f.tune2(state3, config3, 
             is_log_transformed=is_log_transformed)
