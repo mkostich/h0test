@@ -365,7 +365,7 @@ f.initialize <- function(state, config, initialized=F, minimal=F) {
 #' print(state)
 
 f.add_filter_stats <- function(state, config) {
-
+  
   f.check_config(config)
   
   n <- f.samples_per_feature(state, config)
@@ -442,7 +442,7 @@ f.prefilter <- function(state, config, n_samples_min=2, n_features_min=2) {
 
   f.check_config(config)
   
-  f.log("prefilter features and samples", config=config)
+  f.log_block("prefilter features and samples", config=config)
   f.msg("before filtering features:", config=config)
   f.report_state(state, config)
   
@@ -503,18 +503,18 @@ f.permute <- function(state, config, variable=NULL) {
   if(is.null(variable)) variable <- config$permute_var
   
   if(is.null(variable) || variable %in% "") {
-    f.msg("skipping permutation", config=config)
+    f.log_block("skipping permutation", config=config)
   } else {
     if(!(variable %in% colnames(state$samples))) {
       f.err("f.permute: !(variable %in% colnames(state$samples))", config=config)
     }
-    f.msg("permuting", variable, config=config)
+    f.log_block("permuting", variable, config=config)
     tmp <- state$samples[
-      !duplicated(state$samples[, config$sample_id_col]), 
+      !duplicated(state$samples[, config$sample_id_col, drop=T]), 
       c(config$sample_id_col, variable), 
       drop=T
     ]
-    rownames(tmp) <- tmp[, config$sample_id_col]
+    rownames(tmp) <- tmp[, config$sample_id_col, drop=T]
     tmp[, variable] <- sample(tmp[[variable]], nrow(tmp), replace=F)
     state$samples[, variable] <- tmp[state$samples[[config$sample_id_col]], variable, drop=T]
   } 

@@ -4,7 +4,7 @@
 \alias{f.impute_knn}
 \title{Impute missing values with \code{impute::impute.knn()}}
 \usage{
-f.impute_knn(state, config, k = 10, rowmax = 0.5, colmax = 0.8, maxp = 1500)
+f.impute_knn(state, config, k = NULL, rowmax = 0.5, colmax = 0.8, maxp = 1500)
 }
 \arguments{
 \item{state}{A list with elements like that returned by \code{f.read_data()}:
@@ -16,7 +16,7 @@ f.impute_knn(state, config, k = 10, rowmax = 0.5, colmax = 0.8, maxp = 1500)
 
 \item{config}{List with configuration values. Does not use any keys so can pass empty list.}
 
-\item{k}{Number of nearest neighbors (features) to use, with \code{1 <= k < n_features}.}
+\item{k}{Number of nearest neighbors (features) to use, with \code{1 <= k < n_features}. Default: \code{10}.}
 
 \item{rowmax}{Maximum proportion missing per row, else use row means; \code{0 < rowmax <= 1}.}
 

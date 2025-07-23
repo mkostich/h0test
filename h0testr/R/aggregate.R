@@ -95,7 +95,7 @@ f.combine_reps <- function(state, config) {
 ## helper for f.combine_feats; uses config$gene_id_col; 
 ##   sets config$feat_col and config$feat_id_col to config$gene_id_col:
 
-f.combine_peps_median_polish <- function(state, config) {
+f.combine_peps_median_polish <- function(state, config, maxit=30) {
 
   genes <- state$features[[config$gene_id_col]]
   
@@ -109,7 +109,8 @@ f.combine_peps_median_polish <- function(state, config) {
   config$feat_col <- config$feat_id_col <- config$gene_id_col
   
   f <- function(idxs) {
-    v <- MsCoreUtils::medianPolish(state$expression[idxs, ], na.rm=T)
+    v <- MsCoreUtils::medianPolish(state$expression[idxs, , drop=F], 
+      na.rm=T, maxiter=maxit)
     if(any(v <= 0, na.rm=T)) v <- v + 2 * abs(min(v, na.rm=T)) + 1
     return(v)
   }
@@ -119,7 +120,7 @@ f.combine_peps_median_polish <- function(state, config) {
   exprs <- exprs[genes2, , drop=F]
   
   state <- list(expression=exprs, features=feats, samples=state$samples)
-  
+    
   return(list(state=state, config=config))
 }
 
@@ -140,13 +141,17 @@ f.combine_peps_robust_summary <- function(state, config) {
   config$feat_col <- config$feat_id_col <- config$gene_id_col
   
   f <- function(idxs) {
-    v <- MsCoreUtils::robustSummary(state$expression[idxs, ], na.rm=T)
+    x <- state$expression[idxs, , drop=F]
+    i <- apply(x, 1, function(v) !all(is.na(v) | v %in% 0))
+    v <- MsCoreUtils::robustSummary(x[i, , drop=F], na.rm=T)
     if(any(v <= 0, na.rm=T)) v <- v + 2 * abs(min(v, na.rm=T)) + 1
     return(v)
   }
   
   exprs <- tapply(1:nrow(state$expression), genes, f)
+  nom <- names(exprs)
   exprs <- do.call(rbind, exprs)
+  rownames(exprs) <- nom
   genes2 <- feats[[config$gene_id_col]]
   exprs <- exprs[genes2, , drop=F]
   
@@ -218,17 +223,17 @@ f.combine_peps_robust_summary <- function(state, config) {
 #' print(state)
 #' str(config)
 #'
-#' ## combine reps using config$feature_aggregation ("medianPolish"):
+#' ## combine peps using config$feature_aggregation ("medianPolish"):
 #' out <- h0testr::f.combine_peps(state, config)
 #' print(out$state)
 #' str(out$config)
 #' 
-#' ## combine reps, overriding config$feature_aggregation:
+#' ## combine peps, overriding config$feature_aggregation:
 #' out <- h0testr::f.combine_peps(state, config, method="robustSummary")
 #' print(out$state)
 #' str(out$config)
 #'
-#' ## combine reps with rescaling:
+#' ## combine peps with rescaling:
 #' out <- h0testr::f.combine_peps(state, config, rescale=TRUE)
 #' print(out$state)
 #' str(out$config)
@@ -285,6 +290,7 @@ f.combine_peps <- function(state, config, method=NULL, rescale=FALSE) {
   config <- out$config
   
   f.check_state(state, config)
+
   f.report_state(state, config)
   
   if(!is.null(config$run_order)) {

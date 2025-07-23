@@ -4,7 +4,7 @@
 \alias{f.test_msqrob}
 \title{Hypothesis testing using the \code{msqrob2} package}
 \usage{
-f.test_msqrob(state, config, maxit = 20)
+f.test_msqrob(state, config, maxit = 100)
 }
 \arguments{
 \item{state}{List with elements like those returned by \code{f.read_data()}:

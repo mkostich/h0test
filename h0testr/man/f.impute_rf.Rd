@@ -8,12 +8,12 @@ f.impute_rf(
   state,
   config,
   is_log_transformed = NULL,
-  f_imp = f.impute_unif_sample_lod,
+  f_imp = f.impute_sample_lod,
   ntree = 100,
   mtry = NULL,
   aug_mult = 0.33,
   aug_add = 0,
-  aug_steps = 3,
+  aug_steps = NULL,
   verbose = T
 )
 }
@@ -44,7 +44,7 @@ node in each tree. \code{randomForest} \code{mtry} parameter.}
 \item{aug_add}{Numeric affine shift for training data augmentation.}
 
 \item{aug_steps}{Numeric (non-negative) number of augmentation steps. Set to
-\code{0} to skip augmentation.}
+\code{0} to skip augmentation. Default: \code{3}.}
 
 \item{verbose}{Logical if TRUE, emits progress messages.}
 }

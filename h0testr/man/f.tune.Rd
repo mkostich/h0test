@@ -10,10 +10,12 @@ f.tune(
     "max", "div.mean", "TMMwsp", "vsn", "qquantile", "log2", "none"),
   impute_methods = c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature",
     "glm_binom", "loess_logit", "glmnet", "rf", "knn", "min_det", "min_prob", "qrilc",
-    "bpca", "ppca", "svdImpute", "missforest", "none"),
-  impute_quantiles = c(0, 0.01, 0.05, 0.1, 0.25),
-  impute_scales = c(1, 0.5, 0.25, 0.1),
+    "bpca", "ppca", "svdImpute", "lls", "missforest", "none"),
+  impute_quantiles = c(0, 0.01, 0.05, 0.1),
+  impute_scales = c(1, 0.33, 0.1),
   impute_spans = c(0.25, 0.5, 0.75),
+  impute_npcs = c(3, 5, 10),
+  impute_ks = c(5, 10, 20),
   test_methods = c("trend", "deqms", "msqrob", "proda", "prolfqua", "voom")
 )
 }
@@ -21,10 +23,10 @@ f.tune(
 \item{config}{List with configuration values like those returned by \code{f.new_config()}.}
 
 \item{norm_methods}{Character vector of methods to try. One or more of:
-\code{c("TMM", "TMMwsp", "RLE", "upperquartile", "q50", "q75", "cpm", "vsn", "qquantile", "log2", "none")}.}
+\code{c("RLE", "upperquartile", "q50", "q75", "quantiles.robust", "cpm", "max", "div.mean", "TMMwsp", "vsn", "qquantile", "log2", "none")}.}
 
 \item{impute_methods}{Character vector of methods to try. One or more of:
-\code{c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", "none")}.}
+\code{c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", "knn", "min_det", "min_prob", "qrilc", "bpca", "ppca", "svdImpute", "lls", "missforest", "none")}.}
 
 \item{impute_quantiles}{Numeric vector of quantiles to try for \code{f.impute_unif_*} methods. 
 One or more values between \code{0.0} and \code{1.0}.}
@@ -33,6 +35,10 @@ One or more values between \code{0.0} and \code{1.0}.}
 See \code{f.impute_rnorm_feature()} \code{scale}. parameter.}
 
 \item{impute_spans}{Numeric vector of spans to try for \code{f.impute_loess_logit}.}
+
+\item{impute_npcs}{Numeric vector of N PCs to try for \code{impute_method \%in\% c("bpca", "ppca", "svdImpute")}.}
+
+\item{impute_ks}{Numeric vector of \code{k} to use for \code{impute_method \%in\% c("knn", "lls")}.}
 
 \item{test_methods}{Character vector with one or more of: 
 \code{c("voom", "trend", "deqms", "msqrob", "proda")}.}
@@ -71,6 +77,11 @@ Run a basic tuning loop that iterates over parameter combinations,
     \code{N} runs (we recommend \code{N >= 20}) with 
     \code{config$permute_var} set to the name of a variable in 
     \code{config$test_term}.
+  Currently tunes the following \code{config} values: \code{norm_method}, 
+    \code{norm_quantile}, \code{impute_method}, \code{impute_quantile}, 
+    \code{impute_scale}, \code{impute_span}, \code{impute_k}, 
+    \code{impute_npcs}, and \code{test_method}. Notably, does not currently 
+    tune \code{impute_alpha}, \code{impute_aug_steps}, or \code{run_order}. 
   See documentation for \code{h0testr::f.new_config()} 
     for more detailed description of configuration parameters.
 }

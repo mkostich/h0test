@@ -184,7 +184,7 @@ f.test_deqms <- function(state, config, trend=FALSE) {
 #' tbl <- h0testr::f.test_msqrob(out$state, out$config)
 #' head(tbl)
 
-f.test_msqrob <- function(state, config, maxit=20) {
+f.test_msqrob <- function(state, config, maxit=100) {
 
   f.check_config(config)
   f.check_state(state, config)
@@ -241,9 +241,9 @@ f.test_msqrob <- function(state, config, maxit=20) {
   
   dat <- SummarizedExperiment::rowData(obj[["genes"]])    
   tbl <- dat[[cols_pick]]
-  dat <- dat[, c(config$gene_id_col, "nNonZero", ".n")]
+  dat <- dat[, c(config$gene_id_col, "nNonZero", ".n"), drop=F]
   dat <- as.data.frame(dat)
-  tbl <- cbind(dat[rownames(tbl), ], tbl)
+  tbl <- cbind(dat[rownames(tbl), , drop=F], tbl)
   tbl <- tbl[order(tbl$adjPval, -abs(tbl$logFC)), ]
   rownames(tbl) <- NULL
   
@@ -490,7 +490,7 @@ f.test_prolfqua <- function(state, config, is_log_transformed=NULL) {
         trm, config=config)
     }
     meta$factors[[trm]] <- trm
-    dat[, trm] <- as.character(samps[dat$sample, trm])
+    dat[, trm] <- as.character(samps[dat$sample, trm, drop=T])
   }
   obj <- prolfqua::LFQData$new(data=dat, config=meta)
   
@@ -563,7 +563,7 @@ f.test_voom <- function(state, config, normalize.method="none") {
   
   exprs <- state$expression
   i <- apply(exprs, 1, function(v) any(is.na(v)))
-  exprs <- exprs[!i, ]
+  exprs <- exprs[!i, , drop=F]
   
   design <- stats::model.matrix(config$frm, data=state$samples)
   obj <- limma::voom(exprs, design, plot=F, normalize.method=normalize.method)
@@ -736,7 +736,7 @@ f.format_proda <- function(tbl, config) {
   tbl <- data.frame(feature=tbl$name, expr=tbl$avg_abundance, 
     logfc=tbl$diff, stat=tbl$t_statistic, lod=as.numeric(NA), 
     pval=tbl$pval, adj_pval=tbl$adj_pval)
-    
+  
   tbl <- tbl[order(tbl$pval, decreasing=F), , drop=F]
   rownames(tbl) <- NULL
   
@@ -886,8 +886,6 @@ f.test_methods <- function() {
 
 f.test <- function(state, config, method=NULL, 
     is_log_transformed=NULL, prior_df=NULL) {
-
-  f.report_config(config)
   
   if(is.null(method) || method %in% "") method <- config$test_method
   if(is.null(method) || method %in% "") {
@@ -927,7 +925,7 @@ f.test <- function(state, config, method=NULL,
   feats <- state$features
   if(method %in% c("deqms", "msqrob")) {
     test_col <- config$gene_id_col
-    feats <- feats[!duplicated(feats[[test_col]]), ]
+    feats <- feats[!duplicated(feats[[test_col]]), , drop=F]
     if(!(config$feat_id_col %in% config$gene_id_col)) {
       feats[[config$feat_id_col]] <- NULL
     }

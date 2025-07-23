@@ -8,7 +8,7 @@ f.impute_pca(
   state,
   config,
   is_log_transformed = NULL,
-  n_pcs = 5,
+  n_pcs = NULL,
   method = "bpca"
 )
 }
@@ -25,7 +25,7 @@ f.impute_pca(
 \item{is_log_transformed}{Logical scalar: if \code{state$expression} has 
 been log transformed.}
 
-\item{n_pcs}{Number (scalar numeric >= 1) of principle components to compute.}
+\item{n_pcs}{Number (scalar numeric >= 1) of principle components to compute. Default: \code{5}.}
 
 \item{method}{Method to use. Scalar character in \code{c("bpca", "ppca", "svdImpute")}.}
 }

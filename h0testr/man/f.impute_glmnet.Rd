@@ -10,11 +10,11 @@ f.impute_glmnet(
   is_log_transformed = NULL,
   f_imp = f.impute_unif_sample_lod,
   nfolds = 5,
-  alpha = 1,
+  alpha = NULL,
   measure = "mae",
   aug_mult = 0.33,
   aug_add = 0,
-  aug_steps = 3,
+  aug_steps = NULL,
   verbose = T
 )
 }
@@ -37,7 +37,8 @@ been log transformed.}
 \item{nfolds}{Numeric (greater than or equal to 2) number of folds for 
 cross-validation tuning of \code{lambda} value for \code{glmnet}.}
 
-\item{alpha}{Numeric (between 0 and 1) number of trees in random forest.}
+\item{alpha}{Numeric (between 0 and 1) number of trees in random forest.
+Default: \code{1.0}.}
 
 \item{measure}{Character in set \code{c("mae", "mse")}. Loss function used 
 during cross-validation tuning of \code{lambda} value for \code{glmnet}.}
@@ -47,7 +48,7 @@ during cross-validation tuning of \code{lambda} value for \code{glmnet}.}
 \item{aug_add}{Numeric affine shift for training data augmentation.}
 
 \item{aug_steps}{Numeric (non-negative) number of augmentation steps. Set to
-\code{0} to skip augmentation.}
+\code{0} to skip augmentation. Default: \code{3}.}
 
 \item{verbose}{Logical if \code{TRUE}, emits progress messages.}
 }

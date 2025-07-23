@@ -17,7 +17,7 @@ f.sim2(
   log_m_sd = 2.7,
   log_cv_mean = -0.75,
   log_cv_sd = 0.5,
-  p_drop = 0,
+  p_drop = 0.75,
   mnar_c0 = 4.65,
   mnar_c1 = -0.5,
   mnar_off = 1e-04,
@@ -72,9 +72,11 @@ Numeric, with \code{0 <= mcar_p <= 1};}
 \value{
 List with elements:
   \tabular{ll}{
-    \code{mat}       \cr \tab Non-negative numeric matrix with \code{n_feats} rows and \code{n_obs} columns. \cr
-    \code{feat_mean} \cr \tab Numeric vector of non-negative parameter means for each feature in \code{mat}. \cr
-    \code{feat_cv}   \cr \tab Numeric vector of non-negative parameter CVs for each feature in \code{mat}. \cr
+    \code{mat}        \cr \tab Non-negative numeric matrix with \code{n_feats} rows and \code{n_obs} columns. \cr
+    \code{feat_mean1} \cr \tab Vector of group1 means for each feature in \code{mat}. \cr
+    \code{feat_mean2} \cr \tab Vector of group2 means for each feature in \code{mat}. \cr
+    \code{feat_cv}    \cr \tab Vector of within-group CVs for each feature in \code{mat}. \cr
+    \code{gene_logfc} \cr \tab Log-fold change for each gene. \cr
   }
 }
 \description{

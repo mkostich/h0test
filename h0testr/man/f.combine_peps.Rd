@@ -77,17 +77,17 @@ rm(tmp, exprs, feats, samps)
 print(state)
 str(config)
 
-## combine reps using config$feature_aggregation ("medianPolish"):
+## combine peps using config$feature_aggregation ("medianPolish"):
 out <- h0testr::f.combine_peps(state, config)
 print(out$state)
 str(out$config)
 
-## combine reps, overriding config$feature_aggregation:
+## combine peps, overriding config$feature_aggregation:
 out <- h0testr::f.combine_peps(state, config, method="robustSummary")
 print(out$state)
 str(out$config)
 
-## combine reps with rescaling:
+## combine peps with rescaling:
 out <- h0testr::f.combine_peps(state, config, rescale=TRUE)
 print(out$state)
 str(out$config)

@@ -8,7 +8,7 @@ f.impute_lls(
   state,
   config,
   is_log_transformed = NULL,
-  k = 5,
+  k = NULL,
   method = "pearson",
   maxit = 100
 )
@@ -27,7 +27,7 @@ pass empty list.}
 \item{is_log_transformed}{Logical scalar: if \code{state$expression} has 
 been log transformed.}
 
-\item{k}{Number (scalar numeric with \code{k >= 2}) of features per local cluster.}
+\item{k}{Number (scalar numeric with \code{k >= 2}) of features per local cluster. Default: \code{5}.}
 
 \item{method}{Name of correlation method; scalar character in 
 \code{c("pearson", "kendall", "spearman")}}

@@ -1,11 +1,11 @@
 ## helper; n normally distributed positive values with means m and sds s:
 
-f.rnorm_pos <- function(n, m, s) {
+f.sim_rnorm_pos <- function(n, m, s) {
   
-  if(any(m < 0)) stop("f.rnorm_pos: any(m < 0); m: ", m)
-  if(length(m) != length(s)) stop("f.rnorm_pos: length(m) != length(s)") 
+  if(any(m < 0)) stop("f.sim_rnorm_pos: any(m < 0); m: ", m)
+  if(length(m) != length(s)) stop("f.sim_rnorm_pos: length(m) != length(s)") 
   
-  v <- stats::rnorm(n[1], mean=m, sd=s)
+  v <- stats::rnorm(n, mean=m, sd=s)
   i <- v <= 0
   i[is.na(i)] <- T
   
@@ -21,14 +21,41 @@ f.rnorm_pos <- function(n, m, s) {
 ## helper for f.sim1 and f.sim2; ensures all values strictly positive (> 0):
 
 f.sim0 <- function(n_obs, feat_means, feat_sds) {
-
+  
   mat <- NULL
-
+  
   for(i_obs in 1:n_obs) {
-    v <- f.rnorm_pos(n=length(feat_means), m=feat_means, s=feat_sds)
+    v <- f.sim_rnorm_pos(n=length(feat_means), m=feat_means, s=feat_sds)
     mat <- cbind(mat, v)
   }
+  
+  return(mat)
+}
 
+## technical replication:
+
+f.sim_tech_reps <- function(mat, reps_per_sample, cv_reps) {
+
+  if(reps_per_sample < 2) return(mat)
+  
+  f <- function(v) {
+    f0 <- function(val) {
+      if(is.na(val)) {
+        return(rep(NA, reps_per_sample))
+      } else {
+        return(f.sim_rnorm_pos(n=reps_per_sample, m=val, s=cv_reps * val))
+      }
+    }
+    return(list(t(sapply(v, f0))))
+  }
+  tmp_list <- apply(mat, 2, f)
+  
+  for(nom in names(tmp_list)) {
+    tmp_list[[nom]] <- tmp_list[[nom]][[1]]
+    colnames(tmp_list[[nom]]) <- paste0(nom, "_rep", 1:reps_per_sample)
+  }
+  mat <- do.call(cbind, tmp_list)
+  
   return(mat)
 }
 
@@ -36,12 +63,12 @@ f.sim0 <- function(n_obs, feat_means, feat_sds) {
 ##   logit model. Drops cells in mat randomly based on p(missing|log(intensity)):
 
 f.mnar <- function(mat, mnar_c0, mnar_c1, mnar_off=0.0001) {
-
+  
   f <- function(v) {
-
+    
     resp <- mnar_c0 + mnar_c1 * log(v + mnar_off)   ## logit(p_mnar) ~ c0 + c1 * log(intensity)
     p_mnar = exp(resp) / (1 + exp(resp))            ## inverse logit
-
+    
     i_mnar <- as.logical(stats::rbinom(length(v), 1, p_mnar))
     v[i_mnar] <- NA
     
@@ -49,6 +76,29 @@ f.mnar <- function(mat, mnar_c0, mnar_c1, mnar_off=0.0001) {
   }
   
   return(apply(mat, 2, f))
+}
+
+## mcar:
+
+f.mcar <- function(mat, mcar_p) {
+
+  i_mcar <- as.logical(stats::rbinom(length(c(mat)), 1, mcar_p))
+  i_mcar <- matrix(i_mcar, nrow=nrow(mat), ncol=ncol(mat))
+  mat[i_mcar] <- NA
+  
+  return(mat)
+}
+
+## heterogenous number of peptides per gene if p_drop > 0:
+
+f.pep_drop <- function(mat, peps_per_gene, p_drop) {
+
+  if(p_drop > 0 && peps_per_gene >= 2) {
+    i_drop <- as.logical(stats::rbinom(nrow(mat), 1, p_drop))
+    mat <- mat[!i_drop, ]
+  }
+  
+  return(mat)
 }
 
 #' Simulate a one-condition dataset
@@ -100,7 +150,7 @@ f.sim1 <- function(n_obs, n_feats, log_m_mean=11, log_m_sd=2.7,
     mnar_off=0.0001, mcar_p=0.002) {
 
   ## feature mean, cv, and sd:
-  m <- exp(f.rnorm_pos(n=n_feats, m=log_m_mean, s=log_m_sd))
+  m <- exp(f.sim_rnorm_pos(n=n_feats, m=log_m_mean, s=log_m_sd))
   cv <- exp(stats::rnorm(n_feats, mean=log_cv_mean, sd=log_cv_sd))
   s <- m * cv
   
@@ -168,9 +218,11 @@ f.sim1 <- function(n_obs, n_feats, log_m_mean=11, log_m_sd=2.7,
 #'   Numeric, with \code{0 <= mcar_p <= 1};
 #' @return List with elements:
 #'   \tabular{ll}{
-#'     \code{mat}       \cr \tab Non-negative numeric matrix with \code{n_feats} rows and \code{n_obs} columns. \cr
-#'     \code{feat_mean} \cr \tab Numeric vector of non-negative parameter means for each feature in \code{mat}. \cr
-#'     \code{feat_cv}   \cr \tab Numeric vector of non-negative parameter CVs for each feature in \code{mat}. \cr
+#'     \code{mat}        \cr \tab Non-negative numeric matrix with \code{n_feats} rows and \code{n_obs} columns. \cr
+#'     \code{feat_mean1} \cr \tab Vector of group1 means for each feature in \code{mat}. \cr
+#'     \code{feat_mean2} \cr \tab Vector of group2 means for each feature in \code{mat}. \cr
+#'     \code{feat_cv}    \cr \tab Vector of within-group CVs for each feature in \code{mat}. \cr
+#'     \code{gene_logfc} \cr \tab Log-fold change for each gene. \cr
 #'   }
 #' @examples
 #' ## default missing value settings:
@@ -192,38 +244,47 @@ f.sim1 <- function(n_obs, n_feats, log_m_mean=11, log_m_sd=2.7,
 f.sim2 <- function(n_samps1, n_samps2, n_genes, n_genes_signif=0, 
     fold_change=0.5, peps_per_gene=1, reps_per_sample=1, cv_reps=0.1, 
     log_m_mean=11, log_m_sd=2.7, log_cv_mean=-0.75, log_cv_sd=0.5, 
-    p_drop=0, mnar_c0=4.65, mnar_c1=-0.5, mnar_off=0.0001, mcar_p=0.002) {
-    
+    p_drop=0.75, mnar_c0=4.65, mnar_c1=-0.5, mnar_off=0.0001, mcar_p=0.002) {
+  
   if(n_samps1 < 1 || n_samps2 < 1) stop("n_samps1 < 1 || n_samps2 < 1")
   if(n_genes < 2 || n_genes_signif < 0) stop("n_genes < 2 || n_genes_signif < 0")
   
   ## feature mean, cv, and sds:
   cv <- exp(stats::rnorm(n_genes * peps_per_gene, mean=log_cv_mean, sd=log_cv_sd))
-  m1 <- exp(f.rnorm_pos(n=n_genes * peps_per_gene, m=log_m_mean, s=log_m_sd))
+  m1 <- exp(f.sim_rnorm_pos(n=n_genes * peps_per_gene, m=log_m_mean, s=log_m_sd))
   s1 <- m1 * cv
   
   ## genes, significance, peptides, and labels:
-  gene <- paste0("gene", 1:n_genes)
-  sig_genes <- sample(gene, n_genes_signif)
+  genes <- paste0("gene", 1:n_genes)
+  sig_genes <- sample(genes, n_genes_signif)
   if(peps_per_gene >= 2) {
-    pep_labels <- do.call(paste0, expand.grid(paste0("_pep", 1:peps_per_gene), gene)[, c(2, 1)])
+    pep_labels <- do.call(paste0, expand.grid(paste0("_pep", 1:peps_per_gene), genes)[, c(2, 1), drop=F])
     gene_labels <- sub("\\_.*", "", pep_labels)
   } else {
-    gene_labels <- pep_labels <- gene
+    gene_labels <- pep_labels <- genes
   }
   
   ## group "grp1":
   mat1 <- f.sim0(n_obs=n_samps1, feat_means=m1, feat_sds=s1)
   colnames(mat1) <- paste0("grp1_samp", 1:n_samps1)
   
-  ## effects; equal chance of up or down:
+  ## initialize second group to same values:
   m2 <- m1
+  names(m1) <- names(m2) <- names(cv) <- pep_labels
+  
+  ## effects; equal chance of up or down:
+  
+  logfc <- rep(0, length(genes))
+  names(logfc) <- genes
+  
   for(gene in sig_genes) {
     i_gene <- gene_labels %in% gene
     if(as.logical(stats::rbinom(1, 1, prob=0.5))) {
       m2[i_gene] <- m2[i_gene] * 2^(fold_change)
+      logfc[gene] <- fold_change
     } else {
       m2[i_gene] <- m2[i_gene] * 2^(-fold_change)
+      logfc[gene] <- -fold_change
     }
   }
   s2 <- m2 * cv
@@ -232,44 +293,30 @@ f.sim2 <- function(n_samps1, n_samps2, n_genes, n_genes_signif=0,
   mat2 <- f.sim0(n_obs=n_samps2, feat_means=m2, feat_sds=s2)
   colnames(mat2) <- paste0("grp2_samp", 1:n_samps2)
   
+  ## put it together:
   mat <- cbind(mat1, mat2)
   rownames(mat) <- pep_labels
   
-  ## technical replication:
-  if(reps_per_sample >= 2) {
-    
-    f <- function(v) {
-      f0 <- function(val) {
-        if(is.na(val)) {
-          return(rep(NA, reps_per_sample))
-        } else {
-          return(f.rnorm_pos(n=reps_per_sample, m=val, s=cv_reps * val))
-        }
-      }
-      return(list(t(sapply(v, f0))))
-    }
-    tmp_list <- apply(mat, 2, f)
-    
-    for(nom in names(tmp_list)) {
-      tmp_list[[nom]] <- tmp_list[[nom]][[1]]
-      colnames(tmp_list[[nom]]) <- paste0(nom, "_rep", 1:reps_per_sample)
-    }
-    mat <- do.call(cbind, tmp_list)
+  ## technical replication:  
+  mat <- f.sim_tech_reps(mat, reps_per_sample=reps_per_sample, cv_reps=cv_reps)
+  if(any(is.na(c(mat)) | c(mat) <= 0, na.rm=T)) {
+    stop("f.sim2: any(is.na(c(mat1)) | c(mat1) <= 0); min(c(mat1)):", min(c(mat1)))
   }
+  
+  ## mnar -> mcar:
+  mat <- f.mnar(mat, mnar_c0=mnar_c0, mnar_c1=mnar_c1)
+  mat <- f.mcar(mat, mcar_p=mcar_p)
   
   ## heterogenous number of peptides per gene if p_drop > 0:
-  if(p_drop > 0 && peps_per_gene >= 2) {
-    i_drop <- as.logical(stats::rbinom(nrow(mat), 1, 1-p_drop))
-    mat <- mat[i_drop, ]
-  }
+  mat <- f.pep_drop(mat, peps_per_gene=peps_per_gene, p_drop=p_drop)
   
-  ## mnar:
-  mat <- f.mnar(mat, mnar_c0=mnar_c0, mnar_c1=mnar_c1)
+  m1 <- m1[names(m1) %in% rownames(mat)]
+  m2 <- m2[names(m2) %in% rownames(mat)]
+  cv <- cv[names(cv) %in% rownames(mat)]
   
-  ## mcar:
-  i_mcar <- as.logical(stats::rbinom(length(mat), 1, mcar_p))
-  i_mcar <- matrix(i_mcar, nrow=nrow(mat), ncol=ncol(mat))
-  mat[i_mcar] <- NA
+  genes <- strsplit(rownames(mat), "_")
+  genes <- sapply(genes, function(v) unlist(v)[1])
+  logfc <- logfc[names(logfc) %in% genes]
   
-  return(list(mat=round(mat), feat_mean1=m1, feat_mean2=m2, feat_cv=cv))
+  return(list(mat=ceiling(mat), feat_mean1=m1, feat_mean2=m2, feat_cv=cv, gene_logfc=logfc))
 }

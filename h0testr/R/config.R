@@ -94,8 +94,7 @@ f.new_config <- function() {
     n_features_min=1000,                 ## min features/sample w/ expression > 0 to keep sample
     feature_aggregation="medianPolish",  ## in c("medianPolish", "robustSummary", "none")
     feature_aggregation_scaled=FALSE,    ## whether to rescale peptide features prior to aggregation into protein/gene group.
-    ## in: c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", "none")
-    impute_method="unif_sample_lod",
+    impute_method="sample_lod",          ## method for imputing missing values
     impute_quantile=0.01,                ## quantile for unif_ imputation methods
     impute_scale=1,                      ## for rnorm_feature, adjustment on sd of distribution [1: no change];
     impute_span=0.5,                     ## loess span for f.impute_loess_logit
