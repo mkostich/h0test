@@ -426,8 +426,10 @@ f.normalize_mscoreutils <- function(state, config, method=NULL) {
   }
   
   ## does not work with integer:
+  rnames <- rownames(state$expression)
   state$expression <- apply(state$expression, 2, as.numeric)
   state$expression <- MsCoreUtils::normalize_matrix(state$expression, method=method)
+  rownames(state$expression) <- rnames
   
   return(state)
 }
