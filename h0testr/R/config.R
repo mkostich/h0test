@@ -105,7 +105,7 @@ f.new_config <- function() {
     impute_aug_steps=3,                  ## data augmentation iterations for f.impute_rf() and f.impute_glmnet()
     test_method="trend",                 ## in c("voom", "trend", "deqms", "msqrob", "proda")
     test_prior_df=3,                     ## prior df for f.test_proda()
-    ## run_order character vector with elements from {"normalize", "combine_reps", "filter", "impute"}:
+    ## run_order character vector with elements from {"normalize", "combine_reps", "combine_peps", "filter", "impute"}:
     run_order=c("normalize", "combine_reps", "combine_peps", "filter", "impute"),   ## order of workflow operations
     
     ## misc; 

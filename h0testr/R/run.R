@@ -359,7 +359,7 @@ f.tune <- function(
             "rf", "missforest", "none")) {
           
           f.log_block("norm_method:", norm_method, "; test_method:", test_method, "; impute_method:", impute_method, config=config3)
-          if(any(is.na(c(state3$expression))) && test_method %in% c("msqrob")) {
+          if(any(is.na(c(state3$expression))) && test_method %in% c("msqrob", "voom")) {
             f.msg("WARNING: OIL_WATER: skipping test_method", test_method, 
               "because of NAs in expression", config=config)
             next
