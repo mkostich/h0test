@@ -438,7 +438,7 @@ f.test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, max
 #' head(tbl)
 
 f.test_prolfqua <- function(state, config, is_log_transformed=NULL) {
-
+  
   if(is.null(is_log_transformed) || is_log_transformed %in% "") {
     if(is.null(config$norm_method) || config$norm_method %in% "") {
       f.err("f.test_prolfqua: is_log_transformed and config$norm_method both unset", 
