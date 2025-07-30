@@ -5,7 +5,7 @@
 #'   Expression data from \code{config$data_file_in} in \code{config$dir_in}.
 #'   Feature metadata from \code{config$feature_file_in} in \code{config$dir_in}.
 #'   Observation metadata from \code{config$sample_file_in} in \code{config$dir_in}.
-#'   See documentation for \code{h0testr::f.new_config()} 
+#'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
 #' @param config List with configuration values. Requires the following keys:
 #'   \tabular{ll}{
@@ -25,7 +25,7 @@
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   }
 #' @examples
-#' config <- h0testr::f.new_config()
+#' config <- h0testr::new_config()
 #' config$save_state <- FALSE
 #' config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
 #' config$feature_file_in <- "features.tsv"
@@ -34,16 +34,16 @@
 #' config$feat_id_col <- "feature_id"
 #' config$obs_id_col <- "observation_id"
 #' 
-#' state <- h0testr::f.read_data(config)
+#' state <- h0testr::read_data(config)
 #' 
 #' names(state)
 #' print(state$features)
 #' print(state$samples)
 #' print(state$expression[1:6, 1:6])
 
-f.read_data <- function(config) {
+read_data <- function(config) {
 
-  f.check_config(config)
+  check_config(config)
   
   f.log("reading data", config=config)
   
@@ -58,7 +58,7 @@ f.read_data <- function(config) {
   exprs <- as.matrix(exprs)
   
   if(!(typeof(exprs) %in% c("double", "integer"))) {
-    f.err("f.read_data: !(typeof(exprs) %in% c('double', 'integer'))", 
+    f.err("read_data: !(typeof(exprs) %in% c('double', 'integer'))", 
       "typof(exprs):", typeof(exprs), config=config)
   }
   
@@ -216,12 +216,12 @@ f.set_covariate_factor_levels <- function(state, config) {
 #'     according to \code{config$sample_factors}.
 #'   Flow is:
 #'     \tabular{l}{
-#'       1. \code{f.check_config()}. 
-#'       2. Subset covariates in \code{config$frm} by calling \code{f.check_parameters()}. 
+#'       1. \code{check_config()}. 
+#'       2. Subset covariates in \code{config$frm}. 
 #'       3. Check feat_col and obs_col.
-#'       4. \code{f.subset_covariates(}.
-#'       5. \code{f.set_covariate_factor_levels}.
-#'       5. Return sub-table of ANOVA results corresponding to 
+#'       4. Subset covariates of interest.
+#'       5. Set covariate factor levels.
+#'       6. Return sub-table of ANOVA results corresponding to 
 #'            \code{config$test_term}.
 #'     }
 #'   If \code{initialized=FALSE}, then checks if \code{state$features} has 
@@ -229,7 +229,7 @@ f.set_covariate_factor_levels <- function(state, config) {
 #'     \code{c(config$n_samples_expr_col, config$median_raw_col)}; and if 
 #'     \code{state$samples} has a column named \code{config$n_features_expr_col}. 
 #'     If either is \code{TRUE}, results in error.
-#'   See documentation for \code{h0testr::f.new_config()} 
+#'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by \code{f.read_data()}:
 #'   \tabular{ll}{
@@ -268,7 +268,7 @@ f.set_covariate_factor_levels <- function(state, config) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' exprs <- h0testr::sim1(n_obs=6, n_feats=12)$mat
 #' feats <- data.frame(feature_id=rownames(exprs), gene_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs), 
 #'   condition=c(rep("ctl", 3), rep("trt", 3)))
@@ -284,7 +284,7 @@ f.set_covariate_factor_levels <- function(state, config) {
 #'   test_term="condition",
 #'   sample_factors=list(condition=c("ctl", "trt"))
 #' )
-#' out <- h0testr::f.initialize(state, config, minimal=TRUE)
+#' out <- h0testr::initialize(state, config, minimal=TRUE)
 #' print(out$state)
 #' str(out$config)
 #'
@@ -300,14 +300,14 @@ f.set_covariate_factor_levels <- function(state, config) {
 #'   median_raw_col="median_raw",
 #'   n_features_expr_col="n_features_exprs"
 #' )
-#' out <- h0testr::f.initialize(state, config)
+#' out <- h0testr::initialize(state, config)
 #' print(out$state)
 #' str(out$config)
 
-f.initialize <- function(state, config, initialized=F, minimal=F) {
+initialize <- function(state, config, initialized=F, minimal=F) {
   
   f.log("initializing", config=config)
-  f.check_config(config)  
+  check_config(config)  
   f.check_parameters(state, config, initialized=initialized, minimal=minimal)
   
   if(is.null(config$feat_col) || config$feat_col %in% "") {
@@ -326,148 +326,15 @@ f.initialize <- function(state, config, initialized=F, minimal=F) {
 
 ###############################################################################
 
-#' Add filter statistics
-#' @description
-#'   Adds filtering-related statistics to \code{state$features}, 
-#'     and \code{state$samples}.
-#' @details 
-#'   Wrapper for \code{f.samples_per_feature()}, \code{f.feature_median_expression()}, 
-#'     \code{f.features_per_sample()}. Also reports quantiles of distributions. 
-#'   See documentation for \code{h0testr::f.new_config()} 
-#'     for more detailed description of configuration parameters. 
-#' @param state List with elements formatted like the list returned by \code{f.read_data()}:
-#'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
-#'   } 
-#' @param config List with configuration values. Requires the following keys:
-#'   \tabular{ll}{
-#'     \code{feat_col}  \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
-#'     \code{obs_col}   \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{expression}. \cr
-#'   }
-#' @return A list (the processed state) with the following elements:
-#'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
-#'   } 
-#' @examples
-#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=8)$mat
-#' feats <- data.frame(feature_id=rownames(exprs))
-#' samps <- data.frame(observation_id=colnames(exprs))
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- h0testr::f.new_config()      ## defaults
-#' config$save_state <- FALSE             ## default is TRUE
-#' config$feat_col <- config$feat_id_col
-#' config$obs_col <- config$obs_id_col
-#' state <- h0testr::f.add_filter_stats(state, config)
-#' print(state)
-
-f.add_filter_stats <- function(state, config) {
-  
-  f.check_config(config)
-  
-  n <- f.samples_per_feature(state, config)
-  if(!all(names(n) == state$features[[config$feat_col]])) {
-    f.err("f.add_filter_stats: !all(names(n) == state$features[[config$feat_col]])", 
-      config=config)
-  }
-  state$features[, config$n_samples_expr_col] <- n
-  
-  m <- f.feature_median_expression(state, config)
-  if(!all(names(m) == state$features[[config$feat_col]])) {
-    f.err("f.add_filter_stats: !all(names(m) == state$features[[config$feat_col]])", 
-      config=config)
-  }
-  state$features[, config$median_raw_col] <- m
-  
-  n <- f.features_per_sample(state, config)
-  if(!all(names(n) == state$samples[[config$obs_col]])) {
-    f.err("f.add_filter_stats: !all(names(n) == state$samples[, config$obs_col])", 
-      config=config)
-  } 
-  state$samples[, config$n_features_expr_col] <- n
-  
-  n <- apply(state$expression, 1, function(v) sum(v > 0, na.rm=T))
-  f.msg("samples per feature:", config=config)
-  f.quantile(n, config, digits=0)
-  
-  n <- apply(state$expression, 2, function(v) sum(v > 0, na.rm=T))
-  f.msg("features per sample", config=config)
-  f.quantile(n, config, digits=0)
-  
-  return(state)
-}
-
-#' Prefilter data
-#' @description
-#'   Adds filtering-related statistics to \code{state$features}, 
-#'     and \code{state$samples}.
-#' @details 
-#'   Wrapper for \code{f.samples_per_feature()}, \code{f.feature_median_expression()}, 
-#'     \code{f.features_per_sample()}. Also reports quantiles of distributions. 
-#'   See documentation for \code{h0testr::f.new_config()} 
-#'     for more detailed description of configuration parameters. 
-#' @param state List with elements formatted like the list returned by \code{f.read_data()}:
-#'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
-#'   } 
-#' @param config List with configuration values. Requires the following keys:
-#'   \tabular{ll}{
-#'     \code{feat_id_col}  \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
-#'     \code{obs_id_col}   \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{expression}. \cr
-#'   }
-#' @param n_samples_min minimum number of samples per feature; numeric >= 2.
-#' @param n_features_min minimum number of features per sample; numeric >= 2.
-#' @return A list (the filtered state) with the following elements:
-#'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
-#'   } 
-#' @examples
-#' set.seed(101)
-#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12, mcar_p=0.75)$mat
-#' feats <- data.frame(feature_id=rownames(exprs))
-#' samps <- data.frame(observation_id=colnames(exprs))
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(feat_col="feature_id", obs_col="observation_id")
-#' state2 <- h0testr::f.prefilter(state, config)
-#' print(state2)
-
-f.prefilter <- function(state, config, n_samples_min=2, n_features_min=2) {
-
-  f.check_config(config)
-  
-  f.log_block("prefilter features and samples", config=config)
-  f.msg("before filtering features:", config=config)
-  f.report_state(state, config)
-  
-  state <- f.filter_features(state, config, n_samples_min=n_samples_min)
-  f.msg("after filtering features", config=config)
-  f.report_state(state, config)
-  
-  state <- f.filter_observations(state, config, n_features_min=n_features_min)
-  f.msg("after filtering samples", config=config)
-  f.report_state(state, config)
-  
-  f.check_state(state, config)
-  
-  return(state)
-}
-
 #' Permute data
 #' @description Permute observation covariate.
 #' @details If \code{variable} is \code{NULL}, uses \code{config$permute_var} 
 #'   instead. If \code{variable} is \code{NULL} and 
 #'   \code{config$permute_var == ""}, skips permutation (normal execution).
-#'   See documentation for \code{h0testr::f.new_config()} 
+#'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by 
-#'   \code{f.read_data()}:
+#'   \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -487,18 +354,18 @@ f.prefilter <- function(state, config, n_samples_min=2, n_features_min=2) {
 #'   } 
 #' @examples
 #' set.seed(101)
-#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' exprs <- h0testr::sim1(n_obs=6, n_feats=12)$mat
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs), age=c(rep("young", 3), rep("old", 3)))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' print(state)
 #' config <- list(feat_col="feature_id", obs_col="observation_id", sample_id_col="observation_id", permute_var="age")
-#' state2 <- h0testr::f.permute(state, config)
+#' state2 <- h0testr::permute(state, config)
 #' print(state2)
 
-f.permute <- function(state, config, variable=NULL) {
+permute <- function(state, config, variable=NULL) {
 
-  f.check_config(config)
+  check_config(config)
   
   if(is.null(variable)) variable <- config$permute_var
   
@@ -506,7 +373,7 @@ f.permute <- function(state, config, variable=NULL) {
     f.log_block("skipping permutation", config=config)
   } else {
     if(!(variable %in% colnames(state$samples))) {
-      f.err("f.permute: !(variable %in% colnames(state$samples))", config=config)
+      f.err("permute: !(variable %in% colnames(state$samples))", config=config)
     }
     f.log_block("permuting", variable, config=config)
     tmp <- state$samples[
@@ -528,7 +395,7 @@ f.permute <- function(state, config, variable=NULL) {
 #'   Load data and metadata from files, format, and save initial copies.
 #' @details Loads data from files specified in \code{config}. Prefilter uninformative rows
 #'   and columns. Permute variable if requested. Save final copies.
-#'   See documentation for \code{h0testr::f.new_config()} 
+#'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
 #' @param config List with configuration values. Requires the following keys:
 #'   \tabular{ll}{
@@ -548,7 +415,7 @@ f.permute <- function(state, config, variable=NULL) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#' config <- h0testr::f.new_config()     ## defaults
+#' config <- h0testr::new_config()     ## defaults
 #' config$save_state <- FALSE            ## default is TRUE
 #' config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
 #' config$feature_file_in <- "features.tsv"
@@ -563,7 +430,7 @@ f.permute <- function(state, config, variable=NULL) {
 #' config$test_method <- "trend"
 #' config$sample_factors <- list(condition=c("placebo", "drug"))
 #' 
-#' output <- h0testr::f.load_data(config)
+#' output <- h0testr::load_data(config)
 #' 
 #' names(output)
 #' names(output$state)
@@ -571,22 +438,22 @@ f.permute <- function(state, config, variable=NULL) {
 #' output$state$samples
 #' output$state$features
 
-f.load_data <- function(config) {
+load_data <- function(config) {
   
-  f.report_config(config)
+  report_config(config)
   
-  state <- f.read_data(config)
-  out <- f.initialize(state, config)
+  state <- read_data(config)
+  out <- initialize(state, config)
   state <- out$state
   config <- out$config
   
-  state <- f.add_filter_stats(state, config)
+  state <- add_filter_stats(state, config)
   f.check_state(state, config)
   f.report_state(state, config)
   f.save_state(state, config, prefix="1.initial")
   
-  state <- f.prefilter(state, config)
-  state <- f.permute(state, config)
+  state <- prefilter(state, config)
+  state <- permute(state, config)
   
   f.check_state(state, config)
   f.report_state(state, config)

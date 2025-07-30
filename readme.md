@@ -56,7 +56,7 @@ help(package="h0testr")
 
 ```
 ## get a default configuration object:
-config <- h0testr::f.new_config()
+config <- h0testr::new_config()
 str(config)                                          ## view default settings
 
 ## customize input/output files:
@@ -157,7 +157,7 @@ unique observation identifiers.
 ## Configuration
   
 Runs are configured by editing the list object returned by the 
-`f.new_config()` function, which contains the default configuration. The most 
+`new_config()` function, which contains the default configuration. The most 
 frequently changed settings are towards the top of the returned list of 
 defaults, and are briefly described below. **At a minimum**: edit the
 the `frm`, `test_term`, and `sample_factors`, as the defaults are almost 
@@ -209,14 +209,14 @@ suffix_out=".tsv"                   ## suffix for output files
 ## tunable options: defaults are usually ok, except:
 ##   for dia: usually works ok: RLE:unif_sample_lod:0.05 for norm_method:impute_method:impute_quantile
 ##   for dda: usually works ok: quantile:0.75:unif_sample_lod:0 for norm_method:norm_quantile:impute_method:impute_quantile
-norm_method="RLE"                   ## normalization method; h0testr::f.normalize_methods() to see available choices.
+norm_method="RLE"                   ## normalization method; h0testr::normalize_methods() to see available choices.
 norm_quantile=0.75                  ## for quantile normalization; 0.5 is median; 0.75 is upper quartile
 norm_span=0.7                       ## span for norm_method %in% "loess"
 n_samples_min=2                     ## min(samples/feature w/ feature expression > 0) to keep feature
 n_features_min=1000                 ## min(features/sample w/ expression > 0) to keep sample
 feature_aggregation="medianPolish"  ## in c("medianPolish", "robustSummary", "none")
 feature_aggregation_scaled=FALSE    ## whether to rescale peptide features prior to aggregation into protein/gene group.
-impute_method="sample_lod"          ## imputation method; h0testr::f.impute_methods() to see available choices.
+impute_method="sample_lod"          ## imputation method; h0testr::impute_methods() to see available choices.
 impute_quantile=0.01                ## quantile for unif_* imputation methods
 impute_scale=1                      ## for rnorm_feature, adjustment on sd of distribution [1: no change];
 impute_span=0.5                     ## loess span for impute_method %in% "loess_logit"
@@ -224,11 +224,11 @@ impute_k=7                          ## k for impute_method %in% c("knn", "lls")
 impute_npcs=5                       ## number of PCs for PCA-based imputations "bpca", "ppca", and "svdImpute"
 impute_alpha=1                      ## alpha mixing parameter for "glmnet" imputation
 impute_n_pts=1e7                    ## granularity of imputed values for impute_method %in% c("glm_binom", "loess_logit")
-impute_aug_steps=3                  ## data augmentation iterations for f.impute_rf() and f.impute_glmnet()
-test_method="trend"                 ## hypothesis test; in c("trend", "deqms", "msqrob", "proda", "prolfqua", "voom")
+impute_aug_steps=3                  ## data augmentation iterations for impute_rf() and impute_glmnet()
+test_method="trend"                 ## hypothesis test; h0testr::test_methods() to see available choices.
 test_prior_df=3                     ## prior df for test_method %in% "proda"
-## run_order character vector with elements from {"normalize", "combine_reps", "combine_peps", "filter", "impute"}:
-run_order=c("normalize", "combine_reps", "combine_peps", "filter", "impute")   ## order of workflow operations
+## run_order character vector with elements from {"normalize", "combine_replicates", "combine_features", "filter", "impute"}:
+run_order=c("normalize", "combine_replicates", "combine_features", "filter", "impute")   ## order of workflow operations
 
 ## misc; 
 save_state=TRUE                     ## whether to save output files; recommend FALSE for tuning/testing
@@ -244,7 +244,7 @@ verbose=T                           ## controls how much gets printed out during
 The workflow always begins with loading data and ends with testing of 
 hypotheses. Intermediate steps can be configured using `config$run_order`. 
 The default `config$run_order` of 
-`c("normalize", "combine_reps", "filter", "impute")` yields the following
+`c("normalize", "combine_replicates", "filter", "impute")` yields the following
 workflow:
 
 1) Load data: read files `config$feature_file_in`, `config$sample_file_in`, 
@@ -511,7 +511,7 @@ and 20 instances with permuted data:
 rm(list=ls())
 
 ## set up configuration:
-config <- h0testr::f.new_config()   ## defaults
+config <- h0testr::new_config()   ## defaults
 config$save_state <- FALSE          ## default is TRUE
 config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
 config$feature_file_in <- "features2.tsv"
@@ -529,7 +529,7 @@ config$sample_factors <- list(grp=c("ctl", "trt"))
 ## one run with unpermuted data:
 config$permute_var <- ""            ## no permutation
 set.seed(100)
-out <- h0testr::f.tune(config,
+out <- h0testr::tune(config,
   norm_methods=c("RLE", "q75", "cpm", "log2"),
   impute_methods=c("sample_lod", "unif_sample_lod", "none"),
   impute_quantiles=c(0, 0.05, 0.1),
@@ -546,7 +546,7 @@ config$permute_var <- "grp"
 N <- 20
 for(idx in 1:N) {
   set.seed(100 + idx)
-  out <- h0testr::f.tune(config,
+  out <- h0testr::tune(config,
     norm_methods=c("RLE", "q75", "cpm", "log2"),
     impute_methods=c("sample_lod", "unif_sample_lod", "none"),
     impute_quantiles=c(0, 0.05, 0.1),
@@ -614,7 +614,7 @@ Collect results. From parent directory, in R (only base packages required for th
 ```
 rm(list=ls())
 
-tbl <- f.tune_check(dir_in="/path/to/tuning/results", sfx=".grp.tune.tsv")
+tbl <- tune_check(dir_in="/path/to/tuning/results", sfx=".grp.tune.tsv")
 
 ## tbl has a bunch of statistics that can be used to evaluate option combinations;
 ##   nhits: number of hits in unpermuted data
@@ -640,7 +640,7 @@ tbl <- f.tune_check(dir_in="/path/to/tuning/results", sfx=".grp.tune.tsv")
 6  4352 0.1309053 2661 138.0 569.7 957.4347 TMMwsp       0.75 unif_global_lod      0.10   0.1 voom
 
 ## save results:
-write.table(dat1, file="perm_results.age_gender.tsv", sep="\t", quote=F, row.names=F)
+write.table(dat1, file="perm_results.grp.tsv", sep="\t", quote=F, row.names=F)
 ```
 
 ---

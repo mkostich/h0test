@@ -18,7 +18,7 @@ f.sim_rnorm_pos <- function(n, m, s) {
   return(v)
 }
 
-## helper for f.sim1 and f.sim2; ensures all values strictly positive (> 0):
+## helper for sim1() and sim2(); ensures all values strictly positive (> 0):
 
 f.sim0 <- function(n_obs, feat_means, feat_sds) {
   
@@ -59,7 +59,7 @@ f.sim_tech_reps <- function(mat, reps_per_sample, cv_reps) {
   return(mat)
 }
 
-## helper for f.sim1 and f.sim2; estimate p(missing|log(intensity)) using 
+## helper for sim1() and sim2(); estimate p(missing|log(intensity)) using 
 ##   logit model. Drops cells in mat randomly based on p(missing|log(intensity)):
 
 f.mnar <- function(mat, mnar_c0, mnar_c1, mnar_off=0.0001) {
@@ -134,18 +134,18 @@ f.pep_drop <- function(mat, peps_per_gene, p_drop) {
 #'   }
 #' @examples
 #' ## default missing value settings:
-#' rslt <- h0testr::f.sim1(n_obs=6, n_feats=8)
+#' rslt <- h0testr::sim1(n_obs=6, n_feats=8)
 #' print(rslt$mat)
 #' print(rslt$feat_mean)
 #' print(rslt$feat_cv)
 #'
 #' ## no missing values:
-#' rslt <- h0testr::f.sim1(n_obs=6, n_feats=8, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+#' rslt <- h0testr::sim1(n_obs=6, n_feats=8, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
 #' print(rslt$mat)
 #' print(rslt$feat_mean)
 #' print(rslt$feat_cv)
 
-f.sim1 <- function(n_obs, n_feats, log_m_mean=11, log_m_sd=2.7,
+sim1 <- function(n_obs, n_feats, log_m_mean=11, log_m_sd=2.7,
     log_cv_mean=-0.75, log_cv_sd=0.5, mnar_c0=4.65, mnar_c1=-0.5,
     mnar_off=0.0001, mcar_p=0.002) {
 
@@ -226,22 +226,22 @@ f.sim1 <- function(n_obs, n_feats, log_m_mean=11, log_m_sd=2.7,
 #'   }
 #' @examples
 #' ## default missing value settings:
-#' rslt <- h0testr::f.sim2(n_samps1=3, n_samps2=3, n_genes=8, n_genes_signif=2)
+#' rslt <- h0testr::sim2(n_samps1=3, n_samps2=3, n_genes=8, n_genes_signif=2)
 #' print(rslt)
 #' 
 #' ## no missing values:
-#' rslt <- h0testr::f.sim2(n_samps1=3, n_samps2=3, n_genes=8, n_genes_signif=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+#' rslt <- h0testr::sim2(n_samps1=3, n_samps2=3, n_genes=8, n_genes_signif=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
 #' print(rslt)
 #' 
 #' ## peptide-level, with technical replicate observations:
-#' rslt <- h0testr::f.sim2(n_samps1=2, n_samps2=2, n_genes=8, reps_per_sample=2, peps_per_gene=3)
+#' rslt <- h0testr::sim2(n_samps1=2, n_samps2=2, n_genes=8, reps_per_sample=2, peps_per_gene=3)
 #' print(rslt)
 #'
 #' ## minimal \code{2x2} matrix with no effects:
-#' rslt <- h0testr::f.sim2(n_samps1=1, n_samps2=1, n_genes=2)
+#' rslt <- h0testr::sim2(n_samps1=1, n_samps2=1, n_genes=2)
 #' print(rslt)
 
-f.sim2 <- function(n_samps1, n_samps2, n_genes, n_genes_signif=0, 
+sim2 <- function(n_samps1, n_samps2, n_genes, n_genes_signif=0, 
     fold_change=0.5, peps_per_gene=1, reps_per_sample=1, cv_reps=0.1, 
     log_m_mean=11, log_m_sd=2.7, log_cv_mean=-0.75, log_cv_sd=0.5, 
     p_drop=0.75, mnar_c0=4.65, mnar_c1=-0.5, mnar_off=0.0001, mcar_p=0.002) {
@@ -300,7 +300,7 @@ f.sim2 <- function(n_samps1, n_samps2, n_genes, n_genes_signif=0,
   ## technical replication:  
   mat <- f.sim_tech_reps(mat, reps_per_sample=reps_per_sample, cv_reps=cv_reps)
   if(any(is.na(c(mat)) | c(mat) <= 0, na.rm=T)) {
-    stop("f.sim2: any(is.na(c(mat1)) | c(mat1) <= 0); min(c(mat1)):", min(c(mat1)))
+    stop("sim2: any(is.na(c(mat1)) | c(mat1) <= 0); min(c(mat1)):", min(c(mat1)))
   }
   
   ## mnar -> mcar:

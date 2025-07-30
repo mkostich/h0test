@@ -6,10 +6,10 @@
 #'     \code{config$sample_id_col}.
 #'   Sets \code{config$obs_col} and \code{config$obs_id_col} to 
 #'     \code{config$sample_id_col}.
-#'   See documentation for \code{h0testr::f.new_config()} 
+#'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by 
-#'   \code{f.read_data()}:
+#'   \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -35,24 +35,24 @@
 #'   } 
 #' @examples
 #' set.seed(101)
-#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=8)$mat
+#' exprs <- h0testr::sim1(n_obs=6, n_feats=8)$mat
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' samps$sample_id=c("samp1", "samp1", "samp2", "samp2", "samp3", "samp3")
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list(feat_col="feature_id", obs_id_col="observation_id", sample_id_col="sample_id", save_state=FALSE)
-#' out <- h0testr::f.combine_reps(state, config)
+#' out <- h0testr::combine_replicates(state, config)
 #' print(state)
 #' print(out$state)
 #' str(config)
 #' str(out$config)
 
-f.combine_reps <- function(state, config) {
+combine_replicates <- function(state, config) {
 
-  f.check_config(config)
+  check_config(config)
   
   if(is.null(config$sample_id_col) || !(config$sample_id_col %in% names(state$samples))) {
-    f.err("f.combine_reps: config$sample_id_col %in% names(state$samples);",
+    f.err("combine_replicates: config$sample_id_col %in% names(state$samples);",
       "config$sample_id_col:", config$sample_id_col, 
       "; names(state$samples):", names(state$samples), config=config)
   }
@@ -71,7 +71,7 @@ f.combine_reps <- function(state, config) {
   
   sample_ids <- state$samples[[config$sample_id_col]]
   if(!all(sample_ids %in% colnames(state$expression))) {
-    f.err("f.combine_reps: !all(samples[[config$sample_id_col]] %in% colnames(expression))", 
+    f.err("combine_replicates: !all(samples[[config$sample_id_col]] %in% colnames(expression))", 
       config=config)
   }  
   state$expression <- state$expression[, sample_ids, drop=F]
@@ -80,11 +80,11 @@ f.combine_reps <- function(state, config) {
   f.report_state(state, config)
   
   if(!is.null(config$run_order)) {
-    i <- config$run_order %in% "combine_reps"
+    i <- config$run_order %in% "combine_replicates"
     if(any(i)) {
-      prfx <- paste0(which(i)[1] + 2, ".combine_reps")
+      prfx <- paste0(which(i)[1] + 2, ".combine_replicates")
     } else {
-      prfx <- "combine_reps"
+      prfx <- "combine_replicates"
     }
   }
   f.save_state(state, config, prefix=prfx)
@@ -92,10 +92,10 @@ f.combine_reps <- function(state, config) {
   return(list(state=state, config=config))
 }
 
-## helper for f.combine_feats; uses config$gene_id_col; 
+## helper for combine_features(); uses config$gene_id_col; 
 ##   sets config$feat_col and config$feat_id_col to config$gene_id_col:
 
-f.combine_peps_median_polish <- function(state, config, maxit=30) {
+f.combine_features_median_polish <- function(state, config, maxit=30) {
 
   genes <- state$features[[config$gene_id_col]]
   
@@ -124,10 +124,10 @@ f.combine_peps_median_polish <- function(state, config, maxit=30) {
   return(list(state=state, config=config))
 }
 
-## helper for f.combine_feats; uses config$gene_id_col;
+## helper for combine_features(); uses config$gene_id_col;
 ##   sets config$feat_col and config$feat_id_col to config$gene_id_col:
 
-f.combine_peps_robust_summary <- function(state, config) {
+f.combine_features_robust_summary <- function(state, config) {
 
   genes <- state$features[[config$gene_id_col]]
   
@@ -179,9 +179,9 @@ f.combine_peps_robust_summary <- function(state, config) {
 #'     Then \code{median_column_effect} is returned, after shifted to 
 #'       ensure all values strictly positive: \code{all(expression > 0, na.rm=TRUE)}.
 #'   Uses \code{MsCoreUtils::medianPolish} and \code{MsCoreUtils::robustSummary}.
-#'   See documentation for \code{h0testr::f.new_config()} 
+#'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
-#' @param state List with elements formatted like the list returned by \code{f.read_data()}:
+#' @param state List with elements formatted like the list returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -211,7 +211,7 @@ f.combine_peps_robust_summary <- function(state, config) {
 #' @examples
 #' ## set up data for examples:
 #' set.seed(101)
-#' exprs <- h0testr::f.sim2(n_samps1=3, n_samps2=3, n_genes=5, n_genes_signif=1, peps_per_gene=3, reps_per_sample=1)$mat
+#' exprs <- h0testr::sim2(n_samps1=3, n_samps2=3, n_genes=5, n_genes_signif=1, peps_per_gene=3, reps_per_sample=1)$mat
 #' tmp <- strsplit(rownames(exprs), "_")
 #' feats <- data.frame(pep=rownames(exprs), gene=sapply(tmp, "[", 1))
 #' tmp <- strsplit(colnames(exprs), "_")
@@ -224,51 +224,51 @@ f.combine_peps_robust_summary <- function(state, config) {
 #' str(config)
 #'
 #' ## combine peps using config$feature_aggregation ("medianPolish"):
-#' out <- h0testr::f.combine_peps(state, config)
+#' out <- h0testr::combine_features(state, config)
 #' print(out$state)
 #' str(out$config)
 #' 
 #' ## combine peps, overriding config$feature_aggregation:
-#' out <- h0testr::f.combine_peps(state, config, method="robustSummary")
+#' out <- h0testr::combine_features(state, config, method="robustSummary")
 #' print(out$state)
 #' str(out$config)
 #'
 #' ## combine peps with rescaling:
-#' out <- h0testr::f.combine_peps(state, config, rescale=TRUE)
+#' out <- h0testr::combine_features(state, config, rescale=TRUE)
 #' print(out$state)
 #' str(out$config)
 #'
 #' ## with method="none":
-#' out <- h0testr::f.combine_peps(state, config, method="none")
+#' out <- h0testr::combine_features(state, config, method="none")
 #' print(out$state)
 #' str(out$config)
 
-f.combine_peps <- function(state, config, method=NULL, rescale=FALSE) {
+combine_features <- function(state, config, method=NULL, rescale=FALSE) {
   
-  f.check_config(config)
+  check_config(config)
   
   if(is.null(config$gene_id_col) || !(config$gene_id_col %in% names(state$features))) {
-    f.err("f.combine_peps: config$gene_id_col %in% names(state$features);",
+    f.err("combine_features: config$gene_id_col %in% names(state$features);",
       "config$gene_id_col:", config$gene_id_col, 
       "; names(state$features):", names(state$features), config=config)
   }
   
   if(config$gene_id_col %in% config$feat_col) {
-    f.msg("f.combine_peps: config$gene_id_col %in% config$feat_col; ", 
+    f.msg("combine_features: config$gene_id_col %in% config$feat_col; ", 
       "returning unchanged state and config.", config=config)
     return(list(state=state, config=config))
   }
   
   if(is.null(method) || method %in% "") method <- config$feature_aggregation
   if(is.null(method) || method %in% "") {
-    f.err("f.combine_peps: method and config$feature_aggregation both unset", 
+    f.err("combine_features: method and config$feature_aggregation both unset", 
       config=config)
   }
   if(is.null(rescale)) {
     rescale <- config$feature_aggregation_scaled
   }
   if(is.null(rescale)) {
-    f.err("f.combine_peps: rescale and config$feature_aggregation_scaled both unset", 
+    f.err("combine_features: rescale and config$feature_aggregation_scaled both unset", 
       config=config)
   }
   
@@ -278,13 +278,13 @@ f.combine_peps <- function(state, config, method=NULL, rescale=FALSE) {
   }
   
   if(method %in% "medianPolish") {
-    out <- f.combine_peps_median_polish(state, config)
+    out <- f.combine_features_median_polish(state, config)
   } else if(method %in% "robustSummary") {
-    out <- f.combine_peps_robust_summary(state, config)
+    out <- f.combine_features_robust_summary(state, config)
   } else if(method %in% "none") {
     out <- list(state=state, config=config)
   } else {
-    f.err("f.combine_peps: unexpected method: ", method, config=config)
+    f.err("combine_features: unexpected method: ", method, config=config)
   }
   state <- out$state
   config <- out$config
@@ -294,11 +294,11 @@ f.combine_peps <- function(state, config, method=NULL, rescale=FALSE) {
   f.report_state(state, config)
   
   if(!is.null(config$run_order)) {
-    i <- config$run_order %in% "combine_peps"
+    i <- config$run_order %in% "combine_features"
     if(any(i)) {
-      prfx <- paste0(which(i)[1] + 2, ".combine_peps")
+      prfx <- paste0(which(i)[1] + 2, ".combine_features")
     } else {
-      prfx <- "combine_peps"
+      prfx <- "combine_features"
     }
   }
   f.save_state(state, config, prefix=prfx)

@@ -17,9 +17,9 @@
 #'       5. Adjust statistics using \code{DEqMS::spectraCounteBayes()}. \cr
 #'       6. Generate hit table with \code{DEqMS::outputResult()}. \cr
 #'     }
-#'   See documentation for \code{h0testr::f.new_config()} 
+#'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
-#' @param state List with elements like those returned by \code{f.read_data()}:
+#' @param state List with elements like those returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -43,7 +43,7 @@
 #' ## lengthy setup of expression data:
 #' set.seed(101)
 #' nsamps <- 6
-#' sim <- h0testr::f.sim2(
+#' sim <- h0testr::sim2(
 #'   n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
 #'   fold_change=1, peps_per_gene=10, reps_per_sample=1, 
 #'   p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0
@@ -73,15 +73,15 @@
 #'     sex=c("F", "M")
 #'   )
 #' )
-#' out <- h0testr::f.initialize(state, config, minimal=TRUE)
+#' out <- h0testr::initialize(state, config, minimal=TRUE)
 #' 
 #' ## actual test:
-#' tbl <- h0testr::f.test_deqms(out$state, out$config)
+#' tbl <- h0testr::test_deqms(out$state, out$config)
 #' head(tbl)
 
-f.test_deqms <- function(state, config, trend=FALSE) {
+test_deqms <- function(state, config, trend=FALSE) {
   
-  f.check_config(config)
+  check_config(config)
   f.check_state(state, config)
 
   tbl <- table(state$features[, config$gene_id_col], useNA="ifany")
@@ -89,7 +89,7 @@ f.test_deqms <- function(state, config, trend=FALSE) {
   counts <- tbl$Freq
   names(counts) <- tbl$Var1
   
-  out <- h0testr::f.combine_peps(state, config, method="medianPolish", rescale=TRUE)
+  out <- h0testr::combine_features(state, config, method="medianPolish", rescale=TRUE)
   state <- out$state
   config <- out$config
   design <- stats::model.matrix(config$frm, data=state$samples)
@@ -99,7 +99,7 @@ f.test_deqms <- function(state, config, trend=FALSE) {
   cols_pick <- colnames(stats::model.matrix(frm0, data=state$samples))
   cols_pick <- cols_pick[cols_pick %in% cols_des]
   idx <- which(cols_des %in% cols_pick)
-  if(length(idx) != 1) f.err("f.test_deqms: length(idx) != 1", config=config)
+  if(length(idx) != 1) f.err("test_deqms: length(idx) != 1", config=config)
 
   fit <- limma::lmFit(state$expression, design)
   fit <- limma::eBayes(fit, trend=trend)
@@ -124,9 +124,9 @@ f.test_deqms <- function(state, config, trend=FALSE) {
 #'       4. Estimate model parameters using \code{msqrob2::msqrob()}. \cr
 #'       5. Calculate test statistics with \code{msqrob2::hypothesisTest()}. \cr
 #'     }
-#'   See documentation for \code{h0testr::f.new_config()} 
+#'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
-#' @param state List with elements like those returned by \code{f.read_data()}:
+#' @param state List with elements like those returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -148,7 +148,7 @@ f.test_deqms <- function(state, config, trend=FALSE) {
 #' ## lengthy setup of expression data:
 #' set.seed(101)
 #' nsamps <- 6
-#' sim <- h0testr::f.sim2(
+#' sim <- h0testr::sim2(
 #'   n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
 #'   fold_change=1, peps_per_gene=10, reps_per_sample=1, 
 #'   p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0
@@ -178,15 +178,15 @@ f.test_deqms <- function(state, config, trend=FALSE) {
 #'     sex=c("F", "M")
 #'   )
 #' )
-#' out <- h0testr::f.initialize(state, config, minimal=TRUE)
+#' out <- h0testr::initialize(state, config, minimal=TRUE)
 #' 
 #' ## actual test:
-#' tbl <- h0testr::f.test_msqrob(out$state, out$config)
+#' tbl <- h0testr::test_msqrob(out$state, out$config)
 #' head(tbl)
 
-f.test_msqrob <- function(state, config, maxit=100) {
+test_msqrob <- function(state, config, maxit=100) {
 
-  f.check_config(config)
+  check_config(config)
   f.check_state(state, config)
 
   exprs <- as.data.frame(state$expression)
@@ -230,7 +230,7 @@ f.test_msqrob <- function(state, config, maxit=100) {
   cols_pick <- colnames(stats::model.matrix(frm0, data=state$samples))
   cols_pick <- cols_pick[cols_pick %in% cols_des]
   idx <- which(cols_des %in% cols_pick)
-  if(length(idx) != 1) f.err("length(idx) != 1", config=config)
+  if(length(idx) != 1) f.err("test_msqrob: length(idx) != 1", config=config)
   cols_pick <- cols_des[idx]
   
   con <- msqrob2::makeContrast(contrasts=paste0(cols_pick, "=0"), 
@@ -260,9 +260,9 @@ f.test_msqrob <- function(state, config, maxit=100) {
 #'     the input, so have to aggregate data to the desired level for 
 #'     hypothesis testing first. Main feature of this method is its native 
 #'     handling of missing values.
-#'   See documentation for \code{h0testr::f.new_config()} 
+#'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
-#' @param state List with elements like those returned by \code{f.read_data()}:
+#' @param state List with elements like those returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -287,7 +287,7 @@ f.test_msqrob <- function(state, config, maxit=100) {
 #' ## lengthy setup of expression data:
 #' set.seed(101)
 #' nsamps <- 6
-#' sim <- h0testr::f.sim2(
+#' sim <- h0testr::sim2(
 #'   n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
 #'   fold_change=1, peps_per_gene=10, reps_per_sample=1, 
 #'   p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0
@@ -317,17 +317,17 @@ f.test_msqrob <- function(state, config, maxit=100) {
 #'     sex=c("F", "M")
 #'   )
 #' )
-#' out <- h0testr::f.initialize(state, config, minimal=TRUE)
+#' out <- h0testr::initialize(state, config, minimal=TRUE)
 #' 
 #' ## actual test:
-#' tbl <- h0testr::f.test_proda(out$state, out$config, is_log_transformed=FALSE)
+#' tbl <- h0testr::test_proda(out$state, out$config, is_log_transformed=FALSE)
 #' head(tbl)
 
-f.test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit=20) {
+test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit=20) {
   
   if(is.null(is_log_transformed) || is_log_transformed %in% "") {
     if(is.null(config$norm_method) || config$norm_method %in% "") {
-      f.err("f.test_proda: is_log_transformed and config$norm_method both unset", 
+      f.err("test_proda: is_log_transformed and config$norm_method both unset", 
         config=config)
     }
     if(config$norm_method %in% c("none")) {
@@ -348,7 +348,7 @@ f.test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, max
   cols2 <- proDA::result_names(fit)
   i <- cols %in% cols2
   if(sum(i) != 1) {
-    f.err("f.test_proda: multi-column match; cols: ", cols, "; cols2: ", 
+    f.err("test_proda: multi-column match; cols: ", cols, "; cols2: ", 
       cols2, config=config)
   } 
   col_pick <- cols[i]
@@ -375,9 +375,9 @@ f.test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, max
 #'            \code{prolfqua::strategy_lm} objects. \cr
 #'       5. Return sub-table of ANOVA results corresponding to \code{config$test_term}. \cr
 #'     }
-#'   See documentation for \code{h0testr::f.new_config()} 
+#'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
-#' @param state List with elements like those returned by \code{f.read_data()}:
+#' @param state List with elements like those returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -401,7 +401,7 @@ f.test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, max
 #' ## lengthy setup of expression data:
 #' set.seed(101)
 #' nsamps <- 6
-#' sim <- h0testr::f.sim2(
+#' sim <- h0testr::sim2(
 #'   n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
 #'   fold_change=1, peps_per_gene=10, reps_per_sample=1, 
 #'   p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0
@@ -431,17 +431,17 @@ f.test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, max
 #'     sex=c("F", "M")
 #'   )
 #' )
-#' out <- h0testr::f.initialize(state, config, minimal=TRUE)
+#' out <- h0testr::initialize(state, config, minimal=TRUE)
 #' 
 #' ## actual test:
-#' tbl <- h0testr::f.test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
+#' tbl <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
 #' head(tbl)
 
-f.test_prolfqua <- function(state, config, is_log_transformed=NULL) {
+test_prolfqua <- function(state, config, is_log_transformed=NULL) {
   
   if(is.null(is_log_transformed) || is_log_transformed %in% "") {
     if(is.null(config$norm_method) || config$norm_method %in% "") {
-      f.err("f.test_prolfqua: is_log_transformed and config$norm_method both unset", 
+      f.err("test_prolfqua: is_log_transformed and config$norm_method both unset", 
         config=config)
     }
     if(config$norm_method %in% c("none")) {
@@ -463,13 +463,13 @@ f.test_prolfqua <- function(state, config, is_log_transformed=NULL) {
   
   samps <- state$samples
   if(any(duplicated(samps[[config$obs_col]]))) {
-    f.err("f.test_prolfqua: duplicated state$samples[, config$obs_col]; obs_col: ", 
+    f.err("test_prolfqua: duplicated state$samples[, config$obs_col]; obs_col: ", 
       config$obs_col, config=config)
   }
   rownames(samps) <- samps[[config$obs_col]]
   if(!all(dat$sample %in% rownames(samps))) {
     i <- !(dat$sample %in% rownames(samps))
-    f.err("f.test_prolfqua: observation mismatch: ", 
+    f.err("test_prolfqua: observation mismatch: ", 
       paste(dat$sample[i], collapse=", "), config=config)
   }
   
@@ -486,7 +486,7 @@ f.test_prolfqua <- function(state, config, is_log_transformed=NULL) {
   
   for(trm in trms) {
     if(!(trm %in% names(config$sample_factors))) {
-      f.err("f.test_prolfqua: !(trm %in% config$sample_factors); trm: ", 
+      f.err("test_prolfqua: !(trm %in% config$sample_factors); trm: ", 
         trm, config=config)
     }
     meta$factors[[trm]] <- trm
@@ -512,9 +512,9 @@ f.test_prolfqua <- function(state, config, is_log_transformed=NULL) {
 #'   The \code{limma::voom()} model is fit to \code{config$frm} and an F-test 
 #'     is performed for whether the effect of \code{config$test_term} on 
 #'     \code{state$expression} is zero. 
-#'   See documentation for \code{h0testr::f.new_config()} 
+#'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
-#' @param state List with elements like those returned by \code{f.read_data()}:
+#' @param state List with elements like those returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -534,7 +534,7 @@ f.test_prolfqua <- function(state, config, is_log_transformed=NULL) {
 #' @examples
 #' set.seed(101)
 #' ## no missing values: mnar_c0=-Inf, mnar_c1=0, mcar_p=0
-#' exprs <- h0testr::f.sim2(n_samps1=6, n_samps2=6, n_genes=25, 
+#' exprs <- h0testr::sim2(n_samps1=6, n_samps2=6, n_genes=25, 
 #'   n_genes_signif=5, fold_change=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)$mat
 #' exprs <- log2(exprs + 1)
 #' feats <- data.frame(feature_id=rownames(exprs))
@@ -542,7 +542,7 @@ f.test_prolfqua <- function(state, config, is_log_transformed=NULL) {
 #'   condition=c(rep("placebo", 6), rep("drug", 6)))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' 
-#' config <- h0testr::f.new_config()    ## defaults
+#' config <- h0testr::new_config()    ## defaults
 #' config$save_state <- FALSE           ## default is TRUE
 #' config$feat_col <- config$feat_id_col <- config$gene_id_col <- "feature_id"
 #' config$obs_col <- config$obs_id_col <- config$sample_id_col <- "observation_id"
@@ -551,14 +551,14 @@ f.test_prolfqua <- function(state, config, is_log_transformed=NULL) {
 #' config$sample_factors <- list(condition=c("placebo", "drug"))
 #'
 #' ## set up and check configuration, including covariates:
-#' out <- h0testr::f.initialize(state, config, minimal=TRUE)
+#' out <- h0testr::initialize(state, config, minimal=TRUE)
 #' 
-#' tbl <- h0testr::f.test_voom(out$state, out$config)
+#' tbl <- h0testr::test_voom(out$state, out$config)
 #' print(tbl)
 
-f.test_voom <- function(state, config, normalize.method="none") {
+test_voom <- function(state, config, normalize.method="none") {
 
-  f.check_config(config)
+  check_config(config)
   f.check_state(state, config)
   
   exprs <- state$expression
@@ -596,9 +596,9 @@ f.test_voom <- function(state, config, normalize.method="none") {
 #'  The \code{lmFit()} model is fit to \code{config$frm} and an F-test is 
 #'    performed on each \code{config$feat_col} for whether the effect of 
 #'    \code{config$test_term} on \code{state$expression} is zero. 
-#'   See documentation for \code{h0testr::f.new_config()} 
+#'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
-#' @param state List with elements formatted like the list returned by \code{f.read_data()}:
+#' @param state List with elements formatted like the list returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -616,7 +616,7 @@ f.test_voom <- function(state, config, normalize.method="none") {
 #' @examples
 #' set.seed(101)
 #' ## no missing values: mnar_c0=-Inf, mnar_c1=0, mcar_p=0
-#' exprs <- h0testr::f.sim2(n_samps1=6, n_samps2=6, n_genes=25, 
+#' exprs <- h0testr::sim2(n_samps1=6, n_samps2=6, n_genes=25, 
 #'   n_genes_signif=5, fold_change=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)$mat
 #' exprs <- log2(exprs + 1)
 #' feats <- data.frame(feature_id=rownames(exprs))
@@ -624,7 +624,7 @@ f.test_voom <- function(state, config, normalize.method="none") {
 #'   condition=c(rep("placebo", 6), rep("drug", 6)))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' 
-#' config <- h0testr::f.new_config()    ## defaults
+#' config <- h0testr::new_config()    ## defaults
 #' config$save_state <- FALSE           ## default is TRUE
 #' config$feat_col <- config$feat_id_col <- config$gene_id_col <- "feature_id"
 #' config$obs_col <- config$obs_id_col <- config$sample_id_col <- "observation_id"
@@ -633,18 +633,18 @@ f.test_voom <- function(state, config, normalize.method="none") {
 #' config$sample_factors <- list(condition=c("placebo", "drug"))
 #'
 #' ## set up and check covariates and parameters:
-#' out <- h0testr::f.initialize(state, config, minimal=TRUE)
+#' out <- h0testr::initialize(state, config, minimal=TRUE)
 #' 
-#' tbl <- h0testr::f.test_trend(state, config)
+#' tbl <- h0testr::test_trend(state, config)
 #' print(tbl)
 
-f.test_trend <- function(state, config) {
+test_trend <- function(state, config) {
 
-  f.check_config(config)
+  check_config(config)
   f.check_state(state, config)
 
   if(!is.matrix(state$expression)) {
-    f.err("f.test_trend: !is.matrix(state$expression)", config=config)
+    f.err("test_trend: !is.matrix(state$expression)", config=config)
   }
   
   design <- stats::model.matrix(config$frm, data=state$samples)
@@ -663,7 +663,7 @@ f.test_trend <- function(state, config) {
   return(tbl)
 }
 
-## helper for f.test:
+## helper for test:
 
 f.format_deqms <- function(tbl, config) {
   
@@ -688,7 +688,7 @@ f.format_deqms <- function(tbl, config) {
   return(tbl)
 }
 
-## helper for f.test:
+## helper for test:
 
 f.format_msqrob <- function(tbl, config) {
   
@@ -718,7 +718,7 @@ f.format_msqrob <- function(tbl, config) {
   return(tbl)
 }
 
-## helper for f.test:
+## helper for test:
 
 f.format_proda <- function(tbl, config) {
   
@@ -743,7 +743,7 @@ f.format_proda <- function(tbl, config) {
   return(tbl)
 }
 
-## helper for f.test:
+## helper for test:
 
 f.format_prolfqua <- function(tbl, config) {
   
@@ -773,7 +773,7 @@ f.format_prolfqua <- function(tbl, config) {
   return(tbl)
 }
 
-## helper for f.test:
+## helper for test:
 
 f.format_limma <- function(tbl, config) {
   
@@ -798,7 +798,19 @@ f.format_limma <- function(tbl, config) {
   return(tbl)
 }
 
-f.test_methods <- function() {
+#' Get vector of test method names
+#' @description
+#'   Get a vector with acceptable values of \code{method} parameter for \code{h0testr::normalize}.
+#' @return
+#'   Character vector with names of acceptable values for \code{h0testr::normalize(method=)}.
+#' @examples
+#' test_methods <- h0testr::test_methods()
+#' cat("Available test methods:\n")
+#' for(method in test_methods) {
+#'   cat("method:", method, "\n")
+#' }
+
+test_methods <- function() {
   return(
     c("trend", "deqms", "msqrob", "proda", "prolfqua", "voom")
   )
@@ -809,7 +821,7 @@ f.test_methods <- function() {
 #'   Wrapper for various hypothesis testing methods.
 #' @details
 #'   Tests for differential expression using method specified in config. 
-#'   See invididual \code{f.test_*} methods for more details. 
+#'   See invididual \code{test_*} methods for more details. 
 #'   The \code{method} setting meanings are: 
 #'   \tabular{ll}{
 #'     \code{trend}  \cr \tab Use \code{limma::eBayes(trend=TRUE)}. \cr
@@ -818,9 +830,9 @@ f.test_methods <- function() {
 #'     \code{proda}  \cr \tab Use \code{proDA::proDA()}. \cr
 #'     \code{voom}   \cr \tab Use \code{limma::voom()}. \cr
 #'   } 
-#'   See documentation for \code{h0testr::f.new_config()} 
+#'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
-#' @param state List with elements formatted like the list returned by \code{f.read_data()}:
+#' @param state List with elements formatted like the list returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -837,7 +849,7 @@ f.test_methods <- function() {
 #'     \code{test_method}    \cr \tab Character scalar in \code{c("voom", "trend", "deqms", "msqrob", "proda"}. \cr
 #'   }
 #' @param method Name of test method where 
-#'   \code{method \%in\% h0testr::f.test_methods()}.
+#'   \code{method \%in\% h0testr::test_methods()}.
 #' @param is_log_transformed Logical scalar: if \code{state$expression} has 
 #'   been log transformed. Required if 
 #'   \code{method \%in\% c("proda", "prolfqua")}.
@@ -861,7 +873,7 @@ f.test_methods <- function() {
 #' @examples
 #' set.seed(101)
 #' ## no missing values: mnar_c0=-Inf, mnar_c1=0, mcar_p=0
-#' exprs <- h0testr::f.sim2(n_samps1=6, n_samps2=6, n_genes=25, 
+#' exprs <- h0testr::sim2(n_samps1=6, n_samps2=6, n_genes=25, 
 #'   n_genes_signif=5, fold_change=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)$mat
 #' exprs <- log2(exprs + 1)
 #' feats <- data.frame(feature_id=rownames(exprs))
@@ -876,51 +888,51 @@ f.test_methods <- function() {
 #' )
 #' 
 #' ## set up and check covariates and parameters:
-#' out <- h0testr::f.initialize(state, config, minimal=TRUE)
+#' out <- h0testr::initialize(state, config, minimal=TRUE)
 #' state <- out$state
 #' config <- out$config
 #' 
-#' out <- h0testr::f.test(state, config, method="trend")
+#' out <- h0testr::test(state, config, method="trend")
 #' head(out$original)
 #' head(out$standard)
 
-f.test <- function(state, config, method=NULL, 
+test <- function(state, config, method=NULL, 
     is_log_transformed=NULL, prior_df=NULL) {
   
   if(is.null(method) || method %in% "") method <- config$test_method
   if(is.null(method) || method %in% "") {
-    f.err("f.test: method and config$test_method both unset", config=config)
+    f.err("test: method and config$test_method both unset", config=config)
   }
   if(method %in% c("proda", "prolfqua") && !is.logical(is_log_transformed)) {
-    f.err("f.test: method %in% c('proda', 'prolfqua') && !is.logical(is_log_transformed)", 
+    f.err("test: method %in% c('proda', 'prolfqua') && !is.logical(is_log_transformed)", 
       config=config)
   }
   if(is.null(prior_df)) prior_df <- config$test_prior_df
   
   if(method %in% "trend") {
-    tbl <- f.test_trend(state, config)
+    tbl <- test_trend(state, config)
     tbl2 <- f.format_limma(tbl, config)
   } else if(method %in% "deqms") {
-    tbl <- f.test_deqms(state, config)
+    tbl <- test_deqms(state, config)
     tbl2 <- f.format_deqms(tbl, config)
   } else if(method %in% "msqrob") {
-    tbl <- f.test_msqrob(state, config)
+    tbl <- test_msqrob(state, config)
     tbl2 <- f.format_msqrob(tbl, config)
   } else if(method %in% "proda") {
-    tbl <- f.test_proda(state, config, 
+    tbl <- test_proda(state, config, 
       is_log_transformed=is_log_transformed, prior_df=prior_df)
     tbl2 <- f.format_proda(tbl, config)
   } else if(method %in% "prolfqua") {
-    tbl <- f.test_prolfqua(state, config, 
+    tbl <- test_prolfqua(state, config, 
       is_log_transformed=is_log_transformed)
     tbl2 <- f.format_prolfqua(tbl, config)
   } else if(method %in% "voom") {
-    tbl <- f.test_voom(state, config)
+    tbl <- test_voom(state, config)
     tbl2 <- f.format_limma(tbl, config)
   } else if(method %in% "none") {
-    f.msg("skipping testing: TEST_METHOD %in% 'none'", config=config)
+    f.msg("skipping testing: method %in% 'none'", config=config)
     return(NULL)
-  } else f.err("f.test: unexpected TEST_METHOD:", config$test_method, config=config)
+  } else f.err("test: unexpected method:", config$test_method, config=config)
   
   feats <- state$features
   if(method %in% c("deqms", "msqrob")) {
@@ -934,7 +946,7 @@ f.test <- function(state, config, method=NULL,
   }
   rownames(feats) <- feats[[test_col]]
   if(!all(tbl2$feature %in% rownames(feats))) {
-    f.err("f.test: !all(tbl2$feature %in% rownames(feats))", config=config)
+    f.err("test: !all(tbl2$feature %in% rownames(feats))", config=config)
   }
   
   tbl0 <- feats[rownames(tbl), , drop=F]

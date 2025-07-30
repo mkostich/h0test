@@ -3,9 +3,9 @@
 #'   Normalize expression using functionality from \code{edgeR} package.
 #' @details Inter-observation normalization. Uses \code{edgeR::calcNormFactors()}. 
 #'   Returned values on a counts-per-million scale.
-#'   See documentation for \code{h0testr::f.new_config()} 
+#'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
-#' @param state List with elements formatted like the list returned by \code{f.read_data()}:
+#' @param state List with elements formatted like the list returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -29,35 +29,35 @@
 #'   } 
 #' @examples
 #' set.seed(101)
-#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' exprs <- h0testr::sim1(n_obs=6, n_feats=12)$mat
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #'
 #' ## example configured via parameters:
 #' config <- list()
-#' state2 <- h0testr::f.normalize_edger(state, config, 
+#' state2 <- h0testr::normalize_edger(state, config, 
 #'   method="upperquartile", norm_quantile=0.75)
 #' print(state$expression)
 #' print(state2$expression)
 #'
 #' ## example configured with settings in config:
 #' config <- list(norm_method="upperquartile", norm_quantile=0.75)
-#' state2 <- h0testr::f.normalize_edger(state, config)
+#' state2 <- h0testr::normalize_edger(state, config)
 #' print(state$expression)
 #' print(state2$expression)
 #'
 #' ## norm_quantile not needed for e.g. method="RLE":
-#' state2 <- h0testr::f.normalize_edger(state, config, method="RLE")
+#' state2 <- h0testr::normalize_edger(state, config, method="RLE")
 #' print(state$expression)
 #' print(state2$expression)
 
-f.normalize_edger <- function(state, config, method=NULL, norm_quantile=NULL) {
+normalize_edger <- function(state, config, method=NULL, norm_quantile=NULL) {
 
-  f.check_config(config)
+  check_config(config)
 
   if(!is.matrix(state$expression)) {
-    f.err("f.normalize_edger: !is.matrix(state$expression)", 
+    f.err("normalize_edger: !is.matrix(state$expression)", 
       config=config)
   }
   if(is.null(method)) method <- config$norm_method
@@ -67,7 +67,7 @@ f.normalize_edger <- function(state, config, method=NULL, norm_quantile=NULL) {
     if(is.null(norm_quantile)) norm_quantile <- config$norm_quantile
     if(is.null(norm_quantile)) norm_quantile <- 0.75
     if(!is.numeric(norm_quantile)) {
-        f.err("f.normalize_edger: !is.numeric(norm_quantile); norm_quantile:", 
+        f.err("normalize_edger: !is.numeric(norm_quantile); norm_quantile:", 
           norm_quantile, config=config)
     }
   }
@@ -100,9 +100,9 @@ f.normalize_edger <- function(state, config, method=NULL, norm_quantile=NULL) {
 #'     to median scaling with median calculated after exclusion of missing 
 #'     values. Similarly, setting \code{p < 0.75} is upperquartile normalization 
 #'     ignoring missing values. 
-#'   See documentation for \code{h0testr::f.new_config()} 
+#'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
-#' @param state List with elements formatted like the list returned by \code{f.read_data()}:
+#' @param state List with elements formatted like the list returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -123,28 +123,28 @@ f.normalize_edger <- function(state, config, method=NULL, norm_quantile=NULL) {
 #'   } 
 #' @examples
 #' set.seed(101)
-#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' exprs <- h0testr::sim1(n_obs=6, n_feats=12)$mat
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list(norm_quantile=0.75)
-#' state2 <- h0testr::f.normalize_quantile(state, config)
+#' state2 <- h0testr::normalize_quantile(state, config)
 #' print(state$expression)
 #' print(state2$expression)
 #' apply(state$expression, 2, quantile, probs=c(0.5, 0.75, 0.9), na.rm=TRUE)
 #' apply(state2$expression, 2, quantile, probs=c(0.5, 0.75, 0.9), na.rm=TRUE)
 
-f.normalize_quantile <- function(state, config, norm_quantile=NULL, multiplier=1e3) {
+normalize_quantile <- function(state, config, norm_quantile=NULL, multiplier=1e3) {
   
-  f.check_config(config)
+  check_config(config)
   
   if(!is.matrix(state$expression)) {
-    f.err("f.normalize_quantile: !is.matrix(state$expression)", config=config)
+    f.err("normalize_quantile: !is.matrix(state$expression)", config=config)
   }
   if(is.null(norm_quantile)) norm_quantile <- config$norm_quantile
   if(is.null(norm_quantile)) norm_quantile <- 0.75
   if(!is.numeric(norm_quantile)) {
-    f.err("f.normalize_quantile: !is.numeric(norm_quantile)", config=config)
+    f.err("normalize_quantile: !is.numeric(norm_quantile)", config=config)
   }
   
   f <- function(v) {
@@ -162,7 +162,7 @@ f.normalize_quantile <- function(state, config, norm_quantile=NULL, multiplier=1
 #'   Inter-observation normalization, based on dividing each expression value 
 #'     by total expression in each observation. Makes total expression 
 #'     (excluding missing values) equal in each observation.
-#' @param state List with elements formatted like the list returned by \code{f.read_data()}:
+#' @param state List with elements formatted like the list returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -180,21 +180,21 @@ f.normalize_quantile <- function(state, config, norm_quantile=NULL, multiplier=1
 #'   } 
 #' @examples
 #' set.seed(101)
-#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' exprs <- h0testr::sim1(n_obs=6, n_feats=12)$mat
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list()
-#' state2 <- h0testr::f.normalize_cpm(state, config)
+#' state2 <- h0testr::normalize_cpm(state, config)
 #' print(state$expression)
 #' print(state2$expression)
 #' apply(state$expression, 2, function(v) sum(v, na.rm=TRUE))
 #' apply(state2$expression, 2, function(v) sum(v, na.rm=TRUE))
 
-f.normalize_cpm <- function(state, config, multiplier=1e6) {
+normalize_cpm <- function(state, config, multiplier=1e6) {
 
   if(!is.matrix(state$expression)) {
-    f.err("f.normalize_cpm: !is.matrix(state$expression)", config=config)
+    f.err("normalize_cpm: !is.matrix(state$expression)", config=config)
   }
   
   f <- function(v) multiplier * (v / sum(v, na.rm=T))
@@ -210,7 +210,7 @@ f.normalize_cpm <- function(state, config, multiplier=1e6) {
 #'   Inter-observation normalization. Uses \code{limma::normalizeVSN()}. 
 #'     Unlike most other normalization methods, results are returned on a 
 #'     log2-like scale.
-#' @param state List with elements formatted like the list returned by \code{f.read_data()}:
+#' @param state List with elements formatted like the list returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -225,12 +225,12 @@ f.normalize_cpm <- function(state, config, multiplier=1e6) {
 #'   } 
 #' @examples
 #' set.seed(101)
-#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=50, mnar_c0=-Inf)$mat
+#' exprs <- h0testr::sim1(n_obs=6, n_feats=50, mnar_c0=-Inf)$mat
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list()
-#' state2 <- h0testr::f.normalize_vsn(state, config)
+#' state2 <- h0testr::normalize_vsn(state, config)
 #' head(state$expression)
 #' head(state2$expression)
 #' summary(apply(state$expression, 2, sd, na.rm=TRUE))
@@ -240,10 +240,10 @@ f.normalize_cpm <- function(state, config, multiplier=1e6) {
 #' summary(apply(log2(state$expression+1), 1, sd, na.rm=TRUE))
 #' summary(apply(state2$expression, 1, sd, na.rm=TRUE))
 
-f.normalize_vsn <- function(state, config) {
+normalize_vsn <- function(state, config) {
 
   if(!is.matrix(state$expression)) {
-    f.err("f.normalize_vsn: !is.matrix(state$expression)", config=config)
+    f.err("normalize_vsn: !is.matrix(state$expression)", config=config)
   }
   
   state$expression <- limma::normalizeVSN(state$expression)
@@ -257,10 +257,10 @@ f.normalize_vsn <- function(state, config) {
 #' @details 
 #'   Inter-observation normalization using cyclic-loess results
 #'     in similar signal distributions across all samples, similar to 
-#'     \code{f.normalize_qquantile()}. This is a slow method, especially if
+#'     \code{normalize_qquantile()}. This is a slow method, especially if
 #'     \code{method \%in\% c("affy", "pairs")}, which scale quadratically. Calls
 #'     \code{limma::normalizeCyclicLoess()} under the hood.
-#' @param state List with elements formatted like the list returned by `f.read_data()`:
+#' @param state List with elements formatted like the list returned by `read_data()`:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -278,12 +278,12 @@ f.normalize_vsn <- function(state, config) {
 #'   } 
 #' @examples
 #' set.seed(101)
-#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=30, mnar_c0=-Inf)$mat
+#' exprs <- h0testr::sim1(n_obs=6, n_feats=30, mnar_c0=-Inf)$mat
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list()
-#' state2 <- h0testr::f.normalize_loess(state, config)
+#' state2 <- h0testr::normalize_loess(state, config)
 #' head(state$expression)
 #' head(state2$expression)
 #' summary(apply(state$expression, 2, sd, na.rm=TRUE))
@@ -291,10 +291,10 @@ f.normalize_vsn <- function(state, config) {
 #' summary(apply(state$expression, 1, sd, na.rm=TRUE))
 #' summary(apply(state2$expression, 1, sd, na.rm=TRUE))
 
-f.normalize_loess <- function(state, config, span=NULL, method="affy") {
+normalize_loess <- function(state, config, span=NULL, method="affy") {
 
   if(!is.matrix(state$expression)) {
-    f.err("f.normalize_loess: !is.matrix(state$expression)", config=config)
+    f.err("normalize_loess: !is.matrix(state$expression)", config=config)
   }
   
   if(is.null(span)) span <- config$norm_span
@@ -313,7 +313,7 @@ f.normalize_loess <- function(state, config, span=NULL, method="affy") {
 #'   Inter-observation normalization resulting in nearly identical
 #'     signal distributions across all samples, so all quantiles in \code{0:1} match
 #'     across all samples. Calls \code{limma::normalizeQuantiles()} under the hood.
-#' @param state List with elements formatted like the list returned by \code{f.read_data()}:
+#' @param state List with elements formatted like the list returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -328,12 +328,12 @@ f.normalize_loess <- function(state, config, span=NULL, method="affy") {
 #'   } 
 #' @examples
 #' set.seed(101)
-#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12, mnar_c0=-Inf)$mat
+#' exprs <- h0testr::sim1(n_obs=6, n_feats=12, mnar_c0=-Inf)$mat
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list()
-#' state2 <- h0testr::f.normalize_qquantile(state, config)
+#' state2 <- h0testr::normalize_qquantile(state, config)
 #' print(state$expression)
 #' print(state2$expression)
 #' 
@@ -344,10 +344,10 @@ f.normalize_loess <- function(state, config, span=NULL, method="affy") {
 #' apply(state$expression, 2, quantile, probs=c(0.1, 0.25, 0.5, 0.75, 0.9), na.rm=TRUE)
 #' apply(state2$expression, 2, quantile, probs=c(0.1, 0.25, 0.5, 0.75, 0.9), na.rm=TRUE)
 
-f.normalize_qquantile <- function(state, config) {
+normalize_qquantile <- function(state, config) {
 
   if(!is.matrix(state$expression)) {
-    f.err("f.normalize_qquantile: !is.matrix(state$expression)", config=config)
+    f.err("normalize_qquantile: !is.matrix(state$expression)", config=config)
   }
   
   state$expression <- limma::normalizeQuantiles(state$expression)
@@ -365,14 +365,14 @@ f.normalize_qquantile <- function(state, config) {
 #'     for \code{method} are restricted to those that always yield non-negative 
 #'     values from non-negative inputs. Also excluded 
 #'     \code{c("vsn", "quantiles")} because already available elsewhere 
-#'     (as \code{h0testr::f.normalize_vsn()} and 
-#'     \code{h0testr::f.normalize_qquantile()}). 
+#'     (as \code{h0testr::normalize_vsn()} and 
+#'     \code{h0testr::normalize_qquantile()}). 
 #'     Acceptable \code{method} values include:
 #'       \code{c("sum", "max", "div.mean", "div.median", "quantiles.robust")}.
 #'   See documentation for \code{MsCoreUtils::normalize_matrix()} for details of each method.
-#'   See documentation for \code{h0testr::f.new_config()} 
+#'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
-#' @param state List with elements like those returned by \code{f.read_data()}:
+#' @param state List with elements like those returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -389,12 +389,12 @@ f.normalize_qquantile <- function(state, config) {
 #'   }
 #' @examples
 #' set.seed(101)
-#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12, mnar_c0=-Inf)$mat
+#' exprs <- h0testr::sim1(n_obs=6, n_feats=12, mnar_c0=-Inf)$mat
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list()
-#' state2 <- h0testr::f.normalize_mscoreutils(state, config, method="quantiles.robust")
+#' state2 <- h0testr::normalize_mscoreutils(state, config, method="quantiles.robust")
 #' print(state$expression)
 #' print(state2$expression)
 #'
@@ -402,11 +402,11 @@ f.normalize_qquantile <- function(state, config) {
 #' apply(state$expression, 2, quantile, probs=c(0.1, 0.25, 0.5, 0.75, 0.9), na.rm=TRUE)
 #' apply(state2$expression, 2, quantile, probs=c(0.1, 0.25, 0.5, 0.75, 0.9), na.rm=TRUE)
 
-f.normalize_mscoreutils <- function(state, config, method=NULL) {
+normalize_mscoreutils <- function(state, config, method=NULL) {
   
   if(is.null(method) || method %in% "") {
     if(is.null(config$norm_method) || config$norm_method %in% "") {
-      f.err("f.normalize_mscoreutils: method and config$norm_method both unset", 
+      f.err("normalize_mscoreutils: method and config$norm_method both unset", 
         config=config)
     }
     method <- config$norm_method
@@ -416,12 +416,12 @@ f.normalize_mscoreutils <- function(state, config, method=NULL) {
   allowed <- c("sum", "max", "div.mean", "div.median", "quantiles.robust")
   
   if(!(method %in% allowed)) {
-    f.err("f.normalize_mscoreutils: unrecognized method:", 
+    f.err("normalize_mscoreutils: unrecognized method:", 
       method, config=config)
   }
   
   if(!is.matrix(state$expression)) {
-    f.err("f.normalize_mscoreutils: !is.matrix(state$expression)", 
+    f.err("normalize_mscoreutils: !is.matrix(state$expression)", 
       config=config)
   }
   
@@ -436,17 +436,17 @@ f.normalize_mscoreutils <- function(state, config, method=NULL) {
 
 #' Get vector of normalization method names
 #' @description
-#'   Get a vector with acceptable values of \code{method} parameter for \code{h0testr::f.normalize}.
+#'   Get a vector with acceptable values of \code{method} parameter for \code{h0testr::normalize}.
 #' @return
-#'   Character vector with names of acceptable values for \code{h0testr::f.normalize(method=)}.
+#'   Character vector with names of acceptable values for \code{h0testr::normalize(method=)}.
 #' @examples
-#' norm_methods <- h0testr::f.normalize_methods()
+#' norm_methods <- h0testr::normalize_methods()
 #' cat("Available normalization methods:\n")
 #' for(method in norm_methods) {
 #'   cat("method:", method, "\n")
 #' }
 
-f.normalize_methods <- function() {
+normalize_methods <- function() {
   return(
     c("quantile", "cpm", "vsn", "loess", "qquantile",
       "RLE", "upperquartile", "TMM", "TMMwsp", 
@@ -464,9 +464,9 @@ f.normalize_methods <- function() {
 #'     the \code{h0testr} package. See individual methods for more details. 
 #'     Normalizes \code{state$expression}. Does not affect 
 #'     \code{state$features} or \code{state$samples}.
-#'   See documentation for \code{h0testr::f.new_config()} 
+#'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
-#' @param state List with elements formatted like the list returned by \code{f.read_data()}:
+#' @param state List with elements formatted like the list returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -479,7 +479,7 @@ f.normalize_methods <- function() {
 #'     \code{feat_col}      \cr \tab Column of \code{state$features} matching \code{rownames(state$expression)}. \cr
 #'     \code{obs_col}       \cr \tab Column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
 #'   }
-#' @param method Name of method to use, where scalar \code{method \%in\% h0testr::f.norm_methods()}.
+#' @param method Name of method to use, where scalar \code{method \%in\% h0testr::norm_methods()}.
 #' @param norm_quantile Quantile for methods \code{c("quantile", "upperquartile")}, where \code{0 <= norm_quantile <= 1}.
 #' @param span Span for method \code{"loess"}, where \code{0 < span < 1}.
 #' @return A list (the processed state) with the following elements:
@@ -491,13 +491,13 @@ f.normalize_methods <- function() {
 #' @examples
 #' ## some toy data:
 #' set.seed(101)
-#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' exprs <- h0testr::sim1(n_obs=6, n_feats=12)$mat
 #' exprs[, 4:6] <- exprs[, 4:6] * 2
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #'
-#' norm_methods <- h0testr::f.normalize_methods()
+#' norm_methods <- h0testr::normalize_methods()
 #' cat("Available normalization methods:\n")
 #' for(method in norm_methods) {
 #'   cat("method:", method, "\n")
@@ -505,7 +505,7 @@ f.normalize_methods <- function() {
 #' 
 #' ## example configured using parameters:
 #' config <- list(feat_col="feature_id", obs_col="observation_id")
-#' out <- h0testr::f.normalize(state, config, method="RLE")
+#' out <- h0testr::normalize(state, config, method="RLE")
 #' summary(apply(state$expression, 2, sd, na.rm=TRUE))
 #' summary(apply(out$state$expression, 2, sd, na.rm=TRUE))
 #' summary(apply(state$expression, 1, sd, na.rm=TRUE))
@@ -514,47 +514,47 @@ f.normalize_methods <- function() {
 #' ## example configured using config:
 #' config$norm_method <- "quantile"
 #' config$norm_quantile <- 0.5
-#' out <- h0testr::f.normalize(state, config)
+#' out <- h0testr::normalize(state, config)
 #' summary(apply(state$expression, 2, sd, na.rm=TRUE))
 #' summary(apply(out$state$expression, 2, sd, na.rm=TRUE))
 #' summary(apply(state$expression, 1, sd, na.rm=TRUE))
 #' summary(apply(out$state$expression, 1, sd, na.rm=TRUE))
 
-f.normalize <- function(state, config, method=NULL, 
+normalize <- function(state, config, method=NULL, 
     norm_quantile=NULL, span=NULL) {
 
-  f.check_config(config)
+  check_config(config)
   f.check_state(state, config)
   
   if(is.null(method) || method %in% "") method <- config$norm_method
   if(is.null(method) || method %in% "") {
-    f.err("f.normalize: method and config$norm_method both unset", 
+    f.err("normalize: method and config$norm_method both unset", 
       config=config)
   }
   if(is.null(norm_quantile)) norm_quantile <- config$norm_quantile
   if(is.null(span)) span <- config$norm_span
   
   if(method %in% c("TMM", "TMMwsp", "RLE", "upperquartile")) {
-    state <- f.normalize_edger(state, config, method=method, norm_quantile=norm_quantile)
+    state <- normalize_edger(state, config, method=method, norm_quantile=norm_quantile)
   } else if(method %in% c("sum", "max", "div.mean", "div.median", "quantiles.robust")) {
-    state <- f.normalize_mscoreutils(state, config, method=method)
+    state <- normalize_mscoreutils(state, config, method=method)
   } else if(method %in% "quantile") {
-    state <- f.normalize_quantile(state, config, norm_quantile=norm_quantile)
+    state <- normalize_quantile(state, config, norm_quantile=norm_quantile)
   } else if(method %in% "cpm") {
-    state <- f.normalize_cpm(state, config)
+    state <- normalize_cpm(state, config)
   } else if(method %in% "vsn") {
-    state <- f.normalize_vsn(state, config)
+    state <- normalize_vsn(state, config)
   } else if(method %in% "loess") {
-    state <- f.normalize_loess(state, config, span=span)
+    state <- normalize_loess(state, config, span=span)
   } else if(method %in% "qquantile") {
-    state <- f.normalize_qquantile(state, config)
+    state <- normalize_qquantile(state, config)
   } else if(method %in% "log2") {
     f.msg("normalization: log2 transformation", config=config)
   } else if(method %in% "none") {
     f.msg("skipping normalization: config$norm_method %in% 'none'", 
       config=config)
   } else {
-    f.err("f.normalize: unexpected config$norm_method:", config$norm_method, 
+    f.err("normalize: unexpected config$norm_method:", config$norm_method, 
       config=config)
   }
     

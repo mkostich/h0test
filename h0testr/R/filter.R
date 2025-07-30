@@ -5,9 +5,9 @@
 #'   Feature considered expressed if \code{state$expression > 0}; 
 #'     \code{NA}s count as no expression.
 #'   Feature constant if \code{length(unique(expression_values)) \%in\% 1}.
-#'   See documentation for \code{h0testr::f.new_config()} 
+#'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
-#' @param state A list with elements like that returned by \code{f.read_data()}:
+#' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -27,27 +27,27 @@
 #'   } 
 #' @examples
 #' set.seed(101)
-#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12, mcar_p=0.5)$mat
+#' exprs <- h0testr::sim1(n_obs=6, n_feats=12, mcar_p=0.5)$mat
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list(n_samples_min=3)
-#' state2 <- h0testr::f.filter_features(state, config)
+#' state2 <- h0testr::filter_features(state, config)
 #' print(state)
 #' print(state2)
 
-f.filter_features <- function(state, config, 
+filter_features <- function(state, config, 
     n_samples_min=NULL, remove_constant=TRUE) {
 
-  f.check_config(config)
+  check_config(config)
   
   if(!is.matrix(state$expression)) {
-    f.err("f.filter_features: !is.matrix(state$expression)", config=config)
+    f.err("filter_features: !is.matrix(state$expression)", config=config)
   }
   
   if(is.null(n_samples_min)) n_samples_min <- config$n_samples_min
   if(is.null(n_samples_min)) {
-    f.err("f.filter_features: n_samples_min unset", config=config)
+    f.err("filter_features: n_samples_min unset", config=config)
   }
   
   f <- function(v) {
@@ -91,9 +91,9 @@ f.filter_features <- function(state, config,
 #'   Feature considered expressed if \code{state$expression > 0}; \code{NA}s 
 #'     count as no expression.
 #'   Sample constant if \code{length(unique(expression_values)) \%in\% 1)}.
-#'   See documentation for \code{h0testr::f.new_config()} 
+#'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
-#' @param state A list with elements like that returned by \code{f.read_data()}:
+#' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -113,27 +113,27 @@ f.filter_features <- function(state, config,
 #'   } 
 #' @examples
 #' set.seed(101)
-#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12, mcar_p=0.5)$mat
+#' exprs <- h0testr::sim1(n_obs=6, n_feats=12, mcar_p=0.5)$mat
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list(n_features_min=4)
-#' state2 <- h0testr::f.filter_observations(state, config)
+#' state2 <- h0testr::filter_observations(state, config)
 #' print(state)
 #' print(state2)
 
-f.filter_observations <- function(state, config, 
+filter_observations <- function(state, config, 
     n_features_min=NULL, remove_constant=TRUE) {
 
-  f.check_config(config)
+  check_config(config)
 
   if(!is.matrix(state$expression)) {
-    f.err("f.filter_observations: !is.matrix(state$expression)", config=config)
+    f.err("filter_observations: !is.matrix(state$expression)", config=config)
   }
   
   if(is.null(n_features_min)) n_features_min <- config$n_features_min
   if(is.null(n_features_min)) {
-    f.err("f.filter_observations: n_features_min unset", config=config)
+    f.err("filter_observations: n_features_min unset", config=config)
   }
   
   f <- function(v) {
@@ -174,7 +174,7 @@ f.filter_observations <- function(state, config,
 #'   Calculates the number of samples expressing each feature
 #' @details Feature considered expressed if \code{state$expression > 0}; 
 #'   \code{NA}s count as no expression.
-#' @param state A list with elements like that returned by \code{f.read_data()}:
+#' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -185,17 +185,17 @@ f.filter_observations <- function(state, config,
 #'   counts for each feature.
 #' @examples
 #' set.seed(101)
-#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12, mcar_p=0.5)$mat
+#' exprs <- h0testr::sim1(n_obs=6, n_feats=12, mcar_p=0.5)$mat
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list()
-#' h0testr::f.samples_per_feature(state, config)
+#' h0testr::samples_per_feature(state, config)
 
-f.samples_per_feature <- function(state, config) {
+samples_per_feature <- function(state, config) {
 
   if(!is.matrix(state$expression)) {
-    f.err("f.samples_per_feature: !is.matrix(state$expression)", config=config)
+    f.err("samples_per_feature: !is.matrix(state$expression)", config=config)
   }
 
   f <- function(v) {
@@ -216,7 +216,7 @@ f.samples_per_feature <- function(state, config) {
 #'     \code{NA}s count as no expression.
 #'     Note that \code{NA}s and values less than or equal to zero do not count 
 #'       toward the median.
-#' @param state A list with elements like that returned by \code{f.read_data()}:
+#' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -227,17 +227,17 @@ f.samples_per_feature <- function(state, config) {
 #'   each expressing sample.
 #' @examples
 #' set.seed(101)
-#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' exprs <- h0testr::sim1(n_obs=6, n_feats=12)$mat
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list()
-#' h0testr::f.feature_median_expression(state, config)
+#' h0testr::feature_median_expression(state, config)
 
-f.feature_median_expression <- function(state, config) {
+feature_median_expression <- function(state, config) {
 
   if(!is.matrix(state$expression)) {
-    f.err("f.feature_median_expression: !is.matrix(state$expression)", 
+    f.err("feature_median_expression: !is.matrix(state$expression)", 
       config=config)
   }
   
@@ -257,7 +257,7 @@ f.feature_median_expression <- function(state, config) {
 #' @details 
 #'   Features are considered to be expressed if \code{state$expression > 0}; 
 #'     \code{NA}s count as no expression.
-#' @param state A list with elements like that returned by `f.read_data()`:
+#' @param state A list with elements like that returned by `read_data()`:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -269,17 +269,17 @@ f.feature_median_expression <- function(state, config) {
 #'   number of features expressed in each sample.
 #' @examples
 #' set.seed(101)
-#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12)$mat
+#' exprs <- h0testr::sim1(n_obs=6, n_feats=12)$mat
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list()
-#' h0testr::f.features_per_sample(state, config)
+#' h0testr::features_per_sample(state, config)
 
-f.features_per_sample <- function(state, config) {
+features_per_sample <- function(state, config) {
 
   if(!is.matrix(state$expression)) {
-    f.err("f.features_per_sample: !is.matrix(state$expression)", config=config)
+    f.err("features_per_sample: !is.matrix(state$expression)", config=config)
   }
   
   f <- function(v) {
@@ -292,6 +292,139 @@ f.features_per_sample <- function(state, config) {
   return(n)
 }
 
+#' Prefilter data
+#' @description
+#'   Adds filtering-related statistics to \code{state$features}, 
+#'     and \code{state$samples}.
+#' @details 
+#'   Wrapper for \code{samples_per_feature()}, \code{feature_median_expression()}, 
+#'     \code{features_per_sample()}. Also reports quantiles of distributions. 
+#'   See documentation for \code{h0testr::new_config()} 
+#'     for more detailed description of configuration parameters. 
+#' @param state List with elements formatted like the list returned by \code{read_data()}:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
+#' @param config List with configuration values. Requires the following keys:
+#'   \tabular{ll}{
+#'     \code{feat_id_col}  \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+#'     \code{obs_id_col}   \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{expression}. \cr
+#'   }
+#' @param n_samples_min minimum number of samples per feature; numeric >= 2.
+#' @param n_features_min minimum number of features per sample; numeric >= 2.
+#' @return A list (the filtered state) with the following elements:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
+#' @examples
+#' set.seed(101)
+#' exprs <- h0testr::sim1(n_obs=6, n_feats=12, mcar_p=0.75)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(feat_col="feature_id", obs_col="observation_id")
+#' state2 <- h0testr::prefilter(state, config)
+#' print(state2)
+
+prefilter <- function(state, config, n_samples_min=2, n_features_min=2) {
+
+  check_config(config)
+  
+  f.log_block("prefilter features and samples", config=config)
+  f.msg("before filtering features:", config=config)
+  f.report_state(state, config)
+  
+  state <- filter_features(state, config, n_samples_min=n_samples_min)
+  f.msg("after filtering features", config=config)
+  f.report_state(state, config)
+  
+  state <- filter_observations(state, config, n_features_min=n_features_min)
+  f.msg("after filtering samples", config=config)
+  f.report_state(state, config)
+  
+  f.check_state(state, config)
+  
+  return(state)
+}
+
+#' Add filter statistics
+#' @description
+#'   Adds filtering-related statistics to \code{state$features}, 
+#'     and \code{state$samples}.
+#' @details 
+#'   Wrapper for \code{samples_per_feature()}, \code{feature_median_expression()}, 
+#'     \code{features_per_sample()}. Also reports quantiles of distributions. 
+#'   See documentation for \code{h0testr::new_config()} 
+#'     for more detailed description of configuration parameters. 
+#' @param state List with elements formatted like the list returned by \code{read_data()}:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
+#' @param config List with configuration values. Requires the following keys:
+#'   \tabular{ll}{
+#'     \code{feat_col}  \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+#'     \code{obs_col}   \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{expression}. \cr
+#'   }
+#' @return A list (the processed state) with the following elements:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
+#' @examples
+#' exprs <- h0testr::sim1(n_obs=6, n_feats=8)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- h0testr::new_config()      ## defaults
+#' config$save_state <- FALSE             ## default is TRUE
+#' config$feat_col <- config$feat_id_col
+#' config$obs_col <- config$obs_id_col
+#' state <- h0testr::add_filter_stats(state, config)
+#' print(state)
+
+add_filter_stats <- function(state, config) {
+  
+  check_config(config)
+  
+  n <- samples_per_feature(state, config)
+  if(!all(names(n) == state$features[[config$feat_col]])) {
+    f.err("add_filter_stats: !all(names(n) == state$features[[config$feat_col]])", 
+      config=config)
+  }
+  state$features[, config$n_samples_expr_col] <- n
+  
+  m <- feature_median_expression(state, config)
+  if(!all(names(m) == state$features[[config$feat_col]])) {
+    f.err("add_filter_stats: !all(names(m) == state$features[[config$feat_col]])", 
+      config=config)
+  }
+  state$features[, config$median_raw_col] <- m
+  
+  n <- features_per_sample(state, config)
+  if(!all(names(n) == state$samples[[config$obs_col]])) {
+    f.err("add_filter_stats: !all(names(n) == state$samples[, config$obs_col])", 
+      config=config)
+  } 
+  state$samples[, config$n_features_expr_col] <- n
+  
+  n <- apply(state$expression, 1, function(v) sum(v > 0, na.rm=T))
+  f.msg("samples per feature:", config=config)
+  f.quantile(n, config, digits=0)
+  
+  n <- apply(state$expression, 2, function(v) sum(v > 0, na.rm=T))
+  f.msg("features per sample", config=config)
+  f.quantile(n, config, digits=0)
+  
+  return(state)
+}
+
 #' Filter features and samples
 #' @description
 #'   Filter features and samples based on expression. 
@@ -301,9 +434,9 @@ f.features_per_sample <- function(state, config) {
 #'     expressed if \code{state$expression > 0}; \code{NA}s count as no expression.
 #'   Features and/or samples considered constant if 
 #'     \code{length(unique(expression_values)) \%in\% 1}.
-#'   See documentation for \code{h0testr::f.new_config()} 
+#'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
-#' @param state A list with elements like that returned by `f.read_data()`:
+#' @param state A list with elements like that returned by `read_data()`:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -320,7 +453,7 @@ f.features_per_sample <- function(state, config) {
 #'     \code{n_features_expr_col} \cr \tab Name (character) of new column in sample metadata to hold number of expressed features. \cr
 #'   }
 #' @param remove_constant Logical scalar: if constant rows and columns of \code{state$expression} should be removed.
-#' @return A list with elements like that returned by \code{f.read_data()}:
+#' @return A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -328,38 +461,38 @@ f.features_per_sample <- function(state, config) {
 #'   }
 #' @examples
 #' set.seed(101)
-#' exprs <- h0testr::f.sim1(n_obs=6, n_feats=12, mcar_p=0.25)$mat
+#' exprs <- h0testr::sim1(n_obs=6, n_feats=12, mcar_p=0.25)$mat
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #'
 #' ## assume default median_raw_col, n_samples_expr_col, and n_features_expr_col are ok:
-#' config <- h0testr::f.new_config()      ## defaults
+#' config <- h0testr::new_config()      ## defaults
 #' config$save_state <- FALSE             ## default is TRUE
 #' config$feat_col <- config$feat_id_col
 #' config$obs_col <- config$obs_id_col
 #' config$n_features_min <- 6
 #' config$n_samples_min <- 2
-#' out <- h0testr::f.filter(state, config)
+#' out <- h0testr::filter(state, config)
 #' print(out$state)
 #' str(out$config)
 
-f.filter <- function(state, config, remove_constant=TRUE) {
+filter <- function(state, config, remove_constant=TRUE) {
   
-  f.check_config(config)
+  check_config(config)
   
-  state <- f.filter_features(state, config, 
+  state <- filter_features(state, config, 
     remove_constant=remove_constant)  
-  state <- f.filter_observations(state, config, 
+  state <- filter_observations(state, config, 
     remove_constant=remove_constant)
   
-  n <- f.samples_per_feature(state, config)
+  n <- samples_per_feature(state, config)
   state$features[[config$n_samples_expr_col]] <- n
   
-  m <- f.feature_median_expression(state, config)
+  m <- feature_median_expression(state, config)
   state$features[[config$median_raw_col]] <- m
   
-  n <- f.features_per_sample(state, config)
+  n <- features_per_sample(state, config)
   state$samples[[config$n_features_expr_col]] <- n
   
   f.check_state(state, config)
