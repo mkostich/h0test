@@ -270,12 +270,12 @@ test_msqrob <- function(state, config, maxit=100) {
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{gene_id_col}    \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
-#'     \code{feat_col}       \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
-#'     \code{obs_col}        \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
-#'     \code{frm}            \cr \tab Formula (formula) to be fit \cr
-#'     \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
-#'     \code{norm_method}    \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
+#'     \code{gene_id_col}          \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
+#'     \code{feat_col}             \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
+#'     \code{obs_col}              \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
+#'     \code{frm}                  \cr \tab Formula (formula) to be fit \cr
+#'     \code{test_term}            \cr \tab Term (character) to be tested for non-zero coefficient. \cr
+#'     \code{normalization_method} \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
 #'   }
 #' @param is_log_transformed Logical scalar indicating if \code{state$expression} has been log transformed.
 #' @param prior_df Strictly positive count (\code{location_prior_df}) indicating number of dfs for prior.
@@ -326,11 +326,11 @@ test_msqrob <- function(state, config, maxit=100) {
 test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit=20) {
   
   if(is.null(is_log_transformed) || is_log_transformed %in% "") {
-    if(is.null(config$norm_method) || config$norm_method %in% "") {
-      f.err("test_proda: is_log_transformed and config$norm_method both unset", 
+    if(is.null(config$normalization_method) || config$normalization_method %in% "") {
+      f.err("test_proda: is_log_transformed and config$normalization_method both unset", 
         config=config)
     }
-    if(config$norm_method %in% c("none")) {
+    if(config$normalization_method %in% c("none")) {
       is_log_transformed <- FALSE 
     } else {
       is_log_transformed <- TRUE
@@ -385,13 +385,13 @@ test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit
 #'   }
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{gene_id_col}    \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
-#'     \code{feat_col}       \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
-#'     \code{obs_col}        \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
-#'     \code{frm}            \cr \tab Formula (formula) to be fit \cr
-#'     \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
-#'     \code{sample_factors} \cr \tab List with one character vector per variable, with factor level ordering. \cr
-#'     \code{norm_method}    \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
+#'     \code{gene_id_col}           \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
+#'     \code{feat_col}              \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
+#'     \code{obs_col}               \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
+#'     \code{frm}                   \cr \tab Formula (formula) to be fit \cr
+#'     \code{test_term}             \cr \tab Term (character) to be tested for non-zero coefficient. \cr
+#'     \code{sample_factors}        \cr \tab List with one character vector per variable, with factor level ordering. \cr
+#'     \code{normalization_method}  \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
 #'   }
 #' @param is_log_transformed Logical scalar indicating if \code{state$expression} has been log transformed.
 #' @return
@@ -440,11 +440,11 @@ test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit
 test_prolfqua <- function(state, config, is_log_transformed=NULL) {
   
   if(is.null(is_log_transformed) || is_log_transformed %in% "") {
-    if(is.null(config$norm_method) || config$norm_method %in% "") {
-      f.err("test_prolfqua: is_log_transformed and config$norm_method both unset", 
+    if(is.null(config$normalization_method) || config$normalization_method %in% "") {
+      f.err("test_prolfqua: is_log_transformed and config$normalization_method both unset", 
         config=config)
     }
-    if(config$norm_method %in% c("none")) {
+    if(config$normalization_method %in% c("none")) {
       is_log_transformed <- FALSE 
     } else {
       is_log_transformed <- TRUE

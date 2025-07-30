@@ -4,7 +4,13 @@
 \alias{normalize}
 \title{Inter-sample normalization}
 \usage{
-normalize(state, config, method = NULL, norm_quantile = NULL, span = NULL)
+normalize(
+  state,
+  config,
+  method = NULL,
+  normalization_quantile = NULL,
+  span = NULL
+)
 }
 \arguments{
 \item{state}{List with elements formatted like the list returned by \code{read_data()}:
@@ -16,15 +22,15 @@ normalize(state, config, method = NULL, norm_quantile = NULL, span = NULL)
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{norm_method}   \cr \tab Character scalar in \code{c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")}. \cr
-  \code{norm_quantile} \cr \tab Quantile (numeric between 0 and 1) for \code{norm_method \%in\% c("quantile", "upperquartile")}. \cr
+  \code{normalization_method}   \cr \tab Character scalar in \code{c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")}. \cr
+  \code{normalization_quantile} \cr \tab Quantile (numeric between 0 and 1) for \code{normalization_method \%in\% c("quantile", "upperquartile")}. \cr
   \code{feat_col}      \cr \tab Column of \code{state$features} matching \code{rownames(state$expression)}. \cr
   \code{obs_col}       \cr \tab Column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
 }}
 
-\item{method}{Name of method to use, where scalar \code{method \%in\% h0testr::norm_methods()}.}
+\item{method}{Name of method to use, where scalar \code{method \%in\% h0testr::normalization_methods()}.}
 
-\item{norm_quantile}{Quantile for methods \code{c("quantile", "upperquartile")}, where \code{0 <= norm_quantile <= 1}.}
+\item{normalization_quantile}{Quantile for methods \code{c("quantile", "upperquartile")}, where \code{0 <= normalization_quantile <= 1}.}
 
 \item{span}{Span for method \code{"loess"}, where \code{0 < span < 1}.}
 }
@@ -57,9 +63,9 @@ feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
 
-norm_methods <- h0testr::normalize_methods()
+normalization_methods <- h0testr::normalize_methods()
 cat("Available normalization methods:\n")
-for(method in norm_methods) {
+for(method in normalization_methods) {
   cat("method:", method, "\n")
 }
 
@@ -72,8 +78,8 @@ summary(apply(state$expression, 1, sd, na.rm=TRUE))
 summary(apply(out$state$expression, 1, sd, na.rm=TRUE))
 
 ## example configured using config:
-config$norm_method <- "quantile"
-config$norm_quantile <- 0.5
+config$normalization_method <- "quantile"
+config$normalization_quantile <- 0.5
 out <- h0testr::normalize(state, config)
 summary(apply(state$expression, 2, sd, na.rm=TRUE))
 summary(apply(out$state$expression, 2, sd, na.rm=TRUE))

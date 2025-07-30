@@ -6,8 +6,8 @@
 \usage{
 tune(
   config,
-  norm_methods = c("RLE", "upperquartile", "q50", "q75", "quantiles.robust", "cpm",
-    "max", "div.mean", "TMMwsp", "vsn", "qquantile", "log2", "none"),
+  normalization_methods = c("RLE", "upperquartile", "q50", "q75", "quantiles.robust",
+    "cpm", "max", "div.mean", "TMMwsp", "vsn", "qquantile", "log2", "none"),
   impute_methods = c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature",
     "glm_binom", "loess_logit", "glmnet", "rf", "knn", "min_det", "min_prob", "qrilc",
     "bpca", "ppca", "svdImpute", "lls", "missforest", "none"),
@@ -22,7 +22,7 @@ tune(
 \arguments{
 \item{config}{List with configuration values like those returned by \code{new_config()}.}
 
-\item{norm_methods}{Character vector of methods to try. One or more of:
+\item{normalization_methods}{Character vector of methods to try. One or more of:
 \code{c("RLE", "upperquartile", "q50", "q75", "quantiles.robust", "cpm", "max", "div.mean", "TMMwsp", "vsn", "qquantile", "log2", "none")}.}
 
 \item{impute_methods}{Character vector of methods to try. One or more of:
@@ -77,8 +77,8 @@ Run a basic tuning loop that iterates over parameter combinations,
     \code{N} runs (we recommend \code{N >= 20}) with 
     \code{config$permute_var} set to the name of a variable in 
     \code{config$test_term}.
-  Currently tunes the following \code{config} values: \code{norm_method}, 
-    \code{norm_quantile}, \code{impute_method}, \code{impute_quantile}, 
+  Currently tunes the following \code{config} values: \code{normalization_method}, 
+    \code{normalization_quantile}, \code{impute_method}, \code{impute_quantile}, 
     \code{impute_scale}, \code{impute_span}, \code{impute_k}, 
     \code{impute_npcs}, and \code{test_method}. Notably, does not currently 
     tune \code{impute_alpha}, \code{impute_aug_steps}, or \code{run_order}. 
@@ -105,7 +105,7 @@ config$sample_factors <- list(condition=c("placebo", "drug"))
 config$permute_var <- ""            ## no permutation
 set.seed(101)
 out1 <- h0testr::tune(config,
-  norm_methods=c("RLE", "q75", "cpm", "log2"),
+  normalization_methods=c("RLE", "q75", "cpm", "log2"),
   impute_methods=c("sample_lod", "unif_sample_lod", "none"),
   impute_quantiles=c(0, 0.05, 0.1),
   test_methods=c("trend", "msqrob", "proda", "prolfqua")
@@ -116,7 +116,7 @@ out1 <- h0testr::tune(config,
 config$permute_var <- "condition"   ## permute variable in test_term
 set.seed(101)
 out2 <- h0testr::tune(config,
-  norm_methods=c("RLE", "q75", "cpm", "log2"),
+  normalization_methods=c("RLE", "q75", "cpm", "log2"),
   impute_methods=c("sample_lod", "unif_sample_lod", "none"),
   impute_quantiles=c(0, 0.05, 0.1),
   test_methods=c("trend", "msqrob", "proda")

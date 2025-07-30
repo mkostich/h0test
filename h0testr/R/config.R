@@ -85,11 +85,11 @@ new_config <- function() {
     suffix_out=".tsv",                   ## suffix for output files 
     
     ## tunable options: defaults are usually ok, except:
-    ##   for dia: usually works ok: RLE:unif_sample_lod:0.05 for norm_method:impute_method:impute_quantile
-    ##   for dda: usually works ok: quantile:0.75:unif_sample_lod:0 for norm_method:norm_quantile:impute_method:impute_quantile
-    norm_method="RLE",                   ## normalization method; h0testr::normalize_methods() retuns options.
-    norm_quantile=0.75,                  ## for quantile normalization; 0.5 is median; 0.75 is upper quartile;
-    norm_span=0.7,                       ## span for norm_loess()
+    ##   for dia: usually works ok: RLE:unif_sample_lod:0.05 for normalization_method:impute_method:impute_quantile
+    ##   for dda: usually works ok: quantile:0.75:unif_sample_lod:0 for normalization_method:normalization_quantile:impute_method:impute_quantile
+    normalization_method="RLE",          ## normalization method; h0testr::normalize_methods() retuns options.
+    normalization_quantile=0.75,         ## for quantile normalization; 0.5 is median; 0.75 is upper quartile;
+    normalization_span=0.7,              ## span for normalize_loess()
     n_samples_min=2,                     ## min samples/feature w/ feature expression > 0 to keep feature
     n_features_min=1000,                 ## min features/sample w/ expression > 0 to keep sample
     feature_aggregation="medianPolish",  ## in c("medianPolish", "robustSummary", "none")
@@ -151,14 +151,14 @@ check_config <- function(config) {
     "obs_id_col", "sample_id_col", "obs_col", "n_samples_expr_col", 
     "median_raw_col", "n_features_expr_col", "log_file", "feature_mid_out", 
     "sample_mid_out", "data_mid_out", "result_mid_out", "suffix_out", 
-    "norm_method", "feature_aggregation", "impute_method", "test_method")
+    "normalization_method", "feature_aggregation", "impute_method", "test_method")
   
   scalar_counts <- c("n_samples_min", "n_features_min", "impute_n_pts", 
     "impute_k", "impute_npcs", "impute_aug_steps", "test_prior_df", 
     "width")
   
-  scalar_props <- c("norm_quantile", "impute_quantile", "impute_span", 
-    "impute_alpha", "norm_span")
+  scalar_props <- c("normalization_quantile", "impute_quantile", "impute_span", 
+    "impute_alpha", "normalization_span")
   scalar_positive <- c("impute_scale")
   scalar_logical <- c("feature_aggregation_scaled", "save_state", "verbose")
   scalar_formula <- c("frm")

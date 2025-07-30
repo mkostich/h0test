@@ -16,12 +16,12 @@ test_proda(state, config, is_log_transformed = NULL, prior_df = 3, maxit = 20)
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{gene_id_col}    \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
-  \code{feat_col}       \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
-  \code{obs_col}        \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
-  \code{frm}            \cr \tab Formula (formula) to be fit \cr
-  \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
-  \code{norm_method}    \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
+  \code{gene_id_col}          \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
+  \code{feat_col}             \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
+  \code{obs_col}              \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
+  \code{frm}                  \cr \tab Formula (formula) to be fit \cr
+  \code{test_term}            \cr \tab Term (character) to be tested for non-zero coefficient. \cr
+  \code{normalization_method} \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
 }}
 
 \item{is_log_transformed}{Logical scalar indicating if \code{state$expression} has been log transformed.}

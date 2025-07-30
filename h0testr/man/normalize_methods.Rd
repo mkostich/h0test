@@ -7,15 +7,15 @@
 normalize_methods()
 }
 \value{
-Character vector with names of acceptable values for \code{h0testr::normalize(method=)}.
+Character vector with names of acceptable values for \code{h0testr::normalize(..., method=)}.
 }
 \description{
 Get a vector with acceptable values of \code{method} parameter for \code{h0testr::normalize}.
 }
 \examples{
-norm_methods <- h0testr::normalize_methods()
+normalization_methods <- h0testr::normalize_methods()
 cat("Available normalization methods:\n")
-for(method in norm_methods) {
+for(method in normalization_methods) {
   cat("method:", method, "\n")
 }
 }

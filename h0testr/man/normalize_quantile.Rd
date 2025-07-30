@@ -4,7 +4,12 @@
 \alias{normalize_quantile}
 \title{Normalize expression using quantile of expression intensity}
 \usage{
-normalize_quantile(state, config, norm_quantile = NULL, multiplier = 1000)
+normalize_quantile(
+  state,
+  config,
+  normalization_quantile = NULL,
+  multiplier = 1000
+)
 }
 \arguments{
 \item{state}{List with elements formatted like the list returned by \code{read_data()}:
@@ -16,10 +21,10 @@ normalize_quantile(state, config, norm_quantile = NULL, multiplier = 1000)
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{norm_quantile}   \cr \tab Quantile to use where \code{norm_method \%in\% c("quantile", "upperquartile")}. \cr
+  \code{normalization_quantile}   \cr \tab Quantile to use where \code{normalization_method \%in\% c("quantile", "upperquartile")}. \cr
 }}
 
-\item{norm_quantile}{Numeric in closed interval \code{[0, 1]} specifying quantile to use.}
+\item{normalization_quantile}{Numeric in closed interval \code{[0, 1]} specifying quantile to use.}
 
 \item{multiplier}{Numeric used to scale returned values after 
 dividing by selected quantile.}
@@ -50,7 +55,7 @@ exprs <- h0testr::sim1(n_obs=6, n_feats=12)$mat
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(norm_quantile=0.75)
+config <- list(normalization_quantile=0.75)
 state2 <- h0testr::normalize_quantile(state, config)
 print(state$expression)
 print(state2$expression)

@@ -12,11 +12,12 @@ f.log <- function(..., config) {
 }
 
 f.log_block <- function(..., config) {
-  f.msg("", config=config)
+  f.msg("", config=config)              ## blank line
   f.log(..., config=config)
 }
 
 f.err <- function(..., config) {
+  f.msg("", config=config)              ## blank line
   f.log("ERROR:", ..., config=config)
   stop("Stopping", call.=F)
 }

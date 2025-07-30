@@ -207,11 +207,11 @@ result_mid_out=".results"           ## midfix for output results file
 suffix_out=".tsv"                   ## suffix for output files 
 
 ## tunable options: defaults are usually ok, except:
-##   for dia: usually works ok: RLE:unif_sample_lod:0.05 for norm_method:impute_method:impute_quantile
-##   for dda: usually works ok: quantile:0.75:unif_sample_lod:0 for norm_method:norm_quantile:impute_method:impute_quantile
-norm_method="RLE"                   ## normalization method; h0testr::normalize_methods() to see available choices.
-norm_quantile=0.75                  ## for quantile normalization; 0.5 is median; 0.75 is upper quartile
-norm_span=0.7                       ## span for norm_method %in% "loess"
+##   for dia: usually works ok: RLE:unif_sample_lod:0.05 for normalization_method:impute_method:impute_quantile
+##   for dda: usually works ok: quantile:0.75:unif_sample_lod:0 for normalization_method:normalization_quantile:impute_method:impute_quantile
+normalization_method="RLE"          ## normalization method; h0testr::normalize_methods() to see available choices.
+normalization_quantile=0.75         ## for quantile normalization; 0.5 is median; 0.75 is upper quartile
+normalization_span=0.7              ## span for normalization_method %in% "loess"
 n_samples_min=2                     ## min(samples/feature w/ feature expression > 0) to keep feature
 n_features_min=1000                 ## min(features/sample w/ expression > 0) to keep sample
 feature_aggregation="medianPolish"  ## in c("medianPolish", "robustSummary", "none")
@@ -251,9 +251,9 @@ workflow:
    and `config$data_file_in` from the filesystem directory `config$dir_in`, 
    parse, reformat, [optionally permute], and check for consistency between
    all three files.
-2) Inter-sample normalization specified by `config$norm_method`: includes 
+2) Inter-sample normalization specified by `config$normalization_method`: includes 
    `log2(x+1)` transform or equivalent (e.g. for `vsn`), unless 
-   `config$norm_method %in% "none"`.
+   `config$normalization_method %in% "none"`.
 3) Combine technical replicates: using median.
 4) Unless `test_method %in% c("deqms", "msqrob")`, combine peptide signals 
    using method specified by `config$feature_aggregation`.
@@ -302,14 +302,14 @@ will be:
 3.normalized.samples.tsv
 
 ## technical replicate data aggregated into sample-level data:
-4.combined_rep.expression.tsv
-4.combined_rep.features.tsv
-4.combined_rep.samples.tsv
+4.combined_replicates.expression.tsv
+4.combined_replicates.features.tsv
+4.combined_replicates.samples.tsv
 
 ## feature data aggregated into protein-group or gene-group-level data:
-5.combined_pep.expression.tsv
-5.combined_pep.features.tsv
-5.combined_pep.samples.tsv
+5.combined_features.expression.tsv
+5.combined_features.features.tsv
+5.combined_features.samples.tsv
 
 ## filtered for min samples/feature and features/sample:
 6.filtered.expression.tsv
@@ -333,22 +333,22 @@ results <- read.table("7.results.tsv", header=T, sep="\t", quote="", as.is=T)
 
 > head(results)
    accession ... n_samps_expr median_raw     age12     age24  AveExpr        F      P.Value    adj.P.Val
-1     K3BVX3 ...         202   7.449487 0.4403154 0.9871583 7.500060 67.11553 1.836730e-21 1.011487e-17
-2     Q8JRU9 ...         202   7.106755 1.7900813 2.7292021 7.028900 58.77616 1.660120e-19 4.571139e-16
-3     K9W4L5 ...         202   9.545797 0.6914303 1.2014321 9.552100 43.85464 1.118592e-15 2.053363e-12
-4     E3TMK8 ...         202   9.141165 0.6385290 1.0643483 9.151548 42.81598 2.152679e-15 2.963701e-12
-5     K6SUP6 ...         202   8.665571 0.6286665 0.8722942 8.642624 38.05398 4.674231e-14 5.148198e-11
-6     P4TXL2 ...         202   9.486986 0.2715985 0.6570489 9.487649 37.33104 7.544069e-14 6.924198e-11
+1     K3BVX3 ...          202   7.449487 0.4403154 0.9871583 7.500060 67.11553 1.836730e-21 1.011487e-17
+2     Q8JRU9 ...          202   7.106755 1.7900813 2.7292021 7.028900 58.77616 1.660120e-19 4.571139e-16
+3     K9W4L5 ...          202   9.545797 0.6914303 1.2014321 9.552100 43.85464 1.118592e-15 2.053363e-12
+4     E3TMK8 ...          202   9.141165 0.6385290 1.0643483 9.151548 42.81598 2.152679e-15 2.963701e-12
+5     K6SUP6 ...          202   8.665571 0.6286665 0.8722942 8.642624 38.05398 4.674231e-14 5.148198e-11
+6     P4TXL2 ...          202   9.486986 0.2715985 0.6570489 9.487649 37.33104 7.544069e-14 6.924198e-11
 
 ## where '...' represents feature columns from config$feature_file_in.
 ```
 
 ---
 
-## NORM_METHOD
+## NORMALIZATION_METHOD
 
-Itersample normalization method. Values returned by each `config$norm_method` 
-are `log2(x+1)` transformed unless `config$norm_method %in% "none"`:
+Itersample normalization method. Values returned by each `config$normalization_method` 
+are `log2(x+1)` transformed unless `config$normalization_method %in% "none"`:
 
 **cpm**: Counts per million; for each sample: 
   `multiplier * (intensities / sum(intensities, na.rm=T))`
@@ -374,7 +374,7 @@ are `log2(x+1)` transformed unless `config$norm_method %in% "none"`:
   `limma::normalizeQuantiles()`.
 
 **quantile**: For each sample: 
-  `multiplier * intensities / quantile(intensities, probs=config$norm_quantile, na.rm=T))`
+  `multiplier * intensities / quantile(intensities, probs=config$normalization_quantile, na.rm=T))`
   
 **quantiles.robust**: Robust quantile normalization. Uses 
   `MsCoreUtils::normalize_matrix(..., method="quantiles.robust")`, which in turn is a 
@@ -530,7 +530,7 @@ config$sample_factors <- list(grp=c("ctl", "trt"))
 config$permute_var <- ""            ## no permutation
 set.seed(100)
 out <- h0testr::tune(config,
-  norm_methods=c("RLE", "q75", "cpm", "log2"),
+  normalization_methods=c("RLE", "q75", "cpm", "log2"),
   impute_methods=c("sample_lod", "unif_sample_lod", "none"),
   impute_quantiles=c(0, 0.05, 0.1),
   test_methods=c("trend", "msqrob", "proda", "prolfqua")
@@ -547,7 +547,7 @@ N <- 20
 for(idx in 1:N) {
   set.seed(100 + idx)
   out <- h0testr::tune(config,
-    norm_methods=c("RLE", "q75", "cpm", "log2"),
+    normalization_methods=c("RLE", "q75", "cpm", "log2"),
     impute_methods=c("sample_lod", "unif_sample_lod", "none"),
     impute_quantiles=c(0, 0.05, 0.1),
     test_methods=c("trend", "msqrob", "proda", "prolfqua")
@@ -559,9 +559,9 @@ for(idx in 1:N) {
 
 The results of each run will have columns:
 
-**norm**: Normalization method. `config$norm_method`.
+**norm**: Normalization method. `config$normalization_method`.
 
-**nquant**: Normalization quantile. `config$norm_quantile`.
+**nquant**: Normalization quantile. `config$normalization_quantile`.
 
 **impute**: Imputation method. `config$impute_method`.
 

@@ -82,9 +82,9 @@ combine_replicates <- function(state, config) {
   if(!is.null(config$run_order)) {
     i <- config$run_order %in% "combine_replicates"
     if(any(i)) {
-      prfx <- paste0(which(i)[1] + 2, ".combine_replicates")
+      prfx <- paste0(which(i)[1] + 2, ".combined_replicates")
     } else {
-      prfx <- "combine_replicates"
+      prfx <- "combined_replicates"
     }
   }
   f.save_state(state, config, prefix=prfx)
@@ -296,9 +296,9 @@ combine_features <- function(state, config, method=NULL, rescale=FALSE) {
   if(!is.null(config$run_order)) {
     i <- config$run_order %in% "combine_features"
     if(any(i)) {
-      prfx <- paste0(which(i)[1] + 2, ".combine_features")
+      prfx <- paste0(which(i)[1] + 2, ".combined_features")
     } else {
-      prfx <- "combine_features"
+      prfx <- "combined_features"
     }
   }
   f.save_state(state, config, prefix=prfx)

@@ -59,7 +59,7 @@ run <- function(config) {
     }
     
     if(f_name %in% "normalize") {
-      if(!config$norm_method %in% c("none")) {
+      if(!config$normalization_method %in% c("none")) {
         is_log_transformed <- TRUE
       }
     }
@@ -74,16 +74,16 @@ run <- function(config) {
 
 ## helper for tune(); normalize and combine reps:
 
-f.tune1 <- function(state, config, norm_method) {
+f.tune1 <- function(state, config, normalization_method) {
 
-  if(norm_method %in% "q50") {
-    config$norm_method <- "quantile"
-    config$norm_quantile <- 0.5
-  } else if(norm_method %in% c("q75")) {
-    config$norm_method <- "quantile"
-    config$norm_quantile <- 0.75
-  } else if(norm_method %in% "upperquartile") {
-    config$norm_quantile <- 0.75
+  if(normalization_method %in% "q50") {
+    config$normalization_method <- "quantile"
+    config$normalization_quantile <- 0.5
+  } else if(normalization_method %in% c("q75")) {
+    config$normalization_method <- "quantile"
+    config$normalization_quantile <- 0.75
+  } else if(normalization_method %in% "upperquartile") {
+    config$normalization_quantile <- 0.75
   }
   
   ## normalize and combine reps:
@@ -114,7 +114,7 @@ f.tune2 <- function(state, config, is_log_transformed=is_log_transformed) {
   
   tbl <- tbl_list$standard
   
-  rslt <- data.frame(norm=config$norm_method, nquant=config$norm_quantile, 
+  rslt <- data.frame(norm=config$normalization_method, nquant=config$normalization_quantile, 
     impute=config$impute_method, iquant=config$impute_quantile, 
     scale=config$impute_scale, span=config$impute_span, 
     npcs=config$impute_npcs, k=config$impute_k, test=config$test_method, 
@@ -144,15 +144,15 @@ f.tune2 <- function(state, config, is_log_transformed=is_log_transformed) {
 #'     \code{N} runs (we recommend \code{N >= 20}) with 
 #'     \code{config$permute_var} set to the name of a variable in 
 #'     \code{config$test_term}.
-#'   Currently tunes the following \code{config} values: \code{norm_method}, 
-#'     \code{norm_quantile}, \code{impute_method}, \code{impute_quantile}, 
+#'   Currently tunes the following \code{config} values: \code{normalization_method}, 
+#'     \code{normalization_quantile}, \code{impute_method}, \code{impute_quantile}, 
 #'     \code{impute_scale}, \code{impute_span}, \code{impute_k}, 
 #'     \code{impute_npcs}, and \code{test_method}. Notably, does not currently 
 #'     tune \code{impute_alpha}, \code{impute_aug_steps}, or \code{run_order}. 
 #'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
 #' @param config List with configuration values like those returned by \code{new_config()}.
-#' @param norm_methods Character vector of methods to try. One or more of:
+#' @param normalization_methods Character vector of methods to try. One or more of:
 #'   \code{c("RLE", "upperquartile", "q50", "q75", "quantiles.robust", "cpm", "max", "div.mean", "TMMwsp", "vsn", "qquantile", "log2", "none")}.
 #' @param impute_methods Character vector of methods to try. One or more of:
 #'   \code{c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", "knn", "min_det", "min_prob", "qrilc", "bpca", "ppca", "svdImpute", "lls", "missforest", "none")}.
@@ -198,7 +198,7 @@ f.tune2 <- function(state, config, is_log_transformed=is_log_transformed) {
 #' config$permute_var <- ""            ## no permutation
 #' set.seed(101)
 #' out1 <- h0testr::tune(config,
-#'   norm_methods=c("RLE", "q75", "cpm", "log2"),
+#'   normalization_methods=c("RLE", "q75", "cpm", "log2"),
 #'   impute_methods=c("sample_lod", "unif_sample_lod", "none"),
 #'   impute_quantiles=c(0, 0.05, 0.1),
 #'   test_methods=c("trend", "msqrob", "proda", "prolfqua")
@@ -209,7 +209,7 @@ f.tune2 <- function(state, config, is_log_transformed=is_log_transformed) {
 #' config$permute_var <- "condition"   ## permute variable in test_term
 #' set.seed(101)
 #' out2 <- h0testr::tune(config,
-#'   norm_methods=c("RLE", "q75", "cpm", "log2"),
+#'   normalization_methods=c("RLE", "q75", "cpm", "log2"),
 #'   impute_methods=c("sample_lod", "unif_sample_lod", "none"),
 #'   impute_quantiles=c(0, 0.05, 0.1),
 #'   test_methods=c("trend", "msqrob", "proda")
@@ -218,7 +218,7 @@ f.tune2 <- function(state, config, is_log_transformed=is_log_transformed) {
 
 tune <- function(
     config,  
-    norm_methods=c("RLE", "upperquartile", "q50", "q75", 
+    normalization_methods=c("RLE", "upperquartile", "q50", "q75", 
       "quantiles.robust", "cpm", "max", "div.mean", "TMMwsp", "vsn", 
       "qquantile", "log2", "none"),
     impute_methods=c("sample_lod", "unif_sample_lod", "unif_global_lod", 
@@ -240,16 +240,16 @@ tune <- function(
   rslt <- NULL
   is_log_transformed <- FALSE
   
-  for(norm_method in norm_methods) {
+  for(normalization_method in normalization_methods) {
     
-    config1$norm_method <- norm_method
-    f.msg("norm_method:", norm_method, config=config)
+    config1$normalization_method <- normalization_method
+    f.msg("normalization_method:", normalization_method, config=config)
     
     f.log_block("normalize and combine reps", config=config1)
-    out <- f.tune1(state1, config1, norm_method=norm_method)
+    out <- f.tune1(state1, config1, normalization_method=normalization_method)
     state2 <- out$state                 ## save for subsequent iterations
     config2 <- out$config               ## save for subsequent iterations
-    if(norm_method %in% c("none")) {
+    if(normalization_method %in% c("none")) {
       is_log_transformed <- FALSE
     } else {
       is_log_transformed <- TRUE
@@ -280,7 +280,7 @@ tune <- function(
         
         if(impute_method %in% c("unif_global_lod", "unif_sample_lod", "min_det")) {
           for(impute_quantile in impute_quantiles) {
-            f.log_block("norm_method:", norm_method, "; test_method:", test_method, "; impute_method:", impute_method, config=config3)
+            f.log_block("normalization_method:", normalization_method, "; test_method:", test_method, "; impute_method:", impute_method, config=config3)
             f.msg("impute_quantile:", impute_quantile, config=config3)
             config3$impute_quantile <- impute_quantile
             
@@ -292,7 +292,7 @@ tune <- function(
           }
         } else if(impute_method %in% c("qrilc", "rnorm_feature")) {
           for(impute_scale in impute_scales) {
-            f.log_block("norm_method:", norm_method, "; test_method:", test_method, "; impute_method:", impute_method, config=config3)
+            f.log_block("normalization_method:", normalization_method, "; test_method:", test_method, "; impute_method:", impute_method, config=config3)
             f.msg("impute_scale:", impute_scale, config=config3)
             config3$impute_scale <- impute_scale
             
@@ -305,7 +305,7 @@ tune <- function(
         } else if(impute_method %in% c("min_prob")) {
           for(impute_quantile in impute_quantiles) {
             for(impute_scale in impute_scales) {
-              f.log_block("norm_method:", norm_method, "; test_method:", test_method, "; impute_method:", impute_method, config=config3)
+              f.log_block("normalization_method:", normalization_method, "; test_method:", test_method, "; impute_method:", impute_method, config=config3)
               f.msg("impute_quantile:", impute_quantile, 
                 "; impute_scale:", impute_scale, config=config3)
               config3$impute_quantile <- impute_quantile
@@ -320,7 +320,7 @@ tune <- function(
           }
         } else if(impute_method %in% c("loess_logit")) {
           for(impute_span in impute_spans) {
-            f.log_block("norm_method:", norm_method, "; test_method:", test_method, "; impute_method:", impute_method, config=config3)
+            f.log_block("normalization_method:", normalization_method, "; test_method:", test_method, "; impute_method:", impute_method, config=config3)
             f.msg("impute_span:", impute_span, config=config3)
             config3$impute_span <- impute_span
             
@@ -332,7 +332,7 @@ tune <- function(
           }
         } else if(impute_method %in% c("bpca", "ppca", "svdImpute")) {
           for(npcs in impute_npcs) {
-            f.log_block("norm_method:", norm_method, "; test_method:", test_method, "; impute_method:", impute_method, config=config3)
+            f.log_block("normalization_method:", normalization_method, "; test_method:", test_method, "; impute_method:", impute_method, config=config3)
             f.msg("impute_npcs:", impute_npcs, config=config3)
             config3$impute_npcs <- npcs
             
@@ -344,7 +344,7 @@ tune <- function(
           }
         } else if(impute_method %in% c("knn", "lls")) {
           for(impute_k in impute_ks) {
-            f.log_block("norm_method:", norm_method, "; test_method:", test_method, "; impute_method:", impute_method, config=config3)
+            f.log_block("normalization_method:", normalization_method, "; test_method:", test_method, "; impute_method:", impute_method, config=config3)
             f.msg("impute_k:", impute_k, config=config3)
             config3$impute_k <- impute_k
             
@@ -357,7 +357,7 @@ tune <- function(
         } else if(impute_method %in% c("sample_lod", "glm_binom", "glmnet", 
             "rf", "missforest", "none")) {
           
-          f.log_block("norm_method:", norm_method, "; test_method:", test_method, "; impute_method:", impute_method, config=config3)
+          f.log_block("normalization_method:", normalization_method, "; test_method:", test_method, "; impute_method:", impute_method, config=config3)
           if(any(is.na(c(state3$expression))) && test_method %in% c("msqrob", "voom")) {
             f.msg("WARNING: OIL_WATER: skipping test_method", test_method, 
               "because of NAs in expression", config=config)

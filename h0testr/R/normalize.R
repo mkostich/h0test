@@ -13,14 +13,14 @@
 #'   } 
 #' @param config List with configuration values. None required. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{norm_method}     \cr \tab Used if \code{is.null(method)}. \cr
-#'     \code{norm_quantile}   \cr \tab Used if \code{is.null(norm_quantile)}. \cr
+#'     \code{normalization_method}     \cr \tab Used if \code{is.null(method)}. \cr
+#'     \code{normalization_quantile}   \cr \tab Used if \code{is.null(normalization_quantile)}. \cr
 #'   }
 #' @param method Character in set
 #'   \code{c("RLE", "upperquartile", "TMM", "TMMwsp", "none")}. Can be set with
-#'   \code{config$norm_method}.
-#' @param norm_quantile Numeric where \code{0 <= norm_quantile <= 1.0}; quantile for method 
-#'   \code{upperquartile}. Can set with \code{config$norm_quantile}.
+#'   \code{config$normalization_method}.
+#' @param normalization_quantile Numeric where \code{0 <= normalization_quantile <= 1.0}; quantile for method 
+#'   \code{upperquartile}. Can set with \code{config$normalization_quantile}.
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -37,22 +37,22 @@
 #' ## example configured via parameters:
 #' config <- list()
 #' state2 <- h0testr::normalize_edger(state, config, 
-#'   method="upperquartile", norm_quantile=0.75)
+#'   method="upperquartile", normalization_quantile=0.75)
 #' print(state$expression)
 #' print(state2$expression)
 #'
 #' ## example configured with settings in config:
-#' config <- list(norm_method="upperquartile", norm_quantile=0.75)
+#' config <- list(normalization_method="upperquartile", normalization_quantile=0.75)
 #' state2 <- h0testr::normalize_edger(state, config)
 #' print(state$expression)
 #' print(state2$expression)
 #'
-#' ## norm_quantile not needed for e.g. method="RLE":
+#' ## normalizaiton_quantile not needed for e.g. method="RLE":
 #' state2 <- h0testr::normalize_edger(state, config, method="RLE")
 #' print(state$expression)
 #' print(state2$expression)
 
-normalize_edger <- function(state, config, method=NULL, norm_quantile=NULL) {
+normalize_edger <- function(state, config, method=NULL, normalization_quantile=NULL) {
 
   check_config(config)
 
@@ -60,16 +60,14 @@ normalize_edger <- function(state, config, method=NULL, norm_quantile=NULL) {
     f.err("normalize_edger: !is.matrix(state$expression)", 
       config=config)
   }
-  if(is.null(method)) method <- config$norm_method
+  if(is.null(method)) method <- config$normalization_method
   if(is.null(method)) method <- "RLE"
   
-  if(method %in% "upperquartile") {
-    if(is.null(norm_quantile)) norm_quantile <- config$norm_quantile
-    if(is.null(norm_quantile)) norm_quantile <- 0.75
-    if(!is.numeric(norm_quantile)) {
-        f.err("normalize_edger: !is.numeric(norm_quantile); norm_quantile:", 
-          norm_quantile, config=config)
-    }
+  if(is.null(normalization_quantile)) normalization_quantile <- config$normalization_quantile
+  if(is.null(normalization_quantile)) normalization_quantile <- 0.75
+  if(!is.numeric(normalization_quantile)) {
+      f.err("normalize_edger: !is.numeric(normalization_quantile); normalization_quantile:", 
+        normalization_quantile, config=config)
   }
 
   f.log("convert NA to zero", config=config)
@@ -79,7 +77,7 @@ normalize_edger <- function(state, config, method=NULL, norm_quantile=NULL) {
   obj <- edgeR::DGEList(state$expression)
 
   f.log("edgeR::calcNormFactors", config=config)
-  obj <- edgeR::calcNormFactors(obj, method=method, p=norm_quantile)
+  obj <- edgeR::calcNormFactors(obj, method=method, p=normalization_quantile)
 
   f.log("making normalized expression", config=config)
   state$expression <- edgeR::cpm(obj, normalized.lib.sizes=T, 
@@ -110,9 +108,9 @@ normalize_edger <- function(state, config, method=NULL, norm_quantile=NULL) {
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{norm_quantile}   \cr \tab Quantile to use where \code{norm_method \%in\% c("quantile", "upperquartile")}. \cr
+#'     \code{normalization_quantile}   \cr \tab Quantile to use where \code{normalization_method \%in\% c("quantile", "upperquartile")}. \cr
 #'   }
-#' @param norm_quantile Numeric in closed interval \code{[0, 1]} specifying quantile to use.
+#' @param normalization_quantile Numeric in closed interval \code{[0, 1]} specifying quantile to use.
 #' @param multiplier Numeric used to scale returned values after 
 #'   dividing by selected quantile. 
 #' @return A list (the processed state) with the following elements:
@@ -127,28 +125,28 @@ normalize_edger <- function(state, config, method=NULL, norm_quantile=NULL) {
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(norm_quantile=0.75)
+#' config <- list(normalization_quantile=0.75)
 #' state2 <- h0testr::normalize_quantile(state, config)
 #' print(state$expression)
 #' print(state2$expression)
 #' apply(state$expression, 2, quantile, probs=c(0.5, 0.75, 0.9), na.rm=TRUE)
 #' apply(state2$expression, 2, quantile, probs=c(0.5, 0.75, 0.9), na.rm=TRUE)
 
-normalize_quantile <- function(state, config, norm_quantile=NULL, multiplier=1e3) {
+normalize_quantile <- function(state, config, normalization_quantile=NULL, multiplier=1e3) {
   
   check_config(config)
   
   if(!is.matrix(state$expression)) {
     f.err("normalize_quantile: !is.matrix(state$expression)", config=config)
   }
-  if(is.null(norm_quantile)) norm_quantile <- config$norm_quantile
-  if(is.null(norm_quantile)) norm_quantile <- 0.75
-  if(!is.numeric(norm_quantile)) {
-    f.err("normalize_quantile: !is.numeric(norm_quantile)", config=config)
+  if(is.null(normalization_quantile)) normalization_quantile <- config$normalization_quantile
+  if(is.null(normalization_quantile)) normalization_quantile <- 0.75
+  if(!is.numeric(normalization_quantile)) {
+    f.err("normalize_quantile: !is.numeric(normalization_quantile)", config=config)
   }
   
   f <- function(v) {
-    multiplier * v / stats::quantile(v, probs=norm_quantile, na.rm=T)
+    multiplier * v / stats::quantile(v, probs=normalization_quantile, na.rm=T)
   }
   state$expression <- apply(state$expression, 2, f)
   
@@ -297,7 +295,7 @@ normalize_loess <- function(state, config, span=NULL, method="affy") {
     f.err("normalize_loess: !is.matrix(state$expression)", config=config)
   }
   
-  if(is.null(span)) span <- config$norm_span
+  if(is.null(span)) span <- config$normalization_span
   if(is.null(span)) span <- 0.7
   
   state$expression <- limma::normalizeCyclicLoess(state$expression, 
@@ -379,7 +377,7 @@ normalize_qquantile <- function(state, config) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. The only optional setting used is
-#'   \code{norm_method}, which is used to set \code{method} if \code{is.null(method)}.
+#'   \code{normalization_method}, which is used to set \code{method} if \code{is.null(method)}.
 #' @param method Name (character scalar) of method to use for normalization. See details.
 #' @return A list with elements: 
 #'   \tabular{ll}{
@@ -405,11 +403,11 @@ normalize_qquantile <- function(state, config) {
 normalize_mscoreutils <- function(state, config, method=NULL) {
   
   if(is.null(method) || method %in% "") {
-    if(is.null(config$norm_method) || config$norm_method %in% "") {
-      f.err("normalize_mscoreutils: method and config$norm_method both unset", 
+    if(is.null(config$normalization_method) || config$normalization_method %in% "") {
+      f.err("normalize_mscoreutils: method and config$normalization_method both unset", 
         config=config)
     }
-    method <- config$norm_method
+    method <- config$normalization_method
   }
   
   ## restricted to subset which yield non-negative if fed non-negative:
@@ -438,11 +436,11 @@ normalize_mscoreutils <- function(state, config, method=NULL) {
 #' @description
 #'   Get a vector with acceptable values of \code{method} parameter for \code{h0testr::normalize}.
 #' @return
-#'   Character vector with names of acceptable values for \code{h0testr::normalize(method=)}.
+#'   Character vector with names of acceptable values for \code{h0testr::normalize(..., method=)}.
 #' @examples
-#' norm_methods <- h0testr::normalize_methods()
+#' normalization_methods <- h0testr::normalize_methods()
 #' cat("Available normalization methods:\n")
-#' for(method in norm_methods) {
+#' for(method in normalization_methods) {
 #'   cat("method:", method, "\n")
 #' }
 
@@ -474,13 +472,13 @@ normalize_methods <- function() {
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{norm_method}   \cr \tab Character scalar in \code{c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")}. \cr
-#'     \code{norm_quantile} \cr \tab Quantile (numeric between 0 and 1) for \code{norm_method \%in\% c("quantile", "upperquartile")}. \cr
+#'     \code{normalization_method}   \cr \tab Character scalar in \code{c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")}. \cr
+#'     \code{normalization_quantile} \cr \tab Quantile (numeric between 0 and 1) for \code{normalization_method \%in\% c("quantile", "upperquartile")}. \cr
 #'     \code{feat_col}      \cr \tab Column of \code{state$features} matching \code{rownames(state$expression)}. \cr
 #'     \code{obs_col}       \cr \tab Column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
 #'   }
-#' @param method Name of method to use, where scalar \code{method \%in\% h0testr::norm_methods()}.
-#' @param norm_quantile Quantile for methods \code{c("quantile", "upperquartile")}, where \code{0 <= norm_quantile <= 1}.
+#' @param method Name of method to use, where scalar \code{method \%in\% h0testr::normalization_methods()}.
+#' @param normalization_quantile Quantile for methods \code{c("quantile", "upperquartile")}, where \code{0 <= normalization_quantile <= 1}.
 #' @param span Span for method \code{"loess"}, where \code{0 < span < 1}.
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
@@ -497,9 +495,9 @@ normalize_methods <- function() {
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #'
-#' norm_methods <- h0testr::normalize_methods()
+#' normalization_methods <- h0testr::normalize_methods()
 #' cat("Available normalization methods:\n")
-#' for(method in norm_methods) {
+#' for(method in normalization_methods) {
 #'   cat("method:", method, "\n")
 #' }
 #' 
@@ -512,8 +510,8 @@ normalize_methods <- function() {
 #' summary(apply(out$state$expression, 1, sd, na.rm=TRUE))
 #' 
 #' ## example configured using config:
-#' config$norm_method <- "quantile"
-#' config$norm_quantile <- 0.5
+#' config$normalization_method <- "quantile"
+#' config$normalization_quantile <- 0.5
 #' out <- h0testr::normalize(state, config)
 #' summary(apply(state$expression, 2, sd, na.rm=TRUE))
 #' summary(apply(out$state$expression, 2, sd, na.rm=TRUE))
@@ -521,25 +519,25 @@ normalize_methods <- function() {
 #' summary(apply(out$state$expression, 1, sd, na.rm=TRUE))
 
 normalize <- function(state, config, method=NULL, 
-    norm_quantile=NULL, span=NULL) {
+    normalization_quantile=NULL, span=NULL) {
 
   check_config(config)
   f.check_state(state, config)
   
-  if(is.null(method) || method %in% "") method <- config$norm_method
+  if(is.null(method) || method %in% "") method <- config$normalization_method
   if(is.null(method) || method %in% "") {
-    f.err("normalize: method and config$norm_method both unset", 
+    f.err("normalize: method and config$normalization_method both unset", 
       config=config)
   }
-  if(is.null(norm_quantile)) norm_quantile <- config$norm_quantile
-  if(is.null(span)) span <- config$norm_span
+  if(is.null(normalization_quantile)) normalization_quantile <- config$normalization_quantile
+  if(is.null(span)) span <- config$normalization_span
   
   if(method %in% c("TMM", "TMMwsp", "RLE", "upperquartile")) {
-    state <- normalize_edger(state, config, method=method, norm_quantile=norm_quantile)
+    state <- normalize_edger(state, config, method=method, normalization_quantile=normalization_quantile)
   } else if(method %in% c("sum", "max", "div.mean", "div.median", "quantiles.robust")) {
     state <- normalize_mscoreutils(state, config, method=method)
   } else if(method %in% "quantile") {
-    state <- normalize_quantile(state, config, norm_quantile=norm_quantile)
+    state <- normalize_quantile(state, config, normalization_quantile=normalization_quantile)
   } else if(method %in% "cpm") {
     state <- normalize_cpm(state, config)
   } else if(method %in% "vsn") {
@@ -551,10 +549,10 @@ normalize <- function(state, config, method=NULL,
   } else if(method %in% "log2") {
     f.msg("normalization: log2 transformation", config=config)
   } else if(method %in% "none") {
-    f.msg("skipping normalization: config$norm_method %in% 'none'", 
+    f.msg("skipping normalization: config$normalization_method %in% 'none'", 
       config=config)
   } else {
-    f.err("normalize: unexpected config$norm_method:", config$norm_method, 
+    f.err("normalize: unexpected config$normalization_method:", config$normalization_method, 
       config=config)
   }
     

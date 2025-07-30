@@ -86,7 +86,7 @@ f.check_parameters <- function(state, config, initialized=F, minimal=F) {
   for(param in reqd_params) {
     if(!(param %in% names(config))) {
       f.err("f.check_parameters: !(param %in% names(config)), for param:", 
-        param, config=config)
+        param, "; names(config):", names(config), config=config)
     }
   }
   
@@ -96,7 +96,7 @@ f.check_parameters <- function(state, config, initialized=F, minimal=F) {
     for(param in reqd_params) {
       if(!(param %in% names(config))) {
         f.err("f.check_parameters: !(param %in% names(config)), for param:", 
-          param, config=config)
+          param, "; names(config):", names(config), config=config)
       }
     }
   }
@@ -106,7 +106,7 @@ f.check_parameters <- function(state, config, initialized=F, minimal=F) {
     for(nom in noms) {
       if(nom %in% names(state$samples)) {
         f.err("f.check_parameters: nom %in% names(state$samples); nom:", 
-          nom, config=config)
+          nom, "; names(state$samples):", names(state$samples), config=config)
       }
     }
   }
@@ -114,24 +114,28 @@ f.check_parameters <- function(state, config, initialized=F, minimal=F) {
   for(nom in c(config$obs_id_col, config$sample_id_col)) {
     if(!(nom %in% names(state$samples))) {
       f.err("f.check_parameters: !(nom %in% names(state$samples)); nom:", 
-        nom, config=config)
+        nom, "; names(state$samples):", names(state$samples), config=config)
     }
   }
   
   for(nom in c(config$feat_id_col, config$gene_id_col)) {
     if(!(nom %in% names(state$features))) {
       f.err("f.check_parameters: !(nom %in% names(state$features)); nom:",
-        nom, config=config)
+        nom, "; names(state$features):", names(state$features), config=config)
     }
   }
   
   if(any(duplicated(state$features[[config$feat_id_col]]))) {
-    f.err("f.check_parameters: any(duplicated(state$features[[config$feat_id_col]]))",
+    f.err("f.check_parameters: any(duplicated(state$features[[config$feat_id_col]]));",
+      "duplicated:", 
+      state$features[[config$feat_id_col]][duplicated(state$features[[config$feat_id_col]])], 
       config=config)
   }
   
   if(any(duplicated(state$samples[[config$obs_id_col]]))) {
     f.err("f.check_parameters: any(duplicated(state$samples[[config$obs_id_col]]))",
+      "duplicated:", 
+      state$samples[[config$obs_id_col]][duplicated(state$samples[[config$obs_id_col]])],
       config=config)
   }
       

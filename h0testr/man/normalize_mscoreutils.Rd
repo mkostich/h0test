@@ -15,7 +15,7 @@ normalize_mscoreutils(state, config, method = NULL)
 }}
 
 \item{config}{List with configuration values. The only optional setting used is
-\code{norm_method}, which is used to set \code{method} if \code{is.null(method)}.}
+\code{normalization_method}, which is used to set \code{method} if \code{is.null(method)}.}
 
 \item{method}{Name (character scalar) of method to use for normalization. See details.}
 }
