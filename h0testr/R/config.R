@@ -178,7 +178,7 @@ check_config <- function(config) {
   
   if(is.null(noms)) f.err("check_config: is.null(names(config))", config=config)
   for(idx in 1:length(config)) {
-    if(length(noms[idx]) %in% 0) {
+    if(nchar(noms[idx]) %in% 0) {
       f.err("check_config: empty parameter name in config at idx:", 
         idx, config=config)
     }

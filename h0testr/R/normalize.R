@@ -57,8 +57,8 @@ normalize_edger <- function(state, config, method=NULL, normalization_quantile=N
   check_config(config)
 
   if(!is.matrix(state$expression)) {
-    f.err("normalize_edger: !is.matrix(state$expression)", 
-      config=config)
+    f.err("normalize_edger: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   if(is.null(method)) method <- config$normalization_method
   if(is.null(method)) method <- "RLE"
@@ -137,12 +137,18 @@ normalize_quantile <- function(state, config, normalization_quantile=NULL, multi
   check_config(config)
   
   if(!is.matrix(state$expression)) {
-    f.err("normalize_quantile: !is.matrix(state$expression)", config=config)
+    f.err("normalize_quantile: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   if(is.null(normalization_quantile)) normalization_quantile <- config$normalization_quantile
   if(is.null(normalization_quantile)) normalization_quantile <- 0.75
   if(!is.numeric(normalization_quantile)) {
-    f.err("normalize_quantile: !is.numeric(normalization_quantile)", config=config)
+    f.err(
+      "normalize_quantile: !is.numeric(normalization_quantile);", 
+      "normalization_quantile:", normalization_quantile, ";", 
+      "typeof(normalization_quantile):", typeof(normalization_quantile), 
+      config=config
+    )
   }
   
   f <- function(v) {
@@ -192,7 +198,8 @@ normalize_quantile <- function(state, config, normalization_quantile=NULL, multi
 normalize_cpm <- function(state, config, multiplier=1e6) {
 
   if(!is.matrix(state$expression)) {
-    f.err("normalize_cpm: !is.matrix(state$expression)", config=config)
+    f.err("normalize_cpm: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   
   f <- function(v) multiplier * (v / sum(v, na.rm=T))
@@ -241,7 +248,8 @@ normalize_cpm <- function(state, config, multiplier=1e6) {
 normalize_vsn <- function(state, config) {
 
   if(!is.matrix(state$expression)) {
-    f.err("normalize_vsn: !is.matrix(state$expression)", config=config)
+    f.err("normalize_vsn: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   
   state$expression <- limma::normalizeVSN(state$expression)
@@ -292,7 +300,8 @@ normalize_vsn <- function(state, config) {
 normalize_loess <- function(state, config, span=NULL, method="affy") {
 
   if(!is.matrix(state$expression)) {
-    f.err("normalize_loess: !is.matrix(state$expression)", config=config)
+    f.err("normalize_loess: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   
   if(is.null(span)) span <- config$normalization_span
@@ -345,7 +354,8 @@ normalize_loess <- function(state, config, span=NULL, method="affy") {
 normalize_qquantile <- function(state, config) {
 
   if(!is.matrix(state$expression)) {
-    f.err("normalize_qquantile: !is.matrix(state$expression)", config=config)
+    f.err("normalize_qquantile: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   
   state$expression <- limma::normalizeQuantiles(state$expression)
@@ -414,13 +424,13 @@ normalize_mscoreutils <- function(state, config, method=NULL) {
   allowed <- c("sum", "max", "div.mean", "div.median", "quantiles.robust")
   
   if(!(method %in% allowed)) {
-    f.err("normalize_mscoreutils: unrecognized method:", 
-      method, config=config)
+    f.err("normalize_mscoreutils: unrecognized method:", method, "\n", 
+      "allowed values:", allowed, config=config)
   }
   
   if(!is.matrix(state$expression)) {
-    f.err("normalize_mscoreutils: !is.matrix(state$expression)", 
-      config=config)
+    f.err("normalize_mscoreutils: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   
   ## does not work with integer:
@@ -552,8 +562,11 @@ normalize <- function(state, config, method=NULL,
     f.msg("skipping normalization: config$normalization_method %in% 'none'", 
       config=config)
   } else {
-    f.err("normalize: unexpected config$normalization_method:", config$normalization_method, 
-      config=config)
+    allowed <- normalize_methods()
+    f.err("normalize: unexpected config$normalization_method:", 
+      config$normalization_method, "\n",
+      "allowed:", allowed, config=config
+    )
   }
     
   if(!(method %in% c("vsn", "none"))) {

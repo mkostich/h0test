@@ -159,12 +159,17 @@ f.subset_covariates <- function(state, config) {
   ## make sure all needed variables in samps:
   if(!all(vars %in% names(state$samples))) {
     f.err("f.subset_covariates: !all(vars %in% names(state$samples)); vars:", 
-      vars, config=config)
+      vars, "; names(state$samples):", names(state$samples), config=config)
   }
   
   if(!all(names(config$sample_factors) %in% vars)) {
-    f.err("f.subset_covariates: !all(names(config$sample_factors) %in% config$frm); vars:", 
-      vars, config=config)
+    f.err(
+      "f.subset_covariates:",
+      "!all(names(config$sample_factors) %in% config$frm)", "\n",
+      "vars:", vars, "\n",
+      "names(config$sample_factors):", names(config$sample_factors), 
+      config=config
+    )
   }
   
   f.msg("subsetting sample metadata", config=config)
@@ -184,18 +189,18 @@ f.set_covariate_factor_levels <- function(state, config) {
     ## check for potential misconfiguration first:
     if(!(nom %in% names(state$samples))) {
       f.err("f.set_covariate_factor_levels: !(nom %in% names(state$samples)); nom:", 
-        nom, config=config)
+        nom, "; names(state$samples):", names(state$samples), config=config)
     }
     
     lvls1 <- config$sample_factors[[nom]]
     lvls2 <- sort(unique(as.character(state$samples[[nom]])))
     if(!all(lvls1 %in% lvls2)) {
       f.err("f.set_covariate_factor_levels: !all(lvls1 %in% lvls2) for nom:", 
-        nom, config=config)
+        nom, "\n", "lvls1:", lvls1, "\n", "lvls2:", lvls2, config=config)
     }
     if(!all(lvls2 %in% lvls1)) {
       f.err("f.set_covariate_factor_levels: !all(lvls2 %in% lvls1) for nom:", 
-        nom, config=config)
+        nom, "\n", "lvls1:", lvls1, "\n", "lvls2:", lvls2, config=config)
     }
     state$samples[[nom]] <- as.character(state$samples[[nom]])
     state$samples[[nom]] <- factor(
@@ -322,6 +327,20 @@ initialize <- function(state, config, initialized=F, minimal=F) {
     config$obs_col <- config$obs_id_col    ## as soon as confirm obs_id_col exists
   }
   
+  if(!any(duplicated(state$features[[config$gene_id_col]]))) {
+    f.msg(
+      "initialize:",
+      "config$gene_id_col has no duplicates in state$features", "\n", 
+      "No point in aggregating features", "\n",
+      "Setting config$gene_id_col to config$feat_id_col:", 
+      config$feat_id_col, "\n", 
+      "Setting config$feature_aggregation to 'none'.",
+      config=config
+    )
+    config$feat_col <- config$gene_id_col <- config$feat_id_col
+    config$feature_aggregation <- "none"
+  }
+  
   state <- f.subset_covariates(state, config)
   state <- f.set_covariate_factor_levels(state, config)
   
@@ -377,7 +396,12 @@ permute <- function(state, config, variable=NULL) {
     f.log_block("skipping permutation", config=config)
   } else {
     if(!(variable %in% colnames(state$samples))) {
-      f.err("permute: !(variable %in% colnames(state$samples))", config=config)
+      f.err(
+        "permute: !(variable %in% colnames(state$samples))", "\n",
+        "variable:", variable, "\n", 
+        "colnames(state$samples):", colnames(state$samples), 
+        config=config
+      )
     }
     f.log_block("permuting", variable, config=config)
     tmp <- state$samples[

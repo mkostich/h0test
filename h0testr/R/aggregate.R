@@ -170,8 +170,9 @@ f.combine_features_robust_summary <- function(state, config) {
 #'     made to \code{state} or \code{config}.
 #'   Sets \code{config$feat_col} and \code{config$feat_id_col} to 
 #'     \code{config$gene_id_col}.
-#'   If \code{rescale \%in\% TRUE}, peptides rescaled by dividing by 
-#'     peptide mean (after removing \code{NA}s).
+#'   If \code{rescale \%in\% TRUE}, and \code{!(method \%in\% "none")}, 
+#'     peptides rescaled by dividing by peptide mean (after removing 
+#'     \code{NA}s).
 #'   For \code{method="medianPolish"}, for each unique gene in 
 #'     \code{state$features[, config$gene_id_col]}, the submatrix of 
 #'       corresponding peptide signals across all samples is decomposed into: 
@@ -200,8 +201,8 @@ f.combine_features_robust_summary <- function(state, config) {
 #'     \code{suffix_out}      \cr \tab Suffix of output files; only needed if \code{save_state == TRUE}.\cr
 #'   }
 #' @param method Name (character scalar) of method to use for combining, 
-#'   where \code{method \%in\% c("medianPolish", "robustSummary", "none")}.
-#' @param rescale Logical scalar indicating whether to rescale peptides prior to aggregation.
+#'   where \code{method \%in\% c("medianPolish", "robustSummary", "none")}. Default: \code{"medianPolish"}.
+#' @param rescale Logical scalar indicating whether to rescale peptides prior to aggregation. Default: \code{FALSE}.
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -253,33 +254,20 @@ combine_features <- function(state, config, method=NULL, rescale=FALSE) {
       "; names(state$features):", names(state$features), config=config)
   }
   
-  if(!any(duplicated(state$features[[config$gene_id_col]]))) {
-    f.msg("WARNING: combine_features: config$gene_id_col never duplicated;",
-      "no point in aggregating features; setting gene_id_col to feat_id_col:", 
-      config$feat_id_col, config=config)
-    config$gene_id_col <- config$feat_id_col
-  }
+  if(is.null(method) || method %in% "") method <- config$feature_aggregation
+  if(is.null(method) || method %in% "") method <- "medianPolish"
+  if(is.null(rescale)) rescale <- config$feature_aggregation_scaled
+  if(is.null(rescale)) rescale <- FALSE
   
   if(config$gene_id_col %in% config$feat_col) {
     f.msg("combine_features: config$gene_id_col %in% config$feat_col; ", 
-      "returning unchanged state and config.", config=config)
-    return(list(state=state, config=config))
-  }
+      "returning unchanged state and updated config.", config=config)
+    config$feat_col <- config$gene_id_col <- config$feat_id_col
+    method <- "none"
+  }     
   
-  if(is.null(method) || method %in% "") method <- config$feature_aggregation
-  if(is.null(method) || method %in% "") {
-    f.err("combine_features: method and config$feature_aggregation both unset", 
-      config=config)
-  }
-  if(is.null(rescale)) {
-    rescale <- config$feature_aggregation_scaled
-  }
-  if(is.null(rescale)) {
-    f.err("combine_features: rescale and config$feature_aggregation_scaled both unset", 
-      config=config)
-  }
-  
-  if(rescale) {
+  if(rescale && !(method %in% "none")) {
+    f.msg("combine_features: rescaling state$expression", config=config)
     f <- function(v) v / mean(v, na.rm=T)
     state$expression <- t(apply(state$expression, 1, f))
   }
@@ -289,9 +277,13 @@ combine_features <- function(state, config, method=NULL, rescale=FALSE) {
   } else if(method %in% "robustSummary") {
     out <- f.combine_features_robust_summary(state, config)
   } else if(method %in% "none") {
+    config$feat_col <- config$gene_id_col <- config$feat_id_col
     out <- list(state=state, config=config)
   } else {
-    f.err("combine_features: unexpected method: ", method, config=config)
+    f.err("combine_features: unexpected method: ", method, 
+      '; should be one of: c("medianPolish", "robustSummary", "none")', 
+      config=config
+    )
   }
   state <- out$state
   config <- out$config

@@ -180,7 +180,7 @@ f.tune2 <- function(state, config, is_log_transformed=is_log_transformed) {
 #'   }
 #' @examples
 #' ## set up configuration:
-#' config <- h0testr::new_config()   ## defaults
+#' config <- h0testr::new_config()     ## defaults
 #' config$save_state <- FALSE          ## default is TRUE
 #' config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
 #' config$feature_file_in <- "features.tsv"
@@ -243,7 +243,7 @@ tune <- function(
   for(normalization_method in normalization_methods) {
     
     config1$normalization_method <- normalization_method
-    f.msg("normalization_method:", normalization_method, config=config)
+    f.msg("normalization_method:", normalization_method, config=config1)
     
     f.log_block("normalize and combine reps", config=config1)
     out <- f.tune1(state1, config1, normalization_method=normalization_method)
@@ -262,13 +262,13 @@ tune <- function(
       
       if(!(test_method %in% c("deqms", "msqrob"))) {
         ## for methods that do not use peptides for gene testing:
-        f.log_block("combine_features", config=config)
+        f.log_block("combine_features", config=config2)
         out <- combine_features(state2, config2)
         state3 <- out$state
         config3 <- out$config
       } else {
         ## for methods that do use peptides for gene testing:
-        f.log_block("skipping combine_features", config=config)
+        f.log_block("skipping combine_features", config=config2)
         state3 <- state2
         config3 <- config2
       }
@@ -280,7 +280,7 @@ tune <- function(
         
         if(impute_method %in% c("unif_global_lod", "unif_sample_lod", "min_det")) {
           for(impute_quantile in impute_quantiles) {
-            f.log_block("normalization_method:", normalization_method, "; test_method:", test_method, "; impute_method:", impute_method, config=config3)
+            f.log_block("normalization_method:", normalization_method, "; impute_method:", impute_method, "; test_method:", test_method, config=config3)
             f.msg("impute_quantile:", impute_quantile, config=config3)
             config3$impute_quantile <- impute_quantile
             
@@ -292,7 +292,7 @@ tune <- function(
           }
         } else if(impute_method %in% c("qrilc", "rnorm_feature")) {
           for(impute_scale in impute_scales) {
-            f.log_block("normalization_method:", normalization_method, "; test_method:", test_method, "; impute_method:", impute_method, config=config3)
+            f.log_block("normalization_method:", normalization_method, "; impute_method:", impute_method, "; test_method:", test_method, config=config3)
             f.msg("impute_scale:", impute_scale, config=config3)
             config3$impute_scale <- impute_scale
             
@@ -305,7 +305,7 @@ tune <- function(
         } else if(impute_method %in% c("min_prob")) {
           for(impute_quantile in impute_quantiles) {
             for(impute_scale in impute_scales) {
-              f.log_block("normalization_method:", normalization_method, "; test_method:", test_method, "; impute_method:", impute_method, config=config3)
+              f.log_block("normalization_method:", normalization_method, "; impute_method:", impute_method, "; test_method:", test_method, config=config3)
               f.msg("impute_quantile:", impute_quantile, 
                 "; impute_scale:", impute_scale, config=config3)
               config3$impute_quantile <- impute_quantile
@@ -320,7 +320,7 @@ tune <- function(
           }
         } else if(impute_method %in% c("loess_logit")) {
           for(impute_span in impute_spans) {
-            f.log_block("normalization_method:", normalization_method, "; test_method:", test_method, "; impute_method:", impute_method, config=config3)
+            f.log_block("normalization_method:", normalization_method, "; impute_method:", impute_method, "; test_method:", test_method, config=config3)
             f.msg("impute_span:", impute_span, config=config3)
             config3$impute_span <- impute_span
             
@@ -332,8 +332,8 @@ tune <- function(
           }
         } else if(impute_method %in% c("bpca", "ppca", "svdImpute")) {
           for(npcs in impute_npcs) {
-            f.log_block("normalization_method:", normalization_method, "; test_method:", test_method, "; impute_method:", impute_method, config=config3)
-            f.msg("impute_npcs:", impute_npcs, config=config3)
+            f.log_block("normalization_method:", normalization_method, "; impute_method:", impute_method, "; test_method:", test_method, config=config3)
+            f.msg("npcs:", npcs, config=config3)
             config3$impute_npcs <- npcs
             
             f.log_block("filter, impute, and test", config=config3)
@@ -344,7 +344,7 @@ tune <- function(
           }
         } else if(impute_method %in% c("knn", "lls")) {
           for(impute_k in impute_ks) {
-            f.log_block("normalization_method:", normalization_method, "; test_method:", test_method, "; impute_method:", impute_method, config=config3)
+            f.log_block("normalization_method:", normalization_method, "; impute_method:", impute_method, "; test_method:", test_method, config=config3)
             f.msg("impute_k:", impute_k, config=config3)
             config3$impute_k <- impute_k
             
@@ -357,10 +357,10 @@ tune <- function(
         } else if(impute_method %in% c("sample_lod", "glm_binom", "glmnet", 
             "rf", "missforest", "none")) {
           
-          f.log_block("normalization_method:", normalization_method, "; test_method:", test_method, "; impute_method:", impute_method, config=config3)
+          f.log_block("normalization_method:", normalization_method, "; impute_method:", impute_method, "; test_method:", test_method, config=config3)
           if(any(is.na(c(state3$expression))) && test_method %in% c("msqrob", "voom")) {
             f.msg("WARNING: OIL_WATER: skipping test_method", test_method, 
-              "because of NAs in expression", config=config)
+              "because of NAs in expression", config=config3)
             next
           }          
           f.log_block("filter, impute, and test", config=config3)

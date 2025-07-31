@@ -28,9 +28,9 @@ combine_features(state, config, method = NULL, rescale = FALSE)
 }}
 
 \item{method}{Name (character scalar) of method to use for combining, 
-where \code{method \%in\% c("medianPolish", "robustSummary", "none")}.}
+where \code{method \%in\% c("medianPolish", "robustSummary", "none")}. Default: \code{"medianPolish"}.}
 
-\item{rescale}{Logical scalar indicating whether to rescale peptides prior to aggregation.}
+\item{rescale}{Logical scalar indicating whether to rescale peptides prior to aggregation. Default: \code{FALSE}.}
 }
 \value{
 A list (the processed state) with the following elements:
@@ -50,8 +50,9 @@ Combines signals from lower-level features, like peptides,
     made to \code{state} or \code{config}.
   Sets \code{config$feat_col} and \code{config$feat_id_col} to 
     \code{config$gene_id_col}.
-  If \code{rescale \%in\% TRUE}, peptides rescaled by dividing by 
-    peptide mean (after removing \code{NA}s).
+  If \code{rescale \%in\% TRUE}, and \code{!(method \%in\% "none")}, 
+    peptides rescaled by dividing by peptide mean (after removing 
+    \code{NA}s).
   For \code{method="medianPolish"}, for each unique gene in 
     \code{state$features[, config$gene_id_col]}, the submatrix of 
       corresponding peptide signals across all samples is decomposed into: 

@@ -42,12 +42,14 @@ filter_features <- function(state, config,
   check_config(config)
   
   if(!is.matrix(state$expression)) {
-    f.err("filter_features: !is.matrix(state$expression)", config=config)
+    f.err("filter_features: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   
   if(is.null(n_samples_min)) n_samples_min <- config$n_samples_min
   if(is.null(n_samples_min)) {
-    f.err("filter_features: n_samples_min unset", config=config)
+    f.err("filter_features: n_samples_min and config$n_samples_min both unset", 
+      config=config)
   }
   
   f <- function(v) {
@@ -128,12 +130,14 @@ filter_observations <- function(state, config,
   check_config(config)
 
   if(!is.matrix(state$expression)) {
-    f.err("filter_observations: !is.matrix(state$expression)", config=config)
+    f.err("filter_observations: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   
   if(is.null(n_features_min)) n_features_min <- config$n_features_min
   if(is.null(n_features_min)) {
-    f.err("filter_observations: n_features_min unset", config=config)
+    f.err("filter_observations: n_features_min and config$n_features_min both unset", 
+      config=config)
   }
   
   f <- function(v) {
@@ -195,7 +199,8 @@ filter_observations <- function(state, config,
 samples_per_feature <- function(state, config) {
 
   if(!is.matrix(state$expression)) {
-    f.err("samples_per_feature: !is.matrix(state$expression)", config=config)
+    f.err("samples_per_feature: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
 
   f <- function(v) {
@@ -237,8 +242,8 @@ samples_per_feature <- function(state, config) {
 feature_median_expression <- function(state, config) {
 
   if(!is.matrix(state$expression)) {
-    f.err("feature_median_expression: !is.matrix(state$expression)", 
-      config=config)
+    f.err("feature_median_expression: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   
   f <- function(v) {
@@ -279,7 +284,8 @@ feature_median_expression <- function(state, config) {
 features_per_sample <- function(state, config) {
 
   if(!is.matrix(state$expression)) {
-    f.err("features_per_sample: !is.matrix(state$expression)", config=config)
+    f.err("features_per_sample: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   
   f <- function(v) {

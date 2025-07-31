@@ -32,7 +32,7 @@ been log transformed.}
 
 \item{n_pts}{Numeric greater than one. Granularity of prediction 
 grid. Larger values lead to less chance of duplicate imputed values.
-Larger values require more compute time and memory. Default: 1e7.}
+Larger values require more compute time and memory. Default: \code{1e7}.}
 
 \item{off}{Numeric offset for calculating 
 \code{p.missing = (n.missing + off) / (n.total + off)}.}

@@ -74,8 +74,8 @@ impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
   check_config(config)
 
   if(!is.matrix(state$expression)) {
-     f.err("impute_unif_global_lod: !is.matrix(state$expression)", 
-       config=config)
+     f.err("impute_unif_global_lod: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   if(is.null(impute_quantile)) impute_quantile <- config$impute_quantile
   if(is.null(impute_quantile)) impute_quantile <- 0
@@ -155,8 +155,8 @@ impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
   check_config(config)
 
   if(!is.matrix(state$expression)) {
-    f.err("impute_unif_sample_lod: !is.matrix(state$expression)", 
-      config=config)
+    f.err("impute_unif_sample_lod: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   if(is.null(impute_quantile)) impute_quantile <- config$impute_quantile
   if(is.null(impute_quantile)) impute_quantile <- 0
@@ -218,8 +218,8 @@ impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
 impute_sample_lod <- function(state, config) {
 
   if(!is.matrix(state$expression)) {
-    f.err("impute_sample_lod: !is.matrix(state$expression)", 
-      config=config)
+    f.err("impute_sample_lod: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   
   f <- function(v) {
@@ -294,8 +294,8 @@ impute_rnorm_feature <- function(state, config, scale.=NULL) {
   check_config(config)
 
   if(!is.matrix(state$expression)) {
-    f.err("impute_rnorm_feature: !is.matrix(state$expression)", 
-      config=config)
+    f.err("impute_rnorm_feature: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   } 
   i <- c(state$expression) < 0
   i[is.na(i)] <- F
@@ -309,7 +309,7 @@ impute_rnorm_feature <- function(state, config, scale.=NULL) {
   f <- function(v) {
     i <- is.na(v)
     if(all(i)) {
-      f.err("impute_rnorm_feature: all(is.na(state$expression[row,]))",
+      f.err("impute_rnorm_feature: all(is.na(state$expression[row, ]))",
         config=config)
     }
     if(any(i)) {
@@ -366,7 +366,7 @@ impute_rnorm_feature <- function(state, config, scale.=NULL) {
 #'   been log transformed.
 #' @param n_pts Numeric greater than one. Granularity of prediction 
 #'   grid. Larger values lead to less chance of duplicate imputed values.
-#'   Larger values require more compute time and memory. Default: 1e7.
+#'   Larger values require more compute time and memory. Default: \code{1e7}.
 #' @param off Numeric offset for calculating 
 #'   \code{p.missing = (n.missing + off) / (n.total + off)}.
 #' @param f_mid Function to use for calculating central tendency of 
@@ -406,11 +406,16 @@ impute_glm_binom <- function(state, config, is_log_transformed=NULL,
   check_config(config)
   
   if(!is.matrix(state$expression)) {
-    f.err("impute_glm_binom: !is.matrix(state$expression)", config=config)
+    f.err("impute_glm_binom: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   
   if(!is.logical(is_log_transformed)) {
-    f.err("impute_glm_binom: !is.logical(is_log_transformed)", config=config)
+    f.err("impute_glm_binom: !is.logical(is_log_transformed)", "\n",
+      "is_log_transformed:", is_log_transformed, "\n",
+      "typeof(is_log_transformed):", typeof(is_log_transformed), 
+      config=config
+    )
   }
   
   mat <- state$expression
@@ -418,7 +423,9 @@ impute_glm_binom <- function(state, config, is_log_transformed=NULL,
   
   if(is.null(n_pts)) n_pts <- config$impute_n_pts
   if(is.null(n_pts)) n_pts <- 1e7
-  if(n_pts <= 0) f.err("impute_glm_binom: n_pts <= 0", config=config)
+  if(n_pts <= 0) {
+    f.err("impute_glm_binom: n_pts <= 0; n_pts:", n_pts, config=config)
+  }
   
   m <- apply(mat, 1, f_mid, na.rm=T)
   m[is.na(m)] <- 0
@@ -506,7 +513,8 @@ impute_loess_logit <- function(state, config, span=NULL, n_pts=NULL,
   check_config(config)
   
   if(!is.matrix(state$expression)) {
-    f.err("impute_loess_logit: !is.matrix(state$expression)", config=config)
+    f.err("impute_loess_logit: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   if(is.null(span)) span <- config$impute_span
   if(is.null(span)) span <- 0.5
@@ -516,8 +524,8 @@ impute_loess_logit <- function(state, config, span=NULL, n_pts=NULL,
   m <- apply(state$expression, 1, f_mid, na.rm=T)
   m[is.na(m)] <- 0
   if(!any(is.finite(m))) {
-    f.err("impute_loess_logit: !any(is.finite(m)); sort(m):", 
-      sort(m), config=config)
+    f.err("impute_loess_logit: !any(is.finite(m))", "\n",
+      "sort(m):", sort(m), config=config)
   }
   m[is.infinite(m)] <- max(m[is.finite(m)])
   
@@ -530,12 +538,13 @@ impute_loess_logit <- function(state, config, span=NULL, n_pts=NULL,
   p <- (n0 + off) / (ncol(state$expression) + 2 * off)       ## p.missing
   logitp <- log(p / (1 - p))
   if(length(unique(logitp)) %in% 1) {
-    f.err("impute_loess_logit: length(unique(logitp)) %in% 1", config=config)
+    f.err("impute_loess_logit: length(unique(logitp)) %in% 1", "\n", 
+      "unique(logitp):", unique(logitp), config=config)
   }
   
   if(!all(is.finite(logitp))) {
-    f.err("impute_loess_logit: !all(is.finite(logitp)); sort(logitp):", 
-      sort(logitp), config=config)
+    f.err("impute_loess_logit: !all(is.finite(logitp))", "\n",
+      "sort(logitp):", sort(logitp), config=config)
   }
   dat <- data.frame(n0=n0, n1=n1, p=p, logitp=logitp, m=m)
   
@@ -665,7 +674,9 @@ impute_rf <- function(state, config, is_log_transformed=NULL,
   check_config(config)
   
   if(!is.logical(is_log_transformed)) {
-    f.err("impute_rf: !is.logical(is_log_transformed)", config=config)
+    f.err("impute_rf: !is.logical(is_log_transformed)", "\n",
+      "is_log_transformed:", is_log_transformed, "\n",
+      "typeof(is_log_transformed):", typeof(is_log_transformed), config=config)
   }
   
   if(is.null(aug_steps)) aug_steps <- config$impute_aug_steps
@@ -675,7 +686,8 @@ impute_rf <- function(state, config, is_log_transformed=NULL,
   }
   
   if(!is.matrix(state$expression)) {
-    f.err("impute_rf: !is.matrix(exprs)", config=config)
+    f.err("impute_rf: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   
   n_miss <- apply(state$expression, 1, function(v) sum(is.na(v) | v %in% 0))
@@ -820,7 +832,12 @@ impute_glmnet <- function(state, config, is_log_transformed=NULL,
   check_config(config)
   
   if(!is.logical(is_log_transformed)) {
-    f.err("impute_glmnet: !is.logical(is_log_transformed)", config=config)
+    f.err(
+      "impute_glmnet: !is.logical(is_log_transformed)", "\n",
+      "is_log_transformed:", is_log_transformed, "\n",
+      "typeof(is_log_transformed):", typeof(is_log_transformed), 
+      config=config
+    )
   }
   
   if(is.null(alpha)) alpha <- config$impute_alpha
@@ -837,7 +854,8 @@ impute_glmnet <- function(state, config, is_log_transformed=NULL,
   }
   
   if(!is.matrix(state$expression)) {
-    f.err("impute_glmnet: !is.matrix(state$expression)", config=config)
+    f.err("impute_glmnet: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   
   n_miss <- apply(state$expression, 1, function(v) sum(is.na(v) | v %in% 0))
@@ -957,7 +975,8 @@ impute_knn <- function(state, config, k=NULL, rowmax=0.5, colmax=0.8, maxp=1500)
   if(is.null(k)) k <- 10
   
   if(!is.matrix(state$expression)) {
-    f.err("impute_knn: !is.matrix(state$expression)", config=config)
+    f.err("impute_knn: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   
   out <- impute::impute.knn(state$expression, k=k, 
@@ -1028,7 +1047,8 @@ impute_min_det <- function(state, config, impute_quantile=NULL) {
   check_config(config)
   
   if(!is.matrix(state$expression)) {
-    f.err("impute_min_det: !is.matrix(state$expression)", config=config)
+    f.err("impute_min_det: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   
   if(is.null(impute_quantile)) impute_quantile <- config$impute_quantile
@@ -1116,7 +1136,8 @@ impute_min_prob <- function(state, config, is_log_transformed=NULL,
   }
   
   if(!is.matrix(state$expression)) {
-    f.err("impute_min_prob: !is.matrix(state$expression)", config=config)
+    f.err("impute_min_prob: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   
   if(is.null(impute_quantile)) impute_quantile <- config$impute_quantile
@@ -1209,7 +1230,8 @@ impute_qrilc <- function(state, config, is_log_transformed=NULL, scale.=NULL) {
   }
   
   if(!is.matrix(state$expression)) {
-    f.err("impute_qrilc: !is.matrix(state$expression)", config=config)
+    f.err("impute_qrilc: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   
   if(is.null(scale.)) scale. <- config$impute_scale
@@ -1312,17 +1334,26 @@ impute_pca <- function(state, config, is_log_transformed=NULL,
     f.err("impute_pca: !is.logical(is_log_transformed)", config=config)
   }
   
-  if(is.null(n_pcs)) n_pcs <- config$impute_npcs
-  if(is.null(n_pcs)) n_pcs <- 5
-  
   if(!is.matrix(state$expression)) {
-    f.err("impute_pca: !is.matrix(state$expression)", config=config)
+    f.err("impute_pca: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
 
   allowed <- c("bpca", "ppca", "svdImpute")
-
   if(!(method %in% allowed)) {
     f.err("impute_pca: !(method %in% allowed); method:", method, config=config)
+  }
+  
+  if(is.null(n_pcs)) n_pcs <- config$impute_npcs
+  if(is.null(n_pcs)) n_pcs <- 5
+  n_pcs_max <- round(nrow(state$expression) / 5)
+  if(n_pcs > n_pcs_max) {
+    f.msg(
+      "impute_pca: n_pcs > n_pcs_max; n_pcs:", n_pcs, 
+      "; n_pcs_max:", n_pcs_max, "\n",
+      "setting n_pcs to n_pcs_max:", n_pcs_max, config=config
+    )
+    n_pcs <- n_pcs_max
   }
 
   mat <- state$expression
@@ -1419,7 +1450,8 @@ impute_lls <- function(state, config, is_log_transformed=NULL,
   if(is.null(k)) k <- 5
   
   if(!is.matrix(state$expression)) {
-    f.err("impute_lls: !is.matrix(state$expression)", config=config)
+    f.err("impute_lls: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   
   mat <- state$expression
@@ -1497,7 +1529,8 @@ impute_lls <- function(state, config, is_log_transformed=NULL,
 impute_missforest <- function(state, config, maxit=10, ntree=100) {
     
   if(!is.matrix(state$expression)) {
-    f.err("impute_missforest: !is.matrix(state$expression)", config=config)
+    f.err("impute_missforest: !is.matrix(state$expression)", "\n",
+      "class(state$expression):", class(state$expression), config=config)
   }
   
   obj <- missForest::missForest(t(state$expression), maxiter=maxit, ntree=ntree)
