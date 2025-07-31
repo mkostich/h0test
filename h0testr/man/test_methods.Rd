@@ -2,7 +2,7 @@
 % Please edit documentation in R/test.R
 \name{test_methods}
 \alias{test_methods}
-\title{Get vector of test method names}
+\title{Get vector of \code{test(method=)} method options}
 \usage{
 test_methods()
 }
@@ -10,7 +10,7 @@ test_methods()
 Character vector with names of acceptable values for \code{h0testr::normalize(method=)}.
 }
 \description{
-Get a vector with acceptable values of \code{method} parameter for \code{h0testr::normalize}.
+Get a vector with acceptable values of \code{method} parameter for \code{h0testr::test()}.
 }
 \examples{
 test_methods <- h0testr::test_methods()

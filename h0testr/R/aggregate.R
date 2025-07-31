@@ -253,6 +253,13 @@ combine_features <- function(state, config, method=NULL, rescale=FALSE) {
       "; names(state$features):", names(state$features), config=config)
   }
   
+  if(!any(duplicated(state$features[[config$gene_id_col]]))) {
+    f.msg("WARNING: combine_features: config$gene_id_col never duplicated;",
+      "no point in aggregating features; setting gene_id_col to feat_id_col:", 
+      config$feat_id_col, config=config)
+    config$gene_id_col <- config$feat_id_col
+  }
+  
   if(config$gene_id_col %in% config$feat_col) {
     f.msg("combine_features: config$gene_id_col %in% config$feat_col; ", 
       "returning unchanged state and config.", config=config)
@@ -290,7 +297,6 @@ combine_features <- function(state, config, method=NULL, rescale=FALSE) {
   config <- out$config
   
   f.check_state(state, config)
-
   f.report_state(state, config)
   
   if(!is.null(config$run_order)) {

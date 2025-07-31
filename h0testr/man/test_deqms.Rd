@@ -39,6 +39,8 @@ Tests for differential expression using the
 The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm} 
     and a moderated t-test is performed for whether the effect of 
     \code{config$test_term} on \code{state$expression} is zero. 
+  If the number of features per gene/protein-group is the same for all
+    features, returns same result as \code{h0testr::test_trend()}.
   Returns gene-level hypothesis testing results based on 
     peptide/precursor-level input.
   Flow is:

@@ -6,6 +6,8 @@
 #'   The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm} 
 #'     and a moderated t-test is performed for whether the effect of 
 #'     \code{config$test_term} on \code{state$expression} is zero. 
+#'   If the number of features per gene/protein-group is the same for all
+#'     features, returns same result as \code{h0testr::test_trend()}.
 #'   Returns gene-level hypothesis testing results based on 
 #'     peptide/precursor-level input.
 #'   Flow is:
@@ -90,23 +92,32 @@ test_deqms <- function(state, config, trend=FALSE) {
   names(counts) <- tbl$Var1
   
   out <- h0testr::combine_features(state, config, method="medianPolish", rescale=TRUE)
-  state <- out$state
-  config <- out$config
-  design <- stats::model.matrix(config$frm, data=state$samples)
+  design <- stats::model.matrix(out$config$frm, data=out$state$samples)
   cols_des <- colnames(design)
   
-  frm0 <- stats::as.formula(paste("~0 + ", config$test_term))
-  cols_pick <- colnames(stats::model.matrix(frm0, data=state$samples))
+  frm0 <- stats::as.formula(paste("~0 + ", out$config$test_term))
+  cols_pick <- colnames(stats::model.matrix(frm0, data=out$state$samples))
   cols_pick <- cols_pick[cols_pick %in% cols_des]
   idx <- which(cols_des %in% cols_pick)
-  if(length(idx) != 1) f.err("test_deqms: length(idx) != 1", config=config)
-
-  fit <- limma::lmFit(state$expression, design)
+  if(length(idx) != 1) f.err("test_deqms: length(idx) != 1", config=out$config)
+  
+  fit <- limma::lmFit(out$state$expression, design)
   fit <- limma::eBayes(fit, trend=trend)
   fit$count <- counts[rownames(fit$coefficients)]
-  fit <- DEqMS::spectraCounteBayes(fit, fit.method="loess")
-  tbl <- DEqMS::outputResult(fit, coef_col=idx)
-
+  
+  if(length(unique(fit$count)) >= 2) {
+    fit <- DEqMS::spectraCounteBayes(fit, fit.method="loess")
+    tbl <- DEqMS::outputResult(fit, coef_col=idx)
+    return(tbl)
+  } else {
+    f.msg("WARNING: length(unique(fit$count)) < 2;", 
+      "falling back to h0testr::test_trend(); unique(fit$count):", 
+      unique(fit$count),
+      config=config
+    )      
+    tbl <- test_trend(state, config)
+  }
+  
   return(tbl)
 }
 
@@ -663,32 +674,7 @@ test_trend <- function(state, config) {
   return(tbl)
 }
 
-## helper for test:
-
-f.format_deqms <- function(tbl, config) {
-  
-  if(!is.data.frame(tbl)) {
-    f.err("f.format_deqms: !is.data.frame(tbl); class(tbl): ", 
-      class(tbl), config=config)
-  }
-  
-  nom <- c("AveExpr", "logFC", "t", "B", "P.Value", "adj.P.Val")
-  if(!all(nom %in% names(tbl))) {
-    f.err("f.format_deqms: expected names not %in% names(tbl); names(tbl):", 
-      names(tbl), config=config)
-  }
-  
-  tbl <- data.frame(feature=rownames(tbl), expr=tbl$AveExpr, 
-    logfc=tbl$logFC, stat=tbl$t, lod=tbl$B, pval=tbl$P.Value, 
-    adj_pval=tbl$adj.P.Val)
-  
-  tbl <- tbl[order(tbl$pval, decreasing=F), , drop=F]
-  rownames(tbl) <- NULL
-  
-  return(tbl)
-}
-
-## helper for test:
+## helper for test():
 
 f.format_msqrob <- function(tbl, config) {
   
@@ -718,7 +704,7 @@ f.format_msqrob <- function(tbl, config) {
   return(tbl)
 }
 
-## helper for test:
+## helper for test():
 
 f.format_proda <- function(tbl, config) {
   
@@ -743,7 +729,7 @@ f.format_proda <- function(tbl, config) {
   return(tbl)
 }
 
-## helper for test:
+## helper for test():
 
 f.format_prolfqua <- function(tbl, config) {
   
@@ -773,7 +759,7 @@ f.format_prolfqua <- function(tbl, config) {
   return(tbl)
 }
 
-## helper for test:
+## helper for test():
 
 f.format_limma <- function(tbl, config) {
   
@@ -798,9 +784,9 @@ f.format_limma <- function(tbl, config) {
   return(tbl)
 }
 
-#' Get vector of test method names
+#' Get vector of \code{test(method=)} method options
 #' @description
-#'   Get a vector with acceptable values of \code{method} parameter for \code{h0testr::normalize}.
+#'   Get a vector with acceptable values of \code{method} parameter for \code{h0testr::test()}.
 #' @return
 #'   Character vector with names of acceptable values for \code{h0testr::normalize(method=)}.
 #' @examples
@@ -914,7 +900,7 @@ test <- function(state, config, method=NULL,
     tbl2 <- f.format_limma(tbl, config)
   } else if(method %in% "deqms") {
     tbl <- test_deqms(state, config)
-    tbl2 <- f.format_deqms(tbl, config)
+    tbl2 <- f.format_limma(tbl, config)
   } else if(method %in% "msqrob") {
     tbl <- test_msqrob(state, config)
     tbl2 <- f.format_msqrob(tbl, config)

@@ -450,6 +450,7 @@ load_data <- function(config) {
   out <- initialize(state, config)
   state <- out$state
   config <- out$config
+  f.check_state(state, config)
   
   state <- add_filter_stats(state, config)
   f.check_state(state, config)
