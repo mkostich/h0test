@@ -62,6 +62,11 @@ normalize_edger <- function(state, config, method=NULL, normalization_quantile=N
   }
   if(is.null(method)) method <- config$normalization_method
   if(is.null(method)) method <- "RLE"
+  allowed <- c("RLE", "upperquartile", "TMM", "TMMwsp", "none")
+  if(!(method %in% allowed)) {
+    f.err("normalize_edger: !(method %in% allowed); method:", method, "\n",
+      "allowed:", allowed, config=config)
+  }
   
   if(is.null(normalization_quantile)) normalization_quantile <- config$normalization_quantile
   if(is.null(normalization_quantile)) normalization_quantile <- 0.75
@@ -69,23 +74,30 @@ normalize_edger <- function(state, config, method=NULL, normalization_quantile=N
       f.err("normalize_edger: !is.numeric(normalization_quantile); normalization_quantile:", 
         normalization_quantile, config=config)
   }
-
+  if(normalization_quantile < 0 || normalization_quantile > 1) {
+    f.err(
+      "normalize_edger:", 
+      "normalization_quantile < 0 || normalization_quantile > 1\n",
+      "normalization_quantile:", normalization_quantile, config=config
+    )
+  }
+  
   f.log("convert NA to zero", config=config)
   state$expression[is.na(state$expression)] <- 0
-
+  
   f.log("making edgeR object", config=config)
   obj <- edgeR::DGEList(state$expression)
-
+  
   f.log("edgeR::calcNormFactors", config=config)
   obj <- edgeR::calcNormFactors(obj, method=method, p=normalization_quantile)
-
+  
   f.log("making normalized expression", config=config)
   state$expression <- edgeR::cpm(obj, normalized.lib.sizes=T, 
     log=F, prior.count=1)
-
+  
   f.log("convert zero back to NA", config=config)
   state$expression[state$expression == 0] <- NA
-
+  
   return(state)
 }
 
@@ -150,6 +162,13 @@ normalize_quantile <- function(state, config, normalization_quantile=NULL, multi
       config=config
     )
   }
+  if(normalization_quantile < 0 || normalization_quantile > 1) {
+    f.err(
+      "normalize_quantile:", 
+      "normalization_quantile < 0 || normalization_quantile > 1\n",
+      "normalization_quantile:", normalization_quantile, config=config
+    )
+  }
   
   f <- function(v) {
     multiplier * v / stats::quantile(v, probs=normalization_quantile, na.rm=T)
@@ -212,16 +231,18 @@ normalize_cpm <- function(state, config, multiplier=1e6) {
 #' @description
 #'   Normalize expression using variance stabilizing transformation.
 #' @details 
-#'   Inter-observation normalization. Uses \code{limma::normalizeVSN()}. 
+#'   Inter-observation normalization. Uses \code{limma::normalizeVSN()}, which 
+#'     wraps \code{vsn::vsn2}. 
 #'     Unlike most other normalization methods, results are returned on a 
 #'     log2-like scale.
-#' @param state List with elements formatted like the list returned by \code{read_data()}:
+#' @param state List formatted like the list returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Does not use any keys, so can pass empty list.
+#' @param n_pts Scalar minimum number of data points per stratum. See \code{vsn::vsn2}. Default: 42L.
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -245,15 +266,23 @@ normalize_cpm <- function(state, config, multiplier=1e6) {
 #' summary(apply(log2(state$expression+1), 1, sd, na.rm=TRUE))
 #' summary(apply(state2$expression, 1, sd, na.rm=TRUE))
 
-normalize_vsn <- function(state, config) {
-
+normalize_vsn <- function(state, config, n_pts=42L) {
+  
   if(!is.matrix(state$expression)) {
     f.err("normalize_vsn: !is.matrix(state$expression)", "\n",
       "class(state$expression):", class(state$expression), config=config)
   }
   
-  state$expression <- limma::normalizeVSN(state$expression)
+  n_pts_max <- round(sqrt(nrow(state$expression)))
+  if(n_pts > n_pts_max) {
+    f.msg("normalize_vsn: n_pts > n_pts_max; n_pts:", n_pts, "\n",
+      "Setting n_pts to n_pts_max:", n_pts_max, config=config)
+    n_pts <- n_pts_max
+  }
   
+  state$expression <- limma::normalizeVSN(state$expression, 
+    minDataPointsPerStratum=n_pts)
+
   return(state)
 }
 
@@ -306,6 +335,14 @@ normalize_loess <- function(state, config, span=NULL, method="affy") {
   
   if(is.null(span)) span <- config$normalization_span
   if(is.null(span)) span <- 0.7
+  
+  if(!is.numeric(span)) {
+    f.err("normalize_loess: !is.numeric(span);", "span:", span, ";", 
+      "typeof(span):", typeof(span), config=config)
+  }
+  if(span < 0 || span > 1) {
+    f.err("normalize_loess: span < 0 || span > 1; span:", span, config=config)
+  }
   
   state$expression <- limma::normalizeCyclicLoess(state$expression, 
     span=span, method=method)

@@ -4,10 +4,10 @@
 \alias{normalize_vsn}
 \title{Variance stabilizing transformation}
 \usage{
-normalize_vsn(state, config)
+normalize_vsn(state, config, n_pts = 42L)
 }
 \arguments{
-\item{state}{List with elements formatted like the list returned by \code{read_data()}:
+\item{state}{List formatted like the list returned by \code{read_data()}:
 \tabular{ll}{
   \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
   \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
@@ -15,6 +15,8 @@ normalize_vsn(state, config)
 }}
 
 \item{config}{List with configuration values. Does not use any keys, so can pass empty list.}
+
+\item{n_pts}{Scalar minimum number of data points per stratum. See \code{vsn::vsn2}. Default: 42L.}
 }
 \value{
 A list (the processed state) with the following elements:
@@ -28,7 +30,8 @@ A list (the processed state) with the following elements:
 Normalize expression using variance stabilizing transformation.
 }
 \details{
-Inter-observation normalization. Uses \code{limma::normalizeVSN()}. 
+Inter-observation normalization. Uses \code{limma::normalizeVSN()}, which 
+    wraps \code{vsn::vsn2}. 
     Unlike most other normalization methods, results are returned on a 
     log2-like scale.
 }

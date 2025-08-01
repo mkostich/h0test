@@ -971,12 +971,19 @@ impute_knn <- function(state, config, k=NULL, rowmax=0.5, colmax=0.8, maxp=1500)
   
   check_config(config)
   
-  if(is.null(k)) k <- config$impute_k
-  if(is.null(k)) k <- 10
-  
   if(!is.matrix(state$expression)) {
     f.err("impute_knn: !is.matrix(state$expression)", "\n",
       "class(state$expression):", class(state$expression), config=config)
+  }
+  
+  k_max <- round(sqrt(nrow(state$expression)))
+  if(is.null(k)) k <- config$impute_k
+  if(is.null(k)) k <- k_max
+  
+  if(k > k_max) {
+    f.msg("impute_knn: k > k_max; k:", k, "\n", 
+      "setting k to k_max:", k_max, config=config)
+    k <- k_max
   }
   
   out <- impute::impute.knn(state$expression, k=k, 
@@ -1338,36 +1345,35 @@ impute_pca <- function(state, config, is_log_transformed=NULL,
     f.err("impute_pca: !is.matrix(state$expression)", "\n",
       "class(state$expression):", class(state$expression), config=config)
   }
-
+  
   allowed <- c("bpca", "ppca", "svdImpute")
   if(!(method %in% allowed)) {
     f.err("impute_pca: !(method %in% allowed); method:", method, config=config)
   }
   
   if(is.null(n_pcs)) n_pcs <- config$impute_npcs
-  if(is.null(n_pcs)) n_pcs <- 5
-  n_pcs_max <- round(nrow(state$expression) / 5)
+  n_pcs_max <- round(sqrt(nrow(state$expression)))
+  if(is.null(n_pcs)) n_pcs <- n_pcs_max
   if(n_pcs > n_pcs_max) {
     f.msg(
-      "impute_pca: n_pcs > n_pcs_max; n_pcs:", n_pcs, 
-      "; n_pcs_max:", n_pcs_max, "\n",
+      "impute_pca: n_pcs > n_pcs_max; n_pcs:", n_pcs, "\n",
       "setting n_pcs to n_pcs_max:", n_pcs_max, config=config
     )
     n_pcs <- n_pcs_max
   }
-
+  
   mat <- state$expression
   if(!is_log_transformed) mat <- log2(mat + 1)  ## otherwise can get negative
-
+  
   ## wants sample rows and 'variables' as columns:
   obj <- pcaMethods::pca(t(mat), nPcs=n_pcs, method=method)
   mat <- pcaMethods::completeObs(obj) 
-
+  
   if(!is_log_transformed) mat <- (2^mat)
   mat <- t(mat)
   mat <- f.pos_mat(mat, config)
   state$expression <- mat
-
+  
   return(state)
 }
 
