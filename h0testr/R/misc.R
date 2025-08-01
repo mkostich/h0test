@@ -12,11 +12,12 @@ f.log <- function(..., config) {
 }
 
 f.log_block <- function(..., config) {
-  f.msg("", config=config)
+  f.msg("", config=config)              ## blank line
   f.log(..., config=config)
 }
 
 f.err <- function(..., config) {
+  f.msg("", config=config)              ## blank line
   f.log("ERROR:", ..., config=config)
   stop("Stopping", call.=F)
 }
@@ -44,31 +45,26 @@ f.save_tsv <- function(dat, file_out, config, row.names=T, col.names=T) {
   )
 }
 
-## needs config$feat_id_col and config$obs_id_col:
+## needs config$feat_col and config$obs_col:
 
 f.check_state <- function(state, config) {
 
-  if(is.null(config$feat_id_col)) {
-    f.err("f.check_state: config$feat_id_col unset", 
-      config=config)
+  if(is.null(config$feat_col) || config$feat_col %in% "") {
+    f.err("f.check_state: config$feat_col unset", config=config) 
   }
-  feats <- state$features[, config$feat_id_col, drop=T]
+  feats <- state$features[[config$feat_col]]
   if(!all(rownames(state$expression) == feats)) {
     f.err("f.check_state: state$features do not match rows of state$expression", 
-      config=config)
+      "config$feat_col: ", config$feat_col, config=config)
   }
   
   if(is.null(config$obs_col) || config$obs_col %in% "") {
-    config$obs_col <- config$obs_id_col
+    f.err("f.check_state: config$obs_col unset", config=config)
   }
-  if(is.null(config$obs_col) || config$obs_col %in% "") {
-    f.err("f.check_state: config$obs_id_col unset", 
-      config=config)
-  }
-  samps <- state$samples[, config$obs_col, drop=T]
+  samps <- state$samples[[config$obs_col]]
   if(!all(colnames(state$expression) == samps)) {
     f.err("f.check_state: state$samples do not match columns of state$expression", 
-      config=config)
+      "config$obs_col: ", config$obs_col, config=config)
   }
   
   if(!is.matrix(state$expression)) {

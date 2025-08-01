@@ -1,0 +1,13 @@
+obs	grp	sex
+grp1_samp1	ctl	M
+grp1_samp2	ctl	F
+grp1_samp3	ctl	M
+grp1_samp4	ctl	F
+grp1_samp5	ctl	M
+grp1_samp6	ctl	F
+grp2_samp1	trt	M
+grp2_samp2	trt	F
+grp2_samp3	trt	M
+grp2_samp4	trt	F
+grp2_samp5	trt	M
+grp2_samp6	trt	F

@@ -1,12 +1,28 @@
 # h0testR
 ## Hypothesis testing for ms-based proteomics
 
-This package contains functions for analysis of non-negative continuous 
-expression matrices, such as those produced by mass-spec-based proteomics.
+This package contains functions and workflows for analysis of non-negative 
+continuous expression matrices, such as those produced by mass-spec-based 
+proteomics.
 
-The package was initially developed as a test platform for evaluating 
-performance of different workflow configurations and parameter
-settings. 
+In the proteomics field, there are many methods available for inter-sample 
+normalization, feature aggregation, missing value imputation, and hypothesis 
+testing. Many of the same methods are also applicable to, or have been 
+borrowed from, other fields of expression data analysis, such as RNA-seq data. 
+Many of these methods have parameters whose settings can affect the quality of 
+the results.
+
+This package was initially developed as a test platform for evaluating 
+performance of different workflow configurations and parameter settings.
+To facilitate achievement of this goal, it was designed to provide a uniform 
+higher-level interface to a wide variety of potential methods, as well as a 
+wrapper-based building-block design, which abstracts away many differences in 
+native user interfaces between methods.
+
+This building-block design facilitates use of individual methods, or 
+configuring and running whole workflows. The workflow approach and the tuning 
+functionality is described in the documentation below. See the `R` 
+documentation for individual methods to see how to use them on their own.
 
 ---
 
@@ -17,15 +33,19 @@ settings.
 mkdir -p ~/opt
 cd ~/opt
 git clone https://github.com/mkostich/h0test
+R
 
 ## in R: install dependencies: 
-install.packages("randomForest")
-install.packages("glmnet")
-install.packages("BiocManager")
-BiocManager::install("limma")
-BiocManager::install("edgeR")
 
-## install h0testr package and view manual:
+install.packages(c("BiocManager", "glmnet", "imputeLCMD", "missForest", 
+  "randomForest", "remotes"), dependencies=TRUE)
+
+BiocManager::install(c("DEqMS", "edgeR", "limma", "impute", "MsCoreUtils", 
+  "msqrob2", "pcaMethods", "proDA", "QFeatures", "SummarizedExperiment"))
+
+remotes::install_github('fgcz/prolfqua', dependencies=TRUE)
+
+## install h0testr package and view documentation:
 install.packages("~/opt/h0test/h0testr", repo=NULL, type="source")
 help(package="h0testr")
 ```
@@ -36,7 +56,7 @@ help(package="h0testr")
 
 ```
 ## get a default configuration object:
-config <- h0testr::f.new_config()
+config <- h0testr::new_config()
 str(config)                                          ## view default settings
 
 ## customize input/output files:
@@ -70,33 +90,65 @@ head(tbl)
 
 ## Dependencies
 
-- R, with utils, stats, methods, randomForest, glmnet, limma, edgeR
-- Developed and tested with R 4.3.1, randomForest 4.7.1.2, glmnet 4.1.8, limma 3.56.2, and edgeR 3.42.4
-- Should work on Linux, Mac, or Windows; tested on Rocky Linux 9.5 and Windows 10.
+- R, with standard packages: utils, stats, methods; and add on packages: 
+  DEqMS, edgeR, glmnet, impute, imputeLCMD, limma, missForest, MsCoreUtils, 
+  msqrob2, pcaMethods, proDA, prolfqua, QFeatures, randomForest, and 
+  SummarizedExperiment.
+- Developed and tested with R 4.3.1.
+- Expected to work on Linux, Mac, or Windows; tested on Rocky Linux 9.5 and 
+  Windows 10.
 
 ---
 
 ## Inputs
 
-Inputs are three tab-delimited text files in directory `config$dir_in`. The names of 
-the files can be configured using parameters `config$feature_file_in`, 
-`config$sample_file_in`, and `config$data_file_in`. The `config$data_file_in` is
-assumed to be saved by R with rownames and colnames: the first row corresponds
-to the colnames, and the first column corresponds to the rownames. The first 
-row (colnames) has one less column than the rest of the table, since the first 
-row has no rowname. Example files can be found in `h0testr/inst/extdata`:
+Inputs are three tab-delimited text files in directory `config$dir_in`. By 
+default, the names of these files are `features.tsv`, `samples.tsv`, and 
+`expression.tsv`. The input file names can be changed using parameters 
+`config$feature_file_in`, `config$sample_file_in`, and `config$data_file_in`,
+respectively. You can place symbolic links to the input files, with these
+default names in `config$dir_in` to reduce configuration customization.
 
-- `$feature_file_in`: feature metadata, with unique key `config$feat_id_col` 
-     matching rownames of `$data_file_in`. Other columns contain supplementary 
-     feature metadata that will be as feature annotation in final results table.
-     Should not have rownames.
-- `$sample_file_in`: observation metadata, without rownames, with:
-  - `config$obs_id_col`: unique key; technical replicate identifier matching colnames of `data_file_in`.
-  - `config$sample_id_col`: biosample identifier; not unique if technical replication.
-  - if you don't have technical replicates, set so `config$obs_id_col == config$sample_id_col`.
-  - all variables referred to in the formula specified by configuration variable `config$frm`
+Example input files can be found in `h0testr/inst/extdata`.
+
+The `config$data_file_in` should contain non-negative raw (not 
+log-transformed) expression data, with rows representing features (precursor, 
+peptide, protein group, or gene group), and columns representing observations 
+(fraction, technical replicate, or sample). This file is assumed to be saved 
+using R with rownames and colnames. This results in the first row in the file 
+containing the colnames, and the first column containing the rownames. 
+**Row names and column names must be unique!**
+The first row (containing colnames) has one less column than the rest of the 
+table, since the first row has no corresponding rowname (since it does not
+contain feature measurements), but all the following rows do. Row names 
+correspond to unique feature identifiers and column names correspond to 
+unique observation identifiers.
+
+- `$feature_file_in`: feature metadata, with unique column name set by
+     `config$feat_id_col`, and matching corresponding rownames of 
+     `$data_file_in`. So, after loading of all three files completes, 
+     `all(features[, feat_id_col] == rownames(data)`. In addition, this file 
+     must contain a column with names specified by `config$gene_id_col`, 
+     containing protein group ids, or gene group ids, which will be used to 
+     aggregate feature signals to the final tested feature level (typically
+     gene group or protein group). Other columns contain supplementary feature 
+     metadata which will be appended as feature annotation columns in the 
+     final results table. The input feature file should not have row names, 
+     but must have column names.
+- `$sample_file_in`: observation metadata, without row names, but with 
+     column names. The names of these columns can be configured using the 
+     following keys:
+  - `config$obs_id_col`: unique key; technical replicate identifier matching 
+    colnames of `data_file_in`.
+  - `config$sample_id_col`: biosample identifier; not unique if technical 
+    replication.
+  - if you don't have technical replicates, set so that 
+    `all(config$obs_id_col == config$sample_id_col)`.
+  - all variables (column names) referred to in the formula specified by 
+    configuration variable `config$frm`
 - `$data_file_in`: raw (not log transformed) non-negative signal data table 
-    with feature rownames and observation colnames.
+    with feature rownames and observation colnames. `0`s and `NA`s are treated 
+    as missing values.
   - rownames match the `config$feat_id_col` of `config$feature_file_in`.
   - colnames match the `config$obs_id_col` of `config$sample_file_in'.
 
@@ -104,95 +156,85 @@ row has no rowname. Example files can be found in `h0testr/inst/extdata`:
 
 ## Configuration
   
-Runs are configured by editing the default configuration returned by the 
-`f.new_config()` function. The most frequently changed settings are towards 
-the top of the returned list of defaults, and are briefly described below:
+Runs are configured by editing the list object returned by the 
+`new_config()` function, which contains the default configuration. The most 
+frequently changed settings are towards the top of the returned list of 
+defaults, and are briefly described below. **At a minimum**: edit the
+the `frm`, `test_term`, and `sample_factors`, as the defaults are almost 
+certainly wrong for your experiment.
 
 ```
-feature_file_in="features.tsv"  ## feature annotation .tsv; row features, metadata columns
-sample_file_in="samples.tsv"    ## sample annotation .tsv; row observations, metadata columns
-data_file_in="expression.tsv"   ## quantification matrix .tsv; rowname features, colname observations
-dir_in="."                      ## feature_file_in, sample_file_in, and data_file_in found here (character)
-dir_out="."                     ## output directory (character)
+## input/output paths:
+feature_file_in="features.tsv"      ## feature annotation .tsv; row features
+sample_file_in="samples.tsv"        ## sample annotation .tsv; row observations
+data_file_in="expression.tsv"       ## quantification matrix .tsv; rowname features, colname observations
+dir_in="."                          ## data_file_in, feature_file_in, and sample_file_in expected here
+dir_out="."                         ## output directory
+
+## match up expression dimnames with features metadata and samples metadata:
+feat_id_col="feature_id"            ## column (scalar character) in feature_file_in matching rownames of data_file_in
+gene_id_col="gene_id"               ## column (scalar character) in feature_file_in with gene group or protein group ids 
+obs_id_col="observation_id"         ## column (scalar character) in sample_file_in matching colnames of data_file_in
+sample_id_col="sample_id"           ## column (scalar character) in sample_file_in with sample ids; not unique if tech reps; same as obs_id_col if no tech reps
+obs_col=""                          ## for internal use; leave ""; samps[, obs_col] == colnames(exprs) throughout script
+feat_col=""                         ## for internal use; leave ""; feats[, feat_col] == rownames(exprs) throughout script
 
 ## formula for testing: actual formula can have '+' and ':'; not tested w/ e.g. '*' yet.
-frm=~age+gender+age:gender      ## formula with variables of interest and covariates; all in sample_file_in
-test_term="age:gender"          ## term (character) in $frm on which test is to be performed
-permute_var=""                  ## name (character) of variable in $frm to permute; "" for no permutation (normal execution)
-sample_factors=list(            ## set levels of factor variables in $frm
-  age=c("young", "old"),        ## by default, numeric treated as numeric; if levels set here, treated as factor
-  gender=c("Male", "Female")    ## by default, character treated as factor with alphabetically ordered levels
+frm=~age+gender+age:gender          ## formula with variable of interest and covariates
+test_term="age:gender"              ## term (scalar character) in $frm on which test is to be performed
+permute_var=""                      ## name (scalar character) of variable to permute; "" for no permutation (normal execution)
+sample_factors=list(                 ## set levels of factor variables in $frm
+  age=c("young", "old"),             ## by default, numeric treated as numeric; if levels set here, treated as factor
+  gender=c("Male", "Female")         ## by default, character treated as factor with alphabetically ordered levels
 )
-
-## sample and feature metadata column names:
-feat_id_col="gene_id"           ## column (character) in feature_file_in matching rownames of data_file_in
-obs_id_col="observation_id"     ## column in sample_file_in matching colnames of data_file_in
-sample_id_col="sample_id"       ## column in sample_file_in with sample ids; not unique if tech reps; same as obs_id_col if no tech reps
 ```
 
-Here is the complete default configuration. The normalization, imputaton, 
+Here are the rest of the configuration options. The normalization, imputaton, 
 filtering and testing options can be set further down in the list:
 
 ```
-config <- list(
+## new cols introduced into metadata data.frames by the code:
+n_samples_expr_col="n_samps_expr"   ## new col (scalar character) for feature metadata; n samples expressing feature
+median_raw_col="median_raw"         ## new col (scalar character) for feature metadata; median feature expression in expressing samples
+n_features_expr_col="n_feats_expr"  ## new col (scalar character) for sample metadata; n features expressed
 
-  ## input/output paths:
-  feature_file_in="features.tsv",      ## feature annotation .tsv; row features
-  sample_file_in="samples.tsv",        ## sample annotation .tsv; row observations
-  data_file_in="expression.tsv",       ## quantification matrix .tsv; rowname features, colname observations
-  dir_in=".",                          ## data_file_in, feature_file_in, and sample_file_in found here
-  dir_out=".",                         ## output directory
-  
-  ## formula for testing: actual formula can have '+' and ':'; not tested w/ e.g. '*' yet.
-  frm=~age+gender+age:gender,          ## formula with variable of interest and covariates
-  test_term="age:gender",              ## term (character) in $frm on which test is to be performed
-  permute_var="",                      ## name (character) of variable to permute; "" for no permutation (normal execution)
-  sample_factors=list(                 ## set levels of factor variables in $frm
-    age=c("young", "old"),             ## by default, numeric treated as numeric; if levels set here, treated as factor
-    gender=c("Male", "Female")         ## by default, character treated as factor with alphabetically ordered levels
-  ),
-  
-  ## samps and feats column names (new cols are introduced by the code):
-  feat_id_col="gene_id",               ## column (character) in feature_file_in matching rownames of data_file_in
-  obs_id_col="observation_id",         ## column in sample_file_in matching colnames of data_file_in
-  sample_id_col="sample_id",           ## column in sample_file_in with sample ids; not unique if tech reps; same as obs_id_col if no tech reps
-  obs_col="",                          ## for internal use; leave ""; samps[, obs_col] == colnames(exprs) throughout script
-  n_samples_expr_col="n_samps_expr",   ## new col for feature metadata; n samples expressing feature
-  median_raw_col="median_raw",         ## new col for feature metadata; median feature expression in expressing samples
-  n_features_expr_col="n_feats_expr",  ## new col for sample metadata; n features expressed
-  
-  ## output file naming:
-  log_file="",                         ## log file path (character); or "" for log to console                 
-  feature_mid_out=".features",         ## midfix for output feature files
-  sample_mid_out=".samples",           ## midfix for output samples file
-  data_mid_out=".expression",          ## midfix for output expression files
-  result_mid_out=".results",           ## midfix for output results file
-  suffix_out=".tsv",                   ## suffix for output files  
-  
-  ## tunable options: defaults are usually ok, except:
-  ##   for dia: usually works ok: RLE:unif_sample_lod:0.05 for norm_method:impute_method:impute_quantile
-  ##   for dda: usually works ok: quantile:0.75:unif_sample_lod:0 for norm_method:norm_quantile:impute_method:impute_quantile
-  norm_method="quantile",              ## in c("TMM", "TMMwsp", "RLE", "upperquartile", "quantile", "cpm", "vsn", "qquantile", "log2", "none")
-  norm_quantile=0.75,                  ## for quantile normalization; 0.5 is median; 0.75 is upper quartile;
-  n_samples_min=2,                     ## min samples/feature w/ feature expression > 0 to keep feature
-  n_features_min=1000,                 ## min features/sample w/ expression > 0 to keep sample
-  ## in: c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", "none")
-  impute_method="sample_lod",
-  impute_quantile=0.01,                ## quantile for unif_ imputation methods
-  impute_scale=1,                      ## for rnorm_feature, adjustment on sd of distribution [1: no change];
-  impute_span=0.5,                     ## loess span for f.impute_loess_logit
-  impute_n_pts=1e7,                    ## granularity of imputed values for f.impute_glm_binom and f.impute_loess_logit
-  impute_span=0.25,                    ## loess span for f.impute_loess_logit 
-  test_method="trend",                 ## in c("voom", "trend")
-  
-  ## run_order character vector with elements from {"normalize", "combine_reps", "filter", "impute"}:
-  run_order=c("normalize", "combine_reps", "filter", "impute"),   ## determines order of workflow operations
-  
-  ## misc; 
-  probs=c(0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0),
-  width=110,
-  verbose=T
-)
+## output file naming:
+log_file=""                         ## log file path (character); or "" for log to console                 
+feature_mid_out=".features"         ## midfix for output feature files
+sample_mid_out=".samples"           ## midfix for output samples file
+data_mid_out=".expression"          ## midfix for output expression files
+result_mid_out=".results"           ## midfix for output results file
+suffix_out=".tsv"                   ## suffix for output files 
+
+## tunable options: defaults are usually ok, except:
+##   for dia: usually works ok: RLE:unif_sample_lod:0.05 for normalization_method:impute_method:impute_quantile
+##   for dda: usually works ok: quantile:0.75:unif_sample_lod:0 for normalization_method:normalization_quantile:impute_method:impute_quantile
+normalization_method="RLE"          ## normalization method; h0testr::normalize_methods() to see available choices.
+normalization_quantile=0.75         ## for quantile normalization; 0.5 is median; 0.75 is upper quartile
+normalization_span=0.7              ## span for normalization_method %in% "loess"
+n_samples_min=2                     ## min(samples/feature w/ feature expression > 0) to keep feature
+n_features_min=1000                 ## min(features/sample w/ expression > 0) to keep sample
+feature_aggregation="medianPolish"  ## in c("medianPolish", "robustSummary", "none")
+feature_aggregation_scaled=FALSE    ## whether to rescale peptide features prior to aggregation into protein/gene group.
+impute_method="sample_lod"          ## imputation method; h0testr::impute_methods() to see available choices.
+impute_quantile=0.01                ## quantile for unif_* imputation methods
+impute_scale=1                      ## for rnorm_feature, adjustment on sd of distribution [1: no change];
+impute_span=0.5                     ## loess span for impute_method %in% "loess_logit"
+impute_k=7                          ## k for impute_method %in% c("knn", "lls")
+impute_npcs=5                       ## number of PCs for PCA-based imputations "bpca", "ppca", and "svdImpute"
+impute_alpha=1                      ## alpha mixing parameter for "glmnet" imputation
+impute_n_pts=1e7                    ## granularity of imputed values for impute_method %in% c("glm_binom", "loess_logit")
+impute_aug_steps=3                  ## data augmentation iterations for impute_rf() and impute_glmnet()
+test_method="trend"                 ## hypothesis test; h0testr::test_methods() to see available choices.
+test_prior_df=3                     ## prior df for test_method %in% "proda"
+## run_order character vector with elements from {"normalize", "combine_replicates", "combine_features", "filter", "impute"}:
+run_order=c("normalize", "combine_replicates", "combine_features", "filter", "impute")   ## order of workflow operations
+
+## misc; 
+save_state=TRUE                     ## whether to save output files; recommend FALSE for tuning/testing
+probs=c(0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0)
+width=110                           ## controls print width
+verbose=T                           ## controls how much gets printed out during progress
 ```
 
 ---
@@ -202,16 +244,25 @@ config <- list(
 The workflow always begins with loading data and ends with testing of 
 hypotheses. Intermediate steps can be configured using `config$run_order`. 
 The default `config$run_order` of 
-`c("normalize", "combine_reps", "filter", "impute")` yields the following
+`c("normalize", "combine_replicates", "filter", "impute")` yields the following
 workflow:
 
-
-1) Load data: read from disk, format, [optionally permute], check.
-2) Inter-sample normalization: includes `log2(x+1)` transform
-3) Combine technical replicates: using median
-4) Filter features and samples: based on expression levels
-5) Impute missing values: `0` and `NA` treated as missing
-6) Test hypotheses
+1) Load data: read files `config$feature_file_in`, `config$sample_file_in`, 
+   and `config$data_file_in` from the filesystem directory `config$dir_in`, 
+   parse, reformat, [optionally permute], and check for consistency between
+   all three files.
+2) Inter-sample normalization specified by `config$normalization_method`: includes 
+   `log2(x+1)` transform or equivalent (e.g. for `vsn`), unless 
+   `config$normalization_method %in% "none"`.
+3) Combine technical replicates: using median.
+4) Unless `test_method %in% c("deqms", "msqrob")`, combine peptide signals 
+   using method specified by `config$feature_aggregation`.
+4) Filter features and samples: based on expression levels and cutoffs 
+   specified by `config$n_samples_min` and `config$n_features_min`.
+5) Impute missing values using method `config$impute_method`. Values `0` and 
+   `NA` are treated as missing. 
+6) Test null hypotheses that the effect of the term `config$test_term` in the 
+   formula `config$frm` is `0` using the method `config$test_method`.
 
 ---
 
@@ -251,71 +302,100 @@ will be:
 3.normalized.samples.tsv
 
 ## technical replicate data aggregated into sample-level data:
-4.combined.expression.tsv
-4.combined.features.tsv
-4.combined.samples.tsv
+4.combined_replicates.expression.tsv
+4.combined_replicates.features.tsv
+4.combined_replicates.samples.tsv
+
+## feature data aggregated into protein-group or gene-group-level data:
+5.combined_features.expression.tsv
+5.combined_features.features.tsv
+5.combined_features.samples.tsv
 
 ## filtered for min samples/feature and features/sample:
-5.filtered.expression.tsv
-5.filtered.features.tsv
-5.filtered.samples.tsv
+6.filtered.expression.tsv
+6.filtered.features.tsv
+6.filtered.samples.tsv
 
 ## imputed missing values:
-6.imputed.expression.tsv
-6.imputed.features.tsv
-6.imputed.samples.tsv
+7.imputed.expression.tsv
+7.imputed.features.tsv
+7.imputed.samples.tsv
 
 ## test results:
-7.results.tsv
+8.results.tsv
 ```
 
-The `results.tsv` with `config$test_term` set to `age` would look something like this:
+The `results.tsv` with `config$test_method` set to `trend`, and 
+  `config$test_term` set to `age` would look something like this:
 
 ```
 results <- read.table("7.results.tsv", header=T, sep="\t", quote="", as.is=T)
 
 > head(results)
    accession ... n_samps_expr median_raw     age12     age24  AveExpr        F      P.Value    adj.P.Val
-1     K3BVX3 ...         202   7.449487 0.4403154 0.9871583 7.500060 67.11553 1.836730e-21 1.011487e-17
-2     Q8JRU9 ...         202   7.106755 1.7900813 2.7292021 7.028900 58.77616 1.660120e-19 4.571139e-16
-3     K9W4L5 ...         202   9.545797 0.6914303 1.2014321 9.552100 43.85464 1.118592e-15 2.053363e-12
-4     E3TMK8 ...         202   9.141165 0.6385290 1.0643483 9.151548 42.81598 2.152679e-15 2.963701e-12
-5     K6SUP6 ...         202   8.665571 0.6286665 0.8722942 8.642624 38.05398 4.674231e-14 5.148198e-11
-6     P4TXL2 ...         202   9.486986 0.2715985 0.6570489 9.487649 37.33104 7.544069e-14 6.924198e-11
+1     K3BVX3 ...          202   7.449487 0.4403154 0.9871583 7.500060 67.11553 1.836730e-21 1.011487e-17
+2     Q8JRU9 ...          202   7.106755 1.7900813 2.7292021 7.028900 58.77616 1.660120e-19 4.571139e-16
+3     K9W4L5 ...          202   9.545797 0.6914303 1.2014321 9.552100 43.85464 1.118592e-15 2.053363e-12
+4     E3TMK8 ...          202   9.141165 0.6385290 1.0643483 9.151548 42.81598 2.152679e-15 2.963701e-12
+5     K6SUP6 ...          202   8.665571 0.6286665 0.8722942 8.642624 38.05398 4.674231e-14 5.148198e-11
+6     P4TXL2 ...          202   9.486986 0.2715985 0.6570489 9.487649 37.33104 7.544069e-14 6.924198e-11
 
 ## where '...' represents feature columns from config$feature_file_in.
 ```
 
 ---
 
-## NORM_METHOD
+## NORMALIZATION_METHOD
 
-Values returned by each `config$norm_method` are `log2(x+1)` transformed 
-unless `config$norm_method %in% "none"`:
+Itersample normalization method. Values returned by each `config$normalization_method` 
+are `log2(x+1)` transformed unless `config$normalization_method %in% "none"`:
 
-**cpm**: counts per million; for each sample: `multiplier * (intensities / sum(intensities, na.rm=T))`
+**cpm**: Counts per million; for each sample: 
+  `multiplier * (intensities / sum(intensities, na.rm=T))`
+  
+**div.mean**: Subtract an observation's mean intensity across features from 
+  each feature intensity for that observation. Uses 
+  `MsCoreUtils::normalize_matrix(..., method="div.mean")`.
 
-**quantile**: for each sample: `multiplier * intensities / quantile(intensities, probs=config$norm_quantile, na.rm=T))`
+**div.median**: Subtract an observation's median intensity across features 
+  from each feature intensity for that observation. Uses 
+  `MsCoreUtils::normalize_matrix(..., method="div.median")`.
+
+**loess**: Cyclic loess normalization. Uses `limma::normalizeCyclicLoess()`.
+
+**log2**: Values are simply `log(x+1)` transformed.
+
+**max**: Divide each feature's intensities by the max for that feature. 
+  Uses `MsCoreUtils::normalize_matrix(..., method="max")`.
+
+**none**: Values unchanged. 
+
+**qquantile**: Classical (from microarray days) quantile normalization, using 
+  `limma::normalizeQuantiles()`.
+
+**quantile**: For each sample: 
+  `multiplier * intensities / quantile(intensities, probs=config$normalization_quantile, na.rm=T))`
+  
+**quantiles.robust**: Robust quantile normalization. Uses 
+  `MsCoreUtils::normalize_matrix(..., method="quantiles.robust")`, which in turn is a 
+  wrapper for `preprocessCore::normalize.quantiles.robust()`.
 
 **RLE**: Relative log expression, using `edgeR::calcNormFactors()` then `edgeR::cpm()`. 
   See [https://doi.org/10.1038/npre.2010.4282.1](https://doi.org/10.1038/npre.2010.4282.1 "Anders and Huber, 2010")
-
+  
+**sum**: Divide each feature's intensities by the sum of intensities for that 
+  feature. Uses `MsCoreUtils::normalize_matrix(..., method="sum")`.
+  
 **TMM**: Trimmed mean of medians normalization, using `edgeR::calcNormFactors()` then `edgeR::cpm()`. 
   See [https://doi.org/10.1186/gb-2010-11-3-r25](https://doi.org/10.1186/gb-2010-11-3-r25 "Robinson and Oshlack, 2010")
   
 **TMMwsp**: TMM with singleton pairing, using `edgeR::calcNormFactors()` then `edgeR::cpm()`. 
   May be better than TMM when many zeros are present.
 
-**qquantile**: classical quantile normalization, using `limma::normalizeQuantiles()`
-
-**vsn**: variance stabilizing transformation, using `limma::normalizeVSN()`
-
-**upperquartile**: upper quartile expression, using `edgeR::calcNormFactors()` then `edgeR::cpm()`.
+**upperquartile**: Upper quartile expression, using `edgeR::calcNormFactors()` then `edgeR::cpm()`.
   See [https://doi.org/10.1186/1471-2105-11-94](https://doi.org/10.1186/1471-2105-11-94 "Bullard et al., 2010")
-
-**log2**: values are only `log(x+1)` transformed.
-
-**none**: values are unchanged.
+  
+**vsn**: Variance stabilizing transformation, using `limma::normalizeVSN()`
 
 ---
 
@@ -323,53 +403,96 @@ unless `config$norm_method %in% "none"`:
 
 Zero and `NA` values are both treated as missing. Methods `glmnet` and 
   `rf` are slow, and may take days to complete on large datasets.
-
-**sample_lod**: for each sample, replace all missing values with the minimum 
-  observed value in that sample.
   
-**unif_sample_lod**: for each sample, calculate the `config$impute_quantile` 
-  quantile `q` of observed values. Replace each `NA` value by randomly 
-  sampling between `0` and `q`: `runif(1, min=0, max=q)`.
+**bpca**: Bayesian PCA (https://doi.org/10.1093/bioinformatics/btg287).
+  Uses `pcaMethods::pca(..., method="bpca")`.
 
-**unif_global_lod**: for each feature remaining after filtering, calculate the 
-  lowest observed value. Calculate the `config$impute_quantile` quantile `q` 
-  of the lowest observed values across all features. Replace each `NA` value 
-  by randomly sampling between `0` and `q`: `runif(1, min=0, max=q)`.
-
-**rnorm_feature**: for each feature, calculate the mean `m` and standard 
-  deviation `s`. Replace each `NA` value with a random draw from a normal 
-  distribution centered at `m` with standard deviation  
-  `config$impute_scale * s`: `rnorm(1, mean=m, sd=s*config$impute_scale)`.
-  
-**glm_binom**: fit generalized linear model with logit link and binomial 
+**glm_binom**: Fit a generalized linear model with logit link and binomial 
   errors to `p(missing) ~ log2(intensity)`, where `p(missing)` estimated 
   from number of missing observations for a feature, and `intensity` is
   median intensity in expressing (feature not missing) samples. Impute by
   drawing randomly from the resulting probability density.
 
-**loess_logit**: fit locally linear model to 
+**glmnet**: Use the `glmnet::cv.glmnet` function to model missing feature 
+  intensity as a function of the intensity of other features.
+
+**knn**: K-nearest neighbors. Uses `impute::impute.knn()`.
+
+**lls**: Linear least squares imputation. Uses `pcaMethods::llsImpute()`. 
+
+**loess_logit**: Fit a locally linear model to 
   `logit(p(missing)) ~ log2(intensity)`, where `p(missing)` and `intensity` 
   estimated as for imputation by `glm_binom`. Impute by randomly drawing 
   from the resulting probability density.
 
-**glmnet**: use the `glmnet::cv.glmnet` function to model missing feature 
-  intensity as a function of the intensity of other features.
+**min_det**: Impute using a low quantile of the observed signal 
+  distribution (near putative limit of detection). 
+  Uses `imputeLCMD::impute.MinDet()`.
 
-**rf**: use the `randomForest::randomForest` function to model missing 
+**min_prob**: Impute using random draws from normal distribution near
+  putative limit of detection. Uses `imputeLCMD::impute.MinProb()`.
+
+**missforest**: Impute missing values with the missForest algorithm 
+  (https://dx.doi.org/10.1093/bioinformatics/btr597).
+  Uses `missForest::missForest()`.
+  
+**none**: No imputation. Depending on test method, features and/or samples
+  with missing values may be dropped from the analysis. NOTE: Missing values 
+  are not compatible with `config$test_method %in% c("msqrob", "voom")`.
+
+**ppca**: Probabilistic PCA (https://dl.acm.org/doi/10.5555/3008904.3008993).
+  Uses `pcaMethods::pca(..., method="ppca")`.
+
+**qrilc**: Impute using quantile regression. Uses `imputeLCMD::impute.QRILC()`.
+
+**rf**: Use the `randomForest::randomForest` function to model missing 
   feature intensity as a function of the intensity of other features. 
 
-**none**: no imputation. Depending on test method, features and/or samples
-  with missing values may be dropped from the analysis.
+**rnorm_feature**: For each feature, calculate the mean `m` and standard 
+  deviation `s`. Replace each `NA` value with a random draw from a normal 
+  distribution centered at `m` with standard deviation  
+  `config$impute_scale * s`: `rnorm(1, mean=m, sd=s*config$impute_scale)`.
+  
+**sample_lod**: For each sample, replace all missing values with the minimum 
+  observed value in that sample.
 
+**svdImpute**: Imputation with the svdImpute algorithm 
+  (https://dx.doi.org/10.1093/bioinformatics/17.6.520).
+  Uses `pcaMethods::pca(..., method="ppca")`.
+
+**unif_global_lod**: For each feature remaining after filtering, calculate the 
+  lowest observed value. Calculate the `config$impute_quantile` quantile `q` 
+  of the lowest observed values across all features. Replace each `NA` value 
+  by randomly sampling between `0` and `q`: `runif(1, min=0, max=q)`.
+  
+**unif_sample_lod**: For each sample, calculate the `config$impute_quantile` 
+  quantile `q` of observed values. Replace each `NA` value by randomly 
+  sampling between `0` and `q`: `runif(1, min=0, max=q)`.
+  
 ---
 
 ## TEST_METHOD
 
 Method used for hypothesis testing. 
 
-**voom**: `limma::voom() -> limma::lmFit() -> limma::eBayes(trend=F) -> limma::topTable()`
+**deqms**: Uses `DEqMS` package for peptide-based protein/gene-group analysis.
+  Flow is: `limma::lmFit() -> limma::eBayes() -> DEqMS::spectraCounteBayes() 
+  -> DEqMS::outputResult()`.
 
-**trend**: `limma::lmFit() -> limma::eBayes(trend=T) -> limma::topTable()`
+**msqrob**: Uses `msqrob2` package for peptide-based protein/gene-group analysis.
+  Flow is: `QFeatures::readQFeatures() -> SummarizedExperiment object -> 
+  QFeatures::zeroIsNA() -> QFeatures::aggregateFeatures() -> 
+  msqrob2::msqrob() -> msqrob2::makeContrast() -> msqrob2::hypothesisTest()`.
+
+**proda**: Uses `proDA::proDA()` for hypothesis testing.
+
+**prolfqua**: Flow: `prolfqua::AnalysisTableAnnotation$new() -> 
+  prolfqua::LFQData$new() -> prolfqua::strategy_lm() -> prolfqua::build_model() 
+  -> model$get_anova()`.
+
+**trend**: Flow: `limma::lmFit() -> limma::eBayes(trend=T) -> limma::topTable()`
+
+**voom**: Flow: `limma::voom() -> limma::lmFit() -> limma::eBayes(trend=F) -> limma::topTable()`
 
 ---
 
@@ -387,52 +510,111 @@ and 20 instances with permuted data:
 
 rm(list=ls())
 
-config <- h0testr::f.new_config()
-config$feature_file_in <- "features.tsv"
-config$sample_file_in <- "samples.tsv"
-config$data_file_in <- "expression.tsv", 
-config$feat_id_col <- "gene"
-config$obs_id_col <- "replicate"
-config$sample_id_col <- "sample"
-config$frm <- ~age+gender+age:gender
-config$test_term <- "age:gender"
+## set up configuration:
+config <- h0testr::new_config()   ## defaults
+config$save_state <- FALSE          ## default is TRUE
+config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
+config$feature_file_in <- "features2.tsv"
+config$sample_file_in <- "samples2.tsv"
+config$data_file_in <- "expression2.tsv" 
+config$feat_id_col <- "pep"
+config$gene_id_col <- "gene"
+config$obs_id_col <- config$sample_id_col <- "obs"
+config$n_features_min <- 10         ## default 1000 too big for small demo dataset
+config$frm <- ~grp
+config$test_term <- "grp"
+config$test_method <- "trend"
+config$sample_factors <- list(grp=c("ctl", "trt"))
 
-## do this run with unpermuted variables once:
-config$permute_var <- ""
-tbl <- h0testr::f.tune(config)
-write.table(tbl, file="0.age_gender.tune.tsv", sep="\t", quote=F, row.names=F)
+## one run with unpermuted data:
+config$permute_var <- ""            ## no permutation
+set.seed(100)
+out <- h0testr::tune(config,
+  normalization_methods=c("RLE", "q75", "cpm", "log2"),
+  impute_methods=c("sample_lod", "unif_sample_lod", "none"),
+  impute_quantiles=c(0, 0.05, 0.1),
+  test_methods=c("trend", "msqrob", "proda", "prolfqua")
+)
+write.table(out, "0.grp.tune.tsv", quote=F, sep="\t", row.names=F)
 
-## do this run, with permuted variable in config$test_term N times:
-config$permute_var <- "age"
+## do another run with permuted variable in config$test_term N times;
+##   since test_term is "grp", only variable to permute is "grp"; 
+##   if test_term was instead "age:gender", could permute either "age" or 
+##   "gender":
+
+config$permute_var <- "grp"
 N <- 20
 for(idx in 1:N) {
-  tbl <- h0testr::f.tune(config)
-  write.table(tbl, file=paste0(idx, ".age_gender.tune.tsv"), 
+  set.seed(100 + idx)
+  out <- h0testr::tune(config,
+    normalization_methods=c("RLE", "q75", "cpm", "log2"),
+    impute_methods=c("sample_lod", "unif_sample_lod", "none"),
+    impute_quantiles=c(0, 0.05, 0.1),
+    test_methods=c("trend", "msqrob", "proda", "prolfqua")
+  )
+  write.table(out, file=paste0(idx, ".grp.tune.tsv"), 
     sep="\t", quote=F, row.names=F)
 }
 ```
 
-The results of each run will look something like this:
+The results of each run will have columns:
+
+**norm**: Normalization method. `config$normalization_method`.
+
+**nquant**: Normalization quantile. `config$normalization_quantile`.
+
+**impute**: Imputation method. `config$impute_method`.
+
+**iquant**: Imputation quantile. `config$impute_quantile`.
+
+**scale**: Imputation scale. `config$impute_scale`.
+
+**span**: Imputation span. `config$impute_span`.
+
+**npcs**: Number of PCs for PCA-based imputations. `config$impute_npcs`.
+
+**k**: Number of nearest neighbors or group size for imputation. `config$impute_k`.
+
+**test**: Hypothesis testing method. `config$test_method`.
+
+**perm**: Variable in `config$test_term` to permute. `config$permute_var`.
+
+**nhits**: Number of hypothesis tests yielding adjusted p-value less than `0.05`.
+
+**ntests**: Number of hypothesis tests performed.
+
+**time**: timestamp when iteration completed.
+
+Example output from a more extensive parameter exploration is shown below:
 
 ```
-> tbl
-             norm norm_quant          impute imp_quant scale  test perm nhits ntests     time
-1             TMM       0.75      sample_lod      0.01     1  voom       1993   7897 08:25:16
-2             TMM       0.75 unif_sample_lod      0.00     1  voom       2063   7897 08:25:21
-3             TMM       0.75 unif_sample_lod      0.01     1  voom       1513   7897 08:25:27
-4             TMM       0.75 unif_sample_lod      0.05     1  voom        941   7897 08:25:32
-5             TMM       0.75 unif_sample_lod      0.10     1  voom        633   7897 08:25:37
-6             TMM       0.75 unif_sample_lod      0.25     1  voom        406   7897 08:25:42
-7             TMM       0.75       glm_binom      0.25     1  voom        179   7897 08:25:48
-8             TMM       0.75     loess_logit      0.25     1  voom        175   7897 08:25:53
+> head(out1)
+  norm nquant          impute iquant scale span npcs k  test perm nhits ntests     time
+1  RLE   0.75      sample_lod   0.01     1  0.5    5 7 trend         44     95 12:49:51
+2  RLE   0.75 unif_sample_lod   0.00     1  0.5    5 7 trend         47     95 12:49:51
+3  RLE   0.75 unif_sample_lod   0.01     1  0.5    5 7 trend         41     95 12:49:51
+4  RLE   0.75 unif_sample_lod   0.05     1  0.5    5 7 trend         40     95 12:49:51
+5  RLE   0.75 unif_sample_lod   0.10     1  0.5    5 7 trend         36     95 12:49:51
+6  RLE   0.75 unif_global_lod   0.00     1  0.5    5 7 trend         43     95 12:49:52
+
+> tail(out1)
+     norm nquant    impute iquant scale span npcs  k test perm nhits ntests     time
+4051 none   0.75 svdImpute    0.1   0.1 0.75    3 20 voom         26     95 15:10:47
+4052 none   0.75 svdImpute    0.1   0.1 0.75    5 20 voom         22     95 15:10:48
+4053 none   0.75 svdImpute    0.1   0.1 0.75   10 20 voom         16     95 15:10:48
+4054 none   0.75       lls    0.1   0.1 0.75   10  5 voom         33     95 15:10:49
+4055 none   0.75       lls    0.1   0.1 0.75   10 10 voom         28     95 15:10:50
+4056 none   0.75       lls    0.1   0.1 0.75   10 20 voom         24     95 15:10:50
 ```
 
 Collect results. From parent directory, in R (only base packages required for this part):
 
+**BELOW IS WORK IN PROGRESS; DO NOT USE YET:**
+
 ```
 rm(list=ls())
 
-tbl <- f.tune_check(dir_in="/path/to/tuning/results", sfx=".age_gender.tune.tsv")
+tbl <- tune_check(dir_in="/path/to/tuning/results", sfx=".grp.tune.tsv")
 
 ## tbl has a bunch of statistics that can be used to evaluate option combinations;
 ##   nhits: number of hits in unpermuted data
@@ -458,7 +640,7 @@ tbl <- f.tune_check(dir_in="/path/to/tuning/results", sfx=".age_gender.tune.tsv"
 6  4352 0.1309053 2661 138.0 569.7 957.4347 TMMwsp       0.75 unif_global_lod      0.10   0.1 voom
 
 ## save results:
-write.table(dat1, file="perm_results.age_gender.tsv", sep="\t", quote=F, row.names=F)
+write.table(dat1, file="perm_results.grp.tsv", sep="\t", quote=F, row.names=F)
 ```
 
 ---
