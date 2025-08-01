@@ -449,7 +449,7 @@ test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit
 #' head(tbl)
 
 test_prolfqua <- function(state, config, is_log_transformed=NULL) {
-  
+
   if(is.null(is_log_transformed) || is_log_transformed %in% "") {
     if(is.null(config$normalization_method) || config$normalization_method %in% "") {
       f.err("test_prolfqua: is_log_transformed and config$normalization_method both unset", 
@@ -462,16 +462,33 @@ test_prolfqua <- function(state, config, is_log_transformed=NULL) {
     }
   }
   
-  dat <- data.frame(
-    state$features[, c(config$gene_id_col, config$feat_id_col)], 
-    state$expression
-  )
-  
-  dat <- stats::reshape(dat, direction="long", varying=colnames(state$expression), 
-    v.names="intensity", idvar=c(config$gene_id_col, config$feat_id_col), 
-    timevar="sample", times=colnames(state$expression))
+  idvars <- unique(c(config$gene_id_col, config$feat_id_col))
+  dat <- data.frame(state$features[, idvars, drop=F], state$expression)
+  times <- colnames(state$expression)
+  i <- grepl("^[[:digit:]]", times)
+  times[i] <- paste0("X", times[i])
+  if(any(duplicated(times))) {
+    f.err("test_prolfqua: cannot get unique observation names in data.frame", "\n",
+      "Use observation names that follow R rules for list element naming;",
+      "Should start with letter or underbar followed by letter.", config=config
+    )
+  }
+  if(!all(names(dat) %in% c(idvars, times))) {
+    f.err("test_prolfqua: !all(names(dat) %in% c(idvars, times))", "\n",
+      "names(dat):", names(dat), "\n",
+      "c(idvars, times):", c(idvars, times), "\n",
+      config=config
+    )
+  }
+
+  dat <- stats::reshape(dat, direction="long", varying=times, 
+    v.names="intensity", idvar=idvars, timevar="sample", times=times)
+
   rownames(dat) <- NULL
-  
+  noms <- colnames(state$expression)
+  names(noms) <- times
+  dat$sample <- noms[dat$sample]
+
   samps <- state$samples
   if(any(duplicated(samps[[config$obs_col]]))) {
     f.err("test_prolfqua: duplicated state$samples[, config$obs_col]; obs_col: ", 
@@ -494,7 +511,7 @@ test_prolfqua <- function(state, config, is_log_transformed=NULL) {
   meta$is_response_transformed <- is_log_transformed
   meta$hierarchy[[config$gene_id_col]] <- config$gene_id_col
   meta$hierarchy[[config$feat_id_col]] <- config$feat_id_col
-  
+
   for(trm in trms) {
     if(!(trm %in% names(config$sample_factors))) {
       f.err("test_prolfqua: !(trm %in% config$sample_factors); trm: ", 
@@ -514,6 +531,7 @@ test_prolfqua <- function(state, config, is_log_transformed=NULL) {
   tbl <- as.data.frame(model$get_anova())
   
   return(tbl[tbl$factor %in% config$test_term, , drop=F])
+
 }
 
 #' Hypothesis testing using \code{limma::voom}
