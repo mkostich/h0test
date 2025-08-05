@@ -39,15 +39,15 @@
 #' head(out$standard)              ## hit table in a standardized format
 
 run <- function(config) {
-
+  
   report_config(config)
-
+  
   f.log_block("starting load_data", config=config)
   out <- load_data(config)
   is_log_transformed <- FALSE
   
   for(f_name in config$run_order) {
-  
+    
     f.log_block("starting", f_name, config=config)
     fn <- get(f_name)
     
@@ -75,7 +75,7 @@ run <- function(config) {
 ## helper for tune(); normalize and combine reps:
 
 f.tune1 <- function(state, config, normalization_method) {
-
+  
   if(normalization_method %in% "q50") {
     config$normalization_method <- "quantile"
     config$normalization_quantile <- 0.5
@@ -103,6 +103,34 @@ f.tune2 <- function(state, config, is_log_transformed=is_log_transformed) {
   
   f.log_block("f.tune:2: filter", config=config)
   out <- filter(state, config)
+  
+  if(length(unique(out$state$samples[[out$config$sample_id_col]])) < 4) {
+    f.msg("WARNING: f.tune2: post-filter <4 samples left; return NA", 
+      config=config) 
+    return(
+      data.frame(norm=config$normalization_method, nquant=config$normalization_quantile, 
+        impute=config$impute_method, iquant=config$impute_quantile, 
+        scale=config$impute_scale, span=config$impute_span, 
+        npcs=config$impute_npcs, k=config$impute_k, test=config$test_method, 
+        perm=config$permute_var, nhits=NA, ntests=NA, 
+        time=format(Sys.time(), "%H:%M:%S"), stringsAsFactors=F
+      )
+    )
+  }
+  
+  if(length(unique(out$state$features[[out$config$gene_id_col]])) < 20) {
+    f.msg("WARNING: f.tune2: post-filter <20 genes left; return NA", 
+      config=config) 
+    return(
+      data.frame(norm=config$normalization_method, nquant=config$normalization_quantile, 
+        impute=config$impute_method, iquant=config$impute_quantile, 
+        scale=config$impute_scale, span=config$impute_span, 
+        npcs=config$impute_npcs, k=config$impute_k, test=config$test_method, 
+        perm=config$permute_var, nhits=NA, ntests=NA, 
+        time=format(Sys.time(), "%H:%M:%S"), stringsAsFactors=F
+      )
+    )
+  }
   
   f.log_block("f.tune:2: impute", config=config)
   out <- impute(out$state, out$config, 
@@ -280,7 +308,9 @@ tune <- function(
         
         if(impute_method %in% c("unif_global_lod", "unif_sample_lod", "min_det")) {
           for(impute_quantile in impute_quantiles) {
-            f.log_block("normalization_method:", normalization_method, "; impute_method:", impute_method, "; test_method:", test_method, config=config3)
+            f.log_block("normalization_method:", normalization_method, 
+              "; impute_method:", impute_method, "; test_method:", 
+              test_method, config=config3)
             f.msg("impute_quantile:", impute_quantile, config=config3)
             config3$impute_quantile <- impute_quantile
             
@@ -292,7 +322,9 @@ tune <- function(
           }
         } else if(impute_method %in% c("qrilc", "rnorm_feature")) {
           for(impute_scale in impute_scales) {
-            f.log_block("normalization_method:", normalization_method, "; impute_method:", impute_method, "; test_method:", test_method, config=config3)
+            f.log_block("normalization_method:", normalization_method, 
+              "; impute_method:", impute_method, "; test_method:", 
+              test_method, config=config3)
             f.msg("impute_scale:", impute_scale, config=config3)
             config3$impute_scale <- impute_scale
             
@@ -305,7 +337,9 @@ tune <- function(
         } else if(impute_method %in% c("min_prob")) {
           for(impute_quantile in impute_quantiles) {
             for(impute_scale in impute_scales) {
-              f.log_block("normalization_method:", normalization_method, "; impute_method:", impute_method, "; test_method:", test_method, config=config3)
+              f.log_block("normalization_method:", normalization_method, 
+                "; impute_method:", impute_method, 
+                "; test_method:", test_method, config=config3)
               f.msg("impute_quantile:", impute_quantile, 
                 "; impute_scale:", impute_scale, config=config3)
               config3$impute_quantile <- impute_quantile
@@ -320,7 +354,9 @@ tune <- function(
           }
         } else if(impute_method %in% c("loess_logit")) {
           for(impute_span in impute_spans) {
-            f.log_block("normalization_method:", normalization_method, "; impute_method:", impute_method, "; test_method:", test_method, config=config3)
+            f.log_block("normalization_method:", normalization_method, 
+              "; impute_method:", impute_method, "; test_method:", 
+              test_method, config=config3)
             f.msg("impute_span:", impute_span, config=config3)
             config3$impute_span <- impute_span
             
@@ -332,7 +368,9 @@ tune <- function(
           }
         } else if(impute_method %in% c("bpca", "ppca", "svdImpute")) {
           for(npcs in impute_npcs) {
-            f.log_block("normalization_method:", normalization_method, "; impute_method:", impute_method, "; test_method:", test_method, config=config3)
+            f.log_block("normalization_method:", normalization_method, 
+              "; impute_method:", impute_method, "; test_method:", 
+              test_method, config=config3)
             f.msg("npcs:", npcs, config=config3)
             config3$impute_npcs <- npcs
             
@@ -344,7 +382,9 @@ tune <- function(
           }
         } else if(impute_method %in% c("knn", "lls")) {
           for(impute_k in impute_ks) {
-            f.log_block("normalization_method:", normalization_method, "; impute_method:", impute_method, "; test_method:", test_method, config=config3)
+            f.log_block("normalization_method:", normalization_method, 
+              "; impute_method:", impute_method, "; test_method:", 
+              test_method, config=config3)
             f.msg("impute_k:", impute_k, config=config3)
             config3$impute_k <- impute_k
             
@@ -357,11 +397,13 @@ tune <- function(
         } else if(impute_method %in% c("sample_lod", "glm_binom", "glmnet", 
             "rf", "missforest", "none")) {
           
-          f.log_block("normalization_method:", normalization_method, "; impute_method:", impute_method, "; test_method:", test_method, config=config3)
+          f.log_block("normalization_method:", normalization_method, 
+            "; impute_method:", impute_method, "; test_method:", test_method, 
+            config=config3)
           if(any(is.na(c(state3$expression))) && test_method %in% c("msqrob", "voom")) {
             f.msg("WARNING: OIL_WATER: skipping test_method", test_method, 
               "because of NAs in expression", config=config3)
-            next
+            next  ## next impute_method in impute_methods
           }          
           f.log_block("filter, impute, and test", config=config3)
           rslt_i <- f.tune2(state3, config3, 
@@ -371,10 +413,10 @@ tune <- function(
         } else {
           f.err("tune: unexpected impute_method:", 
             impute_method, config=config3)
-        }
-      }
-    }
-  }
+        } ## if impute_method %in% ...
+      }   ## for impute_method in impute_methods
+    }     ## for test_method in test_methods
+  }       ## for normalization_method in normalization_methods
   
   f.log_block("returning result", config=config)
   return(rslt)

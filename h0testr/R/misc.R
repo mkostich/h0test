@@ -88,6 +88,7 @@ f.report_state <- function(state, config) {
     config=config)
     
   f.msg("num NAs: ", sum(is.na(c(state$expression))), config=config)
+  f.msg("num non-NAs: ", sum(!is.na(c(state$expression))), config=config)
 }
 
 f.save_state <- function(state, config, prefix) {
