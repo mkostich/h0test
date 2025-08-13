@@ -1,4 +1,4 @@
-## helper to ensure positive imputed values:
+## helper to ensure positive and finite imputed values:
 
 f.pos_mat <- function(mat, config, maxit=10) {
   
@@ -6,6 +6,8 @@ f.pos_mat <- function(mat, config, maxit=10) {
   i <- mat <= 0
   i[is.na(i)] <- F
   
+  ## heuristic to ensure all strictly positive; 
+  ##   iteratively nudge higher till positive:
   while(any(c(i))) {
     n <- n + 1
     if(n > maxit) break
@@ -18,6 +20,13 @@ f.pos_mat <- function(mat, config, maxit=10) {
     f.err("f.pos_mat: min(c(mat)):", min(c(mat)), "after", n-1, 
       "iterations.", config=config)
   }
+  
+  ## heuristic to ensure all finite; randomly assign between 
+  ##   max(finite_vals) and 2*max(finite_vals):
+  i <- is.infinite(mat)
+  i[is.na(i)] <- F
+  maxval <- max(mat[!i], na.rm=T)
+  mat[i] <- maxval * (1 + stats::runif(sum(i)))
   
   return(mat)
 }
