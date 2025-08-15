@@ -240,7 +240,7 @@ f.tune2 <- function(state, config, is_log_transformed=is_log_transformed) {
 #'   normalization_methods=c("RLE", "q75", "cpm", "log2"),
 #'   impute_methods=c("sample_lod", "unif_sample_lod", "none"),
 #'   impute_quantiles=c(0, 0.05, 0.1),
-#'   test_methods=c("trend", "msqrob", "proda")
+#'   test_methods=c("trend", "msqrob", "proda", "prolfqua")
 #' )
 #' ## write.table(out2, "1.condition.tune.tsv", quote=F, sep="\t", row.names=F)
 
@@ -431,37 +431,44 @@ tune <- function(
 #'     data results. Recommend that tuning use at least 20 iterations with
 #'     permuted data. 
 #' @param dir_in Character scalar with path to directory containing tuning results.
-#' @param sfx Character scalar with distinctive suffix of tuning results files.
+#' @param prefix Character scalar with prefix (if any) of tuning result filenames.
+#' @param suffix Character scalar with distinctive suffix (required) of tuning results filenames.
 #' @param config List with at least \code{log_file} defined (can be \code{""}).
-#' @return A data.frame with the following columns:
+#' @param fdr_cutoff Numeric scalar between \code{0} and \code{1.0} specifying 
+#'   cutoff for false discovery rate. Trials not meeting cutoff are moved to the 
+#'   bottom of the output \code{data.frame}.
+#' @return A \code{data.frame} with the following columns:
 #'   \tabular{ll}{
-#'     \code{nhits}      \cr \tab Number of significant hits (numeric). \cr
-#'     \code{fdr}        \cr \tab False discovery rate (numeric). \cr
-#'     \code{max0}       \cr \tab Maximum number of hits in any permutation (numeric). \cr
-#'     \code{mid0}       \cr \tab Median number of hits across permutations (numeric). \cr
-#'     \code{avg0}       \cr \tab Average number of hits across permutations (numeric). \cr
-#'     \code{sd0}        \cr \tab Standard deviation of number of hits across permutations (numeric). \cr
-#'     \code{norm}       \cr \tab Normalization method (character). \cr
-#'     \code{norm_quant} \cr \tab Normalization quantile (numeric). \cr
-#'     \code{impute}     \cr \tab Imputation method (character). \cr
-#'     \code{imp_quant}  \cr \tab Imputation quantile (numeric). \cr
-#'     \code{scale}      \cr \tab Scale (numeric). \cr
-#'     \code{test}       \cr \tab Test method (character). \cr
+#'     \code{nhits}      \cr \tab Number of significant hits. \cr
+#'     \code{fdr}        \cr \tab False discovery rate. \cr
+#'     \code{max1}       \cr \tab Maximum number of hits in any permutation. \cr
+#'     \code{mid1}       \cr \tab Median number of hits across permutations. \cr
+#'     \code{avg1}       \cr \tab Average number of hits across permutations. \cr
+#'     \code{sd1}        \cr \tab Standard deviation of number of hits across permutations. \cr
+#'     \code{norm}       \cr \tab Normalization method. \cr
+#'     \code{nquant}     \cr \tab Normalization quantile. \cr
+#'     \code{impute}     \cr \tab Imputation method. \cr
+#'     \code{iquant}     \cr \tab Imputation quantile. \cr
+#'     \code{scale}      \cr \tab Scale for imputation. \cr
+#'     \code{span}       \cr \tab Span for loess-based imputation. \cr
+#'     \code{npcs}       \cr \tab Number of principle components for imputation. \cr
+#'     \code{k}          \cr \tab Number of nearest neighbors or groups for imputation. \cr
+#'     \code{test}       \cr \tab Test method. \cr
 #'   }
 #' @examples
 #' dir_in <- system.file("extdata/tune", package="h0testr")
-#' sfx <- ".condition.tune.tsv"
+#' prefix <- ""
+#' suffix <- ".condition.tune.tsv"
 #' config <- list()
-
-#' tbl <- h0testr::tune_check(dir_in, sfx, config)
+#' tbl <- h0testr::tune_check(dir_in, prefix, suffix, config)
 #' print(tbl)
 
-tune_check <- function(dir_in, sfx, config) {
+tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05) {
 
-  pat <- paste0(gsub("(\\W)", "\\\\\\1", sfx), "$")
+  pat <- paste0(gsub("(\\W)", "\\\\\\1", suffix), "$")
   files <- sort(list.files(path=dir_in, pattern=pat))
   
-  unperm_file <- paste0("0", sfx)
+  unperm_file <- paste0(prefix, "0", suffix)
   i0 <- files %in% unperm_file
   if(sum(i0) != 1) f.err("tune_check: no unperm file found; looking for:", 
     unperm_file, config=config)
@@ -470,7 +477,10 @@ tune_check <- function(dir_in, sfx, config) {
     config=config)
   dat0 <- utils::read.table(paste(dir_in, unperm_file, sep="/"), header=T, 
     sep="\t", quote="", as.is=T)
-  
+
+  dat0$nhits[is.na(dat0$nhits)] <- 0
+  dat0$ntests[is.na(dat0$ntests)] <- 0
+
   obj <- list()
   for(perm_file in perm_files) {
     f.msg("reading", perm_file, config=config)
@@ -480,11 +490,15 @@ tune_check <- function(dir_in, sfx, config) {
     dat_i$perm_prfx <- prfx
     obj[[perm_file]] <- dat_i
   }
+
   dat1 <- do.call(rbind, obj)
   rownames(dat1) <- NULL
-  
-  k0 <- apply(dat0[, 1:6], 1, paste, collapse=":")
-  k1 <- apply(dat1[, 1:6], 1, paste, collapse=":")
+
+  dat1$nhits[is.na(dat1$nhits)] <- 0
+  dat1$ntests[is.na(dat1$ntests)] <- 0
+
+  k0 <- apply(dat0[, 1:9], 1, paste, collapse=":")
+  k1 <- apply(dat1[, 1:9], 1, paste, collapse=":")
   
   ## permuted results in dat1; take max, median, mean, and sd of 10 permutation results:
   perm_max <- tapply(dat1$nhits, k1, max, na.rm=T)
@@ -493,24 +507,34 @@ tune_check <- function(dir_in, sfx, config) {
   perm_sd  <- tapply(dat1$nhits, k1, stats::sd, na.rm=T)
   
   ## get them in the same order as dat1 (k1 made from dat1):
-  dat0$max1 <- perm_max[k0]
-  dat0$mid1 <- perm_mid[k0]
-  dat0$avg1 <- perm_avg[k0]
-  dat0$sd1  <- perm_sd[k0]
+  dat0$max1 <- perm_max[k0]   ## max number of hits in permutations
+  dat0$mid1 <- perm_mid[k0]   ## median number of hits in permutations
+  dat0$avg1 <- perm_avg[k0]   ## mean number of hits in permutations
+  dat0$sd1  <- perm_sd[k0]    ## sd(nhits) in permutations
   dat0$perm <- NULL
-  
+
   ## average number of false positives == average number of hits across 10 sets of permutation results;
   ##   false positive rate: (average number of false positives) / (total number of positives)
   
-  dat0$nhits[dat0$nhits %in% 0] <- 1
-  dat0$fdr <- dat0$avg / dat0$nhits
+  nhits <- dat0$nhits
+  nhits[nhits %in% 0] <- 1
+  dat0$fdr <- dat0$max / nhits   ## used to be $avg
+  dat0$fdr[dat0$fdr > 1] <- 1.0
+
+  dat0 <- dat0[, c("nhits", "fdr", "max1", "mid1", "avg1", "sd1", "norm", "nquant", 
+    "impute", "iquant", "scale", "span", "npcs", "k", "test")]
+
+  i <- dat0$fdr < fdr_cutoff
+  i[is.na(i)] <- FALSE
+  dat0a <- dat0[i, ]
+  dat0b <- dat0[!i, ]
   
-  dat0 <- dat0[
-    order(dat0$nhits, -dat0$fdr, decreasing=T), 
-    c("nhits", "fdr", "max1", "mid1", "avg1", "sd1", 
-      "norm", "norm_quant", "impute", "imp_quant", "scale", "test")
-  ]
+  dat0a <- dat0a[order(dat0a$nhits, -dat0a$fdr, decreasing=T),  ]
+  dat0b <- dat0b[order(dat0b$nhits, -dat0b$fdr, decreasing=T), ]
+
+  dat0 <- rbind(dat0a, dat0b)
   rownames(dat0) <- NULL
-  
+
   return(dat0)
 }
+

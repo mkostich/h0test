@@ -1,71 +1,171 @@
-norm	norm_quant	impute	imp_quant	scale	span	test	perm	nhits	ntests	time
-TMM	0.75	sample_lod	0.01	1	0.5	voom		4	30	12:01:16
-TMM	0.75	unif_sample_lod	0	1	0.5	voom		2	30	12:01:16
-TMM	0.75	unif_sample_lod	0.1	1	0.5	voom		3	30	12:01:16
-TMM	0.75	unif_sample_lod	0.25	1	0.5	voom		4	30	12:01:16
-TMM	0.75	unif_global_lod	0	1	0.5	voom		1	30	12:01:17
-TMM	0.75	unif_global_lod	0.1	1	0.5	voom		1	30	12:01:17
-TMM	0.75	unif_global_lod	0.25	1	0.5	voom		3	30	12:01:17
-TMM	0.75	sample_lod	0.25	1	0.5	trend		3	30	12:01:17
-TMM	0.75	unif_sample_lod	0	1	0.5	trend		3	30	12:01:17
-TMM	0.75	unif_sample_lod	0.1	1	0.5	trend		0	30	12:01:17
-TMM	0.75	unif_sample_lod	0.25	1	0.5	trend		2	30	12:01:17
-TMM	0.75	unif_global_lod	0	1	0.5	trend		2	30	12:01:17
-TMM	0.75	unif_global_lod	0.1	1	0.5	trend		2	30	12:01:17
-TMM	0.75	unif_global_lod	0.25	1	0.5	trend		2	30	12:01:17
-RLE	0.75	sample_lod	0.01	1	0.5	voom		4	30	12:01:17
-RLE	0.75	unif_sample_lod	0	1	0.5	voom		2	30	12:01:18
-RLE	0.75	unif_sample_lod	0.1	1	0.5	voom		2	30	12:01:18
-RLE	0.75	unif_sample_lod	0.25	1	0.5	voom		5	30	12:01:18
-RLE	0.75	unif_global_lod	0	1	0.5	voom		1	30	12:01:18
-RLE	0.75	unif_global_lod	0.1	1	0.5	voom		3	30	12:01:18
-RLE	0.75	unif_global_lod	0.25	1	0.5	voom		4	30	12:01:18
-RLE	0.75	sample_lod	0.25	1	0.5	trend		4	30	12:01:18
-RLE	0.75	unif_sample_lod	0	1	0.5	trend		4	30	12:01:18
-RLE	0.75	unif_sample_lod	0.1	1	0.5	trend		5	30	12:01:18
-RLE	0.75	unif_sample_lod	0.25	1	0.5	trend		5	30	12:01:18
-RLE	0.75	unif_global_lod	0	1	0.5	trend		3	30	12:01:18
-RLE	0.75	unif_global_lod	0.1	1	0.5	trend		4	30	12:01:18
-RLE	0.75	unif_global_lod	0.25	1	0.5	trend		4	30	12:01:19
-quantile	0.75	sample_lod	0.01	1	0.5	voom		4	30	12:01:19
-quantile	0.75	unif_sample_lod	0	1	0.5	voom		4	30	12:01:19
-quantile	0.75	unif_sample_lod	0.1	1	0.5	voom		4	30	12:01:19
-quantile	0.75	unif_sample_lod	0.25	1	0.5	voom		5	30	12:01:19
-quantile	0.75	unif_global_lod	0	1	0.5	voom		1	30	12:01:19
-quantile	0.75	unif_global_lod	0.1	1	0.5	voom		5	30	12:01:19
-quantile	0.75	unif_global_lod	0.25	1	0.5	voom		5	30	12:01:19
-quantile	0.75	sample_lod	0.25	1	0.5	trend		4	30	12:01:19
-quantile	0.75	unif_sample_lod	0	1	0.5	trend		4	30	12:01:19
-quantile	0.75	unif_sample_lod	0.1	1	0.5	trend		4	30	12:01:20
-quantile	0.75	unif_sample_lod	0.25	1	0.5	trend		3	30	12:01:20
-quantile	0.75	unif_global_lod	0	1	0.5	trend		4	30	12:01:20
-quantile	0.75	unif_global_lod	0.1	1	0.5	trend		4	30	12:01:20
-quantile	0.75	unif_global_lod	0.25	1	0.5	trend		4	30	12:01:20
-cpm	0.75	sample_lod	0.01	1	0.5	voom		4	30	12:01:20
-cpm	0.75	unif_sample_lod	0	1	0.5	voom		3	30	12:01:20
-cpm	0.75	unif_sample_lod	0.1	1	0.5	voom		2	30	12:01:20
-cpm	0.75	unif_sample_lod	0.25	1	0.5	voom		1	30	12:01:20
-cpm	0.75	unif_global_lod	0	1	0.5	voom		1	30	12:01:20
-cpm	0.75	unif_global_lod	0.1	1	0.5	voom		1	30	12:01:21
-cpm	0.75	unif_global_lod	0.25	1	0.5	voom		1	30	12:01:21
-cpm	0.75	sample_lod	0.25	1	0.5	trend		4	30	12:01:21
-cpm	0.75	unif_sample_lod	0	1	0.5	trend		4	30	12:01:21
-cpm	0.75	unif_sample_lod	0.1	1	0.5	trend		2	30	12:01:21
-cpm	0.75	unif_sample_lod	0.25	1	0.5	trend		1	30	12:01:21
-cpm	0.75	unif_global_lod	0	1	0.5	trend		4	30	12:01:21
-cpm	0.75	unif_global_lod	0.1	1	0.5	trend		5	30	12:01:21
-cpm	0.75	unif_global_lod	0.25	1	0.5	trend		4	30	12:01:21
-log2	0.75	sample_lod	0.01	1	0.5	voom		4	30	12:01:21
-log2	0.75	unif_sample_lod	0	1	0.5	voom		1	30	12:01:21
-log2	0.75	unif_sample_lod	0.1	1	0.5	voom		1	30	12:01:22
-log2	0.75	unif_sample_lod	0.25	1	0.5	voom		1	30	12:01:22
-log2	0.75	unif_global_lod	0	1	0.5	voom		1	30	12:01:22
-log2	0.75	unif_global_lod	0.1	1	0.5	voom		1	30	12:01:22
-log2	0.75	unif_global_lod	0.25	1	0.5	voom		4	30	12:01:22
-log2	0.75	sample_lod	0.25	1	0.5	trend		5	30	12:01:22
-log2	0.75	unif_sample_lod	0	1	0.5	trend		4	30	12:01:22
-log2	0.75	unif_sample_lod	0.1	1	0.5	trend		2	30	12:01:22
-log2	0.75	unif_sample_lod	0.25	1	0.5	trend		2	30	12:01:22
-log2	0.75	unif_global_lod	0	1	0.5	trend		2	30	12:01:22
-log2	0.75	unif_global_lod	0.1	1	0.5	trend		4	30	12:01:22
-log2	0.75	unif_global_lod	0.25	1	0.5	trend		2	30	12:01:23
+norm	nquant	impute	iquant	scale	span	npcs	k	test	perm	nhits	ntests	time
+TMM	0.75	sample_lod	0.01	1	0.5	5	7	trend		3	30	14:27:52
+TMM	0.75	unif_sample_lod	0	1	0.5	5	7	trend		0	30	14:27:53
+TMM	0.75	unif_sample_lod	0.1	1	0.5	5	7	trend		5	30	14:27:53
+TMM	0.75	unif_sample_lod	0.25	1	0.5	5	7	trend		3	30	14:27:53
+TMM	0.75	unif_global_lod	0	1	0.5	5	7	trend		4	30	14:27:53
+TMM	0.75	unif_global_lod	0.1	1	0.5	5	7	trend		2	30	14:27:54
+TMM	0.75	unif_global_lod	0.25	1	0.5	5	7	trend		5	30	14:27:54
+TMM	0.75	sample_lod	0.01	1	0.5	5	7	deqms		3	30	14:27:54
+TMM	0.75	unif_sample_lod	0	1	0.5	5	7	deqms		3	30	14:27:54
+TMM	0.75	unif_sample_lod	0.1	1	0.5	5	7	deqms		0	30	14:27:55
+TMM	0.75	unif_sample_lod	0.25	1	0.5	5	7	deqms		2	30	14:27:55
+TMM	0.75	unif_global_lod	0	1	0.5	5	7	deqms		2	30	14:27:55
+TMM	0.75	unif_global_lod	0.1	1	0.5	5	7	deqms		2	30	14:27:55
+TMM	0.75	unif_global_lod	0.25	1	0.5	5	7	deqms		2	30	14:27:56
+TMM	0.75	unif_sample_lod	0	1	0.5	5	7	msqrob		NA	30	14:27:56
+TMM	0.75	unif_sample_lod	0.1	1	0.5	5	7	msqrob		NA	30	14:27:57
+TMM	0.75	unif_sample_lod	0.25	1	0.5	5	7	msqrob		NA	30	14:27:58
+TMM	0.75	unif_global_lod	0	1	0.5	5	7	msqrob		NA	30	14:27:59
+TMM	0.75	unif_global_lod	0.1	1	0.5	5	7	msqrob		NA	30	14:28:00
+TMM	0.75	unif_global_lod	0.25	1	0.5	5	7	msqrob		NA	30	14:28:00
+TMM	0.75	sample_lod	0.01	1	0.5	5	7	proda		2	30	14:28:01
+TMM	0.75	unif_sample_lod	0	1	0.5	5	7	proda		0	30	14:28:03
+TMM	0.75	unif_sample_lod	0.1	1	0.5	5	7	proda		3	30	14:28:03
+TMM	0.75	unif_sample_lod	0.25	1	0.5	5	7	proda		2	30	14:28:05
+TMM	0.75	unif_global_lod	0	1	0.5	5	7	proda		0	30	14:28:08
+TMM	0.75	unif_global_lod	0.1	1	0.5	5	7	proda		2	30	14:28:09
+TMM	0.75	unif_global_lod	0.25	1	0.5	5	7	proda		0	30	14:28:10
+TMM	0.75	sample_lod	0.01	1	0.5	5	7	prolfqua		3	30	14:28:10
+TMM	0.75	unif_sample_lod	0	1	0.5	5	7	prolfqua		0	30	14:28:11
+TMM	0.75	unif_sample_lod	0.1	1	0.5	5	7	prolfqua		6	30	14:28:11
+TMM	0.75	unif_sample_lod	0.25	1	0.5	5	7	prolfqua		2	30	14:28:11
+TMM	0.75	unif_global_lod	0	1	0.5	5	7	prolfqua		0	30	14:28:12
+TMM	0.75	unif_global_lod	0.1	1	0.5	5	7	prolfqua		2	30	14:28:12
+TMM	0.75	unif_global_lod	0.25	1	0.5	5	7	prolfqua		3	30	14:28:12
+RLE	0.75	sample_lod	0.01	1	0.5	5	7	trend		4	30	14:28:13
+RLE	0.75	unif_sample_lod	0	1	0.5	5	7	trend		3	30	14:28:13
+RLE	0.75	unif_sample_lod	0.1	1	0.5	5	7	trend		4	30	14:28:13
+RLE	0.75	unif_sample_lod	0.25	1	0.5	5	7	trend		4	30	14:28:13
+RLE	0.75	unif_global_lod	0	1	0.5	5	7	trend		3	30	14:28:14
+RLE	0.75	unif_global_lod	0.1	1	0.5	5	7	trend		5	30	14:28:14
+RLE	0.75	unif_global_lod	0.25	1	0.5	5	7	trend		2	30	14:28:14
+RLE	0.75	sample_lod	0.01	1	0.5	5	7	deqms		4	30	14:28:14
+RLE	0.75	unif_sample_lod	0	1	0.5	5	7	deqms		4	30	14:28:15
+RLE	0.75	unif_sample_lod	0.1	1	0.5	5	7	deqms		3	30	14:28:15
+RLE	0.75	unif_sample_lod	0.25	1	0.5	5	7	deqms		3	30	14:28:15
+RLE	0.75	unif_global_lod	0	1	0.5	5	7	deqms		3	30	14:28:15
+RLE	0.75	unif_global_lod	0.1	1	0.5	5	7	deqms		4	30	14:28:16
+RLE	0.75	unif_global_lod	0.25	1	0.5	5	7	deqms		4	30	14:28:16
+RLE	0.75	unif_sample_lod	0	1	0.5	5	7	msqrob		NA	30	14:28:17
+RLE	0.75	unif_sample_lod	0.1	1	0.5	5	7	msqrob		NA	30	14:28:18
+RLE	0.75	unif_sample_lod	0.25	1	0.5	5	7	msqrob		NA	30	14:28:18
+RLE	0.75	unif_global_lod	0	1	0.5	5	7	msqrob		NA	30	14:28:19
+RLE	0.75	unif_global_lod	0.1	1	0.5	5	7	msqrob		NA	30	14:28:20
+RLE	0.75	unif_global_lod	0.25	1	0.5	5	7	msqrob		NA	30	14:28:21
+RLE	0.75	sample_lod	0.01	1	0.5	5	7	proda		4	30	14:28:21
+RLE	0.75	unif_sample_lod	0	1	0.5	5	7	proda		1	30	14:28:23
+RLE	0.75	unif_sample_lod	0.1	1	0.5	5	7	proda		1	30	14:28:27
+RLE	0.75	unif_sample_lod	0.25	1	0.5	5	7	proda		1	30	14:28:29
+RLE	0.75	unif_global_lod	0	1	0.5	5	7	proda		1	30	14:28:33
+RLE	0.75	unif_global_lod	0.1	1	0.5	5	7	proda		1	30	14:28:37
+RLE	0.75	unif_global_lod	0.25	1	0.5	5	7	proda		2	30	14:28:38
+RLE	0.75	sample_lod	0.01	1	0.5	5	7	prolfqua		4	30	14:28:39
+RLE	0.75	unif_sample_lod	0	1	0.5	5	7	prolfqua		2	30	14:28:39
+RLE	0.75	unif_sample_lod	0.1	1	0.5	5	7	prolfqua		2	30	14:28:39
+RLE	0.75	unif_sample_lod	0.25	1	0.5	5	7	prolfqua		2	30	14:28:40
+RLE	0.75	unif_global_lod	0	1	0.5	5	7	prolfqua		2	30	14:28:40
+RLE	0.75	unif_global_lod	0.1	1	0.5	5	7	prolfqua		2	30	14:28:40
+RLE	0.75	unif_global_lod	0.25	1	0.5	5	7	prolfqua		2	30	14:28:41
+quantile	0.75	sample_lod	0.01	1	0.5	5	7	trend		4	30	14:28:41
+quantile	0.75	unif_sample_lod	0	1	0.5	5	7	trend		4	30	14:28:42
+quantile	0.75	unif_sample_lod	0.1	1	0.5	5	7	trend		3	30	14:28:42
+quantile	0.75	unif_sample_lod	0.25	1	0.5	5	7	trend		3	30	14:28:42
+quantile	0.75	unif_global_lod	0	1	0.5	5	7	trend		4	30	14:28:42
+quantile	0.75	unif_global_lod	0.1	1	0.5	5	7	trend		4	30	14:28:42
+quantile	0.75	unif_global_lod	0.25	1	0.5	5	7	trend		3	30	14:28:43
+quantile	0.75	sample_lod	0.01	1	0.5	5	7	deqms		4	30	14:28:43
+quantile	0.75	unif_sample_lod	0	1	0.5	5	7	deqms		4	30	14:28:43
+quantile	0.75	unif_sample_lod	0.1	1	0.5	5	7	deqms		3	30	14:28:43
+quantile	0.75	unif_sample_lod	0.25	1	0.5	5	7	deqms		3	30	14:28:44
+quantile	0.75	unif_global_lod	0	1	0.5	5	7	deqms		4	30	14:28:44
+quantile	0.75	unif_global_lod	0.1	1	0.5	5	7	deqms		4	30	14:28:44
+quantile	0.75	unif_global_lod	0.25	1	0.5	5	7	deqms		3	30	14:28:45
+quantile	0.75	unif_sample_lod	0	1	0.5	5	7	msqrob		NA	30	14:28:45
+quantile	0.75	unif_sample_lod	0.1	1	0.5	5	7	msqrob		NA	30	14:28:46
+quantile	0.75	unif_sample_lod	0.25	1	0.5	5	7	msqrob		NA	30	14:28:47
+quantile	0.75	unif_global_lod	0	1	0.5	5	7	msqrob		NA	30	14:28:48
+quantile	0.75	unif_global_lod	0.1	1	0.5	5	7	msqrob		NA	30	14:28:48
+quantile	0.75	unif_global_lod	0.25	1	0.5	5	7	msqrob		NA	30	14:28:49
+quantile	0.75	sample_lod	0.01	1	0.5	5	7	proda		4	30	14:28:50
+quantile	0.75	unif_sample_lod	0	1	0.5	5	7	proda		4	30	14:28:51
+quantile	0.75	unif_sample_lod	0.1	1	0.5	5	7	proda		3	30	14:28:52
+quantile	0.75	unif_sample_lod	0.25	1	0.5	5	7	proda		3	30	14:28:53
+quantile	0.75	unif_global_lod	0	1	0.5	5	7	proda		4	30	14:28:54
+quantile	0.75	unif_global_lod	0.1	1	0.5	5	7	proda		4	30	14:28:55
+quantile	0.75	unif_global_lod	0.25	1	0.5	5	7	proda		3	30	14:28:56
+quantile	0.75	sample_lod	0.01	1	0.5	5	7	prolfqua		4	30	14:28:56
+quantile	0.75	unif_sample_lod	0	1	0.5	5	7	prolfqua		4	30	14:28:57
+quantile	0.75	unif_sample_lod	0.1	1	0.5	5	7	prolfqua		4	30	14:28:57
+quantile	0.75	unif_sample_lod	0.25	1	0.5	5	7	prolfqua		3	30	14:28:57
+quantile	0.75	unif_global_lod	0	1	0.5	5	7	prolfqua		4	30	14:28:58
+quantile	0.75	unif_global_lod	0.1	1	0.5	5	7	prolfqua		4	30	14:28:58
+quantile	0.75	unif_global_lod	0.25	1	0.5	5	7	prolfqua		4	30	14:28:59
+cpm	0.75	sample_lod	0.01	1	0.5	5	7	trend		4	30	14:28:59
+cpm	0.75	unif_sample_lod	0	1	0.5	5	7	trend		4	30	14:28:59
+cpm	0.75	unif_sample_lod	0.1	1	0.5	5	7	trend		5	30	14:28:59
+cpm	0.75	unif_sample_lod	0.25	1	0.5	5	7	trend		5	30	14:29:00
+cpm	0.75	unif_global_lod	0	1	0.5	5	7	trend		3	30	14:29:00
+cpm	0.75	unif_global_lod	0.1	1	0.5	5	7	trend		4	30	14:29:00
+cpm	0.75	unif_global_lod	0.25	1	0.5	5	7	trend		2	30	14:29:00
+cpm	0.75	sample_lod	0.01	1	0.5	5	7	deqms		4	30	14:29:00
+cpm	0.75	unif_sample_lod	0	1	0.5	5	7	deqms		3	30	14:29:01
+cpm	0.75	unif_sample_lod	0.1	1	0.5	5	7	deqms		4	30	14:29:01
+cpm	0.75	unif_sample_lod	0.25	1	0.5	5	7	deqms		3	30	14:29:01
+cpm	0.75	unif_global_lod	0	1	0.5	5	7	deqms		3	30	14:29:01
+cpm	0.75	unif_global_lod	0.1	1	0.5	5	7	deqms		4	30	14:29:02
+cpm	0.75	unif_global_lod	0.25	1	0.5	5	7	deqms		4	30	14:29:02
+cpm	0.75	unif_sample_lod	0	1	0.5	5	7	msqrob		NA	30	14:29:03
+cpm	0.75	unif_sample_lod	0.1	1	0.5	5	7	msqrob		NA	30	14:29:03
+cpm	0.75	unif_sample_lod	0.25	1	0.5	5	7	msqrob		NA	30	14:29:04
+cpm	0.75	unif_global_lod	0	1	0.5	5	7	msqrob		NA	30	14:29:05
+cpm	0.75	unif_global_lod	0.1	1	0.5	5	7	msqrob		NA	30	14:29:06
+cpm	0.75	unif_global_lod	0.25	1	0.5	5	7	msqrob		NA	30	14:29:06
+cpm	0.75	sample_lod	0.01	1	0.5	5	7	proda		2	30	14:29:07
+cpm	0.75	unif_sample_lod	0	1	0.5	5	7	proda		1	30	14:29:11
+cpm	0.75	unif_sample_lod	0.1	1	0.5	5	7	proda		2	30	14:29:12
+cpm	0.75	unif_sample_lod	0.25	1	0.5	5	7	proda		2	30	14:29:14
+cpm	0.75	unif_global_lod	0	1	0.5	5	7	proda		1	30	14:29:18
+cpm	0.75	unif_global_lod	0.1	1	0.5	5	7	proda		1	30	14:29:19
+cpm	0.75	unif_global_lod	0.25	1	0.5	5	7	proda		1	30	14:29:20
+cpm	0.75	sample_lod	0.01	1	0.5	5	7	prolfqua		4	30	14:29:20
+cpm	0.75	unif_sample_lod	0	1	0.5	5	7	prolfqua		1	30	14:29:21
+cpm	0.75	unif_sample_lod	0.1	1	0.5	5	7	prolfqua		1	30	14:29:21
+cpm	0.75	unif_sample_lod	0.25	1	0.5	5	7	prolfqua		2	30	14:29:21
+cpm	0.75	unif_global_lod	0	1	0.5	5	7	prolfqua		1	30	14:29:22
+cpm	0.75	unif_global_lod	0.1	1	0.5	5	7	prolfqua		1	30	14:29:22
+cpm	0.75	unif_global_lod	0.25	1	0.5	5	7	prolfqua		4	30	14:29:22
+log2	0.75	sample_lod	0.01	1	0.5	5	7	trend		5	30	14:29:23
+log2	0.75	unif_sample_lod	0	1	0.5	5	7	trend		2	30	14:29:23
+log2	0.75	unif_sample_lod	0.1	1	0.5	5	7	trend		6	30	14:29:23
+log2	0.75	unif_sample_lod	0.25	1	0.5	5	7	trend		2	30	14:29:23
+log2	0.75	unif_global_lod	0	1	0.5	5	7	trend		4	30	14:29:24
+log2	0.75	unif_global_lod	0.1	1	0.5	5	7	trend		6	30	14:29:24
+log2	0.75	unif_global_lod	0.25	1	0.5	5	7	trend		4	30	14:29:24
+log2	0.75	sample_lod	0.01	1	0.5	5	7	deqms		5	30	14:29:24
+log2	0.75	unif_sample_lod	0	1	0.5	5	7	deqms		2	30	14:29:25
+log2	0.75	unif_sample_lod	0.1	1	0.5	5	7	deqms		4	30	14:29:25
+log2	0.75	unif_sample_lod	0.25	1	0.5	5	7	deqms		2	30	14:29:25
+log2	0.75	unif_global_lod	0	1	0.5	5	7	deqms		4	30	14:29:25
+log2	0.75	unif_global_lod	0.1	1	0.5	5	7	deqms		2	30	14:29:26
+log2	0.75	unif_global_lod	0.25	1	0.5	5	7	deqms		2	30	14:29:26
+log2	0.75	unif_sample_lod	0	1	0.5	5	7	msqrob		NA	30	14:29:27
+log2	0.75	unif_sample_lod	0.1	1	0.5	5	7	msqrob		NA	30	14:29:27
+log2	0.75	unif_sample_lod	0.25	1	0.5	5	7	msqrob		NA	30	14:29:28
+log2	0.75	unif_global_lod	0	1	0.5	5	7	msqrob		NA	30	14:29:29
+log2	0.75	unif_global_lod	0.1	1	0.5	5	7	msqrob		NA	30	14:29:30
+log2	0.75	unif_global_lod	0.25	1	0.5	5	7	msqrob		NA	30	14:29:31
+log2	0.75	sample_lod	0.01	1	0.5	5	7	proda		3	30	14:29:31
+log2	0.75	unif_sample_lod	0	1	0.5	5	7	proda		1	30	14:29:34
+log2	0.75	unif_sample_lod	0.1	1	0.5	5	7	proda		1	30	14:29:37
+log2	0.75	unif_sample_lod	0.25	1	0.5	5	7	proda		1	30	14:29:40
+log2	0.75	unif_global_lod	0	1	0.5	5	7	proda		1	30	14:29:44
+log2	0.75	unif_global_lod	0.1	1	0.5	5	7	proda		1	30	14:29:47
+log2	0.75	unif_global_lod	0.25	1	0.5	5	7	proda		1	30	14:29:49
+log2	0.75	sample_lod	0.01	1	0.5	5	7	prolfqua		5	30	14:29:50
+log2	0.75	unif_sample_lod	0	1	0.5	5	7	prolfqua		2	30	14:29:50
+log2	0.75	unif_sample_lod	0.1	1	0.5	5	7	prolfqua		2	30	14:29:51
+log2	0.75	unif_sample_lod	0.25	1	0.5	5	7	prolfqua		5	30	14:29:51
+log2	0.75	unif_global_lod	0	1	0.5	5	7	prolfqua		2	30	14:29:51
+log2	0.75	unif_global_lod	0.1	1	0.5	5	7	prolfqua		4	30	14:29:52
+log2	0.75	unif_global_lod	0.25	1	0.5	5	7	prolfqua		5	30	14:29:52

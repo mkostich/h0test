@@ -4,30 +4,39 @@
 \alias{tune_check}
 \title{Check tuning results}
 \usage{
-tune_check(dir_in, sfx, config)
+tune_check(dir_in, prefix, suffix, config, fdr_cutoff = 0.05)
 }
 \arguments{
 \item{dir_in}{Character scalar with path to directory containing tuning results.}
 
-\item{sfx}{Character scalar with distinctive suffix of tuning results files.}
+\item{prefix}{Character scalar with prefix (if any) of tuning result filenames.}
+
+\item{suffix}{Character scalar with distinctive suffix (required) of tuning results filenames.}
 
 \item{config}{List with at least \code{log_file} defined (can be \code{""}).}
+
+\item{fdr_cutoff}{Numeric scalar between \code{0} and \code{1.0} specifying 
+cutoff for false discovery rate. Trials not meeting cutoff are moved to the 
+bottom of the output \code{data.frame}.}
 }
 \value{
-A data.frame with the following columns:
+A \code{data.frame} with the following columns:
   \tabular{ll}{
-    \code{nhits}      \cr \tab Number of significant hits (numeric). \cr
-    \code{fdr}        \cr \tab False discovery rate (numeric). \cr
-    \code{max0}       \cr \tab Maximum number of hits in any permutation (numeric). \cr
-    \code{mid0}       \cr \tab Median number of hits across permutations (numeric). \cr
-    \code{avg0}       \cr \tab Average number of hits across permutations (numeric). \cr
-    \code{sd0}        \cr \tab Standard deviation of number of hits across permutations (numeric). \cr
-    \code{norm}       \cr \tab Normalization method (character). \cr
-    \code{norm_quant} \cr \tab Normalization quantile (numeric). \cr
-    \code{impute}     \cr \tab Imputation method (character). \cr
-    \code{imp_quant}  \cr \tab Imputation quantile (numeric). \cr
-    \code{scale}      \cr \tab Scale (numeric). \cr
-    \code{test}       \cr \tab Test method (character). \cr
+    \code{nhits}      \cr \tab Number of significant hits. \cr
+    \code{fdr}        \cr \tab False discovery rate. \cr
+    \code{max1}       \cr \tab Maximum number of hits in any permutation. \cr
+    \code{mid1}       \cr \tab Median number of hits across permutations. \cr
+    \code{avg1}       \cr \tab Average number of hits across permutations. \cr
+    \code{sd1}        \cr \tab Standard deviation of number of hits across permutations. \cr
+    \code{norm}       \cr \tab Normalization method. \cr
+    \code{nquant}     \cr \tab Normalization quantile. \cr
+    \code{impute}     \cr \tab Imputation method. \cr
+    \code{iquant}     \cr \tab Imputation quantile. \cr
+    \code{scale}      \cr \tab Scale for imputation. \cr
+    \code{span}       \cr \tab Span for loess-based imputation. \cr
+    \code{npcs}       \cr \tab Number of principle components for imputation. \cr
+    \code{k}          \cr \tab Number of nearest neighbors or groups for imputation. \cr
+    \code{test}       \cr \tab Test method. \cr
   }
 }
 \description{
@@ -41,8 +50,9 @@ Imports data from basic tuning loop, comparing results from unpermuted
 }
 \examples{
 dir_in <- system.file("extdata/tune", package="h0testr")
-sfx <- ".condition.tune.tsv"
+prefix <- ""
+suffix <- ".condition.tune.tsv"
 config <- list()
-tbl <- h0testr::tune_check(dir_in, sfx, config)
+tbl <- h0testr::tune_check(dir_in, prefix, suffix, config)
 print(tbl)
 }

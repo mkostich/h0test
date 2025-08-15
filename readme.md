@@ -588,59 +588,69 @@ The results of each run will have columns:
 Example output from a more extensive parameter exploration is shown below:
 
 ```
-> head(out1)
+> head(out) 
   norm nquant          impute iquant scale span npcs k  test perm nhits ntests     time
-1  RLE   0.75      sample_lod   0.01     1  0.5    5 7 trend         44     95 12:49:51
-2  RLE   0.75 unif_sample_lod   0.00     1  0.5    5 7 trend         47     95 12:49:51
-3  RLE   0.75 unif_sample_lod   0.01     1  0.5    5 7 trend         41     95 12:49:51
-4  RLE   0.75 unif_sample_lod   0.05     1  0.5    5 7 trend         40     95 12:49:51
-5  RLE   0.75 unif_sample_lod   0.10     1  0.5    5 7 trend         36     95 12:49:51
-6  RLE   0.75 unif_global_lod   0.00     1  0.5    5 7 trend         43     95 12:49:52
+1  RLE   0.75      sample_lod   0.01     1  0.5    5 7 trend   NA    59   3940 17:00:28
+2  RLE   0.75 unif_sample_lod   0.00     1  0.5    5 7 trend   NA    59   3940 17:00:29
+3  RLE   0.75 unif_sample_lod   0.01     1  0.5    5 7 trend   NA    58   3940 17:00:29
+4  RLE   0.75 unif_sample_lod   0.05     1  0.5    5 7 trend   NA    65   3940 17:00:29
+5  RLE   0.75 unif_sample_lod   0.10     1  0.5    5 7 trend   NA    56   3940 17:00:30
+6  RLE   0.75 unif_global_lod   0.00     1  0.5    5 7 trend   NA    60   3940 17:00:30
 
-> tail(out1)
+> tail(out)
      norm nquant    impute iquant scale span npcs  k test perm nhits ntests     time
-4051 none   0.75 svdImpute    0.1   0.1 0.75    3 20 voom         26     95 15:10:47
-4052 none   0.75 svdImpute    0.1   0.1 0.75    5 20 voom         22     95 15:10:48
-4053 none   0.75 svdImpute    0.1   0.1 0.75   10 20 voom         16     95 15:10:48
-4054 none   0.75       lls    0.1   0.1 0.75   10  5 voom         33     95 15:10:49
-4055 none   0.75       lls    0.1   0.1 0.75   10 10 voom         28     95 15:10:50
-4056 none   0.75       lls    0.1   0.1 0.75   10 20 voom         24     95 15:10:50
+4051 none   0.75 svdImpute    0.1   0.1 0.75    3 20 voom   NA  3939   3940 11:25:59
+4052 none   0.75 svdImpute    0.1   0.1 0.75    5 20 voom   NA     0   3940 11:26:19
+4053 none   0.75 svdImpute    0.1   0.1 0.75   10 20 voom   NA     0   3940 11:26:38
+4054 none   0.75       lls    0.1   0.1 0.75   10  5 voom   NA     0   3940 11:26:40
+4055 none   0.75       lls    0.1   0.1 0.75   10 10 voom   NA     0   3940 11:26:42
+4056 none   0.75       lls    0.1   0.1 0.75   10 20 voom   NA     0   3940 11:26:44
 ```
 
 Collect results. From parent directory, in R (only base packages required for this part):
 
-**BELOW IS WORK IN PROGRESS; DO NOT USE YET:**
-
 ```
 rm(list=ls())
 
-tbl <- tune_check(dir_in="/path/to/tuning/results", sfx=".grp.tune.tsv")
+tbl <- h0testr::tune_check(dir_in="/path/to/tuning/results", prefix="", suffix=".grp.tune.tsv")
 
 ## tbl has a bunch of statistics that can be used to evaluate option combinations;
 ##   nhits: number of hits in unpermuted data
 ##   fdr: avg0 / nhits
-##   max0: maximum number of hits in any permutation
-##   mid0: median number of hits across permutations
-##   avg0: mean number of hits across permutations
-##   sd0: standard deviation of number of hits across permutations
+##   max1: maximum number of hits in any permutation
+##   mid1: median number of hits across permutations
+##   avg1: mean number of hits across permutations
+##   sd1: standard deviation of number of hits across permutations
 ##   norm: normalization method
-##   norm_quant: normalization quantile (only used for quantile normalization)
+##   nquant: normalization quantile (only used for quantile normalization)
 ##   impute: imputation method
-##   impute_quant: imputation quantile for unif_ imputation methods
+##   iquant: imputation quantile for unif_ imputation methods
 ##   scale: scale parameter for rnorm_ imputation methods
+##   span: span for loess-based methods
+##   npcs: number of principle components for PCA/SVD-based imputations
+##   k: number of nearest neighbors or groups for k-nn and related imputations
 ##   test: method used for hypothesis testing
 
 > head(tbl)
-  nhits       fdr max0  mid0  avg0      sd0   norm norm_quant          impute imp_quant scale test
-1  4366 0.1097572 2433  37.5 479.2 919.9720 TMMwsp       0.75      sample_lod      0.25   0.1 voom
-2  4358 0.1150757 2538  70.5 501.5 908.2445 TMMwsp       0.75 unif_sample_lod      0.00   0.1 voom
-3  4357 0.1245352 2660 134.0 542.6 911.6615 TMMwsp       0.75 unif_global_lod      0.25   0.1 voom
-4  4357 0.1292862 2656 123.0 563.3 953.6246 TMMwsp       0.75 unif_global_lod      0.05   0.1 voom
-5  4354 0.1289848 2648 129.0 561.6 951.6642 TMMwsp       0.75 unif_global_lod      0.00   0.1 voom
-6  4352 0.1309053 2661 138.0 569.7 957.4347 TMMwsp       0.75 unif_global_lod      0.10   0.1 voom
+  nhits         fdr max1 mid1 avg1       sd1     norm nquant    impute iquant scale span npcs  k     test
+1  2011 0.000497265    1    0 0.05 0.2236068 quantile   0.50 svdImpute    0.1   0.1 0.75    3 20     voom
+2   878 0.001138952    1    0 0.10 0.3077935      RLE   0.75 svdImpute    0.1   0.1 0.75    5 20     voom
+3   533 0.001876173    1    0 0.05 0.2236068      RLE   0.75 svdImpute    0.1   0.1 0.75    3 20     voom
+4   477 0.000000000    0    0 0.00 0.0000000 quantile   0.50      ppca    0.1   0.1 0.75    3 20 prolfqua
+5   467 0.000000000    0    0 0.00 0.0000000      RLE   0.75      ppca    0.1   0.1 0.75    3 20 prolfqua
+6   458 0.000000000    0    0 0.00 0.0000000     log2   0.75      ppca    0.1   0.1 0.75    3 20 prolfqua
+
+> tail(tbl)
+     nhits fdr max1 mid1   avg1          sd1 norm nquant    impute iquant scale span npcs  k   test
+4051     0   1    3    0   0.15    0.6708204 none   0.75      bpca    0.1   0.1 0.75    5 20 msqrob
+4052     0   1    3    0   0.15    0.6708204 none   0.75      bpca    0.1   0.1 0.75   10 20 msqrob
+4053     0   1 3936    0 196.80  880.1163559 none   0.75 svdImpute    0.1   0.1 0.75    5 20   voom
+4054     0   1 3938    0 393.65 1211.6292326 none   0.75 svdImpute    0.1   0.1 0.75   10 20   voom
+4055     0   1 3938    0 787.00 1614.8904151 none   0.75       lls    0.1   0.1 0.75   10  5   voom
+4056     0   1 3928    0 196.40  878.3275016 none   0.75       lls    0.1   0.1 0.75   10 10   voom
 
 ## save results:
-write.table(dat1, file="perm_results.grp.tsv", sep="\t", quote=F, row.names=F)
+write.table(tbl, file="perm_results.grp.tsv", sep="\t", quote=F, row.names=F)
 ```
 
 ---
