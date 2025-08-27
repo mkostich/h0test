@@ -18,13 +18,17 @@ test_trend(state, config)
 \tabular{ll}{
   \code{feat_col}       \cr \tab Name of column in \code{feature_file_in} corresponding to \code{rownames(state$expression)}. \cr
   \code{obs_col}        \cr \tab Name of column in \code{sample_file_in} corresponding to \code{colnames(state$expression)}. \cr
-  \code{frm}            \cr \tab Formula (formula) to be fit \cr
+  \code{frm}            \cr \tab Formula (formula) to be fit. \cr
   \code{test_term}      \cr \tab Term (scalar character) to be tested for non-zero coefficient. \cr
   \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
 }}
 }
 \value{
-A \code{data.frame} containing results of test.
+A list with components:
+  \tabular{ll}{
+    \code{hits}  \cr \tab \code{data.frame} of results from \code{limma::topTable()}. \cr
+    \code{fit}   \cr \tab Model returned by \code{limma::eBayes()}. \cr
+  }
 }
 \description{
 Test for differential expression using \code{limma::eBayes(trend=TRUE)}.
@@ -65,6 +69,6 @@ config$sample_factors <- list(condition=c("placebo", "drug"))
 ## set up and check covariates and parameters:
 out <- h0testr::initialize(state, config, minimal=TRUE)
 
-tbl <- h0testr::test_trend(state, config)
-print(tbl)
+result <- h0testr::test_trend(state, config)
+head(result$hits)
 }

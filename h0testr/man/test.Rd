@@ -19,7 +19,7 @@ test(state, config, method = NULL, is_log_transformed = NULL, prior_df = NULL)
   \code{feat_col}       \cr \tab Name of column in \code{state$fetaures} matching \code{rownames(state$expression)}. \cr
   \code{obs_col}        \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
   \code{gene_id_col}    \cr \tab Name of column in \code{state$fetaures} with gene/protein-group ids. \cr
-  \code{frm}            \cr \tab Formula (formula) to be fit \cr
+  \code{frm}            \cr \tab Formula (formula) to be fit. \cr
   \code{test_term}      \cr \tab Term (character scalar) to be tested for non-zero coefficient. \cr
   \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
   \code{test_method}    \cr \tab Character scalar in \code{c("voom", "trend", "deqms", "msqrob", "proda"}. \cr
@@ -29,8 +29,7 @@ test(state, config, method = NULL, is_log_transformed = NULL, prior_df = NULL)
 \code{method \%in\% h0testr::test_methods()}.}
 
 \item{is_log_transformed}{Logical scalar: if \code{state$expression} has 
-been log transformed. Required if 
-\code{method \%in\% c("proda", "prolfqua")}.}
+been log transformed. Required if \code{method \%in\% c("proda", "prolfqua")}.}
 
 \item{prior_df}{Prior degrees of freedom for method \code{proda}; 
 where \code{2 <= prior_df <= n_features}.}
@@ -39,7 +38,8 @@ where \code{2 <= prior_df <= n_features}.}
 A list with the following elements: \cr
   \tabular{ll}{
     \code{original} \cr \tab A \code{data.frame} with results in native format returned by test. \cr
-    \code{standard} \cr \tab A \code{data.frame} with results in a standardized format \cr
+    \code{standard} \cr \tab A \code{data.frame} with results in a standardized format. \cr
+    \code{fit}      \cr \tab Fitted model returned by the selected testing procedure. \cr
   } \cr
   The \code{standard} \code{data.frame} has the following fields: \cr
   \tabular{ll}{
@@ -91,7 +91,8 @@ out <- h0testr::initialize(state, config, minimal=TRUE)
 state <- out$state
 config <- out$config
 
-out <- h0testr::test(state, config, method="trend")
-head(out$original)
-head(out$standard)
+result <- h0testr::test(state, config, method="trend")
+head(result$original)
+head(result$standard)
+print(result$fit)
 }

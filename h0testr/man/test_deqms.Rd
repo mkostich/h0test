@@ -19,17 +19,20 @@ test_deqms(state, config, trend = FALSE)
   \code{gene_id_col}    \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
   \code{feat_col}       \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
   \code{obs_col}        \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
-  \code{frm}            \cr \tab Formula (formula) to be fit \cr
+  \code{frm}            \cr \tab Formula (formula) to be fit. \cr
   \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
 }}
 
 \item{trend}{Logical scalar. Whether \code{limma::eBayes()} should use trended dispersion estimate.}
 }
 \value{
-A data.frame with results of test. Columns include: 
-    \code{c("logFC", "AveExpr", "t", "P.Value", "adj.P.Val", "B", "gene", "count", "sca.t", "sca.P.Value", "sca.adj.pval")}.
-  Initial statistics from \code{limma}. Columns beginning with \code{sca.} 
-    added by \code{DEqMS}.
+A list with components:
+  \tabular{ll}{
+    \code{hits}  \cr \tab \code{data.frame} of results; columns: 
+      \code{c("logFC", "AveExpr", "t", "P.Value", "adj.P.Val", "B", "gene", "count", "sca.t", "sca.P.Value", "sca.adj.pval")}.
+      Initial statistics from \code{limma}. Columns beginning with \code{sca.} added by \code{DEqMS}. \cr
+    \code{fit}   \cr \tab Model returned by \code{DEqMS::spectraCounteBayes}. \cr
+  }
 }
 \description{
 Tests for differential expression using the 
@@ -92,6 +95,6 @@ config <- list(
 out <- h0testr::initialize(state, config, minimal=TRUE)
 
 ## actual test:
-tbl <- h0testr::test_deqms(out$state, out$config)
-head(tbl)
+result <- h0testr::test_deqms(out$state, out$config)
+head(result$hits)
 }

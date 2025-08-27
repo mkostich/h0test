@@ -82,8 +82,8 @@ config$sample_factors=list(                  ## levels of factor variables in sa
 )
 
 ## run workflow, generating hit table:
-tbl <- h0testr::run(config)
-head(tbl)
+result <- h0testr::run(config)
+head(result$standard)
 ```
   
 ---
@@ -96,7 +96,7 @@ head(tbl)
   SummarizedExperiment.
 - Developed and tested with R 4.3.1.
 - Expected to work on Linux, Mac, or Windows; tested on Rocky Linux 9.5 and 
-  Windows 10.
+  Windows 11.
 
 ---
 

@@ -14,7 +14,8 @@
 #'     \code{state}    \cr \tab List with elements \code{$expression}, \code{$features}, and \code{$samples}. \cr
 #'     \code{config}   \cr \tab List with configuration settings. \cr
 #'     \code{original} \cr \tab A \code{data.frame} with native results of test. \cr
-#'     \code{standard} \cr \tab A \code{data.frame} with results in standardized format.
+#'     \code{standard} \cr \tab A \code{data.frame} with results in standardized format. \cr
+#'     \code{fit}      \cr \tab Fitted model from selected testing procedure.
 #'   }
 #' @examples
 #' config <- h0testr::new_config()          ## defaults
@@ -34,9 +35,10 @@
 #'
 #' print(config$run_order)
 #'
-#' out <- h0testr::run(config)     ## run workflow
-#' head(out$original)              ## hit table as returned by underlying software
-#' head(out$standard)              ## hit table in a standardized format
+#' result <- h0testr::run(config)     ## run workflow
+#' head(result$original)              ## hit table as returned by underlying software
+#' head(result$standard)              ## hit table in a standardized format
+#' print(result$fit)                ## model fit by selected testing procedure
 
 run <- function(config) {
   
@@ -66,10 +68,10 @@ run <- function(config) {
   }
   
   f.log_block("starting test", config=out$config)
-  tbl_list <- test(out$state, out$config, is_log_transformed=is_log_transformed)
+  result <- test(out$state, out$config, is_log_transformed=is_log_transformed)
   
   return(list(state=out$state, config=out$config, 
-    original=tbl_list$original, standard=tbl_list$standard))
+    original=result$original, standard=result$standard, fit=result$fit))
 }
 
 ## helper for tune(); normalize and combine reps:
@@ -137,12 +139,12 @@ f.tune2 <- function(state, config, is_log_transformed=is_log_transformed) {
     is_log_transformed=is_log_transformed)
   
   f.log_block("f.tune:2: test", config=config)
-  tbl_list <- test(out$state, out$config, 
+  result <- test(out$state, out$config, 
     is_log_transformed=is_log_transformed)
   
-  tbl <- tbl_list$standard
+  tbl <- result$standard
   
-  rslt <- data.frame(norm=config$normalization_method, nquant=config$normalization_quantile, 
+  result <- data.frame(norm=config$normalization_method, nquant=config$normalization_quantile, 
     impute=config$impute_method, iquant=config$impute_quantile, 
     scale=config$impute_scale, span=config$impute_span, 
     npcs=config$impute_npcs, k=config$impute_k, test=config$test_method, 
@@ -150,7 +152,7 @@ f.tune2 <- function(state, config, is_log_transformed=is_log_transformed) {
     time=format(Sys.time(), "%H:%M:%S"), stringsAsFactors=F)
   
   f.log_block("f.tune:2: return", config=config)
-  return(rslt)
+  return(result)
 }
 
 #' Basic tuning loop

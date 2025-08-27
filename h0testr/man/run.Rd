@@ -16,7 +16,8 @@ A list with the following elements:
     \code{state}    \cr \tab List with elements \code{$expression}, \code{$features}, and \code{$samples}. \cr
     \code{config}   \cr \tab List with configuration settings. \cr
     \code{original} \cr \tab A \code{data.frame} with native results of test. \cr
-    \code{standard} \cr \tab A \code{data.frame} with results in standardized format.
+    \code{standard} \cr \tab A \code{data.frame} with results in standardized format. \cr
+    \code{fit}      \cr \tab Fitted model from selected testing procedure.
   }
 }
 \description{
@@ -47,7 +48,8 @@ config$run_order <- c("normalize", "combine_replicates", "filter", "impute")
 
 print(config$run_order)
 
-out <- h0testr::run(config)     ## run workflow
-head(out$original)              ## hit table as returned by underlying software
-head(out$standard)              ## hit table in a standardized format
+result <- h0testr::run(config)     ## run workflow
+head(result$original)              ## hit table as returned by underlying software
+head(result$standard)              ## hit table in a standardized format
+print(result$fit)                ## model fit by selected testing procedure
 }

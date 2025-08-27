@@ -18,7 +18,7 @@ test_voom(state, config, normalize.method = "none")
 \tabular{ll}{
   \code{feat_col}       \cr \tab Name of column in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
   \code{obs_col}        \cr \tab Name of column in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
-  \code{frm}            \cr \tab Formula (formula) to be fit \cr
+  \code{frm}            \cr \tab Formula (formula) to be fit. \cr
   \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
   \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
 }}
@@ -27,7 +27,11 @@ test_voom(state, config, normalize.method = "none")
 \code{c("TMM", "TMMwsp", "RLE", "upperquartile", "none")}.}
 }
 \value{
-A data.frame containing results of test.
+A list with components:
+  \tabular{ll}{
+    \code{hits}  \cr \tab \code{data.frame} of results from \code{limma::topTable()}. \cr
+    \code{fit}   \cr \tab Model returned by \code{limma::eBayes()}. \cr
+  }
 }
 \description{
 Tests for differential expression using the \code{limma::voom()} function.
@@ -61,6 +65,6 @@ config$sample_factors <- list(condition=c("placebo", "drug"))
 ## set up and check configuration, including covariates:
 out <- h0testr::initialize(state, config, minimal=TRUE)
 
-tbl <- h0testr::test_voom(out$state, out$config)
-print(tbl)
+result <- h0testr::test_voom(out$state, out$config)
+head(result$hits)
 }
