@@ -66,7 +66,7 @@ run <- function(config) {
   }
   
   f.log_block("starting test", config=out$config)
-  tbl_list <- test(out$state, out$config)
+  tbl_list <- test(out$state, out$config, is_log_transformed=is_log_transformed)
   
   return(list(state=out$state, config=out$config, 
     original=tbl_list$original, standard=tbl_list$standard))
