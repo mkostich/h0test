@@ -4,7 +4,7 @@
 \alias{filter}
 \title{Filter features and samples}
 \usage{
-filter(state, config, remove_constant = TRUE)
+filter(state, config, remove_constant = TRUE, filter_by_formula = TRUE)
 }
 \arguments{
 \item{state}{A list with elements like that returned by `read_data()`:
@@ -26,6 +26,8 @@ filter(state, config, remove_constant = TRUE)
 }}
 
 \item{remove_constant}{Logical scalar: if constant rows and columns of \code{state$expression} should be removed.}
+
+\item{filter_by_formula}{Logical scalar: if \code{filter_features_by_formula()} should be run after other feature filters.}
 }
 \value{
 A list with elements like that returned by \code{read_data()}:
@@ -51,16 +53,17 @@ Filters out features with too few expressing samples, and filters out
 set.seed(101)
 exprs <- h0testr::sim1(n_obs=6, n_feats=12, mcar_p=0.25)$mat
 feats <- data.frame(feature_id=rownames(exprs))
-samps <- data.frame(observation_id=colnames(exprs))
+samps <- data.frame(observation_id=colnames(exprs), age=c(rep("4m", 3), rep("12m", 3)))
 state <- list(expression=exprs, features=feats, samples=samps)
 
 ## assume default median_raw_col, n_samples_expr_col, and n_features_expr_col are ok:
-config <- h0testr::new_config()      ## defaults
+config <- h0testr::new_config()        ## defaults
 config$save_state <- FALSE             ## default is TRUE
 config$feat_col <- config$feat_id_col
 config$obs_col <- config$obs_id_col
 config$n_features_min <- 6
 config$n_samples_min <- 2
+config$frm <- ~age
 out <- h0testr::filter(state, config)
 print(out$state)
 str(out$config)

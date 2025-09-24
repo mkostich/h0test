@@ -69,6 +69,6 @@ config$sample_factors <- list(condition=c("placebo", "drug"))
 ## set up and check covariates and parameters:
 out <- h0testr::initialize(state, config, minimal=TRUE)
 
-result <- h0testr::test_trend(state, config)
-head(result$hits)
+tbl <- h0testr::test_trend(out$state, out$config)
+print(tbl)
 }

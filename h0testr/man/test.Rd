@@ -22,7 +22,7 @@ test(state, config, method = NULL, is_log_transformed = NULL, prior_df = NULL)
   \code{frm}            \cr \tab Formula (formula) to be fit. \cr
   \code{test_term}      \cr \tab Term (character scalar) to be tested for non-zero coefficient. \cr
   \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
-  \code{test_method}    \cr \tab Character scalar in \code{c("voom", "trend", "deqms", "msqrob", "proda"}. \cr
+  \code{test_method}    \cr \tab Character scalar in \code{c("lm", "trend", "deqms", "msqrob", "proda", "prolfqua", "voom")}. \cr
 }}
 
 \item{method}{Name of test method where 
@@ -88,11 +88,7 @@ config <- list(feat_id_col="feature_id", gene_id_col="feature_id",
 
 ## set up and check covariates and parameters:
 out <- h0testr::initialize(state, config, minimal=TRUE)
-state <- out$state
-config <- out$config
-
-result <- h0testr::test(state, config, method="trend")
-head(result$original)
-head(result$standard)
-print(result$fit)
+out <- h0testr::test(out$state, out$config, method="trend")
+head(out$original)
+head(out$standard)
 }

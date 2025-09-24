@@ -27,6 +27,7 @@
 #'     \code{sample_mid_out}  \cr \tab Midfix of sample metadata filename; only needed if \code{save_state == TRUE}.\cr
 #'     \code{suffix_out}      \cr \tab Suffix of output files; only needed if \code{save_state == TRUE}.\cr
 #'   }
+#' @param fn Function for combining replicated measurements.
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -47,8 +48,8 @@
 #' str(config)
 #' str(out$config)
 
-combine_replicates <- function(state, config) {
-
+combine_replicates <- function(state, config, fn=stats::median) {
+  
   check_config(config)
   
   if(is.null(config$sample_id_col) || !(config$sample_id_col %in% names(state$samples))) {
@@ -56,8 +57,8 @@ combine_replicates <- function(state, config) {
       "config$sample_id_col:", config$sample_id_col, 
       "; names(state$samples):", names(state$samples), config=config)
   }
-
-  f <- function(v, s) tapply(v, s, stats::median, na.rm=T)
+  
+  f <- function(v, s) tapply(v, s, fn, na.rm=T)
   sample_ids <- state$samples[[config$sample_id_col]]
   state$expression <- t(apply(state$expression, 1, f, sample_ids))
   state$samples <- state$samples[!duplicated(sample_ids), , drop=F]

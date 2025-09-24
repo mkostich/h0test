@@ -1,3 +1,106 @@
+## features with at least two distinct values for each marginal term; character term
+##   numeric matrix exprs, data.frame meta:
+
+f.filter_features_by_term <- function(term, state, config, 
+    n_non_na_min=2, n_distinct_min=2, 
+    n_groups_non_na_min=2, n_groups_distinct_min=1) {
+  
+  if(!(term %in% names(state$samples))) {
+    f.err("f.filter_features_by_term: term: ", term, 
+      " not in names(state$samples): ", names(state$samples), config=config)
+  }
+  
+  f_ok <- function(v, term, meta) {
+    
+    ## n_non_na_min non-NA values in each of n_groups_non_na_min groups:
+    i <- !is.na(v)
+    mat <- as.matrix(table(meta[[term]][i]))
+    check1 <- sum(mat[, 1, drop=T] >= n_non_na_min, na.rm=T) >= n_groups_non_na_min
+    
+    ## n_distinct_min unique non-NA values in n_groups_distinct_min groups:
+    i <- !(is.na(v) | duplicated(v))
+    mat <- as.matrix(table(meta[[term]][i]))
+    check2 <- sum(mat[, 1, drop=T] >= n_distinct_min, na.rm=T) >= n_groups_distinct_min
+    
+    return(check1 && check2)
+  }
+  
+  i_ok <- apply(state$expression, 1, f_ok, term, state$samples)
+  
+  return(i_ok)
+}
+
+#' Filter features without enough distinct values for each marginal term in \code{config$frm}.
+#' @description
+#'   Filter features without enough distinct values for each marginal term in \code{config$frm}.
+#' @details
+#'   Feature considered expressed if \code{state$expression > 0}; 
+#'     \code{NA}s count as no expression. For continuous predictors (independent variables),
+#'     number of levels corresponds to number of distinct values.
+#' @param state A list with elements like that returned by \code{read_data()}:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{frm} \cr \tab Formula object specifying model to be fitted. \cr
+#'   }
+#' @param n_non_na_min Minimum number of non-NA values per feature. Non-negative integer.
+#' @param n_distinct_min Minimum number of distinct non-NA values per feature. Non-negative integer.
+#' @param n_groups_non_na_min Minimum number of treatment levels meeting \code{n_non_na_min}. Non-negative integer.
+#' @param n_groups_distinct_min Minimum number of treatment levels meeting \code{n_distinct_min}. Non-negative integer.
+#' @return An updated \code{state} list with the following elements:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
+#' @examples
+#' set.seed(101)
+#' exprs <- h0testr::sim1(n_obs=6, n_feats=12, mcar_p=0.5)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs), age=c(rep(4, 3), rep(12, 3)))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(frm=~age)
+#' state2 <- h0testr::filter_features_by_formula(state, config)
+#' print(state)
+#' print(state2)
+
+filter_features_by_formula <- function(state, config, 
+    n_non_na_min=2, n_distinct_min=2, 
+    n_groups_non_na_min=2, n_groups_distinct_min=1) {
+  
+  if(is.null(config$frm)) {
+    f.err("filter_features_by_formula: is.null(config$frm)", config=config)
+  }
+  frm <- as.character(config$frm)
+  frm <- frm[!(frm %in% "~")]
+  frm <- gsub(" ", "", frm)
+  frm <- unlist(strsplit(frm, "\\+"))
+  frm <- frm[!grepl("[:|^/]", frm)]
+  
+  result <- sapply(
+    frm, f.filter_features_by_term, 
+    state, config,
+    n_non_na_min=n_non_na_min, 
+    n_distinct_min=n_distinct_min, 
+    n_groups_non_na_min=n_groups_non_na_min, 
+    n_groups_distinct_min=n_groups_distinct_min
+  )
+  ## if(is.null(dim(result))) result <- matrix(result, ncol=1)
+  
+  i <- apply(result, 1, all, na.rm=F)
+  i[is.na(i)] <- F
+  
+  state$expression <- state$expression[i, , drop=F]
+  state$features <- state$features[i, , drop=F]
+  ## state$samples <- state$samples
+  
+  return(state)
+}
+
 #' Filter features based on number of samples
 #' @description
 #'   Filter features based on number of samples expressing feature.
@@ -19,6 +122,7 @@
 #'   }
 #' @param n_samples_min Minimum number of samples expressing feature. Non-negative numeric.
 #' @param remove_constant Logical scalar: if constant features of \code{state$expression} should be removed.
+#' @param filter_by_formula Logical scalar: if \code{filter_features_by_formula()} should be run after other filters.
 #' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -29,16 +133,16 @@
 #' set.seed(101)
 #' exprs <- h0testr::sim1(n_obs=6, n_feats=12, mcar_p=0.5)$mat
 #' feats <- data.frame(feature_id=rownames(exprs))
-#' samps <- data.frame(observation_id=colnames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs), age=c(rep("4m", 3), rep("12m", 3)))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(n_samples_min=3)
+#' config <- list(n_samples_min=3, frm=~age)
 #' state2 <- h0testr::filter_features(state, config)
 #' print(state)
 #' print(state2)
 
 filter_features <- function(state, config, 
-    n_samples_min=NULL, remove_constant=TRUE) {
-
+    n_samples_min=NULL, remove_constant=TRUE, filter_by_formula=TRUE) {
+  
   check_config(config)
   
   if(!is.matrix(state$expression)) {
@@ -64,7 +168,7 @@ filter_features <- function(state, config,
   state$features <- state$features[i, , drop=F]
   f.msg("features filtered: nrow(state$expression):", nrow(state$expression), 
     "; ncol(state$features):", ncol(state$features), config=config)
-
+  
   if(remove_constant) {
     f <- function(v) {
       i_na <- is.na(v)
@@ -81,6 +185,10 @@ filter_features <- function(state, config,
     state$features <- state$features[i, , drop=F]
     f.msg("constant features removed:", sum(!i), config=config)
     f.msg("non-constant features left:", nrow(state$features), config=config)
+  }
+  
+  if(filter_by_formula) {
+    state <- filter_features_by_formula(state, config)
   }
   
   return(state)
@@ -126,9 +234,9 @@ filter_features <- function(state, config,
 
 filter_observations <- function(state, config, 
     n_features_min=NULL, remove_constant=TRUE) {
-
+  
   check_config(config)
-
+  
   if(!is.matrix(state$expression)) {
     f.err("filter_observations: !is.matrix(state$expression)", "\n",
       "class(state$expression):", class(state$expression), config=config)
@@ -169,7 +277,7 @@ filter_observations <- function(state, config,
     f.msg("constant observations removed:", sum(!i), config=config)
     f.msg("non-constant observations left:", nrow(state$expression), config=config)
   }
-
+  
   return(state)
 }
 
@@ -197,12 +305,12 @@ filter_observations <- function(state, config,
 #' h0testr::samples_per_feature(state, config)
 
 samples_per_feature <- function(state, config) {
-
+  
   if(!is.matrix(state$expression)) {
     f.err("samples_per_feature: !is.matrix(state$expression)", "\n",
       "class(state$expression):", class(state$expression), config=config)
   }
-
+  
   f <- function(v) {
     n <- sum(v > 0, na.rm=T)
     n[is.na(n)] <- 0      ## only if all(is.na(v))
@@ -240,7 +348,7 @@ samples_per_feature <- function(state, config) {
 #' h0testr::feature_median_expression(state, config)
 
 feature_median_expression <- function(state, config) {
-
+  
   if(!is.matrix(state$expression)) {
     f.err("feature_median_expression: !is.matrix(state$expression)", "\n",
       "class(state$expression):", class(state$expression), config=config)
@@ -282,7 +390,7 @@ feature_median_expression <- function(state, config) {
 #' h0testr::features_per_sample(state, config)
 
 features_per_sample <- function(state, config) {
-
+  
   if(!is.matrix(state$expression)) {
     f.err("features_per_sample: !is.matrix(state$expression)", "\n",
       "class(state$expression):", class(state$expression), config=config)
@@ -296,6 +404,25 @@ features_per_sample <- function(state, config) {
   n <- apply(state$expression, 2, f)
   
   return(n)
+}
+
+## prefilter features; ensure possibility (not guarantee) of 2+ distinct non-NA values 
+##   in one group and 2+ non-NA values in another group:
+
+f.prefilter_features <- function(state, min1=3, min2=4) {
+  
+  n1 <- apply(state$expression, 1, function(v) sum(!(is.na(v) | duplicated(v)), na.rm=T))
+  i1 <- n1 >= min1
+  
+  n2 <- apply(state$expression, 1, function(v) sum(!(is.na(v)), na.rm=T))
+  i2 <- n2 >= min2
+  
+  i <- i1 & i2
+  state$expression <- state$expression[i, , drop=F]
+  state$features <- state$features[i, , drop=F]
+  ## state$samples <- state$samples
+  
+  return(state)
 }
 
 #' Prefilter data
@@ -337,14 +464,15 @@ features_per_sample <- function(state, config) {
 #' print(state2)
 
 prefilter <- function(state, config, n_samples_min=2, n_features_min=2) {
-
+  
   check_config(config)
   
   f.log_block("prefilter features and samples", config=config)
   f.msg("before filtering features:", config=config)
   f.report_state(state, config)
   
-  state <- filter_features(state, config, n_samples_min=n_samples_min)
+  ## state <- filter_features(state, config, n_samples_min=n_samples_min)
+  state <- f.prefilter_features(state)
   f.msg("after filtering features", config=config)
   f.report_state(state, config)
   
@@ -404,21 +532,21 @@ add_filter_stats <- function(state, config) {
     f.err("add_filter_stats: !all(names(n) == state$features[[config$feat_col]])", 
       config=config)
   }
-  state$features[, config$n_samples_expr_col] <- n
+  state$features[[config$n_samples_expr_col]] <- n
   
   m <- feature_median_expression(state, config)
   if(!all(names(m) == state$features[[config$feat_col]])) {
     f.err("add_filter_stats: !all(names(m) == state$features[[config$feat_col]])", 
       config=config)
   }
-  state$features[, config$median_raw_col] <- m
+  state$features[[config$median_raw_col]] <- m
   
   n <- features_per_sample(state, config)
   if(!all(names(n) == state$samples[[config$obs_col]])) {
-    f.err("add_filter_stats: !all(names(n) == state$samples[, config$obs_col])", 
+    f.err("add_filter_stats: !all(names(n) == state$samples[[config$obs_col]])", 
       config=config)
   } 
-  state$samples[, config$n_features_expr_col] <- n
+  state$samples[[config$n_features_expr_col]] <- n
   
   n <- apply(state$expression, 1, function(v) sum(v > 0, na.rm=T))
   f.msg("samples per feature:", config=config)
@@ -459,6 +587,7 @@ add_filter_stats <- function(state, config) {
 #'     \code{n_features_expr_col} \cr \tab Name (character) of new column in sample metadata to hold number of expressed features. \cr
 #'   }
 #' @param remove_constant Logical scalar: if constant rows and columns of \code{state$expression} should be removed.
+#' @param filter_by_formula Logical scalar: if \code{filter_features_by_formula()} should be run after other feature filters.
 #' @return A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -469,37 +598,32 @@ add_filter_stats <- function(state, config) {
 #' set.seed(101)
 #' exprs <- h0testr::sim1(n_obs=6, n_feats=12, mcar_p=0.25)$mat
 #' feats <- data.frame(feature_id=rownames(exprs))
-#' samps <- data.frame(observation_id=colnames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs), age=c(rep("4m", 3), rep("12m", 3)))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #'
 #' ## assume default median_raw_col, n_samples_expr_col, and n_features_expr_col are ok:
-#' config <- h0testr::new_config()      ## defaults
+#' config <- h0testr::new_config()        ## defaults
 #' config$save_state <- FALSE             ## default is TRUE
 #' config$feat_col <- config$feat_id_col
 #' config$obs_col <- config$obs_id_col
 #' config$n_features_min <- 6
 #' config$n_samples_min <- 2
+#' config$frm <- ~age
 #' out <- h0testr::filter(state, config)
 #' print(out$state)
 #' str(out$config)
 
-filter <- function(state, config, remove_constant=TRUE) {
+filter <- function(state, config, remove_constant=TRUE, filter_by_formula=TRUE) {
   
   check_config(config)
   
   state <- filter_features(state, config, 
-    remove_constant=remove_constant)  
+    remove_constant=remove_constant, filter_by_formula=filter_by_formula) 
+  
   state <- filter_observations(state, config, 
     remove_constant=remove_constant)
-  
-  n <- samples_per_feature(state, config)
-  state$features[[config$n_samples_expr_col]] <- n
-  
-  m <- feature_median_expression(state, config)
-  state$features[[config$median_raw_col]] <- m
-  
-  n <- features_per_sample(state, config)
-  state$samples[[config$n_features_expr_col]] <- n
+    
+  state <- add_filter_stats(state, config)
   
   f.check_state(state, config)
   f.report_state(state, config)
