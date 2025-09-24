@@ -16,7 +16,7 @@ tune(
   impute_spans = c(0.25, 0.5, 0.75),
   impute_npcs = c(3, 5, 10),
   impute_ks = c(5, 10, 20),
-  test_methods = c("trend", "deqms", "msqrob", "proda", "prolfqua", "voom")
+  test_methods = c("lm", "trend", "deqms", "msqrob", "proda", "prolfqua", "voom")
 )
 }
 \arguments{

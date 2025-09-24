@@ -965,7 +965,7 @@ impute_glmnet <- function(state, config, is_log_transformed=NULL,
 #' )
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' rm(nsamps, sim, exprs, feats, samps)
-#' config <- list()
+#' config <- list(frm=~grp+sex)    ## need frm for filter_features with filter_by_formula=TRUE
 #' state <- h0testr::filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::filter_observations(state, config, n_features_min=30)
 #'
@@ -1047,7 +1047,7 @@ impute_knn <- function(state, config, k=NULL, rowmax=0.5, colmax=0.8, maxp=1500)
 #' )
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' rm(nsamps, sim, exprs, feats, samps)
-#' config <- list()
+#' config <- list(frm=~grp+sex)    ## need frm for filter_features with filter_by_formula=TRUE
 #' state <- h0testr::filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::filter_observations(state, config, n_features_min=30)
 #'
@@ -1123,7 +1123,7 @@ impute_min_det <- function(state, config, impute_quantile=NULL) {
 #' )
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' rm(nsamps, sim, exprs, feats, samps)
-#' config <- list()
+#' config <- list(frm=~grp+sex)    ## need frm for filter_features with filter_by_formula=TRUE
 #' state <- h0testr::filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::filter_observations(state, config, n_features_min=30)
 #'
@@ -1218,7 +1218,7 @@ impute_min_prob <- function(state, config, is_log_transformed=NULL,
 #' )
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' rm(nsamps, sim, exprs, feats, samps)
-#' config <- list()
+#' config <- list(frm=~grp+sex)    ## need frm for filter_features with filter_by_formula=TRUE
 #' state <- h0testr::filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::filter_observations(state, config, n_features_min=30)
 #' 
@@ -1316,7 +1316,7 @@ impute_qrilc <- function(state, config, is_log_transformed=NULL, scale.=NULL) {
 #' )
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' rm(nsamps, sim, exprs, feats, samps)
-#' config <- list()
+#' config <- list(frm=~grp+sex)    ## need frm for filter_features with filter_by_formula=TRUE
 #' state <- h0testr::filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::filter_observations(state, config, n_features_min=30)
 #'
@@ -1433,7 +1433,7 @@ impute_pca <- function(state, config, is_log_transformed=NULL,
 #' )
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' rm(nsamps, sim, exprs, feats, samps)
-#' config <- list()
+#' config <- list(frm=~grp+sex)    ## need frm for filter_features with filter_by_formula=TRUE
 #' state <- h0testr::filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::filter_observations(state, config, n_features_min=30)
 #'
@@ -1530,7 +1530,7 @@ impute_lls <- function(state, config, is_log_transformed=NULL,
 #' )
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' rm(nsamps, sim, exprs, feats, samps)
-#' config <- list()
+#' config <- list(frm=~grp+sex)  ## need frm for filter_features with filter_by_formula=TRUE
 #' state <- h0testr::filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::filter_observations(state, config, n_features_min=30)
 #'

@@ -4,7 +4,7 @@
 \alias{combine_replicates}
 \title{Combine replicate observations}
 \usage{
-combine_replicates(state, config)
+combine_replicates(state, config, fn = stats::median)
 }
 \arguments{
 \item{state}{List with elements formatted like the list returned by 
@@ -27,6 +27,8 @@ combine_replicates(state, config)
   \code{sample_mid_out}  \cr \tab Midfix of sample metadata filename; only needed if \code{save_state == TRUE}.\cr
   \code{suffix_out}      \cr \tab Suffix of output files; only needed if \code{save_state == TRUE}.\cr
 }}
+
+\item{fn}{Function for combining replicated measurements.}
 }
 \value{
 A list (the processed state) with the following elements:

@@ -1,3 +1,286 @@
+## Helper for f.normalize_terms(), which is a helper for f.reduce_formula(), 
+##   which is a helper for test_lm(). Converts formula config$frm to 
+##   character, makes intercept explicit (either '0' or '1'), sorts variables 
+##   in interaction terms (so e.g. 'sex:age' becomes 'age:sex'), then returns 
+##   formula representation as tokenized character vector. So would take 
+##   formula e.g. ~age + strain + strain:age, and return:  
+##   c("1", "age", "strain", "age:strain").
+
+f.formula2terms <- function(config) {
+
+  frm <- config$frm
+  
+  if(is.null(frm) || all(as.character(frm) %in% "")) {
+    f.err("f.formula2terms: config$frm empty or undefined.", config=config)
+  }
+  
+  frm_char <- as.character(frm)
+  frm_char <- frm_char[!(frm_char %in% "~")]
+  frm_char <- gsub(" ", "", frm_char)
+  
+  terms <- unlist(strsplit(frm_char, "\\+"))
+  if(any(grepl("[\\*\\-\\|\\(\\)]", terms))) {
+    f.err("f.formula2terms: currently cannot handle formulas with operators", 
+      "other than '+' and ':'", config=config)
+  }
+  
+  if(!("0" %in% terms)) {
+    if(!("1" %in% terms)) {
+      terms <- c("1", terms)
+    }
+  }
+  
+  for(i in 1:length(terms)) {
+    if(grepl(":", terms[i])) {
+      toks <- unlist(strsplit(terms[i], ":"))
+      toks <- sort(toks)
+      terms[i] <- paste(toks, collapse=":")
+    }
+  }
+  if(any(duplicated(terms))) {
+    f.err("f.formula2terms: duplicated term '", 
+      terms[which(duplicated(terms))[1]], 
+      "' in frm: '", frm, "'", config=config
+    )
+  }
+
+  return(terms)
+}
+
+## Helper for f.reduce_formula(), which is a helper for test_lm(). 
+##   Character scalar config$test_term, formula config$frm; returns list 
+##   with character scalar $test_term, and tokenized character vector 
+##   $frm_terms; adds explicit dependent 'y' and either '1' for intercept 
+##   or '0' for no intercept to returned $frm_terms. Interaction terms 
+##   in $frm_terms and $test_term are sorted alphabetically (so 'sex:age' 
+##   becomes 'age:sex'), to facilitate formula/term comparison. 
+
+f.normalize_terms <- function(config) {
+
+  test_term <- config$test_term
+  frm <- config$frm
+  
+  if(is.null(test_term) || test_term %in% "") {
+    f.err("f.normalize_terms: config$test_term empty or undefined.", config=config)
+  }
+  
+  if(is.null(frm) || all(as.character(frm) %in% "")) {
+    f.err("f.normalize_terms: config$frm empty or undefined.", config=config)
+  }
+  
+  if(length(test_term) != 1) {
+    f.err("f.normalize_terms: length(test_term) != 1; test_term: '", 
+      paste(test_term), "'", config=config)
+  }
+  
+  if(grepl("[\\*\\-\\|\\(\\)]", test_term)) {
+    f.err("f.normalize_terms: cannot handle '*', '-', '|', '(', or ')'",
+      " in test_term: '", test_term, "'", config=config)
+  }
+  
+  test_term <- gsub("[[:space:]]", "", test_term)
+  
+  if(test_term %in% "0") {
+    f.err("f.normalize_terms: invalid test term: '", test_term, "'", 
+      config=config)
+  }
+  
+  if(grepl(":", test_term)) {
+    toks <- unlist(strsplit(test_term, ":"))
+    test_term <- paste(sort(toks), collapse=":")
+  }
+  
+  frm_terms <- f.formula2terms(config)    ## returns character vector
+  
+  if(!(test_term %in% frm_terms)) {
+    f.err("f.normalize_terms: test_term '", test_term, "' not in frm_terms: ", 
+      paste(frm_terms, collapse=" "), config=config)
+  }
+  
+  return(list(test_term=test_term, frm_terms=frm_terms))
+}
+
+## Helper for test_lm(). Character scalar test_term, formula frm; returns 
+##   list with character scalar $test_term, formula $frm_full, and formula 
+##   $frm_reduced; NOTE: any interactions involving a marginal term matching 
+##   test_term will be excluded from $frm_reduced:
+
+f.reduce_formula <- function(config) {
+
+  test_term <- config$test_term
+  frm <- config$frm
+  
+  if(is.null(test_term) || test_term %in% "") {
+    f.err("f.reduce_formula: config$test_term empty or undefined.", config=config)
+  }
+  
+  if(is.null(frm) || all(as.character(frm) %in% "")) {
+    f.err("f.reduce_formula: config$frm empty or undefined.", config=config)
+  }
+  
+  tmp <- f.normalize_terms(config)   ## returns list of character vectors
+  test_term <- tmp$test_term
+  full_terms <- tmp$frm_terms
+
+  i0 <- full_terms %in% "0"
+  i1 <- grepl(paste0("\\b", test_term, "\\b"), full_terms)
+  
+  if(all(i0 | i1)) {
+    f.err("f.reduce_formula: no terms left after removing test_term '", 
+      test_term, "' from full_terms '", paste(full_terms, collapse=" "), "'", 
+      config=config)
+  }
+  
+  if(!any(i1)) {
+    f.err("f.reduce_formula: test_term '", test_term, 
+      "' not found in full_terms '", paste(full_terms, collapse=" "), "'", 
+      config=config)
+  }
+  reduced_terms <- full_terms[!i1]
+  
+  if(test_term == "1" && !("0" %in% reduced_terms)) {
+    reduced_terms <- c("0", reduced_terms)
+  }
+  frm_reduced <- paste0("y ~ ", paste(reduced_terms, collapse=" + "))
+  frm_full <- paste0("y ~ ", paste(full_terms, collapse=" + "))
+  
+  frm_full <- stats::as.formula(frm_full)
+  frm_reduced <- stats::as.formula(frm_reduced)
+  
+  return(list(term=test_term, full=frm_full, reduced=frm_reduced))
+}
+
+## Helper for test_lm. Numeric vector y, data.frame meta, character 
+##   scalar test_term, formula frm_full, formula frm_reduced; returns named 
+##   numeric vector with $pval pvalue and named numeric coefficient estimates: 
+
+f.test_lm_feat <- function(y, meta, test_term, frm_full, frm_reduced) {
+
+  mat <- stats::model.matrix(stats::as.formula(paste("~", test_term)), meta)
+  coef_names <- sort(colnames(mat))
+
+  dat <- cbind(y, meta)
+  dat <- dat[!is.na(y), , drop=F]
+  
+  fit_full <- stats::lm(frm_full, data=dat)
+  fit_reduced <- stats::lm(frm_reduced, data=dat)
+  tbl <- lmtest::lrtest(fit_full, fit_reduced)
+  pval <- tbl[["Pr(>Chisq)"]][2]
+
+  coefs <- stats::coef(fit_full)
+  noms <- names(coefs)
+  for(i in 1:length(noms)) {
+    nom <- noms[i]
+    if(grepl(":", nom)) { 
+      toks <- unlist(strsplit(nom, ":"))
+      noms[i] <- paste(sort(toks), collapse=":")
+    }
+  }
+  names(coefs) <- noms
+  out <- rep(as.numeric(NA), length(coef_names))
+  names(out) <- coef_names
+  coefs <- coefs[names(coefs) %in% coef_names]
+  out[names(coefs)] <- coefs
+  
+  return(c(pval=pval, out))
+}
+
+#' Hypothesis testing using the \code{stats::lm()} function
+#' @description
+#'   Tests for differential expression by fitting full and reduced linear 
+#'     models, then statistically compare them using a likelihood ratio test.
+#' @details
+#'   This test is suitable for use with missing values without imputation. The
+#'     test does not use moderated standard error estimates, so should only be 
+#'     relied upon when there is plenty of replication (at least 5 observations 
+#'     per condition, preferably more).
+#'   The \code{stats::lm()} function is used to fit the full formula specified 
+#'     by \code{config$frm}, and also to a reduced formula derived by dropping 
+#'     all terms (marginal and interaction terms) involving 
+#'     \code{config$test_term}. The two models are compared using a likelihood 
+#'     ratio test, implemented with the \code{lmtest::lrtest()} function. 
+#'     Raw p-values are adjusted for multiple testing using 
+#'     \code{stats::p.adjust()}.
+#' @param state List with elements like those returned by \code{read_data()}:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{feat_col}       \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
+#'     \code{frm}            \cr \tab Formula (formula object) to be fit \cr
+#'     \code{test_term}      \cr \tab Term (character scalar) to be tested for non-zero coefficient. \cr
+#'   }
+#' @param fdr.method Character scalar specifying method to use for multiple 
+#'   testing adjustment of p-values. See \code{stats::p.adjust.methods()} for 
+#'   latest list of valid choices. Currently one of:
+#'   \code{c("holm", "hochberg", "hommel", "bonferroni", "BH", "BY")}.
+#' @return
+#'   A data.frame with results of testing. Columns include: 
+#'     \code{c("feature", "p.adj", "pval", "Intercept")}, along with 
+#'     coefficient estimates corresponding to \code{config$test_term}, 
+#'     followed by corresponding feature metadata columns from 
+#'     \code{config$features}.
+#' @examples
+#' set.seed(101)
+#' exprs <- h0testr::sim2(n_samps1=6, n_samps2=6, n_genes=25, 
+#'   n_genes_signif=5, fold_change=2)$mat
+#' exprs <- log2(exprs + 1)
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs), 
+#'   condition=c(rep("placebo", 6), rep("drug", 6)))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' 
+#' config <- h0testr::new_config()    ## defaults
+#' config$save_state <- FALSE           ## default is TRUE
+#' config$feat_col <- config$feat_id_col <- config$gene_id_col <- "feature_id"
+#' config$obs_col <- config$obs_id_col <- config$sample_id_col <- "observation_id"
+#' config$frm <- ~condition
+#' config$test_term <- "condition"
+#' config$sample_factors <- list(condition=c("placebo", "drug"))
+#'
+#' ## set up and check covariates and parameters:
+#' out <- h0testr::initialize(state, config, minimal=TRUE)
+#' out$state <- h0testr::filter_features_by_formula(out$state, out$config)
+#' 
+#' tbl <- h0testr::test_lm(out$state, out$config)
+#' print(tbl)
+
+test_lm <- function(state, config, fdr.method="BY") {
+  
+  tmp <- f.reduce_formula(config)
+  frm_full <- tmp$full          ## formula
+  frm_reduced <- tmp$reduced    ## formula
+  test_term <- tmp$term         ## character scalar
+  
+  out <- t(apply(state$expression, 1, f.test_lm_feat, state$samples, 
+    test_term, frm_full, frm_reduced))
+  
+  pvals <- out[, 1, drop=T]
+  coefs <- out[, -1, drop=F]
+  n <- apply(coefs, 2, function(v) sum(!is.na(v)))
+  coefs <- coefs[, n > 0, drop=F]
+  
+  i <- is.na(pvals)
+  if(any(i)) pvals[i] <- 1.0    ## or maybe runif(sum(i)) or 0.5?
+  
+  fdrs <- stats::p.adjust(pvals, method=fdr.method)
+  
+  out <- data.frame(feature=rownames(out), p.adj=fdrs, pval=pvals, coefs)
+  rownames(out) <- NULL
+  i <- names(out) %in% "X.Intercept."
+  if(any(i)) names(out)[i] <- "Intercept"
+  
+  tmp <- state$features
+  rownames(tmp) <- tmp[[config$feat_col]]
+  out <- cbind(out, tmp[out$feature, , drop=F])
+  rownames(out) <- NULL
+  
+  return(out)
+}
+
 #' Hypothesis testing using the \code{DEqMS} package
 #' @description
 #'   Tests for differential expression using the 
@@ -664,7 +947,7 @@ test_voom <- function(state, config, normalize.method="none") {
 #' ## set up and check covariates and parameters:
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
 #' 
-#' tbl <- h0testr::test_trend(state, config)
+#' tbl <- h0testr::test_trend(out$state, out$config)
 #' print(tbl)
 
 test_trend <- function(state, config) {
@@ -688,6 +971,36 @@ test_trend <- function(state, config) {
   
   f.msg("tested", nrow(state$expression), "genes", config=config)
   f.msg("found", sum(tbl$adj.P.Val < 0.05, na.rm=T), "hits", config=config)
+  
+  return(tbl)
+}
+
+## helper for test():
+
+f.format_lm <- function(tbl, config) {
+  
+  if(!is.data.frame(tbl)) {
+    f.err("f.format_lm: !is.data.frame(tbl); class(tbl): ", 
+      class(tbl), config=config)
+  }
+  
+  if(!(config$gene_id_col %in% names(tbl))) {
+    f.err("f.format_lm: expected names not %in% names(tbl); names(tbl):", 
+      names(tbl), config=config)
+  }
+  
+  nom <- c("pval", "p.adj")
+  if(!all(nom %in% names(tbl))) {
+    f.err("f.format_lm: expected names not %in% names(tbl); names(tbl):", 
+      names(tbl), "; expected names:", nom, config=config)
+  }
+  
+  tbl <- data.frame(feature=tbl[[config$gene_id_col]], expr=as.numeric(NA), 
+    logfc=as.numeric(NA), stat=as.numeric(NA), lod=as.numeric(NA), 
+    pval=tbl$pval, adj_pval=tbl$p.adj)
+  
+  tbl <- tbl[order(tbl$pval, decreasing=F), , drop=F]
+  rownames(tbl) <- NULL
   
   return(tbl)
 }
@@ -816,7 +1129,7 @@ f.format_limma <- function(tbl, config) {
 
 test_methods <- function() {
   return(
-    c("trend", "deqms", "msqrob", "proda", "prolfqua", "voom")
+    c("lm", "trend", "deqms", "msqrob", "proda", "prolfqua", "voom")
   )
 }
 
@@ -850,7 +1163,7 @@ test_methods <- function() {
 #'     \code{frm}            \cr \tab Formula (formula) to be fit \cr
 #'     \code{test_term}      \cr \tab Term (character scalar) to be tested for non-zero coefficient. \cr
 #'     \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
-#'     \code{test_method}    \cr \tab Character scalar in \code{c("voom", "trend", "deqms", "msqrob", "proda"}. \cr
+#'     \code{test_method}    \cr \tab Character scalar in \code{c("lm", "trend", "deqms", "msqrob", "proda", "prolfqua", "voom")}. \cr
 #'   }
 #' @param method Name of test method where 
 #'   \code{method \%in\% h0testr::test_methods()}.
@@ -893,10 +1206,8 @@ test_methods <- function() {
 #' 
 #' ## set up and check covariates and parameters:
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
-#' state <- out$state
-#' config <- out$config
 #' 
-#' out <- h0testr::test(state, config, method="trend")
+#' out <- h0testr::test(out$state, out$config, method="trend")
 #' head(out$original)
 #' head(out$standard)
 
@@ -913,7 +1224,10 @@ test <- function(state, config, method=NULL,
   }
   if(is.null(prior_df)) prior_df <- config$test_prior_df
   
-  if(method %in% "trend") {
+  if(method %in% "lm") {
+    tbl <- test_lm(state, config)
+    tbl2 <- f.format_lm(tbl, config)
+  } else if(method %in% "trend") {
     tbl <- test_trend(state, config)
     tbl2 <- f.format_limma(tbl, config)
   } else if(method %in% "deqms") {
