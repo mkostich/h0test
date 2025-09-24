@@ -88,6 +88,7 @@ config <- list(feat_id_col="feature_id", gene_id_col="feature_id",
 
 ## set up and check covariates and parameters:
 out <- h0testr::initialize(state, config, minimal=TRUE)
+
 out <- h0testr::test(out$state, out$config, method="trend")
 head(out$original)
 head(out$standard)

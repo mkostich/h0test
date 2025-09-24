@@ -1252,8 +1252,8 @@ test <- function(state, config, method=NULL,
     tbl <- test_lm(state, config)
     tbl2 <- f.format_lm(tbl, config)
   } else if(method %in% "trend") {
-    tbl <- test_trend(state, config)
-    tbl2 <- f.format_limma(tbl, config)
+    result <- test_trend(state, config)
+    tbl2 <- f.format_limma(result$hits, config)
   } else if(method %in% "deqms") {
     result <- test_deqms(state, config)
     tbl2 <- f.format_limma(result$hits, config)
