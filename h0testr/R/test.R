@@ -315,15 +315,18 @@ test_lm <- function(state, config, fdr.method="BY") {
 #'     \code{gene_id_col}    \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
 #'     \code{feat_col}       \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
 #'     \code{obs_col}        \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
-#'     \code{frm}            \cr \tab Formula (formula) to be fit \cr
+#'     \code{frm}            \cr \tab Formula (formula) to be fit. \cr
 #'     \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
 #'   }
 #' @param trend Logical scalar. Whether \code{limma::eBayes()} should use trended dispersion estimate.
 #' @return
-#'   A data.frame with results of test. Columns include: 
-#'     \code{c("logFC", "AveExpr", "t", "P.Value", "adj.P.Val", "B", "gene", "count", "sca.t", "sca.P.Value", "sca.adj.pval")}.
-#'   Initial statistics from \code{limma}. Columns beginning with \code{sca.} 
-#'     added by \code{DEqMS}.
+#'   A list with components:
+#'   \tabular{ll}{
+#'     \code{hits}  \cr \tab \code{data.frame} of results; columns: 
+#'       \code{c("logFC", "AveExpr", "t", "P.Value", "adj.P.Val", "B", "gene", "count", "sca.t", "sca.P.Value", "sca.adj.pval")}.
+#'       Initial statistics from \code{limma}. Columns beginning with \code{sca.} added by \code{DEqMS}. \cr
+#'     \code{fit}   \cr \tab Model returned by \code{DEqMS::spectraCounteBayes}. \cr
+#'   } 
 #' @examples
 #' ## lengthy setup of expression data:
 #' set.seed(101)
@@ -361,14 +364,14 @@ test_lm <- function(state, config, fdr.method="BY") {
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
 #' 
 #' ## actual test:
-#' tbl <- h0testr::test_deqms(out$state, out$config)
-#' head(tbl)
+#' result <- h0testr::test_deqms(out$state, out$config)
+#' head(result$hits)
 
 test_deqms <- function(state, config, trend=FALSE) {
   
   check_config(config)
   f.check_state(state, config)
-
+  
   tbl <- table(state$features[, config$gene_id_col], useNA="ifany")
   tbl <- as.data.frame(tbl)
   counts <- tbl$Freq
@@ -401,7 +404,7 @@ test_deqms <- function(state, config, trend=FALSE) {
     tbl <- test_trend(state, config)
   }
   
-  return(tbl)
+  return(list(hits=tbl, fit=fit))
 }
 
 #' Hypothesis testing using the \code{msqrob2} package
@@ -431,13 +434,17 @@ test_deqms <- function(state, config, trend=FALSE) {
 #'     \code{gene_id_col}    \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
 #'     \code{feat_col}       \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
 #'     \code{obs_col}        \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
-#'     \code{frm}            \cr \tab Formula (formula) to be fit \cr
+#'     \code{frm}            \cr \tab Formula (formula) to be fit. \cr
 #'     \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
 #'   }
 #' @param maxit Integer scalar >= 1. How many iterations to use for \code{rlm} fitting.
 #' @return
-#'   A data.frame with test results. Columns include \code{config$gene_id_col} and: 
-#'     \code{c("nNonZero .n", "logFC", "se", "df", "t", "pval", "adjPval")}.
+#'   A list with components:
+#'   \tabular{ll}{
+#'     \code{hits}  \cr \tab \code{data.frame} of results; columns \code{config$gene_id_col} and: 
+#'       \code{c("nNonZero .n", "logFC", "se", "df", "t", "pval", "adjPval")}. \cr
+#'     \code{fit}   \cr \tab Model returned by \code{msqrob2::hypothesisTest()}. \cr
+#'   } 
 #' @examples
 #' ## lengthy setup of expression data:
 #' set.seed(101)
@@ -475,8 +482,8 @@ test_deqms <- function(state, config, trend=FALSE) {
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
 #' 
 #' ## actual test:
-#' tbl <- h0testr::test_msqrob(out$state, out$config)
-#' head(tbl)
+#' result <- h0testr::test_msqrob(out$state, out$config)
+#' head(result$hits)
 
 test_msqrob <- function(state, config, maxit=100) {
 
@@ -541,7 +548,7 @@ test_msqrob <- function(state, config, maxit=100) {
   tbl <- tbl[order(tbl$adjPval, -abs(tbl$logFC)), ]
   rownames(tbl) <- NULL
   
-  return(tbl)
+  return(list(hits=tbl, fit=obj))
 }
 
 #' Hypothesis testing using the \code{proDA} package
@@ -567,7 +574,7 @@ test_msqrob <- function(state, config, maxit=100) {
 #'     \code{gene_id_col}          \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
 #'     \code{feat_col}             \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
 #'     \code{obs_col}              \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
-#'     \code{frm}                  \cr \tab Formula (formula) to be fit \cr
+#'     \code{frm}                  \cr \tab Formula (formula) to be fit. \cr
 #'     \code{test_term}            \cr \tab Term (character) to be tested for non-zero coefficient. \cr
 #'     \code{normalization_method} \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
 #'   }
@@ -575,8 +582,12 @@ test_msqrob <- function(state, config, maxit=100) {
 #' @param prior_df Strictly positive count (\code{location_prior_df}) indicating number of dfs for prior.
 #' @param maxit Strictly positive count indicating maximum number of iterations for \code{proDA::proDA()} algorithm.
 #' @return
-#'   A data.frame with test results. Columns include \code{config$gene_id_col} and: 
-#'     \code{c("nNonZero .n", "logFC", "se", "df", "t", "pval", "adjPval")}.
+#'   A list with components:
+#'   \tabular{ll}{
+#'     \code{hits}  \cr \tab \code{data.frame} of results; columns \code{config$gene_id_col} and: 
+#'       \code{c("nNonZero .n", "logFC", "se", "df", "t", "pval", "adjPval")}. \cr
+#'     \code{fit}   \cr \tab Model returned by \code{proDA::proDA()}. \cr
+#'   } 
 #' @examples
 #' ## lengthy setup of expression data:
 #' set.seed(101)
@@ -614,8 +625,8 @@ test_msqrob <- function(state, config, maxit=100) {
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
 #' 
 #' ## actual test:
-#' tbl <- h0testr::test_proda(out$state, out$config, is_log_transformed=FALSE)
-#' head(tbl)
+#' result <- h0testr::test_proda(out$state, out$config, is_log_transformed=FALSE)
+#' head(result$hits)
 
 test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit=20) {
   
@@ -648,7 +659,7 @@ test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit
   col_pick <- cols[i]
   
   tbl <- proDA::test_diff(fit, contrast=col_pick, sort_by="pval")
-  return(tbl)
+  return(list(hits=tbl, fit=fit))
 }
 
 #' Hypothesis testing using the \code{prolfq} package
@@ -682,15 +693,19 @@ test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit
 #'     \code{gene_id_col}           \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
 #'     \code{feat_col}              \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
 #'     \code{obs_col}               \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
-#'     \code{frm}                   \cr \tab Formula (formula) to be fit \cr
+#'     \code{frm}                   \cr \tab Formula (formula) to be fit. \cr
 #'     \code{test_term}             \cr \tab Term (character) to be tested for non-zero coefficient. \cr
 #'     \code{sample_factors}        \cr \tab List with one character vector per variable, with factor level ordering. \cr
 #'     \code{normalization_method}  \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
 #'   }
 #' @param is_log_transformed Logical scalar indicating if \code{state$expression} has been log transformed.
 #' @return
-#'   A data.frame with test results. Columns include \code{config$gene_id_col} and: 
-#'     \code{c("nNonZero .n", "logFC", "se", "df", "t", "pval", "adjPval")}.
+#'   A list with components:
+#'   \tabular{ll}{
+#'     \code{hits}  \cr \tab \code{data.frame} of results; columns \code{config$gene_id_col} and: 
+#'       \code{c("nNonZero .n", "logFC", "se", "df", "t", "pval", "adjPval")}. \cr
+#'     \code{fit}   \cr \tab Model returned by \code{prolfqua::build_model()}. \cr
+#'   } 
 #' @examples
 #' ## lengthy setup of expression data:
 #' set.seed(101)
@@ -728,8 +743,8 @@ test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
 #' 
 #' ## actual test:
-#' tbl <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
-#' head(tbl)
+#' result <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
+#' head(result$hits)
 
 test_prolfqua <- function(state, config, is_log_transformed=NULL) {
 
@@ -812,9 +827,8 @@ test_prolfqua <- function(state, config, is_log_transformed=NULL) {
     subject_Id=obj$config$hierarchy_keys())
   
   tbl <- as.data.frame(model$get_anova())
-  
-  return(tbl[tbl$factor %in% config$test_term, , drop=F])
 
+  return(list(hits=tbl[tbl$factor %in% config$test_term, , drop=F], fit=model))
 }
 
 #' Hypothesis testing using \code{limma::voom}
@@ -836,13 +850,18 @@ test_prolfqua <- function(state, config, is_log_transformed=NULL) {
 #'   \tabular{ll}{
 #'     \code{feat_col}       \cr \tab Name of column in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
 #'     \code{obs_col}        \cr \tab Name of column in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
-#'     \code{frm}            \cr \tab Formula (formula) to be fit \cr
+#'     \code{frm}            \cr \tab Formula (formula) to be fit. \cr
 #'     \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
 #'     \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
 #'   }
 #' @param normalize.method Character in 
 #'   \code{c("TMM", "TMMwsp", "RLE", "upperquartile", "none")}.
-#' @return A data.frame containing results of test.
+#' @return 
+#'   A list with components:
+#'   \tabular{ll}{
+#'     \code{hits}  \cr \tab \code{data.frame} of results from \code{limma::topTable()}. \cr
+#'     \code{fit}   \cr \tab Model returned by \code{limma::eBayes()}. \cr
+#'   } 
 #' @examples
 #' set.seed(101)
 #' ## no missing values: mnar_c0=-Inf, mnar_c1=0, mcar_p=0
@@ -865,8 +884,8 @@ test_prolfqua <- function(state, config, is_log_transformed=NULL) {
 #' ## set up and check configuration, including covariates:
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
 #' 
-#' tbl <- h0testr::test_voom(out$state, out$config)
-#' print(tbl)
+#' result <- h0testr::test_voom(out$state, out$config)
+#' head(result$hits)
 
 test_voom <- function(state, config, normalize.method="none") {
 
@@ -891,7 +910,7 @@ test_voom <- function(state, config, normalize.method="none") {
   f.msg("tested", nrow(exprs), "genes", config=config)
   f.msg("found", sum(tbl$adj.P.Val < 0.05, na.rm=T), "hits", config=config)
   
-  return(tbl)
+  return(list(hits=tbl, fit=fit))
 }
 
 #' Hypothesis testing using \code{limma} trend
@@ -920,11 +939,16 @@ test_voom <- function(state, config, normalize.method="none") {
 #'   \tabular{ll}{
 #'     \code{feat_col}       \cr \tab Name of column in \code{feature_file_in} corresponding to \code{rownames(state$expression)}. \cr
 #'     \code{obs_col}        \cr \tab Name of column in \code{sample_file_in} corresponding to \code{colnames(state$expression)}. \cr
-#'     \code{frm}            \cr \tab Formula (formula) to be fit \cr
+#'     \code{frm}            \cr \tab Formula (formula) to be fit. \cr
 #'     \code{test_term}      \cr \tab Term (scalar character) to be tested for non-zero coefficient. \cr
 #'     \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
 #'   }
-#' @return A \code{data.frame} containing results of test.
+#' @return 
+#'   A list with components:
+#'   \tabular{ll}{
+#'     \code{hits}  \cr \tab \code{data.frame} of results from \code{limma::topTable()}. \cr
+#'     \code{fit}   \cr \tab Model returned by \code{limma::eBayes()}. \cr
+#'   } 
 #' @examples
 #' set.seed(101)
 #' ## no missing values: mnar_c0=-Inf, mnar_c1=0, mcar_p=0
@@ -972,7 +996,7 @@ test_trend <- function(state, config) {
   f.msg("tested", nrow(state$expression), "genes", config=config)
   f.msg("found", sum(tbl$adj.P.Val < 0.05, na.rm=T), "hits", config=config)
   
-  return(tbl)
+  return(list(hits=tbl, fit=fit))
 }
 
 ## helper for test():
@@ -1160,7 +1184,7 @@ test_methods <- function() {
 #'     \code{feat_col}       \cr \tab Name of column in \code{state$fetaures} matching \code{rownames(state$expression)}. \cr
 #'     \code{obs_col}        \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
 #'     \code{gene_id_col}    \cr \tab Name of column in \code{state$fetaures} with gene/protein-group ids. \cr
-#'     \code{frm}            \cr \tab Formula (formula) to be fit \cr
+#'     \code{frm}            \cr \tab Formula (formula) to be fit. \cr
 #'     \code{test_term}      \cr \tab Term (character scalar) to be tested for non-zero coefficient. \cr
 #'     \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
 #'     \code{test_method}    \cr \tab Character scalar in \code{c("lm", "trend", "deqms", "msqrob", "proda", "prolfqua", "voom")}. \cr
@@ -1168,14 +1192,14 @@ test_methods <- function() {
 #' @param method Name of test method where 
 #'   \code{method \%in\% h0testr::test_methods()}.
 #' @param is_log_transformed Logical scalar: if \code{state$expression} has 
-#'   been log transformed. Required if 
-#'   \code{method \%in\% c("proda", "prolfqua")}.
+#'   been log transformed. Required if \code{method \%in\% c("proda", "prolfqua")}.
 #' @param prior_df Prior degrees of freedom for method \code{proda}; 
 #'   where \code{2 <= prior_df <= n_features}.
 #' @return A list with the following elements: \cr
 #'   \tabular{ll}{
 #'     \code{original} \cr \tab A \code{data.frame} with results in native format returned by test. \cr
-#'     \code{standard} \cr \tab A \code{data.frame} with results in a standardized format \cr
+#'     \code{standard} \cr \tab A \code{data.frame} with results in a standardized format. \cr
+#'     \code{fit}      \cr \tab Fitted model returned by the selected testing procedure. \cr
 #'   } \cr
 #'   The \code{standard} \code{data.frame} has the following fields: \cr
 #'   \tabular{ll}{
@@ -1231,22 +1255,22 @@ test <- function(state, config, method=NULL,
     tbl <- test_trend(state, config)
     tbl2 <- f.format_limma(tbl, config)
   } else if(method %in% "deqms") {
-    tbl <- test_deqms(state, config)
-    tbl2 <- f.format_limma(tbl, config)
+    result <- test_deqms(state, config)
+    tbl2 <- f.format_limma(result$hits, config)
   } else if(method %in% "msqrob") {
-    tbl <- test_msqrob(state, config)
-    tbl2 <- f.format_msqrob(tbl, config)
+    result <- test_msqrob(state, config)
+    tbl2 <- f.format_msqrob(result$hits, config)
   } else if(method %in% "proda") {
-    tbl <- test_proda(state, config, 
+    result <- test_proda(state, config, 
       is_log_transformed=is_log_transformed, prior_df=prior_df)
-    tbl2 <- f.format_proda(tbl, config)
+    tbl2 <- f.format_proda(result$hits, config)
   } else if(method %in% "prolfqua") {
-    tbl <- test_prolfqua(state, config, 
+    result <- test_prolfqua(state, config, 
       is_log_transformed=is_log_transformed)
-    tbl2 <- f.format_prolfqua(tbl, config)
+    tbl2 <- f.format_prolfqua(result$hits, config)
   } else if(method %in% "voom") {
-    tbl <- test_voom(state, config)
-    tbl2 <- f.format_limma(tbl, config)
+    result <- test_voom(state, config)
+    tbl2 <- f.format_limma(result$hits, config)
   } else if(method %in% "none") {
     f.msg("skipping testing: method %in% 'none'", config=config)
     return(NULL)
@@ -1267,8 +1291,8 @@ test <- function(state, config, method=NULL,
     f.err("test: !all(tbl2$feature %in% rownames(feats))", config=config)
   }
   
-  tbl0 <- feats[rownames(tbl), , drop=F]
-  tbl <- cbind(tbl0, tbl)
+  tbl <- feats[rownames(result$hits), , drop=F]
+  tbl <- cbind(tbl, result$hits)
   rownames(tbl) <- NULL
   
   if((!is.null(config$save_state)) && config$save_state) {
@@ -1278,5 +1302,5 @@ test <- function(state, config, method=NULL,
     f.save_tsv(tbl, file_out)
   }
   
-  return(list(original=tbl, standard=tbl2))
+  return(list(original=tbl, standard=tbl2, fit=result$fit))
 }

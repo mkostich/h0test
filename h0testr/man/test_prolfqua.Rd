@@ -19,7 +19,7 @@ test_prolfqua(state, config, is_log_transformed = NULL)
   \code{gene_id_col}           \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
   \code{feat_col}              \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
   \code{obs_col}               \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
-  \code{frm}                   \cr \tab Formula (formula) to be fit \cr
+  \code{frm}                   \cr \tab Formula (formula) to be fit. \cr
   \code{test_term}             \cr \tab Term (character) to be tested for non-zero coefficient. \cr
   \code{sample_factors}        \cr \tab List with one character vector per variable, with factor level ordering. \cr
   \code{normalization_method}  \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
@@ -28,8 +28,12 @@ test_prolfqua(state, config, is_log_transformed = NULL)
 \item{is_log_transformed}{Logical scalar indicating if \code{state$expression} has been log transformed.}
 }
 \value{
-A data.frame with test results. Columns include \code{config$gene_id_col} and: 
-    \code{c("nNonZero .n", "logFC", "se", "df", "t", "pval", "adjPval")}.
+A list with components:
+  \tabular{ll}{
+    \code{hits}  \cr \tab \code{data.frame} of results; columns \code{config$gene_id_col} and: 
+      \code{c("nNonZero .n", "logFC", "se", "df", "t", "pval", "adjPval")}. \cr
+    \code{fit}   \cr \tab Model returned by \code{prolfqua::build_model()}. \cr
+  }
 }
 \description{
 Tests for differential expression using the \code{prolfq::build_model()} function.
@@ -89,6 +93,6 @@ config <- list(
 out <- h0testr::initialize(state, config, minimal=TRUE)
 
 ## actual test:
-tbl <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
-head(tbl)
+result <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
+head(result$hits)
 }

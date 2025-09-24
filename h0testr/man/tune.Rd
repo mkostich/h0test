@@ -119,7 +119,7 @@ out2 <- h0testr::tune(config,
   normalization_methods=c("RLE", "q75", "cpm", "log2"),
   impute_methods=c("sample_lod", "unif_sample_lod", "none"),
   impute_quantiles=c(0, 0.05, 0.1),
-  test_methods=c("trend", "msqrob", "proda")
+  test_methods=c("trend", "msqrob", "proda", "prolfqua")
 )
 ## write.table(out2, "1.condition.tune.tsv", quote=F, sep="\t", row.names=F)
 }

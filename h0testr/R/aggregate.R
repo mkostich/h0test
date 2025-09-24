@@ -97,11 +97,14 @@ combine_replicates <- function(state, config, fn=stats::median) {
 ##   sets config$feat_col and config$feat_id_col to config$gene_id_col:
 
 f.combine_features_median_polish <- function(state, config, maxit=30) {
-
-  genes <- state$features[[config$gene_id_col]]
   
   feats <- state$features
+  genes <- feats[[config$gene_id_col]]
+  i <- is.na(genes) | genes %in% ""
+  feats[[config$gene_id_col]][i] <- paste0("unknown_", feats[[config$feat_id_col]][i])
+  genes <- feats[[config$gene_id_col]]
   feats <- feats[!duplicated(genes), , drop=F]
+  
   if(!is.null(config$feat_id_col)) {
     if(config$feat_id_col != config$gene_id_col) {
       feats[[config$feat_id_col]] <- NULL
@@ -117,11 +120,11 @@ f.combine_features_median_polish <- function(state, config, maxit=30) {
   }
   exprs <- tapply(1:nrow(state$expression), genes, f)
   exprs <- do.call(rbind, exprs)
-  genes2 <- feats[[config$gene_id_col]]
-  exprs <- exprs[genes2, , drop=F]
   
+  genes <- feats[[config$gene_id_col]]
+  exprs <- exprs[genes, , drop=F]
   state <- list(expression=exprs, features=feats, samples=state$samples)
-    
+  
   return(list(state=state, config=config))
 }
 
@@ -129,11 +132,14 @@ f.combine_features_median_polish <- function(state, config, maxit=30) {
 ##   sets config$feat_col and config$feat_id_col to config$gene_id_col:
 
 f.combine_features_robust_summary <- function(state, config) {
-
-  genes <- state$features[[config$gene_id_col]]
   
   feats <- state$features
+  genes <- feats[[config$gene_id_col]]
+  i <- is.na(genes) | genes %in% ""
+  feats[[config$gene_id_col]][i] <- paste0("unknown_", feats[[config$feat_id_col]][i])
+  genes <- feats[[config$gene_id_col]]
   feats <- feats[!duplicated(genes), , drop=F]
+  
   if(!is.null(config$feat_id_col)) {
     if(config$feat_id_col != config$gene_id_col) {
       feats[[config$feat_id_col]] <- NULL
@@ -148,13 +154,13 @@ f.combine_features_robust_summary <- function(state, config) {
     if(any(v <= 0, na.rm=T)) v <- v + 2 * abs(min(v, na.rm=T)) + 1
     return(v)
   }
-  
   exprs <- tapply(1:nrow(state$expression), genes, f)
   nom <- names(exprs)
   exprs <- do.call(rbind, exprs)
   rownames(exprs) <- nom
-  genes2 <- feats[[config$gene_id_col]]
-  exprs <- exprs[genes2, , drop=F]
+  
+  genes <- feats[[config$gene_id_col]]
+  exprs <- exprs[genes, , drop=F]
   
   state <- list(expression=exprs, features=feats, samples=state$samples)
   
