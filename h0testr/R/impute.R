@@ -1699,6 +1699,13 @@ impute <- function(state, config, method=NULL, is_log_transformed=NULL,
   if(is.null(n_pts)) n_pts <- config$impute_n_pts
   if(is.null(verbose)) verbose <- config$verbose
   if(is.null(verbose)) verbose <- TRUE
+  
+  f.msg("impute: method:", method, 
+    "; is_log_transformed:", is_log_transformed,
+    "; k:", k, "; span:", span, "; n_pcs:", n_pcs, 
+    "impute_quantile:", impute_quantile, "; scale.:", scale.,
+    "; aug_steps:", aug_steps, "; alpha:", alpha, "; n_pts:", n_pts,
+    config=config)
 
   if(method %in% "unif_global_lod") {
     state <- impute_unif_global_lod(state, config, 

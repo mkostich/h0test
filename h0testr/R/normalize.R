@@ -579,6 +579,10 @@ normalize <- function(state, config, method=NULL,
   if(is.null(normalization_quantile)) normalization_quantile <- config$normalization_quantile
   if(is.null(span)) span <- config$normalization_span
   
+  f.msg("normalize: normalization_method:", method, 
+    "; normalization_quantile:", normalization_quantile, 
+    "; normalization_span:", span, config=config)
+  
   if(method %in% c("TMM", "TMMwsp", "RLE", "upperquartile")) {
     state <- normalize_edger(state, config, method=method, normalization_quantile=normalization_quantile)
   } else if(method %in% c("sum", "max", "div.mean", "div.median", "quantiles.robust")) {

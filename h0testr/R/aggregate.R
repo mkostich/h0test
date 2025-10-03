@@ -53,29 +53,36 @@ combine_replicates <- function(state, config, fn=stats::median) {
   check_config(config)
   
   if(is.null(config$sample_id_col) || !(config$sample_id_col %in% names(state$samples))) {
-    f.err("combine_replicates: config$sample_id_col %in% names(state$samples);",
+    f.err("combine_replicates: !(config$sample_id_col %in% names(state$samples));",
       "config$sample_id_col:", config$sample_id_col, 
       "; names(state$samples):", names(state$samples), config=config)
   }
   
-  f <- function(v, s) tapply(v, s, fn, na.rm=T)
-  sample_ids <- state$samples[[config$sample_id_col]]
-  state$expression <- t(apply(state$expression, 1, f, sample_ids))
-  state$samples <- state$samples[!duplicated(sample_ids), , drop=F]
+  if(config$sample_id_col %in% config$obs_id_col) {
+    f.msg("combine_replicates: config$sample_id_col %in% config$obs_id_col; ", 
+      "returning unchanged state and updated config.", config=config)
+    config$obs_col <- config$obs_id_col <- config$sample_id_col
+  } else {
   
-  if(!is.null(config$obs_id_col)) {
-    if(config$obs_id_col != config$sample_id_col) {
-      state$samples[[config$obs_id_col]] <- NULL
+    f <- function(v, s) tapply(v, s, fn, na.rm=T)
+    sample_ids <- state$samples[[config$sample_id_col]]
+    state$expression <- t(apply(state$expression, 1, f, sample_ids))
+    state$samples <- state$samples[!duplicated(sample_ids), , drop=F]
+    
+    if(!is.null(config$obs_id_col)) {
+      if(config$obs_id_col != config$sample_id_col) {
+        state$samples[[config$obs_id_col]] <- NULL
+      }
     }
+    config$obs_col <- config$obs_id_col <- config$sample_id_col
+    
+    sample_ids <- state$samples[[config$sample_id_col]]
+    if(!all(sample_ids %in% colnames(state$expression))) {
+      f.err("combine_replicates: !all(samples[[config$sample_id_col]] %in% colnames(expression))", 
+        config=config)
+    }  
+    state$expression <- state$expression[, sample_ids, drop=F]
   }
-  config$obs_col <- config$obs_id_col <- config$sample_id_col
-  
-  sample_ids <- state$samples[[config$sample_id_col]]
-  if(!all(sample_ids %in% colnames(state$expression))) {
-    f.err("combine_replicates: !all(samples[[config$sample_id_col]] %in% colnames(expression))", 
-      config=config)
-  }  
-  state$expression <- state$expression[, sample_ids, drop=F]
   
   f.check_state(state, config)
   f.report_state(state, config)
@@ -278,6 +285,8 @@ combine_features <- function(state, config, method=NULL, rescale=FALSE) {
     f <- function(v) v / mean(v, na.rm=T)
     state$expression <- t(apply(state$expression, 1, f))
   }
+  
+  f.msg("combine_features: method:", method, "; rescale:", rescale, config=config)
   
   if(method %in% "medianPolish") {
     out <- f.combine_features_median_polish(state, config)

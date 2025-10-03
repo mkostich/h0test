@@ -37,8 +37,8 @@ R
 
 ## in R: install dependencies: 
 
-install.packages(c("BiocManager", "glmnet", "imputeLCMD", "missForest", 
-  "randomForest", "remotes"), dependencies=TRUE)
+install.packages(c("BiocManager", "glmnet", "imputeLCMD", "lmtest", 
+  "missForest", "randomForest", "remotes"), dependencies=TRUE)
 
 BiocManager::install(c("DEqMS", "edgeR", "limma", "impute", "MsCoreUtils", 
   "msqrob2", "pcaMethods", "proDA", "QFeatures", "SummarizedExperiment"))
@@ -654,3 +654,100 @@ write.table(tbl, file="perm_results.grp.tsv", sep="\t", quote=F, row.names=F)
 ```
 
 ---
+
+## Running one step at a time:
+
+Sometimes you might want to begin with R objects containing expression data,
+feature metadata, and observation metadata, rather than reading that 
+information from disk. You may also want to explicitly run individual steps 
+of the workflow, rather than just calling `h0testr::run()`. These tasks are 
+fairly straightforward, as long as the R objects are properly formatted as 
+described and checked below: 
+
+```
+## need an expression matrix, feature metadata as a data.frame, 
+##   and observation metadata as a data.frame:
+
+> ls()
+[1] "exprs" "feats"    "samps"
+
+## expression matrix should be a numeric matrix:
+
+> is.matrix(exprs)
+[1] TRUE
+
+> class(c(exprs))
+[1] "numeric"
+
+## rownames of expression matrix in sync with feature metadata; note that the 
+##   matching column name in the feature metadata does not need to be 
+##   called 'PrecursorId', and can be configured in the config list (see the
+##   customization of the config list below):
+
+> summary(rownames(exprs) == feats$PrecursorId)
+   Mode    TRUE 
+logical  200790 
+
+## column names of expression matrix in sync with sample metadata; note that 
+##   the matching column name in the obsvervation metadata does not need to 
+##   be called 'ObservationId', and can be configured in the config list (see
+##   the customization of the config list below):
+
+> summary(colnames(exprs) == samps$ObservationId)
+   Mode    TRUE 
+logical      27 
+
+## make required state list; element names must be 'expression', 'features', 
+##   and 'samples':
+
+state <- list(expression=exprs, features=feats, samples=samps)
+rm(exprs, feats, samps)
+
+## customize configuration list:
+
+config <- h0testr::new_config()             ## default configuration
+config$feat_id_col <- "PrecursorId"
+config$gene_id_col <- "GeneGroup"
+config$obs_id_col <- "ObservationId"
+config$sample_id_col <- "SampleId"
+
+config$frm <- ~age + sex + age:sex
+config$test_term <- "age:sex"
+config$permute_var <- ""
+config$sample_factors <- list(
+  age=c("4mo", "12mo", "24mo"),
+  sex=c("female", "male")  
+)
+
+## a reasonable setup when replication is limited:
+
+config$normalization_method <- "RLE"
+config$impute_method <- "unif_global_lod"
+config$impute_quantile <- 0
+config$test_method <- "trend"
+
+## run workflow step-by-step, instead of simply calling 
+##   h0testr::run(state, config):
+
+out <- h0testr::initialize(state, config)
+out$state <- h0testr::add_filter_stats(out$state, out$config)
+out$state <- h0testr::prefilter(out$state, out$config)
+out$state <- h0testr::permute(out$state, out$config)
+out <- h0testr::normalize(out$state, out$config)
+out <- h0testr::combine_replicates(out$state, out$config)
+out <- h0testr::combine_features(out$state, out$config)
+out <- h0testr::filter(out$state, out$config)
+out <- h0testr::impute(out$state, out$config, is_log_transformed=TRUE)
+result <- h0testr::test(out$state, out$config)
+
+## hits in format returned by underlying test method:
+head(result$original)
+
+## hits in standardized format for method comparison:
+head(result$standard)
+
+## most methods also return the fitted model:
+summary(result$fit)
+```
+
+

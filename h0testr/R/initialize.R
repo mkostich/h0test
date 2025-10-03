@@ -225,13 +225,13 @@ f.set_covariate_factor_levels <- function(state, config) {
 #'     according to \code{config$sample_factors}.
 #'   Flow is:
 #'     \tabular{l}{
-#'       1. \code{check_config()}. 
-#'       2. Subset covariates in \code{config$frm}. 
-#'       3. Check feat_col and obs_col.
-#'       4. Subset covariates of interest.
-#'       5. Set covariate factor levels.
+#'       1. \code{check_config()}. \cr
+#'       2. Subset covariates in \code{config$frm}. \cr
+#'       3. Check feat_col and obs_col. \cr
+#'       4. Subset covariates of interest. \cr
+#'       5. Set covariate factor levels. \cr
 #'       6. Return sub-table of ANOVA results corresponding to 
-#'            \code{config$test_term}.
+#'            \code{config$test_term}. \cr
 #'     }
 #'   If \code{initialized=FALSE}, then checks if \code{state$features} has 
 #'     columns with names in 

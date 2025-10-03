@@ -94,6 +94,7 @@ filter_features_by_formula <- function(state, config,
   i <- apply(result, 1, all, na.rm=F)
   i[is.na(i)] <- F
   
+  f.msg("filtering", sum(!i), "features by formula; keeping", sum(i), config=config)
   state$expression <- state$expression[i, , drop=F]
   state$features <- state$features[i, , drop=F]
   ## state$samples <- state$samples
@@ -275,7 +276,7 @@ filter_observations <- function(state, config,
     state$expression <- state$expression[, i, drop=F]
     state$samples <- state$samples[i, , drop=F]
     f.msg("constant observations removed:", sum(!i), config=config)
-    f.msg("non-constant observations left:", nrow(state$expression), config=config)
+    f.msg("non-constant observations left:", ncol(state$expression), config=config)
   }
   
   return(state)
@@ -616,6 +617,9 @@ add_filter_stats <- function(state, config) {
 filter <- function(state, config, remove_constant=TRUE, filter_by_formula=TRUE) {
   
   check_config(config)
+  
+  f.msg("filter: remove_constant:", remove_constant, 
+    "; filter_by_formula:", filter_by_formula, config=config)
   
   state <- filter_features(state, config, 
     remove_constant=remove_constant, filter_by_formula=filter_by_formula) 

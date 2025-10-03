@@ -255,11 +255,11 @@ test_lm <- function(state, config, fdr.method="BY") {
   frm_reduced <- tmp$reduced    ## formula
   test_term <- tmp$term         ## character scalar
   
-  out <- t(apply(state$expression, 1, f.test_lm_feat, state$samples, 
+  hits <- t(apply(state$expression, 1, f.test_lm_feat, state$samples, 
     test_term, frm_full, frm_reduced))
   
-  pvals <- out[, 1, drop=T]
-  coefs <- out[, -1, drop=F]
+  pvals <- hits[, 1, drop=T]
+  coefs <- hits[, -1, drop=F]
   n <- apply(coefs, 2, function(v) sum(!is.na(v)))
   coefs <- coefs[, n > 0, drop=F]
   
@@ -268,17 +268,17 @@ test_lm <- function(state, config, fdr.method="BY") {
   
   fdrs <- stats::p.adjust(pvals, method=fdr.method)
   
-  out <- data.frame(feature=rownames(out), p.adj=fdrs, pval=pvals, coefs)
-  rownames(out) <- NULL
-  i <- names(out) %in% "X.Intercept."
-  if(any(i)) names(out)[i] <- "Intercept"
+  hits <- data.frame(feature=rownames(hits), p.adj=fdrs, pval=pvals, coefs)
+  rownames(hits) <- NULL
+  i <- names(hits) %in% "X.Intercept."
+  if(any(i)) names(hits)[i] <- "Intercept"
   
   tmp <- state$features
   rownames(tmp) <- tmp[[config$feat_col]]
-  out <- cbind(out, tmp[out$feature, , drop=F])
-  rownames(out) <- NULL
+  hits <- cbind(hits, tmp[hits$feature, , drop=F])
+  rownames(hits) <- NULL
   
-  return(out)
+  return(list(hits=hits, fit=NULL))
 }
 
 #' Hypothesis testing using the \code{DEqMS} package
@@ -907,7 +907,7 @@ test_voom <- function(state, config, normalize.method="none") {
   i <- colnames(design) %in% cols
   tbl <- limma::topTable(fit, coef=which(i), number=Inf)
   
-  f.msg("tested", nrow(exprs), "genes", config=config)
+  f.msg("tested", nrow(exprs), "features", config=config)
   f.msg("found", sum(tbl$adj.P.Val < 0.05, na.rm=T), "hits", config=config)
   
   return(list(hits=tbl, fit=fit))
@@ -993,7 +993,7 @@ test_trend <- function(state, config) {
   i <- colnames(design) %in% cols
   tbl <- limma::topTable(fit, coef=which(i), number=Inf)
   
-  f.msg("tested", nrow(state$expression), "genes", config=config)
+  f.msg("tested", nrow(state$expression), "features", config=config)
   f.msg("found", sum(tbl$adj.P.Val < 0.05, na.rm=T), "hits", config=config)
   
   return(list(hits=tbl, fit=fit))
@@ -1123,6 +1123,36 @@ f.format_limma <- function(tbl, config) {
       class(tbl), config=config)
   }
     
+  if(all(c("AveExpr", "logFC", "t", "B", "P.Value", "adj.P.Val") %in% names(tbl))) {
+  
+    tbl <- data.frame(feature=rownames(tbl), expr=tbl$AveExpr, 
+      logfc=tbl$logFC, stat=tbl$t, lod=tbl$B, 
+      pval=tbl$P.Value, adj_pval=tbl$adj.P.Val)
+    
+  } else if(all(c("AveExpr", "F", "P.Value", "adj.P.Val") %in% names(tbl))) {
+  
+    tbl <- data.frame(feature=rownames(tbl), expr=tbl$AveExpr, 
+      logfc=as.numeric(NA), stat=tbl$F, lod=as.numeric(NA), 
+      pval=tbl$P.Value, adj_pval=tbl$adj.P.Val)
+    
+  } else {
+    f.err("f.format_limma: expected names not %in% names(tbl); names(tbl):", 
+      names(tbl), config=config)
+  }
+  
+  tbl <- tbl[order(tbl$pval, decreasing=F), , drop=F]
+  rownames(tbl) <- NULL
+  
+  return(tbl)
+}
+
+f.format_limma.old <- function(tbl, config) {
+  
+  if(!is.data.frame(tbl)) {
+    f.err("f.format_limma: !is.data.frame(tbl); class(tbl): ", 
+      class(tbl), config=config)
+  }
+    
   nom <- c("AveExpr", "logFC", "t", "B", "P.Value", "adj.P.Val")
   if(!all(nom %in% names(tbl))) {
     f.err("f.format_limma: expected names not %in% names(tbl); names(tbl):", 
@@ -1242,15 +1272,23 @@ test <- function(state, config, method=NULL,
   if(is.null(method) || method %in% "") {
     f.err("test: method and config$test_method both unset", config=config)
   }
+  
+  if(is.null(prior_df)) prior_df <- config$test_prior_df
+  if(method %in% "proda" && is.null(prior_df)) {
+    f.err("test: method %in% 'proda' && is.null(prior_df)", config=config)
+  }
+  
   if(method %in% c("proda", "prolfqua") && !is.logical(is_log_transformed)) {
     f.err("test: method %in% c('proda', 'prolfqua') && !is.logical(is_log_transformed)", 
       config=config)
   }
-  if(is.null(prior_df)) prior_df <- config$test_prior_df
+  
+  f.msg("test: method:", method, "; is_log_transformed:", is_log_transformed, 
+    "; prior_df:", prior_df, config=config)
   
   if(method %in% "lm") {
-    tbl <- test_lm(state, config)
-    tbl2 <- f.format_lm(tbl, config)
+    result <- test_lm(state, config)
+    tbl2 <- f.format_lm(result$hits, config)
   } else if(method %in% "trend") {
     result <- test_trend(state, config)
     tbl2 <- f.format_limma(result$hits, config)
@@ -1299,7 +1337,7 @@ test <- function(state, config, method=NULL,
     file_out <- paste0(config$dir_out, "/", length(config$run_order) + 3, 
       config$result_mid_out, config$suffix_out)
     f.log("writing results to", file_out, config=config)
-    f.save_tsv(tbl, file_out)
+    f.save_tsv(tbl2, file_out)
   }
   
   return(list(original=tbl, standard=tbl2, fit=result$fit))
