@@ -1264,6 +1264,7 @@ test_methods <- function() {
 #' out <- h0testr::test(out$state, out$config, method="trend")
 #' head(out$original)
 #' head(out$standard)
+#' summary(out$fit)
 
 test <- function(state, config, method=NULL, 
     is_log_transformed=NULL, prior_df=NULL) {
@@ -1334,10 +1335,16 @@ test <- function(state, config, method=NULL,
   rownames(tbl) <- NULL
   
   if((!is.null(config$save_state)) && config$save_state) {
+    
     file_out <- paste0(config$dir_out, "/", length(config$run_order) + 3, 
-      config$result_mid_out, config$suffix_out)
-    f.log("writing results to", file_out, config=config)
+      config$result_mid_out, ".reformat", config$suffix_out)
+    f.log("writing reformatted results to", file_out, config=config)
     f.save_tsv(tbl2, file_out)
+    
+    file_out <- paste0(config$dir_out, "/", length(config$run_order) + 3, 
+      config$result_mid_out, ".original", config$suffix_out)
+    f.log("writing original results to", file_out, config=config)
+    f.save_tsv(tbl, file_out)
   }
   
   return(list(original=tbl, standard=tbl2, fit=result$fit))

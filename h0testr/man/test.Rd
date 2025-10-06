@@ -92,4 +92,5 @@ out <- h0testr::initialize(state, config, minimal=TRUE)
 out <- h0testr::test(out$state, out$config, method="trend")
 head(out$original)
 head(out$standard)
+summary(out$fit)
 }
