@@ -327,6 +327,11 @@ initialize <- function(state, config, initialized=F, minimal=F) {
     config$obs_col <- config$obs_id_col    ## as soon as confirm obs_id_col exists
   }
   
+  state$features[[config$feat_id_col]] <- as.character(state$features[[config$feat_id_col]])
+  state$features[[config$gene_id_col]] <- as.character(state$features[[config$gene_id_col]])
+  state$samples[[config$obs_id_col]] <- as.character(state$samples[[config$obs_id_col]])
+  state$samples[[config$sample_id_col]] <- as.character(state$samples[[config$sample_id_col]])
+  
   if(!any(duplicated(state$features[[config$gene_id_col]]))) {
     f.msg(
       "initialize:",
