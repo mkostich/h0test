@@ -76,12 +76,12 @@ combine_replicates <- function(state, config, fn=stats::median) {
     }
     config$obs_col <- config$obs_id_col <- config$sample_id_col
     
-    sample_ids <- state$samples[[config$sample_id_col]]
+    sample_ids <- as.character(state$samples[[config$sample_id_col]])
     if(!all(sample_ids %in% colnames(state$expression))) {
       f.err("combine_replicates: !all(samples[[config$sample_id_col]] %in% colnames(expression))", 
         config=config)
     }  
-    state$expression <- state$expression[, sample_ids, drop=F]
+    state$expression <- state$expression[, as.character(sample_ids), drop=F]
   }
   
   f.check_state(state, config)
@@ -128,8 +128,8 @@ f.combine_features_median_polish <- function(state, config, maxit=30) {
   exprs <- tapply(1:nrow(state$expression), genes, f)
   exprs <- do.call(rbind, exprs)
   
-  genes <- feats[[config$gene_id_col]]
-  exprs <- exprs[genes, , drop=F]
+  genes <- as.character(feats[[config$gene_id_col]])
+  exprs <- exprs[as.character(genes), , drop=F]
   state <- list(expression=exprs, features=feats, samples=state$samples)
   
   return(list(state=state, config=config))
@@ -166,8 +166,8 @@ f.combine_features_robust_summary <- function(state, config) {
   exprs <- do.call(rbind, exprs)
   rownames(exprs) <- nom
   
-  genes <- feats[[config$gene_id_col]]
-  exprs <- exprs[genes, , drop=F]
+  genes <- as.character(feats[[config$gene_id_col]])
+  exprs <- exprs[as.character(genes), , drop=F]
   
   state <- list(expression=exprs, features=feats, samples=state$samples)
   
