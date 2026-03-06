@@ -377,7 +377,11 @@ test_deqms <- function(state, config, trend=FALSE) {
   counts <- tbl$Freq
   names(counts) <- tbl$Var1
   
+  save_state <- config$save_state
+  config$save_state <- FALSE
   out <- h0testr::combine_features(state, config, method="medianPolish", rescale=TRUE)
+  config$save_state <- save_state
+  
   design <- stats::model.matrix(out$config$frm, data=out$state$samples)
   cols_des <- colnames(design)
   
@@ -385,7 +389,7 @@ test_deqms <- function(state, config, trend=FALSE) {
   cols_pick <- colnames(stats::model.matrix(frm0, data=out$state$samples))
   cols_pick <- cols_pick[cols_pick %in% cols_des]
   idx <- which(cols_des %in% cols_pick)
-  if(length(idx) != 1) f.err("test_deqms: length(idx) != 1", config=out$config)
+  if(length(idx) != 1) f.err("test_deqms: length(idx) != 1; test_deqms() currently only supports two-way comparisons for the test term", config=config)
   
   fit <- limma::lmFit(out$state$expression, design)
   fit <- limma::eBayes(fit, trend=trend)
@@ -531,7 +535,7 @@ test_msqrob <- function(state, config, maxit=100) {
   cols_pick <- colnames(stats::model.matrix(frm0, data=state$samples))
   cols_pick <- cols_pick[cols_pick %in% cols_des]
   idx <- which(cols_des %in% cols_pick)
-  if(length(idx) != 1) f.err("test_msqrob: length(idx) != 1", config=config)
+  if(length(idx) != 1) f.err("test_msqrob: length(idx) != 1; test_msqrob() currently only supports two-way comparisons for the test term", config=config)
   cols_pick <- cols_des[idx]
   
   con <- msqrob2::makeContrast(contrasts=paste0(cols_pick, "=0"), 
