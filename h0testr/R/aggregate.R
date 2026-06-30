@@ -87,12 +87,11 @@ combine_replicates <- function(state, config, fn=stats::median) {
   f.check_state(state, config)
   f.report_state(state, config)
   
+  prfx <- "combined_replicates"
   if(!is.null(config$run_order)) {
     i <- config$run_order %in% "combine_replicates"
     if(any(i)) {
       prfx <- paste0(which(i)[1] + 2, ".combined_replicates")
-    } else {
-      prfx <- "combined_replicates"
     }
   }
   f.save_state(state, config, prefix=prfx)
@@ -263,7 +262,7 @@ combine_features <- function(state, config, method=NULL, rescale=FALSE) {
   check_config(config)
   
   if(is.null(config$gene_id_col) || !(config$gene_id_col %in% names(state$features))) {
-    f.err("combine_features: config$gene_id_col %in% names(state$features);",
+    f.err("combine_features: !(config$gene_id_col %in% names(state$features));",
       "config$gene_id_col:", config$gene_id_col, 
       "; names(state$features):", names(state$features), config=config)
   }
@@ -307,12 +306,11 @@ combine_features <- function(state, config, method=NULL, rescale=FALSE) {
   f.check_state(state, config)
   f.report_state(state, config)
   
+  prfx <- "combined_features"
   if(!is.null(config$run_order)) {
     i <- config$run_order %in% "combine_features"
     if(any(i)) {
       prfx <- paste0(which(i)[1] + 2, ".combined_features")
-    } else {
-      prfx <- "combined_features"
     }
   }
   f.save_state(state, config, prefix=prfx)

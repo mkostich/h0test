@@ -281,6 +281,8 @@ tune <- function(
     config2 <- out$config               ## save for subsequent iterations
     if(normalization_method %in% c("none")) {
       is_log_transformed <- FALSE
+    } else if(normalization_method %in% c("vsn")) {
+      is_log_transformed <- TRUE  ## vsn output is arsinh-scaled, not log2
     } else {
       is_log_transformed <- TRUE
     }
@@ -520,7 +522,7 @@ tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05) {
   
   nhits <- dat0$nhits
   nhits[nhits %in% 0] <- 1
-  dat0$fdr <- dat0$max / nhits   ## used to be $avg
+  dat0$fdr <- dat0$max1 / nhits   ## used to be $avg
   dat0$fdr[dat0$fdr > 1] <- 1.0
 
   dat0 <- dat0[, c("nhits", "fdr", "max1", "mid1", "avg1", "sd1", "norm", "nquant", 

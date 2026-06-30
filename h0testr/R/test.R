@@ -396,19 +396,18 @@ test_deqms <- function(state, config, trend=FALSE) {
   fit$count <- counts[rownames(fit$coefficients)]
   
   if(length(unique(fit$count)) >= 2) {
-    fit <- DEqMS::spectraCounteBayes(fit, fit.method="loess")
-    tbl <- DEqMS::outputResult(fit, coef_col=idx)
-    return(tbl)
+    fit  <- DEqMS::spectraCounteBayes(fit, fit.method="loess")
+    hits <- DEqMS::outputResult(fit, coef_col=idx)
   } else {
-    f.msg("WARNING: length(unique(fit$count)) < 2;", 
-      "falling back to h0testr::test_trend(); unique(fit$count):", 
+    f.msg("WARNING: length(unique(fit$count)) < 2;",
+      "falling back to h0testr::test_trend(); unique(fit$count):",
       unique(fit$count),
       config=config
-    )      
-    tbl <- test_trend(state, config)
+    )
+    hits <- test_trend(state, config)$hits
   }
-  
-  return(list(hits=tbl, fit=fit))
+
+  return(list(hits=hits, fit=fit))
 }
 
 #' Hypothesis testing using the \code{msqrob2} package
@@ -1317,7 +1316,7 @@ test <- function(state, config, method=NULL,
   } else if(method %in% "none") {
     f.msg("skipping testing: method %in% 'none'", config=config)
     return(NULL)
-  } else f.err("test: unexpected method:", config$test_method, config=config)
+  } else f.err("test: unexpected method:", method, config=config)
   
   feats <- state$features
   if(method %in% c("deqms", "msqrob")) {
@@ -1334,8 +1333,9 @@ test <- function(state, config, method=NULL,
     f.err("test: !all(tbl2$feature %in% rownames(feats))", config=config)
   }
   
-  tbl <- feats[rownames(result$hits), , drop=F]
-  tbl <- cbind(tbl, result$hits)
+  feat_key <- if("feature" %in% names(result$hits)) result$hits$feature else rownames(result$hits)
+  o   <- match(tbl2$feature, feat_key)
+  tbl <- cbind(feats[tbl2$feature, , drop=F], result$hits[o, , drop=F])
   rownames(tbl) <- NULL
   
   if((!is.null(config$save_state)) && config$save_state) {
@@ -1343,12 +1343,12 @@ test <- function(state, config, method=NULL,
     file_out <- paste0(config$dir_out, "/", length(config$run_order) + 3, 
       config$result_mid_out, ".reformat", config$suffix_out)
     f.log("writing reformatted results to", file_out, config=config)
-    f.save_tsv(tbl2, file_out)
-    
-    file_out <- paste0(config$dir_out, "/", length(config$run_order) + 3, 
+    f.save_tsv(tbl2, file_out, config)
+
+    file_out <- paste0(config$dir_out, "/", length(config$run_order) + 3,
       config$result_mid_out, ".original", config$suffix_out)
     f.log("writing original results to", file_out, config=config)
-    f.save_tsv(tbl, file_out)
+    f.save_tsv(tbl, file_out, config)
   }
   
   return(list(original=tbl, standard=tbl2, fit=result$fit))

@@ -191,8 +191,8 @@ check_config <- function(config) {
   ## check param values:
   
   for(nom in scalar_character) {
-    if(nom %in% config) {
-      if(!(is.character(config[[nom]]) && length(config[[nom]] == 1))) {
+    if(nom %in% names(config)) {
+      if(!(is.character(config[[nom]]) && length(config[[nom]]) == 1)) {
         f.err("check_config: param not scalar character; param:",  nom, 
           "; value:", config[[nom]], config=config)
       }
@@ -200,8 +200,8 @@ check_config <- function(config) {
   }
   
   for(nom in scalar_counts) {
-    if(nom %in% config) {
-      if(!(is.numeric(config[[nom]]) && length(config[[nom]] == 1))) {
+    if(nom %in% names(config)) {
+      if(!(is.numeric(config[[nom]]) && length(config[[nom]]) == 1)) {
         f.err("check_config: param not scalar count; param:",  nom, 
           "; value:", config[[nom]], config=config)
       }
@@ -217,8 +217,8 @@ check_config <- function(config) {
   }
   
   for(nom in scalar_props) {
-    if(nom %in% config) {
-      if(!is.numeric(config[[nom]]) && length(config[[nom]] == 1)) {
+    if(nom %in% names(config)) {
+      if(!(is.numeric(config[[nom]]) && length(config[[nom]]) == 1)) {
         f.err("check_config: param not scalar proportion; param:",  nom, 
           "; value:", config[[nom]], config=config)
       }
@@ -230,8 +230,8 @@ check_config <- function(config) {
   }
   
   for(nom in scalar_positive) {
-    if(nom %in% config) {
-      if(!is.numeric(config[[nom]]) && length(config[[nom]] == 1)) {
+    if(nom %in% names(config)) {
+      if(!(is.numeric(config[[nom]]) && length(config[[nom]]) == 1)) {
         f.err("check_config: param not scalar positive numeric; param:",  nom, 
           "; value:", config[[nom]], config=config)
       }
@@ -243,8 +243,8 @@ check_config <- function(config) {
   }
   
   for(nom in scalar_logical) {
-    if(nom %in% config) {
-      if(!is.logical(config[[nom]]) && length(config[[nom]] == 1)) {
+    if(nom %in% names(config)) {
+      if(!(is.logical(config[[nom]]) && length(config[[nom]]) == 1)) {
         f.err("check_config: param not scalar logical; param:",  nom, 
           "; value:", config[[nom]], config=config)
       }
@@ -252,8 +252,8 @@ check_config <- function(config) {
   }
   
   for(nom in scalar_formula) {
-    if(nom %in% config) {
-      if(!methods::is(config[[nom]], "formula") && length(config[[nom]] == 1)) {
+    if(nom %in% names(config)) {
+      if(!(methods::is(config[[nom]], "formula") && length(config[[nom]]) == 1)) {
         f.err("check_config: param not scalar formula; param:",  nom, 
           "; value:", config[[nom]], config=config)
       }
@@ -261,7 +261,7 @@ check_config <- function(config) {
   }
   
   for(nom in vector_character) {
-    if(nom %in% config) {
+    if(nom %in% names(config)) {
       if(!is.character(config[[nom]])) {
         f.err("check_config: param not vector of character; param:",  nom, 
           "; value:", config[[nom]], config=config)
@@ -270,7 +270,7 @@ check_config <- function(config) {
   }
   
   for(nom in vector_props) {
-    if(nom %in% config) {
+    if(nom %in% names(config)) {
       if(!is.numeric(config[[nom]])) {
         f.err("check_config: param not vector of proportions; param:",  nom, 
           "; value:", config[[nom]], config=config)
@@ -283,9 +283,9 @@ check_config <- function(config) {
   }
   
   for(nom in list_character) {
-    if(nom %in% config) {
-      if(!is.numeric(config[[nom]])) {
-        f.err("check_config: param not list of character; param:",  nom, 
+    if(nom %in% names(config)) {
+      if(!is.list(config[[nom]])) {
+        f.err("check_config: param not list of character; param:",  nom,
           "; value:", config[[nom]], config=config)
       }
     }

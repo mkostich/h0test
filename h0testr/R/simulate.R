@@ -10,7 +10,7 @@ f.sim_rnorm_pos <- function(n, m, s) {
   i[is.na(i)] <- T
   
   while(any(i)) {
-    v[i] <- stats::rnorm(sum(i), mean=m, sd=s)
+    v[i] <- stats::rnorm(sum(i), mean=m[i], sd=s[i])
     i <- v <= 0
     i[is.na(i)] <- T
   }
@@ -300,7 +300,7 @@ sim2 <- function(n_samps1, n_samps2, n_genes, n_genes_signif=0,
   ## technical replication:  
   mat <- f.sim_tech_reps(mat, reps_per_sample=reps_per_sample, cv_reps=cv_reps)
   if(any(is.na(c(mat)) | c(mat) <= 0, na.rm=T)) {
-    stop("sim2: any(is.na(c(mat1)) | c(mat1) <= 0); min(c(mat1)):", min(c(mat1)))
+    stop("sim2: any(is.na(c(mat)) | c(mat) <= 0); min(c(mat)):", min(c(mat)))
   }
   
   ## mnar -> mcar:

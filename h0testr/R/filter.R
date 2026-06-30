@@ -75,11 +75,8 @@ filter_features_by_formula <- function(state, config,
   if(is.null(config$frm)) {
     f.err("filter_features_by_formula: is.null(config$frm)", config=config)
   }
-  frm <- as.character(config$frm)
-  frm <- frm[!(frm %in% "~")]
-  frm <- gsub(" ", "", frm)
-  frm <- unlist(strsplit(frm, "\\+"))
-  frm <- frm[!grepl("[:|^/]", frm)]
+  trms <- attr(stats::terms(config$frm), "term.labels")
+  frm  <- trms[!grepl("[:|^/]", trms)]
   
   result <- sapply(
     frm, f.filter_features_by_term, 
@@ -89,7 +86,7 @@ filter_features_by_formula <- function(state, config,
     n_groups_non_na_min=n_groups_non_na_min, 
     n_groups_distinct_min=n_groups_distinct_min
   )
-  ## if(is.null(dim(result))) result <- matrix(result, ncol=1)
+  if(is.null(dim(result))) result <- matrix(result, ncol=1)
   
   i <- apply(result, 1, all, na.rm=F)
   i[is.na(i)] <- F
@@ -632,12 +629,11 @@ filter <- function(state, config, remove_constant=TRUE, filter_by_formula=TRUE) 
   f.check_state(state, config)
   f.report_state(state, config)
   
+  prfx <- "filtered"
   if(!is.null(config$run_order)) {
     i <- config$run_order %in% "filter"
     if(any(i)) {
       prfx <- paste0(which(i)[1] + 2, ".filtered")
-    } else {
-      prfx <- "filtered"
     }
   }
   f.save_state(state, config, prefix=prfx)

@@ -618,12 +618,11 @@ normalize <- function(state, config, method=NULL,
   f.check_state(state, config)
   f.report_state(state, config)
   
+  prfx <- "normalized"
   if(!is.null(config$run_order)) {
     i <- config$run_order %in% "normalize"
     if(any(i)) {
       prfx <- paste0(which(i)[1] + 2, ".normalized")
-    } else {
-      prfx <- "normalized"
     }
   }
   f.save_state(state, config, prefix=prfx)

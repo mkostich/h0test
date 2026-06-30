@@ -102,12 +102,16 @@ f.check_parameters <- function(state, config, initialized=F, minimal=F) {
   }
   
   if(!initialized) {
-    noms <- c(config$n_samples_expr_col, config$median_raw_col, config$n_features_expr_col)
-    for(nom in noms) {
-      if(nom %in% names(state$samples)) {
-        f.err("f.check_parameters: nom %in% names(state$samples); nom:", 
-          nom, "; names(state$samples):", names(state$samples), config=config)
+    for(nom in c(config$n_samples_expr_col, config$median_raw_col)) {
+      if(nom %in% names(state$features)) {
+        f.err("f.check_parameters: nom %in% names(state$features); nom:",
+          nom, "; names(state$features):", names(state$features), config=config)
       }
+    }
+    if(config$n_features_expr_col %in% names(state$samples)) {
+      f.err("f.check_parameters: n_features_expr_col %in% names(state$samples); nom:",
+        config$n_features_expr_col,
+        "; names(state$samples):", names(state$samples), config=config)
     }
   }
   

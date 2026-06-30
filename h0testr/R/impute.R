@@ -1376,9 +1376,9 @@ impute_pca <- function(state, config, is_log_transformed=NULL,
   
   ## wants sample rows and 'variables' as columns:
   obj <- pcaMethods::pca(t(mat), nPcs=n_pcs, method=method)
-  mat <- pcaMethods::completeObs(obj) 
-  
-  if(!is_log_transformed) mat <- (2^mat)
+  mat <- pcaMethods::completeObs(obj)
+
+  if(!is_log_transformed) mat <- (2^mat) - 1
   mat <- t(mat)
   mat <- f.pos_mat(mat, config)
   state$expression <- mat
@@ -1479,9 +1479,9 @@ impute_lls <- function(state, config, is_log_transformed=NULL,
   ## wants sample rows and 'variables' as columns:
   obj <- pcaMethods::llsImpute(t(mat), k=k, center=F, completeObs=T,
     correlation=method, allVariables=F, maxSteps=maxit, xval=NULL, verbose=F)
-  
-  mat <- pcaMethods::completeObs(obj) 
-  if(!is_log_transformed) mat <- (2^mat)
+
+  mat <- pcaMethods::completeObs(obj)
+  if(!is_log_transformed) mat <- (2^mat) - 1
   mat <- t(mat)
   mat <- f.pos_mat(mat, config)
   state$expression <- mat
@@ -1589,7 +1589,7 @@ impute_methods <- function() {
 #'     \code{config}. Assumes expression data have been previously
 #'     \code{log(x+1)} transformed. If you want \code{0} to be considered missing, 
 #'     and have \code{0} in the data, do something like 
-#'     \code{exprs[exprs \%in\% 0] <- 0} prior to imputing. See invidual 
+#'     \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. See invidual 
 #'     \code{impute_*} methods for more details.
 #'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
@@ -1766,12 +1766,11 @@ impute <- function(state, config, method=NULL, is_log_transformed=NULL,
   f.check_state(state, config)
   f.report_state(state, config)
   
+  prfx <- "imputed"
   if(!is.null(config$run_order)) {
     i <- config$run_order %in% "impute"
     if(any(i)) {
       prfx <- paste0(which(i)[1] + 2, ".imputed")
-    } else {
-      prfx <- "imputed"
     }
   }
   f.save_state(state, config, prefix=prfx)
