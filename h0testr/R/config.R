@@ -255,9 +255,11 @@ check_config <- function(config) {
   for(nom in scalar_formula) {
     if(nom %in% names(config)) {
       if(!f.is_formula(config[[nom]])) {
-        f.err("check_config: param not a one-sided formula; param:",  nom,
+        f.err("check_config: param not a formula; param:",  nom,
           "; value:", config[[nom]], config=config)
       }
+      ## checks operators and variables; throws error if unsupported:
+      f.parse_frm(config[[nom]], config)
     }
   }
   
@@ -339,16 +341,5 @@ report_config <- function(config) {
   ## check config$test_term compatible with config$frm; throws error if not, 
   ##   else returns NULL:
 
-  trms <- as.character(config$frm)[2]
-  trms <- gsub("[[:space:]]+", "", trms)
-  trms <- unlist(strsplit(trms, split="\\+"))
-  
-  if(length(trms) %in% 0) {
-    f.err("report_config: length(trms) %in% 0", config=config)
-  }  
-  
-  if(!(config$test_term %in% trms)) {
-    f.err("report_config: config$test_term", config$test_term, "not in config$frm", 
-      as.character(config$frm), config=config)
-  }
+  f.normalize_terms(config)
 }

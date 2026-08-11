@@ -154,15 +154,8 @@ f.check_parameters <- function(state, config, initialized=F, minimal=F) {
 f.subset_covariates <- function(state, config) {
   
   ## variables referred to in formula:
-  vars <- as.character(config$frm)
-  vars <- gsub("[[:space:]]+", "", vars)
-  vars <- gsub("[\\~\\:\\*\\-]", "+", vars)
-  vars <- unlist(strsplit(vars, split="\\+"))
-  vars <- sort(unique(vars))
-  n <- nchar(vars)
-  n[is.na(n)] <- 0
-  vars <- vars[n > 0]
-  
+  vars <- sort(unique(f.parse_frm(config$frm, config)$vars))
+
   ## make sure all needed variables in samps:
   if(!all(vars %in% names(state$samples))) {
     f.err("f.subset_covariates: !all(vars %in% names(state$samples)); vars:", 
@@ -323,9 +316,25 @@ f.set_covariate_factor_levels <- function(state, config) {
 initialize <- function(state, config, initialized=F, minimal=F) {
   
   f.log("initializing", config=config)
-  check_config(config)  
+  check_config(config)
   f.check_parameters(state, config, initialized=initialized, minimal=minimal)
-  
+
+  ## the dependent variable is always the expression values of one feature, so
+  ##   any dependent given in config$frm carries no information; drop it here,
+  ##   so it is reported once, rather than by every downstream call:
+
+  parsed <- f.parse_frm(config$frm, config)
+  if(parsed$two_sided) {
+    f.msg(
+      "initialize:",
+      "ignoring dependent variable on left-hand side of config$frm;", "\n",
+      "the dependent is always the expression values of one feature.", "\n",
+      "Setting config$frm to:", parsed$frm,
+      config=config
+    )
+    config$frm <- parsed$frm
+  }
+
   if(is.null(config$feat_col) || config$feat_col %in% "") {
     config$feat_col <- config$feat_id_col  ## as soon as confirm feat_id_col exists
   }

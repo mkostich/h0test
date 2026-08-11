@@ -75,8 +75,11 @@ filter_features_by_formula <- function(state, config,
   if(is.null(config$frm)) {
     f.err("filter_features_by_formula: is.null(config$frm)", config=config)
   }
-  trms <- attr(stats::terms(config$frm), "term.labels")
-  frm  <- trms[!grepl("[:|^/]", trms)]
+  ## marginal (single variable) terms only; '*' is expanded by f.parse_frm(),
+  ##   so ~x1*x2 is screened on x1 and x2. A variable appearing only within an
+  ##   interaction is not screened here:
+  parsed <- f.parse_frm(config$frm, config)
+  frm <- parsed$labels[!grepl(":", parsed$labels, fixed=T)]
   
   result <- sapply(
     frm, f.filter_features_by_term, 
