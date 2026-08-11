@@ -1,12 +1,30 @@
+## Flatten arguments destined for cat() into character scalars, one per argument.
+##   cat() cannot handle language objects (e.g. formulas, calls) or non-atomic
+##   objects (e.g. lists), which otherwise mask the message being logged with a
+##   confusing cat() error; those are deparsed instead:
+
+f.cat_args <- function(...) {
+  args <- list(...)
+  out <- lapply(args, function(arg) {
+    if(is.null(arg) || length(arg) %in% 0) return(character(0))
+    if(is.numeric(arg)) return(paste(format(arg, trim=T), collapse=" "))
+    if(is.character(arg) || is.logical(arg) || is.factor(arg)) {
+      return(paste(arg, collapse=" "))
+    }
+    paste(deparse(arg), collapse=" ")
+  })
+  return(unlist(out))
+}
+
 f.msg <- function(..., config) {
   if(is.null(config$log_file)) config$log_file <- ""
-  cat(..., "\n", file=config$log_file, append=T)
+  cat(f.cat_args(...), "\n", file=config$log_file, append=T)
   utils::flush.console()
 }
 
 f.log <- function(..., config) {
   if(is.null(config$log_file)) config$log_file <- ""
-  cat(..., "at:", format(Sys.time(), format='%Y%m%d%H%M%S'), "\n", 
+  cat(f.cat_args(...), "at:", format(Sys.time(), format='%Y%m%d%H%M%S'), "\n",
     file=config$log_file, append=T)
   utils::flush.console()
 }
@@ -43,6 +61,17 @@ f.save_tsv <- function(dat, file_out, config, row.names=T, col.names=T) {
       warning=function(msg) f.err("write.table() warning: writing to ", 
         file_out, ": ", msg$message, config=config)
   )
+}
+
+## TRUE iff x is a single one-sided formula, e.g. ~age+gender+age:gender.
+##   NOTE: length() of a formula is the number of components of the underlying
+##   call: 2 for a one-sided formula (`~` and rhs), 3 for a two-sided formula
+##   (`~`, lhs, and rhs); it is never 1. Two-sided formulas are rejected here
+##   because the rest of the package assumes the dependent variable is implicit
+##   (e.g. as.character(frm)[2] is taken to be the full set of terms):
+
+f.is_formula <- function(x) {
+  return(inherits(x, "formula") && length(x) %in% 2)
 }
 
 ## needs config$feat_col and config$obs_col:

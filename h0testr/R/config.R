@@ -135,8 +135,9 @@ new_config <- function() {
 #' config <- h0testr::new_config()
 #' h0testr::check_config(config)
 #'
+#' ## invalid: value must be numeric, not character; throws an error:
 #' config$impute_quantile <- "0.01"
-#' h0testr::check_config(config)
+#' try(h0testr::check_config(config))
 
 check_config <- function(config) {
 
@@ -253,8 +254,8 @@ check_config <- function(config) {
   
   for(nom in scalar_formula) {
     if(nom %in% names(config)) {
-      if(!(methods::is(config[[nom]], "formula") && length(config[[nom]]) == 1)) {
-        f.err("check_config: param not scalar formula; param:",  nom, 
+      if(!f.is_formula(config[[nom]])) {
+        f.err("check_config: param not a one-sided formula; param:",  nom,
           "; value:", config[[nom]], config=config)
       }
     }

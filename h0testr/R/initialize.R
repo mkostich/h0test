@@ -108,7 +108,10 @@ f.check_parameters <- function(state, config, initialized=F, minimal=F) {
           nom, "; names(state$features):", names(state$features), config=config)
       }
     }
-    if(config$n_features_expr_col %in% names(state$samples)) {
+    ## NOTE: n_features_expr_col not a required param when minimal, so may be
+    ##   unset here; NULL %in% x is logical(0), which if() cannot handle:
+    if(length(config$n_features_expr_col) %in% 1 &&
+      config$n_features_expr_col %in% names(state$samples)) {
       f.err("f.check_parameters: n_features_expr_col %in% names(state$samples); nom:",
         config$n_features_expr_col,
         "; names(state$samples):", names(state$samples), config=config)

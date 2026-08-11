@@ -28,6 +28,7 @@ h0testr::check_config(config)
 config <- h0testr::new_config()
 h0testr::check_config(config)
 
+## invalid: value must be numeric, not character; throws an error:
 config$impute_quantile <- "0.01"
-h0testr::check_config(config)
+try(h0testr::check_config(config))
 }
