@@ -24,10 +24,10 @@ Report written to \code{config$log_file}; if \code{config$log_file == ""},
 \examples{
 config <- new_config()
 
-## you must customize frm, test_term, and sample_factors:
+## you must customize frm, test_term, and reference_levels:
 config$frm <- ~ age + sex + age:sex
 config$test_term <- "age:sex"
-config$sample_factors <- list(age=c("young", "old"), sex=c("female", "male"))
+config$reference_levels <- c(age="young", sex="female")
 
 ## these may or may not need customization, depending on your file formats:
 config$feat_id_col <- "peptide_id"

@@ -55,7 +55,8 @@ exprs <- h0testr::sim1(n_obs=6, n_feats=12, mcar_p=0.5)$mat
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs), age=c(rep("4m", 3), rep("12m", 3)))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(n_samples_min=3, frm=~age)
+## age is character, so its reference level has to be declared:
+config <- list(n_samples_min=3, frm=~age, reference_levels=c(age="4m"))
 state2 <- h0testr::filter_features(state, config)
 print(state)
 print(state2)

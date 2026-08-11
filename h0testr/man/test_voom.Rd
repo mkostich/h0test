@@ -20,7 +20,7 @@ test_voom(state, config, normalize.method = "none")
   \code{obs_col}        \cr \tab Name of column in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
   \code{frm}            \cr \tab Formula (formula) to be fit. \cr
   \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
-  \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
+  \code{reference_levels} \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm} (see examples). \cr
 }}
 
 \item{normalize.method}{Character in 
@@ -60,7 +60,7 @@ config$feat_col <- config$feat_id_col <- config$gene_id_col <- "feature_id"
 config$obs_col <- config$obs_id_col <- config$sample_id_col <- "observation_id"
 config$frm <- ~condition
 config$test_term <- "condition"
-config$sample_factors <- list(condition=c("placebo", "drug"))
+config$reference_levels <- c(condition="placebo")
 
 ## set up and check configuration, including covariates:
 out <- h0testr::initialize(state, config, minimal=TRUE)

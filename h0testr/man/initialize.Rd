@@ -24,7 +24,8 @@ initialize(state, config, initialized = F, minimal = F)
   \code{gene_id_col}          \cr \tab Column in \code{state$features} with unique gene/protein group ids. \cr
   \code{frm}                  \cr \tab Formula object specifying formula to be fit. \cr
   \code{test_term}            \cr \tab Term (character) in \code{config$frm} to test for significance. \cr
-  \code{sample_factors}       \cr \tab List with levels of factor variables in \code{config$frm}. \cr
+  \code{reference_levels}     \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
+  \code{n_distinct_numeric_warn} \cr \tab Warn if continuous variable in \code{config$frm} has this few distinct values. \cr
   \code{n_samples_expr_col}   \cr \tab Column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
   \code{median_raw_col}       \cr \tab Column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
   \code{n_features_expr_col}  \cr \tab Column in \code{state$samples} that corresponds to columns of \code{data_file_in}. \cr
@@ -56,19 +57,33 @@ Check \code{config} vs. \code{state}, check covariates in \code{config$frm},
 \details{
 Checks to make sure columns specified in \code{config} parameters are 
     found in \code{state$features} and \code{state$samples}.
-  Check covariates referred to in \code{config$frm} are found in 
-    \code{state$samples}, subsets only the needed variables into 
-    \code{state$samples}, and sets covariate factor levels 
-    according to \code{config$sample_factors}.
+  Check covariates referred to in \code{config$frm} are found in
+    \code{state$samples}, subsets only the needed variables into
+    \code{state$samples}, and sets covariate factor levels
+    according to \code{config$reference_levels}.
+  Each covariate in \code{config$frm} is classified as a factor or as
+    numeric (continuous): variables named in \code{config$reference_levels}
+    as well as logical variables are factors; other numeric variables are
+    continuous; a character variable that is not named in
+    \code{config$reference_levels} is an error, since its reference level,
+    and hence the meaning of its coefficients, would otherwise be set by
+    locale dependent sorting of its values. The classification is returned in
+    \code{config$covariate_types}. Missing, non-finite, and constant
+    covariate values are errors. A continuous covariate with
+    \code{config$n_distinct_numeric_warn} or fewer distinct values is
+    warned about, as it may be a miscoded factor.
+  \code{config$reference_levels} declares only the reference (first) level of
+    each factor covariate; the remaining levels are sorted. The resulting
+    level ordering of each factor covariate is logged, and returned in
+    \code{config$factor_levels}.
   Flow is:
     \tabular{l}{
       1. \code{check_config()}. \cr
       2. Subset covariates in \code{config$frm}. \cr
       3. Check feat_col and obs_col. \cr
       4. Subset covariates of interest. \cr
-      5. Set covariate factor levels. \cr
-      6. Return sub-table of ANOVA results corresponding to 
-           \code{config$test_term}. \cr
+      5. Classify covariates and check their values. \cr
+      6. Set covariate factor levels. \cr
     }
   If \code{initialized=FALSE}, then checks if \code{state$features} has 
     columns with names in 
@@ -93,7 +108,7 @@ config <- list(
   gene_id_col="gene_id",
   frm=~condition,
   test_term="condition",
-  sample_factors=list(condition=c("ctl", "trt"))
+  reference_levels=c(condition="ctl")
 )
 out <- h0testr::initialize(state, config, minimal=TRUE)
 print(out$state)
@@ -106,7 +121,7 @@ config <- list(
   gene_id_col="gene_id",
   frm=~condition,
   test_term="condition", 
-  sample_factors=list(condition=c("ctl", "trt")),
+  reference_levels=c(condition="ctl"),
   n_samples_expr_col="n_samples_exprs",
   median_raw_col="median_raw",
   n_features_expr_col="n_features_exprs"

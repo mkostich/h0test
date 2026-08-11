@@ -66,6 +66,31 @@ combine_replicates <- function(state, config, fn=stats::median) {
   
     f <- function(v, s) tapply(v, s, fn, na.rm=T)
     sample_ids <- state$samples[[config$sample_id_col]]
+
+    ## metadata are collapsed by keeping the first observation of each sample
+    ##   below, so a covariate that varies between the replicates of one sample
+    ##   would be silently taken from that first observation, quietly changing
+    ##   the design; that is an error instead:
+
+    if(!is.null(config$frm)) {
+      vars <- sort(unique(f.parse_frm(config$frm, config)$vars))
+      vars <- vars[vars %in% names(state$samples)]
+      for(nom in vars) {
+        v <- as.character(state$samples[[nom]])
+        n_vals <- tapply(v, sample_ids, function(x) length(unique(x)))
+        i <- !is.na(n_vals) & n_vals > 1
+        if(any(i)) {
+          sid <- names(n_vals)[i][1]
+          j <- sample_ids %in% sid
+          f.err("combine_replicates: covariate", nom, "varies between the",
+            "replicates of a sample, so cannot be combined;", "\n",
+            "config$sample_id_col:", config$sample_id_col, "; n samples",
+            "affected:", sum(i), "\n", "first affected sample:", sid,
+            "; its", nom, "values:", v[j], config=config)
+        }
+      }
+    }
+
     state$expression <- t(apply(state$expression, 1, f, sample_ids))
     state$samples <- state$samples[!duplicated(sample_ids), , drop=F]
     

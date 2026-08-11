@@ -274,7 +274,7 @@ f.test_lm_feat <- function(y, meta, test_term, frm_full, frm_reduced) {
 #' config$obs_col <- config$obs_id_col <- config$sample_id_col <- "observation_id"
 #' config$frm <- ~condition
 #' config$test_term <- "condition"
-#' config$sample_factors <- list(condition=c("placebo", "drug"))
+#' config$reference_levels <- c(condition="placebo")
 #'
 #' ## set up and check covariates and parameters:
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
@@ -391,10 +391,7 @@ test_lm <- function(state, config, fdr.method="BY") {
 #'   gene_id_col="gene",
 #'   frm=~grp+sex+grp:sex, 
 #'   test_term="grp",
-#'   sample_factors=list( 
-#'     grp=c("ctl", "trt"), 
-#'     sex=c("F", "M")
-#'   )
+#'   reference_levels=c(grp="ctl", sex="F")
 #' )
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
 #' 
@@ -512,10 +509,7 @@ test_deqms <- function(state, config, trend=FALSE) {
 #'   gene_id_col="gene",
 #'   frm=~grp+sex+grp:sex, 
 #'   test_term="grp",
-#'   sample_factors=list( 
-#'     grp=c("ctl", "trt"), 
-#'     sex=c("F", "M")
-#'   )
+#'   reference_levels=c(grp="ctl", sex="F")
 #' )
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
 #' 
@@ -655,10 +649,7 @@ test_msqrob <- function(state, config, maxit=100) {
 #'   gene_id_col="gene",
 #'   frm=~grp+sex+grp:sex, 
 #'   test_term="grp",
-#'   sample_factors=list( 
-#'     grp=c("ctl", "trt"), 
-#'     sex=c("F", "M")
-#'   )
+#'   reference_levels=c(grp="ctl", sex="F")
 #' )
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
 #' 
@@ -705,8 +696,14 @@ test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit
 #'   Tests for differential expression using the \code{prolfq::build_model()} function.
 #' @details
 #'   Uses the \code{proDA::proDA()} function. Returned results sorted by p-value.
-#'     Only works if all terms in \code{config$frm} are \code{factor} or 
-#'     \code{character}. Error otherwise.
+#'     Only works if every variable in \code{config$frm} is categorical, that is,
+#'     classified as \code{"factor"} in \code{config$covariate_types}. A
+#'     continuous (numeric) covariate is an error.
+#'   The level ordering set by \code{initialize()} is preserved, so the
+#'     coefficients of the returned \code{fit} are relative to the reference
+#'     level declared in \code{config$reference_levels}. The returned
+#'     \code{hits} are term-level ANOVA F-tests, which do not depend on the
+#'     choice of reference level.
 #'   Flow is:
 #'     \tabular{l}{
 #'       1. Reshape data into long format with intensities, feature meta, and sample meta. \cr
@@ -733,7 +730,9 @@ test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit
 #'     \code{obs_col}               \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
 #'     \code{frm}                   \cr \tab Formula (formula) to be fit. \cr
 #'     \code{test_term}             \cr \tab Term (character) to be tested for non-zero coefficient. \cr
-#'     \code{sample_factors}        \cr \tab List with one character vector per variable, with factor level ordering. \cr
+#'     \code{reference_levels}      \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
+#'     \code{covariate_types}       \cr \tab Optional; classification of variables in \code{config$frm}, as set by \code{initialize()}. \cr
+#'     \code{factor_levels}         \cr \tab Optional; resolved levels of each factor variable, as set by \code{initialize()}. \cr
 #'     \code{normalization_method}  \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
 #'   }
 #' @param is_log_transformed Logical scalar indicating if \code{state$expression} has been log transformed.
@@ -773,10 +772,7 @@ test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit
 #'   gene_id_col="gene",
 #'   frm=~grp+sex+grp:sex, 
 #'   test_term="grp",
-#'   sample_factors=list( 
-#'     grp=c("ctl", "trt"), 
-#'     sex=c("F", "M")
-#'   )
+#'   reference_levels=c(grp="ctl", sex="F")
 #' )
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
 #' 
@@ -846,13 +842,47 @@ test_prolfqua <- function(state, config, is_log_transformed=NULL) {
   meta$hierarchy[[config$gene_id_col]] <- config$gene_id_col
   meta$hierarchy[[config$feat_id_col]] <- config$feat_id_col
 
+  ## prolfqua::AnalysisTableAnnotation$factors holds categorical annotations
+  ##   only, so every covariate has to be a factor here; declaration in
+  ##   config$reference_levels is not the test, since logical covariates and
+  ##   covariates already stored as factors are categorical without being
+  ##   declared:
+
+  types <- f.covariate_types(state, config)
+
   for(trm in trms) {
-    if(!(trm %in% names(config$sample_factors))) {
-      f.err("test_prolfqua: !(trm %in% config$sample_factors); trm: ", 
-        trm, config=config)
+
+    if(!(types[[trm]] %in% "factor")) {
+      f.err("test_prolfqua: covariate", trm, "in config$frm is continuous;",
+        "test_prolfqua() only handles factor covariates;", "\n",
+        "either drop", trm, "from config$frm, or declare its reference level",
+        "in config$reference_levels to treat it as categorical;", "\n",
+        "config$covariate_types:", paste(names(types), types, sep="="),
+        config=config)
     }
+
     meta$factors[[trm]] <- trm
-    dat[, trm] <- as.character(samps[dat$sample, trm, drop=T])
+
+    v <- samps[dat$sample, trm, drop=T]
+
+    ## initialize() has already ordered the levels, with the declared reference
+    ##   level first; coercing to character here would leave the downstream fit
+    ##   to re-derive the reference level by sorting, silently changing the
+    ##   meaning of the reported coefficients:
+
+    lvls <- config$factor_levels[[trm]]
+    if(is.null(lvls)) lvls <- levels(factor(v))
+    v <- factor(as.character(v), levels=lvls)
+
+    if(any(is.na(v))) {
+      f.err("test_prolfqua: covariate", trm, "has values that are not among",
+        "the levels set by initialize();", "\n", "levels:", lvls, "\n",
+        "unmatched values:",
+        utils::head(sort(unique(as.character(samps[dat$sample, trm,
+          drop=T])[is.na(v)])), 10), config=config)
+    }
+
+    dat[, trm] <- v
   }
   obj <- prolfqua::LFQData$new(data=dat, config=meta)
   
@@ -888,7 +918,7 @@ test_prolfqua <- function(state, config, is_log_transformed=NULL) {
 #'     \code{obs_col}        \cr \tab Name of column in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
 #'     \code{frm}            \cr \tab Formula (formula) to be fit. \cr
 #'     \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
-#'     \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
+#'     \code{reference_levels} \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm} (see examples). \cr
 #'   }
 #' @param normalize.method Character in 
 #'   \code{c("TMM", "TMMwsp", "RLE", "upperquartile", "none")}.
@@ -915,7 +945,7 @@ test_prolfqua <- function(state, config, is_log_transformed=NULL) {
 #' config$obs_col <- config$obs_id_col <- config$sample_id_col <- "observation_id"
 #' config$frm <- ~condition
 #' config$test_term <- "condition"
-#' config$sample_factors <- list(condition=c("placebo", "drug"))
+#' config$reference_levels <- c(condition="placebo")
 #'
 #' ## set up and check configuration, including covariates:
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
@@ -977,7 +1007,7 @@ test_voom <- function(state, config, normalize.method="none") {
 #'     \code{obs_col}        \cr \tab Name of column in \code{sample_file_in} corresponding to \code{colnames(state$expression)}. \cr
 #'     \code{frm}            \cr \tab Formula (formula) to be fit. \cr
 #'     \code{test_term}      \cr \tab Term (scalar character) to be tested for non-zero coefficient. \cr
-#'     \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
+#'     \code{reference_levels} \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm} (see examples). \cr
 #'   }
 #' @return 
 #'   A list with components:
@@ -1002,7 +1032,7 @@ test_voom <- function(state, config, normalize.method="none") {
 #' config$obs_col <- config$obs_id_col <- config$sample_id_col <- "observation_id"
 #' config$frm <- ~condition
 #' config$test_term <- "condition"
-#' config$sample_factors <- list(condition=c("placebo", "drug"))
+#' config$reference_levels <- c(condition="placebo")
 #'
 #' ## set up and check covariates and parameters:
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
@@ -1252,7 +1282,7 @@ test_methods <- function() {
 #'     \code{gene_id_col}    \cr \tab Name of column in \code{state$fetaures} with gene/protein-group ids. \cr
 #'     \code{frm}            \cr \tab Formula (formula) to be fit. \cr
 #'     \code{test_term}      \cr \tab Term (character scalar) to be tested for non-zero coefficient. \cr
-#'     \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
+#'     \code{reference_levels} \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm} (see examples). \cr
 #'     \code{test_method}    \cr \tab Character scalar in \code{c("lm", "trend", "deqms", "msqrob", "proda", "prolfqua", "voom")}. \cr
 #'   }
 #' @param method Name of test method where 
@@ -1291,7 +1321,7 @@ test_methods <- function() {
 #' config <- list(feat_id_col="feature_id", gene_id_col="feature_id", 
 #'   obs_id_col="observation_id", sample_id_col="observation_id", 
 #'   frm=~condition, test_term="condition",
-#'   sample_factors=list(condition=c("placebo", "drug"))
+#'   reference_levels=c(condition="placebo")
 #' )
 #' 
 #' ## set up and check covariates and parameters:

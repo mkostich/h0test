@@ -21,8 +21,8 @@ This function is meant to simplify generation of configurations for
     simpler config as a list containing only the needed parameters. See 
     documentation and examples for the function of interest for the minimal 
     configuration needed.
-  For hypothesis testing or calls to \code{h0testr::initialize()}, 
-    customize \code{frm}, \code{test_term}, and \code{sample_factors}.
+  For hypothesis testing or calls to \code{h0testr::initialize()},
+    customize \code{frm}, \code{test_term}, and \code{reference_levels}.
   When using the config to load data from files (e.g. by calling 
     \code{h0testr::load_data(config)}), calling 
     \code{h0testr::initialize()}, or for aggregating multiple 
@@ -40,10 +40,10 @@ This function is meant to simplify generation of configurations for
 config <- new_config()    ## all possible settings with defaults
 str(config)                 ## check out the default settings
 
-## you MUST customize frm, test_term, and sample_factors:
+## you MUST customize frm, test_term, and reference_levels:
 config$frm <- ~ age + sex + age:sex
 config$test_term <- "age:sex"
-config$sample_factors <- list(age=c("young", "old"), sex=c("female", "male"))
+config$reference_levels <- c(age="young", sex="female")
 
 ## these may or may not need customization, depending on your file formats:
 config$feat_id_col <- "peptide_id"

@@ -76,9 +76,9 @@ config$sample_id_col <- "sample_id"   ## column in sample file identifying sampl
 ## customize testing configuration:
 config$frm <- ~ age + gender + age:gender    ## formula to fit ('~+:' ok; '*' not tested)
 config$test_term <- "age:gender"             ## term in config$frm to test
-config$sample_factors=list(                  ## levels of factor variables in sample metadata
-  age=c("young", "old"),    
-  gender=c("Male", "Female")
+config$reference_levels=c(                   ## reference level of each factor variable
+  age="young",
+  gender="Male"
 )
 
 ## run workflow, generating hit table:
@@ -160,7 +160,7 @@ Runs are configured by editing the list object returned by the
 `new_config()` function, which contains the default configuration. The most 
 frequently changed settings are towards the top of the returned list of 
 defaults, and are briefly described below. **At a minimum**: edit the
-the `frm`, `test_term`, and `sample_factors`, as the defaults are almost 
+the `frm`, `test_term`, and `reference_levels`, as the defaults are almost 
 certainly wrong for your experiment.
 
 ```
@@ -183,11 +183,21 @@ feat_col=""                         ## for internal use; leave ""; feats[, feat_
 frm=~age+gender+age:gender          ## formula with variable of interest and covariates
 test_term="age:gender"              ## term (scalar character) in $frm on which test is to be performed
 permute_var=""                      ## name (scalar character) of variable to permute; "" for no permutation (normal execution)
-sample_factors=list(                 ## set levels of factor variables in $frm
-  age=c("young", "old"),             ## by default, numeric treated as numeric; if levels set here, treated as factor
-  gender=c("Male", "Female")         ## by default, character treated as factor with alphabetically ordered levels
+reference_levels=c(                  ## reference level of each factor variable in $frm
+  age="young",                       ## numeric variable treated as continuous unless named here
+  gender="Male"                      ## character variable must be named here; else error
 )
+n_distinct_numeric_warn=5            ## warn if continuous variable in $frm has this few distinct values
 ```
+
+Only the reference level of each factor variable is declared; the remaining
+levels are sorted. So a variable that is not named in `reference_levels` is
+continuous if it is numeric, and an error if it is character: its reference
+level, and hence the meaning of its coefficients, would otherwise be decided by
+locale dependent sorting. Logical variables need no declaration, since they are
+always ordered `FALSE`, `TRUE`. The resolved level ordering of each factor
+variable is written to the log, and returned in `config$factor_levels` by
+`h0testr::initialize()`.
 
 Here are the rest of the configuration options. The normalization, imputaton, 
 filtering and testing options can be set further down in the list:
@@ -524,7 +534,7 @@ config$n_features_min <- 10         ## default 1000 too big for small demo datas
 config$frm <- ~grp
 config$test_term <- "grp"
 config$test_method <- "trend"
-config$sample_factors <- list(grp=c("ctl", "trt"))
+config$reference_levels <- c(grp="ctl")
 
 ## one run with unpermuted data:
 config$permute_var <- ""            ## no permutation
@@ -714,9 +724,9 @@ config$sample_id_col <- "SampleId"
 config$frm <- ~age + sex + age:sex
 config$test_term <- "age:sex"
 config$permute_var <- ""
-config$sample_factors <- list(
-  age=c("4mo", "12mo", "24mo"),
-  sex=c("female", "male")  
+config$reference_levels <- c(
+  age="4mo",                        ## remaining levels sorted: "12mo", "24mo"
+  sex="female"
 )
 
 ## a reasonable setup when replication is limited:

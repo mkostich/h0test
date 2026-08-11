@@ -50,7 +50,7 @@ config$sample_id_col <- "observation_id"
 config$frm <- ~condition
 config$test_term <- "condition"
 config$test_method <- "trend"
-config$sample_factors <- list(condition=c("placebo", "drug"))
+config$reference_levels <- c(condition="placebo")
 
 output <- h0testr::load_data(config)
 

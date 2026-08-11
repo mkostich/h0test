@@ -87,10 +87,7 @@ config <- list(
   gene_id_col="gene",
   frm=~grp+sex+grp:sex, 
   test_term="grp",
-  sample_factors=list( 
-    grp=c("ctl", "trt"), 
-    sex=c("F", "M")
-  )
+  reference_levels=c(grp="ctl", sex="F")
 )
 out <- h0testr::initialize(state, config, minimal=TRUE)
 

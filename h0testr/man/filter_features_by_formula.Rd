@@ -2,7 +2,7 @@
 % Please edit documentation in R/filter.R
 \name{filter_features_by_formula}
 \alias{filter_features_by_formula}
-\title{Filter features without enough distinct values for each marginal term in \code{config$frm}.}
+\title{Filter features without enough distinct values for each variable in \code{config$frm}.}
 \usage{
 filter_features_by_formula(
   state,
@@ -23,16 +23,18 @@ filter_features_by_formula(
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{frm} \cr \tab Formula object specifying model to be fitted. \cr
+  \code{frm}             \cr \tab Formula object specifying model to be fitted. \cr
+  \code{reference_levels} \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
+  \code{covariate_types} \cr \tab Optional; classification of variables in \code{config$frm}, as set by \code{initialize()}. \cr
 }}
 
 \item{n_non_na_min}{Minimum number of non-NA values per feature. Non-negative integer.}
 
 \item{n_distinct_min}{Minimum number of distinct non-NA values per feature. Non-negative integer.}
 
-\item{n_groups_non_na_min}{Minimum number of treatment levels meeting \code{n_non_na_min}. Non-negative integer.}
+\item{n_groups_non_na_min}{Minimum number of factor levels meeting \code{n_non_na_min}. Non-negative integer. Ignored for numeric variables.}
 
-\item{n_groups_distinct_min}{Minimum number of treatment levels meeting \code{n_distinct_min}. Non-negative integer.}
+\item{n_groups_distinct_min}{Minimum number of factor levels meeting \code{n_distinct_min}. Non-negative integer. Ignored for numeric variables.}
 }
 \value{
 An updated \code{state} list with the following elements:
@@ -43,12 +45,26 @@ An updated \code{state} list with the following elements:
   }
 }
 \description{
-Filter features without enough distinct values for each marginal term in \code{config$frm}.
+Filter features without enough distinct values for each variable in \code{config$frm}.
 }
 \details{
-Feature considered expressed if \code{state$expression > 0}; 
-    \code{NA}s count as no expression. For continuous predictors (independent variables),
-    number of levels corresponds to number of distinct values.
+Every variable in \code{config$frm} is screened, including variables that
+    appear only within an interaction term. Interaction terms themselves are
+    not screened here.
+  This is a cheap pre-screen, intended to remove obviously untestable
+    features before more expensive steps; whether a term is actually
+    estimable for a feature is a separate question.
+  For a factor variable, a feature is kept if at least
+    \code{n_groups_non_na_min} levels have at least \code{n_non_na_min}
+    non-\code{NA} values, and at least \code{n_groups_distinct_min} levels
+    have at least \code{n_distinct_min} distinct non-\code{NA} values.
+  For a numeric (continuous) variable there are no levels to count, so a
+    feature is kept if it has at least \code{n_non_na_min} non-\code{NA}
+    values, at least \code{n_distinct_min} distinct values among them, and
+    the variable takes at least two distinct values across the observations
+    where the feature was measured.
+  Variables are classified as factor or numeric as described for
+    \code{h0testr::initialize()}.
 }
 \examples{
 set.seed(101)

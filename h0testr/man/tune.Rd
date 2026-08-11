@@ -99,7 +99,7 @@ config$n_features_min <- 10         ## default 1000 too big for small demo datas
 config$frm <- ~condition
 config$test_term <- "condition"
 config$test_method <- "trend"
-config$sample_factors <- list(condition=c("placebo", "drug"))
+config$reference_levels <- c(condition="placebo")
 
 ## one run with unpermuted data:
 config$permute_var <- ""            ## no permutation

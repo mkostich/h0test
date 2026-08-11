@@ -76,11 +76,11 @@ f.check_parameters <- function(state, config, initialized=F, minimal=F) {
   if(minimal) {
     reqd_params <- c("obs_id_col", "sample_id_col", 
       "feat_id_col", "gene_id_col", 
-      "frm", "test_term", "sample_factors")
+      "frm", "test_term", "reference_levels")
   } else {
     reqd_params <- c("n_samples_expr_col", "median_raw_col", 
       "n_features_expr_col", "obs_id_col", "sample_id_col", "feat_id_col", 
-      "gene_id_col", "frm", "test_term", "sample_factors")
+      "gene_id_col", "frm", "test_term", "reference_levels")
   }
   
   for(param in reqd_params) {
@@ -149,7 +149,7 @@ f.check_parameters <- function(state, config, initialized=F, minimal=F) {
   return(TRUE)
 }
 
-## uses config$frm, config$sample_factors, config$obs_id_col, and config$sample_id_col:
+## uses config$frm, config$reference_levels, config$obs_id_col, and config$sample_id_col:
 
 f.subset_covariates <- function(state, config) {
   
@@ -162,12 +162,12 @@ f.subset_covariates <- function(state, config) {
       vars, "; names(state$samples):", names(state$samples), config=config)
   }
   
-  if(!all(names(config$sample_factors) %in% vars)) {
+  if(!all(names(config$reference_levels) %in% vars)) {
     f.err(
       "f.subset_covariates:",
-      "!all(names(config$sample_factors) %in% config$frm)", "\n",
+      "!all(names(config$reference_levels) %in% config$frm)", "\n",
       "vars:", vars, "\n",
-      "names(config$sample_factors):", names(config$sample_factors), 
+      "names(config$reference_levels):", names(config$reference_levels),
       config=config
     )
   }
@@ -178,37 +178,77 @@ f.subset_covariates <- function(state, config) {
   return(state)
 }
 
-## uses config$sample_factors
+## uses config$reference_levels and config$frm; sets levels of the factor
+##   covariates in config$frm, putting the declared reference level first and
+##   the remaining levels in sorted order, and reports the levels and reference
+##   level of each factor covariate, as well as the distribution of each numeric
+##   (continuous) covariate, so that a misclassified covariate is visible in the
+##   log. Optional types from f.covariate_types():
 
-f.set_covariate_factor_levels <- function(state, config) {
-  
+f.set_covariate_factor_levels <- function(state, config, types=NULL) {
+
   f.msg("setting factor levels", config=config)
-  
-  for(nom in names(config$sample_factors)) {
-    
+
+  if(is.null(types)) types <- f.covariate_types(state, config)
+
+  for(nom in names(types)) {
+
     ## check for potential misconfiguration first:
     if(!(nom %in% names(state$samples))) {
-      f.err("f.set_covariate_factor_levels: !(nom %in% names(state$samples)); nom:", 
+      f.err("f.set_covariate_factor_levels: !(nom %in% names(state$samples)); nom:",
         nom, "; names(state$samples):", names(state$samples), config=config)
     }
-    
-    lvls1 <- config$sample_factors[[nom]]
-    lvls2 <- sort(unique(as.character(state$samples[[nom]])))
-    if(!all(lvls1 %in% lvls2)) {
-      f.err("f.set_covariate_factor_levels: !all(lvls1 %in% lvls2) for nom:", 
-        nom, "\n", "lvls1:", lvls1, "\n", "lvls2:", lvls2, config=config)
+
+    if(types[nom] %in% "numeric") {
+      f.msg("covariate", nom, ": numeric (continuous); distribution:", config=config)
+      f.quantile(state$samples[[nom]], config)
+      next
     }
-    if(!all(lvls2 %in% lvls1)) {
-      f.err("f.set_covariate_factor_levels: !all(lvls2 %in% lvls1) for nom:", 
-        nom, "\n", "lvls1:", lvls1, "\n", "lvls2:", lvls2, config=config)
+
+    ## NOTE: config$reference_levels is an atomic vector, so [[ throws on a
+    ##   name that is not present, rather than returning NULL:
+
+    ref1 <- NULL
+    if(nom %in% names(config$reference_levels)) {
+      ref1 <- config$reference_levels[[nom]]
     }
-    state$samples[[nom]] <- as.character(state$samples[[nom]])
-    state$samples[[nom]] <- factor(
-      state$samples[[nom]], 
-      levels=config$sample_factors[[nom]]
-    )
+
+    if(is.null(ref1)) {
+
+      ## logical covariates are ordered FALSE, TRUE, and a covariate that is
+      ##   already a factor carries its own level ordering; neither of these is
+      ##   locale dependent, so neither needs to be declared:
+
+      state$samples[[nom]] <- factor(state$samples[[nom]])
+
+    } else {
+
+      if(!(length(ref1) %in% 1 && is.character(ref1))) {
+        f.err("f.set_covariate_factor_levels: config$reference_levels[[nom]]",
+          "not scalar character, for nom:", nom, "\n", "value:", ref1,
+          "; class:", class(ref1), config=config)
+      }
+
+      ## only the reference level is declared, so the remaining levels are
+      ##   sorted; their order does not affect the reference level, but it does
+      ##   affect the order in which coefficients are reported:
+
+      lvls2 <- sort(unique(as.character(state$samples[[nom]])))
+      if(!(ref1 %in% lvls2)) {
+        f.err("f.set_covariate_factor_levels: reference level", ref1,
+          "declared in config$reference_levels is not among the values of",
+          "covariate", nom, ";", "\n", "its values:", lvls2, config=config)
+      }
+      state$samples[[nom]] <- as.character(state$samples[[nom]])
+      state$samples[[nom]] <- factor(state$samples[[nom]],
+        levels=c(ref1, setdiff(lvls2, ref1)))
+    }
+
+    lvls <- levels(state$samples[[nom]])
+    f.msg("covariate", nom, ": factor; levels:", lvls, "; reference:", lvls[1],
+      config=config)
   }
-  
+
   return(state)
 }
 
@@ -219,19 +259,33 @@ f.set_covariate_factor_levels <- function(state, config) {
 #' @details 
 #'   Checks to make sure columns specified in \code{config} parameters are 
 #'     found in \code{state$features} and \code{state$samples}.
-#'   Check covariates referred to in \code{config$frm} are found in 
-#'     \code{state$samples}, subsets only the needed variables into 
-#'     \code{state$samples}, and sets covariate factor levels 
-#'     according to \code{config$sample_factors}.
+#'   Check covariates referred to in \code{config$frm} are found in
+#'     \code{state$samples}, subsets only the needed variables into
+#'     \code{state$samples}, and sets covariate factor levels
+#'     according to \code{config$reference_levels}.
+#'   Each covariate in \code{config$frm} is classified as a factor or as
+#'     numeric (continuous): variables named in \code{config$reference_levels}
+#'     as well as logical variables are factors; other numeric variables are
+#'     continuous; a character variable that is not named in
+#'     \code{config$reference_levels} is an error, since its reference level,
+#'     and hence the meaning of its coefficients, would otherwise be set by
+#'     locale dependent sorting of its values. The classification is returned in
+#'     \code{config$covariate_types}. Missing, non-finite, and constant
+#'     covariate values are errors. A continuous covariate with
+#'     \code{config$n_distinct_numeric_warn} or fewer distinct values is
+#'     warned about, as it may be a miscoded factor.
+#'   \code{config$reference_levels} declares only the reference (first) level of
+#'     each factor covariate; the remaining levels are sorted. The resulting
+#'     level ordering of each factor covariate is logged, and returned in
+#'     \code{config$factor_levels}.
 #'   Flow is:
 #'     \tabular{l}{
 #'       1. \code{check_config()}. \cr
 #'       2. Subset covariates in \code{config$frm}. \cr
 #'       3. Check feat_col and obs_col. \cr
 #'       4. Subset covariates of interest. \cr
-#'       5. Set covariate factor levels. \cr
-#'       6. Return sub-table of ANOVA results corresponding to 
-#'            \code{config$test_term}. \cr
+#'       5. Classify covariates and check their values. \cr
+#'       6. Set covariate factor levels. \cr
 #'     }
 #'   If \code{initialized=FALSE}, then checks if \code{state$features} has 
 #'     columns with names in 
@@ -256,7 +310,8 @@ f.set_covariate_factor_levels <- function(state, config) {
 #'     \code{gene_id_col}          \cr \tab Column in \code{state$features} with unique gene/protein group ids. \cr
 #'     \code{frm}                  \cr \tab Formula object specifying formula to be fit. \cr
 #'     \code{test_term}            \cr \tab Term (character) in \code{config$frm} to test for significance. \cr
-#'     \code{sample_factors}       \cr \tab List with levels of factor variables in \code{config$frm}. \cr
+#'     \code{reference_levels}     \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
+#'     \code{n_distinct_numeric_warn} \cr \tab Warn if continuous variable in \code{config$frm} has this few distinct values. \cr
 #'     \code{n_samples_expr_col}   \cr \tab Column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
 #'     \code{median_raw_col}       \cr \tab Column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
 #'     \code{n_features_expr_col}  \cr \tab Column in \code{state$samples} that corresponds to columns of \code{data_file_in}. \cr
@@ -291,7 +346,7 @@ f.set_covariate_factor_levels <- function(state, config) {
 #'   gene_id_col="gene_id",
 #'   frm=~condition,
 #'   test_term="condition",
-#'   sample_factors=list(condition=c("ctl", "trt"))
+#'   reference_levels=c(condition="ctl")
 #' )
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
 #' print(out$state)
@@ -304,7 +359,7 @@ f.set_covariate_factor_levels <- function(state, config) {
 #'   gene_id_col="gene_id",
 #'   frm=~condition,
 #'   test_term="condition", 
-#'   sample_factors=list(condition=c("ctl", "trt")),
+#'   reference_levels=c(condition="ctl"),
 #'   n_samples_expr_col="n_samples_exprs",
 #'   median_raw_col="median_raw",
 #'   n_features_expr_col="n_features_exprs"
@@ -363,8 +418,27 @@ initialize <- function(state, config, initialized=F, minimal=F) {
   }
   
   state <- f.subset_covariates(state, config)
-  state <- f.set_covariate_factor_levels(state, config)
-  
+
+  ## classify the covariates in config$frm as factor or numeric (continuous)
+  ##   once, here, and check their values before anything is fit; any cached
+  ##   classification is discarded, so that initialize() is authoritative:
+
+  config$covariate_types <- NULL
+  types <- f.covariate_types(state, config)
+  f.check_covariate_values(state, config, types=types)
+  config$covariate_types <- types
+
+  state <- f.set_covariate_factor_levels(state, config, types=types)
+
+  ## record the resolved levels of each factor covariate, in the order used to
+  ##   build the design matrix, since config$reference_levels only declares the
+  ##   first of them:
+
+  config$factor_levels <- list()
+  for(nom in names(types)[types %in% "factor"]) {
+    config$factor_levels[[nom]] <- levels(state$samples[[nom]])
+  }
+
   return(list(state=state, config=config))
 }
 
@@ -477,7 +551,7 @@ permute <- function(state, config, variable=NULL) {
 #' config$frm <- ~condition
 #' config$test_term <- "condition"
 #' config$test_method <- "trend"
-#' config$sample_factors <- list(condition=c("placebo", "drug"))
+#' config$reference_levels <- c(condition="placebo")
 #' 
 #' output <- h0testr::load_data(config)
 #' 

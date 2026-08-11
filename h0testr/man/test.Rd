@@ -21,7 +21,7 @@ test(state, config, method = NULL, is_log_transformed = NULL, prior_df = NULL)
   \code{gene_id_col}    \cr \tab Name of column in \code{state$fetaures} with gene/protein-group ids. \cr
   \code{frm}            \cr \tab Formula (formula) to be fit. \cr
   \code{test_term}      \cr \tab Term (character scalar) to be tested for non-zero coefficient. \cr
-  \code{sample_factors} \cr \tab List specifying levels of factor variables in \code{config$frm} (see examples). \cr
+  \code{reference_levels} \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm} (see examples). \cr
   \code{test_method}    \cr \tab Character scalar in \code{c("lm", "trend", "deqms", "msqrob", "proda", "prolfqua", "voom")}. \cr
 }}
 
@@ -83,7 +83,7 @@ state <- list(expression=exprs, features=feats, samples=samps)
 config <- list(feat_id_col="feature_id", gene_id_col="feature_id", 
   obs_id_col="observation_id", sample_id_col="observation_id", 
   frm=~condition, test_term="condition",
-  sample_factors=list(condition=c("placebo", "drug"))
+  reference_levels=c(condition="placebo")
 )
 
 ## set up and check covariates and parameters:

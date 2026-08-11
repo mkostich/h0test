@@ -66,7 +66,7 @@ config$feat_col <- config$feat_id_col <- config$gene_id_col <- "feature_id"
 config$obs_col <- config$obs_id_col <- config$sample_id_col <- "observation_id"
 config$frm <- ~condition
 config$test_term <- "condition"
-config$sample_factors <- list(condition=c("placebo", "drug"))
+config$reference_levels <- c(condition="placebo")
 
 ## set up and check covariates and parameters:
 out <- h0testr::initialize(state, config, minimal=TRUE)

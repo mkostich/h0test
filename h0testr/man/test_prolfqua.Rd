@@ -21,7 +21,9 @@ test_prolfqua(state, config, is_log_transformed = NULL)
   \code{obs_col}               \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
   \code{frm}                   \cr \tab Formula (formula) to be fit. \cr
   \code{test_term}             \cr \tab Term (character) to be tested for non-zero coefficient. \cr
-  \code{sample_factors}        \cr \tab List with one character vector per variable, with factor level ordering. \cr
+  \code{reference_levels}      \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
+  \code{covariate_types}       \cr \tab Optional; classification of variables in \code{config$frm}, as set by \code{initialize()}. \cr
+  \code{factor_levels}         \cr \tab Optional; resolved levels of each factor variable, as set by \code{initialize()}. \cr
   \code{normalization_method}  \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
 }}
 
@@ -40,8 +42,14 @@ Tests for differential expression using the \code{prolfq::build_model()} functio
 }
 \details{
 Uses the \code{proDA::proDA()} function. Returned results sorted by p-value.
-    Only works if all terms in \code{config$frm} are \code{factor} or 
-    \code{character}. Error otherwise.
+    Only works if every variable in \code{config$frm} is categorical, that is,
+    classified as \code{"factor"} in \code{config$covariate_types}. A
+    continuous (numeric) covariate is an error.
+  The level ordering set by \code{initialize()} is preserved, so the
+    coefficients of the returned \code{fit} are relative to the reference
+    level declared in \code{config$reference_levels}. The returned
+    \code{hits} are term-level ANOVA F-tests, which do not depend on the
+    choice of reference level.
   Flow is:
     \tabular{l}{
       1. Reshape data into long format with intensities, feature meta, and sample meta. \cr
@@ -85,10 +93,7 @@ config <- list(
   gene_id_col="gene",
   frm=~grp+sex+grp:sex, 
   test_term="grp",
-  sample_factors=list( 
-    grp=c("ctl", "trt"), 
-    sex=c("F", "M")
-  )
+  reference_levels=c(grp="ctl", sex="F")
 )
 out <- h0testr::initialize(state, config, minimal=TRUE)
 

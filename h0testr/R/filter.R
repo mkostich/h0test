@@ -1,42 +1,86 @@
-## features with at least two distinct values for each marginal term; character term
-##   numeric matrix exprs, data.frame meta:
+## features with enough distinct values for one variable in the formula;
+##   character scalar term, character scalar type in c("factor", "numeric")
+##   (from f.covariate_types()), numeric matrix state$expression, data.frame
+##   state$samples:
 
-f.filter_features_by_term <- function(term, state, config, 
-    n_non_na_min=2, n_distinct_min=2, 
+f.filter_features_by_term <- function(term, state, config, type="factor",
+    n_non_na_min=2, n_distinct_min=2,
     n_groups_non_na_min=2, n_groups_distinct_min=1) {
-  
+
   if(!(term %in% names(state$samples))) {
-    f.err("f.filter_features_by_term: term: ", term, 
+    f.err("f.filter_features_by_term: term: ", term,
       " not in names(state$samples): ", names(state$samples), config=config)
   }
-  
-  f_ok <- function(v, term, meta) {
-    
-    ## n_non_na_min non-NA values in each of n_groups_non_na_min groups:
-    i <- !is.na(v)
-    mat <- as.matrix(table(meta[[term]][i]))
-    check1 <- sum(mat[, 1, drop=T] >= n_non_na_min, na.rm=T) >= n_groups_non_na_min
-    
-    ## n_distinct_min unique non-NA values in n_groups_distinct_min groups:
-    i <- !(is.na(v) | duplicated(v))
-    mat <- as.matrix(table(meta[[term]][i]))
-    check2 <- sum(mat[, 1, drop=T] >= n_distinct_min, na.rm=T) >= n_groups_distinct_min
-    
-    return(check1 && check2)
+
+  if(!(length(type) %in% 1 && type %in% c("factor", "numeric"))) {
+    f.err("f.filter_features_by_term: type not scalar in c('factor',",
+      "'numeric'); term:", term, "; type:", type, config=config)
   }
-  
-  i_ok <- apply(state$expression, 1, f_ok, term, state$samples)
-  
+
+  if(type %in% "numeric") {
+
+    ## a continuous variable has no groups whose members can be counted, and
+    ##   counting its distinct values as groups would drop nearly every feature;
+    ##   so the cheap screen is enough non-NA values, enough distinct values
+    ##   among them, and at least two distinct values of the variable among the
+    ##   observations that were measured. Whether the corresponding term is
+    ##   actually estimable is settled by filter_features_by_estimability():
+
+    x <- state$samples[[term]]
+
+    f_ok_num <- function(v) {
+      i <- !is.na(v)
+      if(sum(i) < n_non_na_min) return(FALSE)
+      if(length(unique(v[i])) < n_distinct_min) return(FALSE)
+      return(length(unique(x[i])) >= 2)
+    }
+
+    i_ok <- apply(state$expression, 1, f_ok_num)
+
+  } else {
+
+    f_ok_fac <- function(v, term, meta) {
+
+      ## n_non_na_min non-NA values in each of n_groups_non_na_min groups:
+      i <- !is.na(v)
+      mat <- as.matrix(table(meta[[term]][i]))
+      check1 <- sum(mat[, 1, drop=T] >= n_non_na_min, na.rm=T) >= n_groups_non_na_min
+
+      ## n_distinct_min unique non-NA values in n_groups_distinct_min groups:
+      i <- !(is.na(v) | duplicated(v))
+      mat <- as.matrix(table(meta[[term]][i]))
+      check2 <- sum(mat[, 1, drop=T] >= n_distinct_min, na.rm=T) >= n_groups_distinct_min
+
+      return(check1 && check2)
+    }
+
+    i_ok <- apply(state$expression, 1, f_ok_fac, term, state$samples)
+  }
+
   return(i_ok)
 }
 
-#' Filter features without enough distinct values for each marginal term in \code{config$frm}.
+#' Filter features without enough distinct values for each variable in \code{config$frm}.
 #' @description
-#'   Filter features without enough distinct values for each marginal term in \code{config$frm}.
+#'   Filter features without enough distinct values for each variable in \code{config$frm}.
 #' @details
-#'   Feature considered expressed if \code{state$expression > 0}; 
-#'     \code{NA}s count as no expression. For continuous predictors (independent variables),
-#'     number of levels corresponds to number of distinct values.
+#'   Every variable in \code{config$frm} is screened, including variables that
+#'     appear only within an interaction term. Interaction terms themselves are
+#'     not screened here.
+#'   This is a cheap pre-screen, intended to remove obviously untestable
+#'     features before more expensive steps; whether a term is actually
+#'     estimable for a feature is a separate question.
+#'   For a factor variable, a feature is kept if at least
+#'     \code{n_groups_non_na_min} levels have at least \code{n_non_na_min}
+#'     non-\code{NA} values, and at least \code{n_groups_distinct_min} levels
+#'     have at least \code{n_distinct_min} distinct non-\code{NA} values.
+#'   For a numeric (continuous) variable there are no levels to count, so a
+#'     feature is kept if it has at least \code{n_non_na_min} non-\code{NA}
+#'     values, at least \code{n_distinct_min} distinct values among them, and
+#'     the variable takes at least two distinct values across the observations
+#'     where the feature was measured.
+#'   Variables are classified as factor or numeric as described for
+#'     \code{h0testr::initialize()}.
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -45,12 +89,14 @@ f.filter_features_by_term <- function(term, state, config,
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{frm} \cr \tab Formula object specifying model to be fitted. \cr
+#'     \code{frm}             \cr \tab Formula object specifying model to be fitted. \cr
+#'     \code{reference_levels} \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
+#'     \code{covariate_types} \cr \tab Optional; classification of variables in \code{config$frm}, as set by \code{initialize()}. \cr
 #'   }
 #' @param n_non_na_min Minimum number of non-NA values per feature. Non-negative integer.
 #' @param n_distinct_min Minimum number of distinct non-NA values per feature. Non-negative integer.
-#' @param n_groups_non_na_min Minimum number of treatment levels meeting \code{n_non_na_min}. Non-negative integer.
-#' @param n_groups_distinct_min Minimum number of treatment levels meeting \code{n_distinct_min}. Non-negative integer.
+#' @param n_groups_non_na_min Minimum number of factor levels meeting \code{n_non_na_min}. Non-negative integer. Ignored for numeric variables.
+#' @param n_groups_distinct_min Minimum number of factor levels meeting \code{n_distinct_min}. Non-negative integer. Ignored for numeric variables.
 #' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -75,22 +121,28 @@ filter_features_by_formula <- function(state, config,
   if(is.null(config$frm)) {
     f.err("filter_features_by_formula: is.null(config$frm)", config=config)
   }
-  ## marginal (single variable) terms only; '*' is expanded by f.parse_frm(),
-  ##   so ~x1*x2 is screened on x1 and x2. A variable appearing only within an
-  ##   interaction is not screened here:
-  parsed <- f.parse_frm(config$frm, config)
-  frm <- parsed$labels[!grepl(":", parsed$labels, fixed=T)]
-  
-  result <- sapply(
-    frm, f.filter_features_by_term, 
-    state, config,
-    n_non_na_min=n_non_na_min, 
-    n_distinct_min=n_distinct_min, 
-    n_groups_non_na_min=n_groups_non_na_min, 
-    n_groups_distinct_min=n_groups_distinct_min
-  )
-  if(is.null(dim(result))) result <- matrix(result, ncol=1)
-  
+  ## screened one variable at a time, including variables that appear only
+  ##   within an interaction; interaction terms themselves are left to
+  ##   filter_features_by_estimability(), since they have no cheap screen. The
+  ##   criteria depend on whether the variable is a factor or continuous:
+
+  types <- f.covariate_types(state, config)
+  vars <- names(types)
+
+  result <- matrix(TRUE, nrow=nrow(state$expression), ncol=length(vars),
+    dimnames=list(NULL, vars))
+
+  for(idx in seq_along(vars)) {
+    result[, idx] <- f.filter_features_by_term(
+      vars[idx], state, config,
+      type=types[[vars[idx]]],
+      n_non_na_min=n_non_na_min,
+      n_distinct_min=n_distinct_min,
+      n_groups_non_na_min=n_groups_non_na_min,
+      n_groups_distinct_min=n_groups_distinct_min
+    )
+  }
+
   i <- apply(result, 1, all, na.rm=F)
   i[is.na(i)] <- F
   
@@ -136,7 +188,8 @@ filter_features_by_formula <- function(state, config,
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs), age=c(rep("4m", 3), rep("12m", 3)))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(n_samples_min=3, frm=~age)
+#' ## age is character, so its reference level has to be declared:
+#' config <- list(n_samples_min=3, frm=~age, reference_levels=c(age="4m"))
 #' state2 <- h0testr::filter_features(state, config)
 #' print(state)
 #' print(state2)

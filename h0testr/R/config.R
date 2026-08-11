@@ -10,8 +10,8 @@
 #'     simpler config as a list containing only the needed parameters. See 
 #'     documentation and examples for the function of interest for the minimal 
 #'     configuration needed.
-#'   For hypothesis testing or calls to \code{h0testr::initialize()}, 
-#'     customize \code{frm}, \code{test_term}, and \code{sample_factors}.
+#'   For hypothesis testing or calls to \code{h0testr::initialize()},
+#'     customize \code{frm}, \code{test_term}, and \code{reference_levels}.
 #'   When using the config to load data from files (e.g. by calling 
 #'     \code{h0testr::load_data(config)}), calling 
 #'     \code{h0testr::initialize()}, or for aggregating multiple 
@@ -29,10 +29,10 @@
 #' config <- new_config()    ## all possible settings with defaults
 #' str(config)                 ## check out the default settings
 #' 
-#' ## you MUST customize frm, test_term, and sample_factors:
+#' ## you MUST customize frm, test_term, and reference_levels:
 #' config$frm <- ~ age + sex + age:sex
 #' config$test_term <- "age:sex"
-#' config$sample_factors <- list(age=c("young", "old"), sex=c("female", "male"))
+#' config$reference_levels <- c(age="young", sex="female")
 #'
 #' ## these may or may not need customization, depending on your file formats:
 #' config$feat_id_col <- "peptide_id"
@@ -66,11 +66,12 @@ new_config <- function() {
     frm=~age+gender+age:gender,          ## formula with variable of interest and covariates
     test_term="age:gender",              ## term (scalar character) in $frm on which test is to be performed
     permute_var="",                      ## name (scalar character) of variable to permute; "" for no permutation (normal execution)
-    sample_factors=list(                 ## set levels of factor variables in $frm
-      age=c("young", "old"),             ## by default, numeric treated as numeric; if levels set here, treated as factor
-      gender=c("Male", "Female")         ## by default, character treated as factor with alphabetically ordered levels
+    reference_levels=c(                  ## reference level of each factor variable in $frm
+      age="young",                       ## numeric variable treated as continuous unless named here
+      gender="Male"                      ## character variable must be named here; else error
     ),
-    
+    n_distinct_numeric_warn=5,           ## warn if continuous variable in $frm has this few distinct values
+
     ## new cols introduced into metadata data.frames by the code:
     n_samples_expr_col="n_samps_expr",   ## new col (scalar character) for feature metadata; n samples expressing feature
     median_raw_col="median_raw",         ## new col (scalar character) for feature metadata; median feature expression in expressing samples
@@ -154,18 +155,22 @@ check_config <- function(config) {
     "sample_mid_out", "data_mid_out", "result_mid_out", "suffix_out", 
     "normalization_method", "feature_aggregation", "impute_method", "test_method")
   
-  scalar_counts <- c("n_samples_min", "n_features_min", "impute_n_pts", 
-    "impute_k", "impute_npcs", "impute_aug_steps", "test_prior_df", 
-    "width")
+  scalar_counts <- c("n_samples_min", "n_features_min", "impute_n_pts",
+    "impute_k", "impute_npcs", "impute_aug_steps", "test_prior_df",
+    "n_distinct_numeric_warn", "width")
   
   scalar_props <- c("normalization_quantile", "impute_quantile", "impute_span", 
     "impute_alpha", "normalization_span")
   scalar_positive <- c("impute_scale")
   scalar_logical <- c("feature_aggregation_scaled", "save_state", "verbose")
   scalar_formula <- c("frm")
-  vector_character <- c("run_order")
+  ## covariate_types is set by initialize(), not by the user; see
+  ##   f.covariate_types():
+  vector_character <- c("run_order", "covariate_types", "reference_levels")
   vector_props <- c("probs")
-  list_character <- c("sample_factors")
+  ## factor_levels is set by initialize(), not by the user; see
+  ##   f.set_covariate_factor_levels():
+  list_character <- c("factor_levels")
   
   ## check all param names in config are non-emtpy and recognized:
   
@@ -294,6 +299,34 @@ check_config <- function(config) {
     }
   }
 
+  ## reference_levels holds one reference level per factor variable in
+  ##   config$frm, so every element needs a variable name, and every value has
+  ##   to be a usable level:
+
+  for(nom in c("reference_levels", "covariate_types", "factor_levels")) {
+
+    if(!(nom %in% names(config)) || length(config[[nom]]) %in% 0) next
+
+    noms1 <- names(config[[nom]])
+
+    if(is.null(noms1) || any(is.na(noms1)) || any(nchar(noms1) %in% 0)) {
+      f.err("check_config:", nom, "needs a variable name for every element;",
+        "names:", noms1, config=config)
+    }
+
+    if(any(duplicated(noms1))) {
+      f.err("check_config: duplicated variable names in", nom, ":",
+        noms1[duplicated(noms1)], config=config)
+    }
+
+    if(nom %in% "factor_levels") next
+
+    if(any(is.na(config[[nom]])) || any(nchar(config[[nom]]) %in% 0)) {
+      f.err("check_config:", nom, "values must be non-empty and non-NA;",
+        "values:", paste(noms1, config[[nom]], sep="="), config=config)
+    }
+  }
+
   return(TRUE)
 }
 
@@ -312,17 +345,17 @@ check_config <- function(config) {
 #' @examples
 #' config <- new_config()
 #' 
-#' ## you must customize frm, test_term, and sample_factors:
+#' ## you must customize frm, test_term, and reference_levels:
 #' config$frm <- ~ age + sex + age:sex
 #' config$test_term <- "age:sex"
-#' config$sample_factors <- list(age=c("young", "old"), sex=c("female", "male"))
+#' config$reference_levels <- c(age="young", sex="female")
 #'
 #' ## these may or may not need customization, depending on your file formats:
 #' config$feat_id_col <- "peptide_id"
 #' config$gene_id_col <- "gene_id"
 #' config$sample_id_col <- "sample"
 #' config$obs_id_col <- "observation"
-#' 
+#'
 #' report_config(config)
 
 report_config <- function(config) {
@@ -335,6 +368,9 @@ report_config <- function(config) {
       for(k2 in names(v1)) {
         f.msg(k1, ":", k2, ":", paste(as.character(v1[[k2]]), sep=", "), config=config)
       }
+    } else if(!is.null(names(v1))) {
+      ## named vectors (e.g. config$covariate_types) reported as name=value:
+      f.msg(k1, ":", paste(names(v1), as.character(v1), sep="="), config=config)
     } else f.msg(k1, ":", paste(as.character(v1), sep=", "), config=config)
   }
   

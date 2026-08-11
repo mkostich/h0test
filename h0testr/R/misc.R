@@ -217,6 +217,129 @@ f.parse_frm <- function(frm, config) {
   return(out)
 }
 
+## Classify each variable in config$frm as "factor" or "numeric" (continuous).
+##   Single place where covariate type is decided, so that value checking,
+##   filtering, and hypothesis testing all agree. Rules, in order:
+##     1. named in config$reference_levels: "factor"; a numeric column may be
+##          declared there, which is how a numeric variable is made categorical;
+##     2. already a factor (e.g. set by f.set_covariate_factor_levels()): "factor";
+##     3. logical: "factor"; model.matrix() orders these FALSE, TRUE, which is
+##          deterministic, so no declaration is needed;
+##     4. numeric: "numeric" (continuous);
+##     5. anything else (typically character): error. Deriving the reference
+##          level by sorting the values is locale dependent, and silently sets
+##          the meaning of the reported coefficients, so the reference level has
+##          to be declared in config$reference_levels.
+##   Returns a named character vector with one element per variable in
+##   config$frm. config$covariate_types is reused when it covers exactly the
+##   variables in config$frm; since the caller controls the calling order, a
+##   cached value that does not match is ignored and recomputed:
+
+f.covariate_types <- function(state, config) {
+
+  vars <- sort(unique(f.parse_frm(config$frm, config)$vars))
+
+  if(!all(vars %in% names(state$samples))) {
+    f.err("f.covariate_types: !all(vars %in% names(state$samples)); vars:",
+      vars, "; names(state$samples):", names(state$samples), config=config)
+  }
+
+  cached <- config$covariate_types
+  if(!is.null(cached) && is.character(cached) && !is.null(names(cached)) &&
+      setequal(names(cached), vars) && all(cached %in% c("factor", "numeric"))) {
+    return(cached[vars])
+  }
+
+  out <- character(0)
+
+  for(nom in vars) {
+
+    v <- state$samples[[nom]]
+
+    if(nom %in% names(config$reference_levels)) {
+      out[nom] <- "factor"
+    } else if(is.factor(v) || is.logical(v)) {
+      out[nom] <- "factor"
+    } else if(is.numeric(v)) {
+      out[nom] <- "numeric"
+    } else {
+      f.err("f.covariate_types: covariate", nom, "in config$frm is of class",
+        class(v), "and is not declared in config$reference_levels;", "\n",
+        "add", nom, "to config$reference_levels to set its reference level;",
+        "\n", "distinct values:",
+        utils::head(sort(unique(as.character(v))), 10), config=config)
+    }
+  }
+
+  return(out)
+}
+
+## Check the values of the covariates in config$frm. Missing, non-finite, and
+##   constant covariates are errors: they cannot be fit, and letting them
+##   through means model.matrix() silently drops observations (so that the
+##   number of observations differs between features) or yields a
+##   rank-deficient design. A numeric covariate with few distinct values is
+##   often a miscoded factor, so is warned about; threshold is
+##   config$n_distinct_numeric_warn. Optional types from f.covariate_types():
+
+f.check_covariate_values <- function(state, config, types=NULL) {
+
+  if(is.null(types)) types <- f.covariate_types(state, config)
+
+  ## observation labels, for reporting which observations are offending:
+
+  obs <- NULL
+  for(nom in c(config$obs_col, config$obs_id_col)) {
+    if(length(nom) %in% 1 && nchar(nom) > 0 && nom %in% names(state$samples)) {
+      obs <- as.character(state$samples[[nom]])
+      break
+    }
+  }
+  if(is.null(obs)) obs <- colnames(state$expression)
+  if(length(obs) != nrow(state$samples)) obs <- as.character(1:nrow(state$samples))
+
+  cutoff <- config$n_distinct_numeric_warn
+  if(is.null(cutoff)) cutoff <- 5
+
+  for(nom in names(types)) {
+
+    v <- state$samples[[nom]]
+
+    i <- is.na(v)
+    if(any(i)) {
+      f.err("f.check_covariate_values: covariate", nom, "has missing values,",
+        "which are not supported;", "\n", "n missing:", sum(i),
+        "; first offending observations:", utils::head(obs[i], 10),
+        config=config)
+    }
+
+    if(types[nom] %in% "numeric" && !all(is.finite(v))) {
+      i <- !is.finite(v)
+      f.err("f.check_covariate_values: covariate", nom, "has non-finite",
+        "values;", "\n", "n non-finite:", sum(i),
+        "; first offending observations:", utils::head(obs[i], 10),
+        config=config)
+    }
+
+    lvls <- unique(v)
+
+    if(length(lvls) %in% 1) {
+      f.err("f.check_covariate_values: covariate", nom, "is constant, with",
+        "single distinct value:", utils::head(as.character(lvls), 1), ";", "\n",
+        "it cannot be fit; drop it from config$frm", config=config)
+    }
+
+    if(types[nom] %in% "numeric" && length(lvls) <= cutoff) {
+      f.msg("WARNING: numeric (continuous) covariate", nom, "has only",
+        length(lvls), "distinct values:", sort(as.character(lvls)), "\n",
+        "  if it is categorical, declare it in config$reference_levels;",
+        "otherwise this warning can be ignored", config=config)
+    }
+  }
+
+  return(invisible(TRUE))
+}
+
 ## needs config$feat_col and config$obs_col:
 
 f.check_state <- function(state, config) {

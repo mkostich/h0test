@@ -29,7 +29,7 @@
 #' config$frm <- ~condition
 #' config$test_term <- "condition"
 #' config$test_method <- "trend"
-#' config$sample_factors <- list(condition=c("placebo", "drug"))
+#' config$reference_levels <- c(condition="placebo")
 #' config$n_features_min <- 10     ## default 1000 too big for small demo dataset
 #' config$run_order <- c("normalize", "combine_replicates", "filter", "impute")
 #'
@@ -222,7 +222,7 @@ f.tune2 <- function(state, config, is_log_transformed=is_log_transformed) {
 #' config$frm <- ~condition
 #' config$test_term <- "condition"
 #' config$test_method <- "trend"
-#' config$sample_factors <- list(condition=c("placebo", "drug"))
+#' config$reference_levels <- c(condition="placebo")
 #' 
 #' ## one run with unpermuted data:
 #' config$permute_var <- ""            ## no permutation
