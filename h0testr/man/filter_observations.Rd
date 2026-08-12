@@ -21,10 +21,10 @@ filter_observations(
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{n_features_min} \cr \tab Minimum number (non-negative numeric) of features expressed in observation to keep observation. \cr
+  \code{n_features_min} \cr \tab Minimum number (non-negative numeric) of features with a non-NA value in the observation to keep observation. \cr
 }}
 
-\item{n_features_min}{Minimum number of features expressed per sample. Non-negative numeric.}
+\item{n_features_min}{Minimum number of features with a non-NA value per sample. Non-negative numeric.}
 
 \item{remove_constant}{Logical scalar: if constant observations of \code{state$expression} should be removed.}
 }
@@ -37,11 +37,13 @@ An updated \code{state} list with the following elements:
   }
 }
 \description{
-Filter samples based on number of features with \code{state$expression > 0}.
+Filter samples based on number of features with a non-\code{NA} value.
 }
 \details{
-Feature considered expressed if \code{state$expression > 0}; \code{NA}s 
-    count as no expression.
+A value is missing if and only if it is \code{NA}. Raw zeros are converted
+    to \code{NA} by \code{h0testr::initialize()}, so a feature is counted as
+    measured in a sample whenever its value there is not \code{NA},
+    regardless of sign.
   Sample constant if \code{length(unique(expression_values)) \%in\% 1)}.
   See documentation for \code{h0testr::new_config()} 
     for more detailed description of configuration parameters.

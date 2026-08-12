@@ -32,10 +32,19 @@ test_prolfqua(state, config, is_log_transformed = NULL)
 \value{
 A list with components:
   \tabular{ll}{
-    \code{hits}  \cr \tab \code{data.frame} of results; columns \code{config$gene_id_col} and: 
-      \code{c("nNonZero .n", "logFC", "se", "df", "t", "pval", "adjPval")}. \cr
+    \code{hits}  \cr \tab \code{data.frame} of the \code{prolfqua::build_model()}
+      ANOVA rows for \code{config$test_term}: the feature id columns
+      (\code{config$gene_id_col} and \code{config$feat_id_col}, which are the same
+      column once \code{combine_features()} has run) and:
+      \code{c("isSingular", "nrcoef", "factor", "Df", "Sum.Sq", "Mean.Sq",
+      "F.value", "p.value", "FDR")}. One row per feature. \cr
     \code{fit}   \cr \tab Model returned by \code{prolfqua::build_model()}. \cr
   }
+  Note the granularity of \code{hits} follows the input: called on
+    peptide-level data, as in the example below, it gives one row per peptide,
+    while in the \code{h0testr::run()} and \code{h0testr::tune()} pipelines
+    \code{combine_features()} has already run, so it gives one row per
+    gene/protein group, like every other test method.
 }
 \description{
 Tests for differential expression using the \code{prolfq::build_model()} function.
@@ -50,14 +59,34 @@ Uses the \code{proDA::proDA()} function. Returned results sorted by p-value.
     level declared in \code{config$reference_levels}. The returned
     \code{hits} are term-level ANOVA F-tests, which do not depend on the
     choice of reference level.
+  Results are one row per term of the model rather than one per coefficient, so
+    a factor with more than two levels is a single multi-df F-test over its
+    contrasts. What that table cannot express is a joint test over several
+    terms, which is what the marginality rule makes \code{config$test_term}
+    mean when the named variable also appears in an interaction: testing
+    \code{"grp"} in \code{~grp*sex} covers both \code{grp} and \code{grp:sex}.
+    That is an error here rather than a silently narrower test; use
+    \code{test_method} \code{"lm"}, \code{"trend"} or \code{"voom"} for such a
+    \code{test_term}. \code{h0testr::tune()} skips those combinations instead of
+    stopping.
+  The terms of \code{config$frm} are reordered so that the tested term comes
+    last. \code{stats::anova()} decomposes a model sequentially (Type I sums of
+    squares), so a term is adjusted only for the terms entered before it, and
+    the p-value for \code{config$test_term} would otherwise depend on where in
+    \code{config$frm} it was written. Reordering makes the reported test the one
+    adjusted for every other term; the fit itself is unchanged.
+  The false discovery rate \code{prolfqua} reports is computed within each term,
+    so the \code{FDR} column of \code{hits} is adjusted over the features tested
+    and not over the other terms of the model.
   Flow is:
     \tabular{l}{
       1. Reshape data into long format with intensities, feature meta, and sample meta. \cr
       2. Make and populate \code{prolfqua::AnalysisTableAnnotation} object. \cr
-      3. Make \code{prolfqua::LFQData} object from data and 
+      3. Make \code{prolfqua::LFQData} object from data and
            \code{prolfqua::AnalysisTableAnnotation} object. \cr
-      4. Make \code{prolfqua::strategy_lm} object from \code{config$frm}. \cr
-      5. Build \code{prolfqua} model from \code{prolfqua::LFQData} and 
+      4. Make \code{prolfqua::strategy_lm} object from \code{config$frm}, with the
+           tested term moved last. \cr
+      5. Build \code{prolfqua} model from \code{prolfqua::LFQData} and
            \code{prolfqua::strategy_lm} objects. \cr
       5. Return sub-table of ANOVA results corresponding to \code{config$test_term}. \cr
     }
@@ -91,7 +120,10 @@ config <- list(
   sample_id_col="obs",
   feat_id_col="pep",
   gene_id_col="gene",
-  frm=~grp+sex+grp:sex, 
+  ## no grp:sex term here: this function reports one term of the model at a
+  ##   time, so with ~grp+sex+grp:sex testing 'grp' would be a joint test over
+  ##   grp and grp:sex, which it refuses; use 'lm', 'trend' or 'voom' for that:
+  frm=~grp+sex,
   test_term="grp",
   reference_levels=c(grp="ctl", sex="F")
 )

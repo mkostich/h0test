@@ -76,7 +76,9 @@ new_config <- function() {
     n_samples_expr_col="n_samps_expr",   ## new col (scalar character) for feature metadata; n samples expressing feature
     median_raw_col="median_raw",         ## new col (scalar character) for feature metadata; median feature expression in expressing samples
     n_features_expr_col="n_feats_expr",  ## new col (scalar character) for sample metadata; n features expressed
-    
+    df_test_col="df_test",               ## new col (scalar character) for feature metadata; estimable df for config$test_term
+    df_resid_col="df_resid",             ## new col (scalar character) for feature metadata; residual df of model fitted to feature
+
     ## output file naming:
     log_file="",                         ## log file path (character); or "" for log to console                 
     feature_mid_out=".features",         ## midfix for output feature files
@@ -88,11 +90,14 @@ new_config <- function() {
     ## tunable options: defaults are usually ok, except:
     ##   for dia: usually works ok: RLE:unif_sample_lod:0.05 for normalization_method:impute_method:impute_quantile
     ##   for dda: usually works ok: quantile:0.75:unif_sample_lod:0 for normalization_method:normalization_quantile:impute_method:impute_quantile
+    zeros_to_na=TRUE,                    ## whether initialize() treats input as raw: zeros become NA and negative values are an error; forced FALSE when normalization_method is "none"
     normalization_method="RLE",          ## normalization method; h0testr::normalize_methods() retuns options.
     normalization_quantile=0.75,         ## for quantile normalization; 0.5 is median; 0.75 is upper quartile;
     normalization_span=0.7,              ## span for normalize_loess()
-    n_samples_min=2,                     ## min samples/feature w/ feature expression > 0 to keep feature
-    n_features_min=1000,                 ## min features/sample w/ expression > 0 to keep sample
+    n_samples_min=2,                     ## min samples/feature w/ non-NA feature expression to keep feature
+    n_features_min=1000,                 ## min features/sample w/ non-NA expression to keep sample
+    estimability="test",                 ## estimability required of config$test_term; in c("test", "term", "full")
+    df_resid_min=2,                      ## min residual degrees of freedom per feature to keep feature
     feature_aggregation="medianPolish",  ## in c("medianPolish", "robustSummary", "none")
     feature_aggregation_scaled=FALSE,    ## whether to rescale peptide features prior to aggregation into protein/gene group.
     impute_method="sample_lod",          ## method for imputing missing values; h0testr::impute_methods() returns options.
@@ -150,19 +155,22 @@ check_config <- function(config) {
   scalar_character <- c("feature_file_in", "sample_file_in", "data_file_in", 
     "dir_in", "dir_out", "test_term", "permute_var", 
     "feat_id_col", "gene_id_col", "feat_col",
-    "obs_id_col", "sample_id_col", "obs_col", "n_samples_expr_col", 
-    "median_raw_col", "n_features_expr_col", "log_file", "feature_mid_out", 
-    "sample_mid_out", "data_mid_out", "result_mid_out", "suffix_out", 
-    "normalization_method", "feature_aggregation", "impute_method", "test_method")
-  
+    "obs_id_col", "sample_id_col", "obs_col", "n_samples_expr_col",
+    "median_raw_col", "n_features_expr_col", "df_test_col", "df_resid_col",
+    "log_file", "feature_mid_out",
+    "sample_mid_out", "data_mid_out", "result_mid_out", "suffix_out",
+    "normalization_method", "feature_aggregation", "impute_method", "test_method",
+    "estimability")
+
   scalar_counts <- c("n_samples_min", "n_features_min", "impute_n_pts",
     "impute_k", "impute_npcs", "impute_aug_steps", "test_prior_df",
-    "n_distinct_numeric_warn", "width")
+    "n_distinct_numeric_warn", "width", "df_resid_min")
   
   scalar_props <- c("normalization_quantile", "impute_quantile", "impute_span", 
     "impute_alpha", "normalization_span")
   scalar_positive <- c("impute_scale")
-  scalar_logical <- c("feature_aggregation_scaled", "save_state", "verbose")
+  scalar_logical <- c("feature_aggregation_scaled", "save_state", "verbose",
+    "zeros_to_na")
   scalar_formula <- c("frm")
   ## covariate_types is set by initialize(), not by the user; see
   ##   f.covariate_types():
@@ -296,6 +304,17 @@ check_config <- function(config) {
         f.err("check_config: param not list of character; param:",  nom,
           "; value:", config[[nom]], config=config)
       }
+    }
+  }
+
+  ## estimability is an ordered requirement, each level strictly stronger than
+  ##   the one before it; see filter_features_by_estimability():
+
+  if("estimability" %in% names(config)) {
+    allowed <- c("test", "term", "full")
+    if(!(config$estimability %in% allowed)) {
+      f.err("check_config: unexpected estimability:", config$estimability, "\n",
+        "allowed:", allowed, config=config)
     }
   }
 

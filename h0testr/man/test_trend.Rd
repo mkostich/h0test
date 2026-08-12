@@ -41,10 +41,25 @@ Wrapper for the \code{limma} pakcage.
       2. Compute moderated statistics with \code{eBayes(trend=TRUE)}. \cr
       3. Generate a \code{data.frame} with results using \code{topTable()}. \cr
     }
- The \code{lmFit()} model is fit to \code{config$frm} and an F-test is 
-   performed on each \code{config$feat_col} for whether the effect of 
-   \code{config$test_term} on \code{state$expression} is zero. 
-  See documentation for \code{h0testr::new_config()} 
+ The \code{lmFit()} model is fit to \code{config$frm} and a test is
+   performed on each \code{config$feat_col} for whether the effect of
+   \code{config$test_term} on \code{state$expression} is zero.
+  The coefficients carrying that test are the columns of the design matrix
+    assigned to \code{config$test_term} and to every term containing it, which is
+    the same selection used by \code{h0testr::test_lm()} and by
+    \code{h0testr::filter_features_by_estimability()}. So naming a variable that
+    also appears in an interaction tests the interaction too: with
+    \code{config$frm = ~sex * batch} and \code{config$test_term = "sex"}, the test
+    is a joint 2 degree of freedom test of \code{sexM} and \code{sexM:batchb2}.
+    Testing a factor with more than two levels is likewise a joint test over its
+    contrasts.
+  A test of one coefficient is reported by \code{limma::topTable()} as a moderated
+    t-test with a \code{logFC} column; a test of several is reported as an F-test
+    with an \code{F} column, and no \code{logFC}, since several coefficients have
+    no single fold change. Any covariate type \code{stats::model.matrix()}
+    accepts works, including continuous covariates, interactions among them, and
+    formulas with no intercept.
+  See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.
 }
 \examples{

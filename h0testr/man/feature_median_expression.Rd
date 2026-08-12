@@ -24,10 +24,10 @@ A numeric vector of length \code{nrow(state$expression)} with median expression 
 Calculates the median expression of each feature in each expressing sample.
 }
 \details{
-Sample considered to express feature if \code{state$expression > 0}; 
-    \code{NA}s count as no expression.
-    Note that \code{NA}s and values less than or equal to zero do not count 
-      toward the median.
+Median over the non-\code{NA} values of the feature. Values are not
+    screened by sign, so a transformed value of zero or below counts toward
+    the median; raw zeros are already \code{NA} by this point, having been
+    converted by \code{h0testr::initialize()}.
 }
 \examples{
 set.seed(101)

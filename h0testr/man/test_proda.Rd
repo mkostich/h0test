@@ -21,6 +21,7 @@ test_proda(state, config, is_log_transformed = NULL, prior_df = 3, maxit = 20)
   \code{obs_col}              \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
   \code{frm}                  \cr \tab Formula (formula) to be fit. \cr
   \code{test_term}            \cr \tab Term (character) to be tested for non-zero coefficient. \cr
+  \code{reference_levels}     \cr \tab Reference level of each factor variable in \code{frm}; sets the direction of \code{diff}. \cr
   \code{normalization_method} \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
 }}
 
@@ -33,8 +34,11 @@ test_proda(state, config, is_log_transformed = NULL, prior_df = 3, maxit = 20)
 \value{
 A list with components:
   \tabular{ll}{
-    \code{hits}  \cr \tab \code{data.frame} of results; columns \code{config$gene_id_col} and: 
-      \code{c("nNonZero .n", "logFC", "se", "df", "t", "pval", "adjPval")}. \cr
+    \code{hits}  \cr \tab \code{data.frame} of results from \code{proDA::test_diff()}, sorted by
+      p-value; columns \code{c("name", "pval", "adj_pval", "diff", "t_statistic", "se", "df",
+      "avg_abundance", "n_approx", "n_obs")} for the single contrast test, and
+      \code{c("name", "pval", "adj_pval", "f_statistic", "df1", "df2", "avg_abundance",
+      "n_approx", "n_obs")} for the likelihood ratio test. \cr
     \code{fit}   \cr \tab Model returned by \code{proDA::proDA()}. \cr
   }
 }
@@ -46,9 +50,20 @@ Uses the \code{proDA::proDA()} function. Returned results sorted by p-value.
   Returns peptide/precursor/gene-level hypothesis testing results based on 
     peptide/precursor/gene-level input. That is, testing is on features of 
     the input, so have to aggregate data to the desired level for 
-    hypothesis testing first. Main feature of this method is its native 
+    hypothesis testing first. Main feature of this method is its native
     handling of missing values.
-  See documentation for \code{h0testr::new_config()} 
+  When \code{config$test_term} resolves to a single design matrix column, that
+    column is tested by \code{proDA::test_diff()} as a single contrast, and
+    \code{logFC} is the corresponding coefficient: for a two level factor, the non
+    reference level minus the reference level declared in
+    \code{config$reference_levels}. When it resolves to several columns, which by
+    the marginality rule it does for a factor with more than two levels and for a
+    variable appearing in an interaction, all of them are tested jointly, as a
+    likelihood ratio test of the full model against the model with those columns
+    dropped. That test is reported as an F statistic with \code{logFC} \code{NA},
+    there being no single difference to report, as for the F tests of
+    \code{h0testr::test_trend()} and \code{h0testr::test_voom()}.
+  See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.
 }
 \examples{
@@ -78,7 +93,11 @@ config <- list(
   sample_id_col="obs",
   feat_id_col="pep",
   gene_id_col="gene",
-  frm=~grp+sex+grp:sex, 
+  ## no grp:sex term here, so testing "grp" is the single coefficient grptrt, and a
+  ##   fold change is reported. Adding one would, by marginality, make it a joint
+  ##   test of grptrt and grptrt:sexM, run as a likelihood ratio test reporting an F
+  ##   statistic and no fold change:
+  frm=~grp+sex,
   test_term="grp",
   reference_levels=c(grp="ctl", sex="F")
 )

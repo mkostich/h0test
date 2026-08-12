@@ -579,10 +579,24 @@ normalize <- function(state, config, method=NULL,
   if(is.null(normalization_quantile)) normalization_quantile <- config$normalization_quantile
   if(is.null(span)) span <- config$normalization_span
   
-  f.msg("normalize: normalization_method:", method, 
-    "; normalization_quantile:", normalization_quantile, 
+  f.msg("normalize: normalization_method:", method,
+    "; normalization_quantile:", normalization_quantile,
     "; normalization_span:", span, config=config)
-  
+
+  ## initialize() converts zeros to NA and rejects negative values only when it
+  ##   treats the input as raw; if it decided the input was already transformed,
+  ##   then every method other than "none" would transform it a second time.
+  ##   Reachable because the method argument overrides config$normalization_method:
+
+  if(!(method %in% "none") && !is.null(config$zeros_to_na) &&
+      !isTRUE(config$zeros_to_na)) {
+    f.err("normalize: config$zeros_to_na is FALSE, so initialize() treated",
+      "state$expression as already transformed, but normalization method is",
+      method, ", which would transform it again;", "\n",
+      "set method (or config$normalization_method) to 'none', or set",
+      "config$zeros_to_na to TRUE if the input really is raw", config=config)
+  }
+
   if(method %in% c("TMM", "TMMwsp", "RLE", "upperquartile")) {
     state <- normalize_edger(state, config, method=method, normalization_quantile=normalization_quantile)
   } else if(method %in% c("sum", "max", "div.mean", "div.median", "quantiles.robust")) {

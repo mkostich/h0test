@@ -23,7 +23,8 @@ bottom of the output \code{data.frame}.}
 A \code{data.frame} with the following columns:
   \tabular{ll}{
     \code{nhits}      \cr \tab Number of significant hits. \cr
-    \code{fdr}        \cr \tab False discovery rate. \cr
+    \code{ntests}     \cr \tab Number of features tested; \code{0} if the combination did not run. \cr
+    \code{fdr}        \cr \tab False discovery rate; \code{NA} where \code{ntests} is \code{0}. \cr
     \code{max1}       \cr \tab Maximum number of hits in any permutation. \cr
     \code{mid1}       \cr \tab Median number of hits across permutations. \cr
     \code{avg1}       \cr \tab Average number of hits across permutations. \cr
@@ -43,10 +44,16 @@ A \code{data.frame} with the following columns:
 Check results of tuning.
 }
 \details{
-Imports data from basic tuning loop, comparing results from unpermuted 
+Imports data from basic tuning loop, comparing results from unpermuted
     data with those from permuted data. FDR is estimated from the permuted
     data results. Recommend that tuning use at least 20 iterations with
     permuted data.
+  Combinations that \code{h0testr::tune()} skipped, because the test method
+    cannot run the test \code{config$test_term} names, and combinations that
+    lost every feature to filtering, have \code{ntests} of \code{0} and are
+    given an \code{NA} \code{fdr}, which sorts them below every combination
+    that ran. They are not combinations that found nothing; they are
+    combinations that were never tested.
 }
 \examples{
 dir_in <- system.file("extdata/tune", package="h0testr")

@@ -2,7 +2,7 @@
 % Please edit documentation in R/filter.R
 \name{features_per_sample}
 \alias{features_per_sample}
-\title{Number of expressed features per sample}
+\title{Number of measured features per sample}
 \usage{
 features_per_sample(state, config)
 }
@@ -19,14 +19,15 @@ so can pass empty list.}
 }
 \value{
 A numeric vector of length \code{ncol(state$expression)} with 
-  number of features expressed in each sample.
+  number of features measured in each sample.
 }
 \description{
-Calculates the number of expressed features in each sample.
+Calculates the number of measured features in each sample.
 }
 \details{
-Features are considered to be expressed if \code{state$expression > 0}; 
-    \code{NA}s count as no expression.
+A feature counts as measured in a sample whenever its value there is not
+    \code{NA}, regardless of sign; raw zeros are converted to \code{NA} by
+    \code{h0testr::initialize()}.
 }
 \examples{
 set.seed(101)

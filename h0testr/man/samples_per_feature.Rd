@@ -2,7 +2,7 @@
 % Please edit documentation in R/filter.R
 \name{samples_per_feature}
 \alias{samples_per_feature}
-\title{Number of samples expressing each feature}
+\title{Number of samples in which each feature was measured}
 \usage{
 samples_per_feature(state, config)
 }
@@ -21,11 +21,12 @@ A numeric vector of length \code{nrow(state$expression)} with non-negative sampl
   counts for each feature.
 }
 \description{
-Calculates the number of samples expressing each feature
+Calculates the number of samples in which each feature was measured
 }
 \details{
-Feature considered expressed if \code{state$expression > 0}; 
-  \code{NA}s count as no expression.
+A feature counts as measured in a sample whenever its value there is
+  not \code{NA}, regardless of sign; raw zeros are converted to \code{NA} by
+  \code{h0testr::initialize()}.
 }
 \examples{
 set.seed(101)

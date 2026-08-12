@@ -101,39 +101,69 @@ f.tune1 <- function(state, config, normalization_method) {
 
 ## helper for tune(); filter, impute, and test:
 
+## helper for f.tune2(); the result row for a parameter combination that was not
+##   tested, so that one unusable combination does not abort a whole sweep. Same
+##   columns as a real result row, with nhits and ntests unset:
+
+f.tune2_na_row <- function(config) {
+  return(
+    data.frame(norm=config$normalization_method, nquant=config$normalization_quantile,
+      impute=config$impute_method, iquant=config$impute_quantile,
+      scale=config$impute_scale, span=config$impute_span,
+      npcs=config$impute_npcs, k=config$impute_k, test=config$test_method,
+      perm=config$permute_var, nhits=NA, ntests=NA,
+      time=format(Sys.time(), "%H:%M:%S"), stringsAsFactors=F
+    )
+  )
+}
+
 f.tune2 <- function(state, config, is_log_transformed=is_log_transformed) {
-  
+
+  ## some engines can only test one coefficient at a time, so they cannot run at all
+  ##   when config$test_term implies a joint test over several; skipped rather than
+  ##   allowed to stop the sweep, since the other methods in it are unaffected. Note
+  ##   this is a property of config$frm and config$test_term, not of the data, so it
+  ##   holds for every parameter combination using this test_method:
+
+  n_cols <- length(f.design_test_cols(state, config)$cols_test)
+  if(n_cols > f.test_max_cols(config$test_method)) {
+    f.msg("WARNING: f.tune2: test_method", config$test_method, "can test at most",
+      f.test_max_cols(config$test_method), "coefficient at a time, but",
+      "config$test_term", config$test_term, "implies a joint test of", n_cols,
+      "; skipping and returning NA", config=config)
+    return(f.tune2_na_row(config))
+  }
+
+  ## prolfqua is bounded by terms rather than by coefficients, since it reports the
+  ##   rows of a per-term anova table; a multi-level factor is fine there, a joint
+  ##   test over several terms is not. Same treatment as above, and for the same
+  ##   reason: a property of config$frm and config$test_term, so it holds for every
+  ##   parameter combination using this test_method:
+
+  n_terms <- length(f.normalize_terms(config)$drop_terms)
+  if(n_terms > f.test_max_terms(config$test_method)) {
+    f.msg("WARNING: f.tune2: test_method", config$test_method, "can test at most",
+      f.test_max_terms(config$test_method), "term at a time, but",
+      "config$test_term", config$test_term, "implies a joint test over", n_terms,
+      "terms; skipping and returning NA", config=config)
+    return(f.tune2_na_row(config))
+  }
+
   f.log_block("f.tune:2: filter", config=config)
   out <- filter(state, config)
-  
+
   if(length(unique(out$state$samples[[out$config$sample_id_col]])) < 4) {
-    f.msg("WARNING: f.tune2: post-filter <4 samples left; return NA", 
-      config=config) 
-    return(
-      data.frame(norm=config$normalization_method, nquant=config$normalization_quantile, 
-        impute=config$impute_method, iquant=config$impute_quantile, 
-        scale=config$impute_scale, span=config$impute_span, 
-        npcs=config$impute_npcs, k=config$impute_k, test=config$test_method, 
-        perm=config$permute_var, nhits=NA, ntests=NA, 
-        time=format(Sys.time(), "%H:%M:%S"), stringsAsFactors=F
-      )
-    )
+    f.msg("WARNING: f.tune2: post-filter <4 samples left; return NA",
+      config=config)
+    return(f.tune2_na_row(config))
   }
-  
+
   if(length(unique(out$state$features[[out$config$gene_id_col]])) < 20) {
-    f.msg("WARNING: f.tune2: post-filter <20 genes left; return NA", 
-      config=config) 
-    return(
-      data.frame(norm=config$normalization_method, nquant=config$normalization_quantile, 
-        impute=config$impute_method, iquant=config$impute_quantile, 
-        scale=config$impute_scale, span=config$impute_span, 
-        npcs=config$impute_npcs, k=config$impute_k, test=config$test_method, 
-        perm=config$permute_var, nhits=NA, ntests=NA, 
-        time=format(Sys.time(), "%H:%M:%S"), stringsAsFactors=F
-      )
-    )
+    f.msg("WARNING: f.tune2: post-filter <20 genes left; return NA",
+      config=config)
+    return(f.tune2_na_row(config))
   }
-  
+
   f.log_block("f.tune:2: impute", config=config)
   out <- impute(out$state, out$config, 
     is_log_transformed=is_log_transformed)
@@ -148,7 +178,11 @@ f.tune2 <- function(state, config, is_log_transformed=is_log_transformed) {
     impute=config$impute_method, iquant=config$impute_quantile, 
     scale=config$impute_scale, span=config$impute_span, 
     npcs=config$impute_npcs, k=config$impute_k, test=config$test_method, 
-    perm=config$permute_var, nhits=sum(tbl$adj_pval < 0.05), ntests=nrow(tbl), 
+    ## na.rm, so that a single feature with an undefined adjusted p-value, from a
+    ##   singular or non-converged per-feature fit, counts as no hit rather than
+    ##   turning the whole row's nhits into NA, which tune_check() then reads as a
+    ##   combination that ran and found nothing:
+    perm=config$permute_var, nhits=sum(tbl$adj_pval < 0.05, na.rm=T), ntests=nrow(tbl),
     time=format(Sys.time(), "%H:%M:%S"), stringsAsFactors=F)
   
   f.log_block("f.tune:2: return", config=config)
@@ -204,10 +238,24 @@ f.tune2 <- function(state, config, is_log_transformed=is_log_transformed) {
 #'     \code{scale}      \cr \tab Imputation scale for \code{impute_rnorm_feature}. \cr
 #'     \code{test}       \cr \tab Test method (character). \cr
 #'     \code{perm}       \cr \tab Permuted variable (character). \cr
-#'     \code{nhits}      \cr \tab Number of hits (numeric). \cr
-#'     \code{ntests}     \cr \tab Number of tests (numeric). \cr
+#'     \code{nhits}      \cr \tab Number of hits (numeric); \code{NA} if not tested. \cr
+#'     \code{ntests}     \cr \tab Number of tests (numeric); \code{NA} if not tested. \cr
 #'     \code{time}       \cr \tab Timestamp. \cr
 #'   }
+#'   A combination that could not be tested yields a row with \code{nhits} and
+#'     \code{ntests} set to \code{NA} rather than aborting the sweep, and the reason
+#'     is written to \code{config$log_file}. This happens when too few samples or
+#'     genes survive filtering, and when \code{test_method} cannot express the test
+#'     \code{config$test_term} implies. \code{"deqms"} and \code{"msqrob"} test one
+#'     coefficient at a time, so they are skipped when \code{config$test_term} names
+#'     a factor with more than two levels, or a variable that also appears in an
+#'     interaction. \code{"prolfqua"} is bounded by terms instead of coefficients, so
+#'     a factor with more than two levels is fine there, but a variable that also
+#'     appears in an interaction is skipped. \code{"proda"} is bounded by neither,
+#'     testing several coefficients jointly by likelihood ratio.
+#'     \code{h0testr::tune_check()} counts these \code{NA} \code{nhits} as zero hits,
+#'     but gives such a row no \code{fdr}, so that a combination which never ran is
+#'     not ranked above every combination that did.
 #' @examples
 #' ## set up configuration:
 #' config <- h0testr::new_config()     ## defaults
@@ -430,10 +478,16 @@ tune <- function(
 #' @description
 #'   Check results of tuning.
 #' @details
-#'   Imports data from basic tuning loop, comparing results from unpermuted 
+#'   Imports data from basic tuning loop, comparing results from unpermuted
 #'     data with those from permuted data. FDR is estimated from the permuted
 #'     data results. Recommend that tuning use at least 20 iterations with
-#'     permuted data. 
+#'     permuted data.
+#'   Combinations that \code{h0testr::tune()} skipped, because the test method
+#'     cannot run the test \code{config$test_term} names, and combinations that
+#'     lost every feature to filtering, have \code{ntests} of \code{0} and are
+#'     given an \code{NA} \code{fdr}, which sorts them below every combination
+#'     that ran. They are not combinations that found nothing; they are
+#'     combinations that were never tested.
 #' @param dir_in Character scalar with path to directory containing tuning results.
 #' @param prefix Character scalar with prefix (if any) of tuning result filenames.
 #' @param suffix Character scalar with distinctive suffix (required) of tuning results filenames.
@@ -444,7 +498,8 @@ tune <- function(
 #' @return A \code{data.frame} with the following columns:
 #'   \tabular{ll}{
 #'     \code{nhits}      \cr \tab Number of significant hits. \cr
-#'     \code{fdr}        \cr \tab False discovery rate. \cr
+#'     \code{ntests}     \cr \tab Number of features tested; \code{0} if the combination did not run. \cr
+#'     \code{fdr}        \cr \tab False discovery rate; \code{NA} where \code{ntests} is \code{0}. \cr
 #'     \code{max1}       \cr \tab Maximum number of hits in any permutation. \cr
 #'     \code{mid1}       \cr \tab Median number of hits across permutations. \cr
 #'     \code{avg1}       \cr \tab Average number of hits across permutations. \cr
@@ -525,8 +580,18 @@ tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05) {
   dat0$fdr <- dat0$max1 / nhits   ## used to be $avg
   dat0$fdr[dat0$fdr > 1] <- 1.0
 
-  dat0 <- dat0[, c("nhits", "fdr", "max1", "mid1", "avg1", "sd1", "norm", "nquant", 
-    "impute", "iquant", "scale", "span", "npcs", "k", "test")]
+  ## a combination f.tune2() skipped, or that lost every feature to filtering, has
+  ##   ntests 0 and nhits NA, which the substitution above turns into 0 hits out of
+  ##   0 tests; its permuted runs are skipped identically, so max1 is 0 too and the
+  ##   fdr computed for it is 0, which is the best score there is. Such a
+  ##   combination is not a good one, it is one that never ran, so give it no fdr
+  ##   and let the sort below put it below every combination that did run. ntests is
+  ##   reported so the difference from 0 hits out of many tests is visible:
+
+  dat0$fdr[dat0$ntests %in% 0] <- NA
+
+  dat0 <- dat0[, c("nhits", "ntests", "fdr", "max1", "mid1", "avg1", "sd1", "norm",
+    "nquant", "impute", "iquant", "scale", "span", "npcs", "k", "test")]
 
   i <- dat0$fdr < fdr_cutoff
   i[is.na(i)] <- FALSE

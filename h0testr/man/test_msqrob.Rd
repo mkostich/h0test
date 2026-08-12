@@ -16,11 +16,14 @@ test_msqrob(state, config, maxit = 100)
 
 \item{config}{List with configuration values. Requires the following keys:
 \tabular{ll}{
-  \code{gene_id_col}    \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
-  \code{feat_col}       \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
-  \code{obs_col}        \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
-  \code{frm}            \cr \tab Formula (formula) to be fit. \cr
-  \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
+  \code{gene_id_col}      \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
+  \code{feat_col}         \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
+  \code{obs_col}          \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
+  \code{frm}              \cr \tab Formula (formula) to be fit. \cr
+  \code{test_term}        \cr \tab Term (character) to be tested for non-zero coefficient. \cr
+  \code{reference_levels} \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
+  \code{covariate_types}  \cr \tab Optional; classification of variables in \code{config$frm}, as set by \code{initialize()}. \cr
+  \code{factor_levels}    \cr \tab Optional; resolved levels of each factor variable, as set by \code{initialize()}. \cr
 }}
 
 \item{maxit}{Integer scalar >= 1. How many iterations to use for \code{rlm} fitting.}
@@ -47,7 +50,21 @@ Returns gene-level hypothesis testing results based on
       4. Estimate model parameters using \code{msqrob2::msqrob()}. \cr
       5. Calculate test statistics with \code{msqrob2::hypothesisTest()}. \cr
     }
-  See documentation for \code{h0testr::new_config()} 
+  \code{msqrob2::hypothesisTest()} returns one table per contrast rather than a
+    joint test over several, so \code{config$test_term} must resolve to a single
+    design matrix column; it is an error if it does not. That rules out testing a
+    factor with more than two levels, and also testing a variable that appears in
+    an interaction, since by marginality the test then covers every term containing
+    the variable. Use \code{h0testr::test_lm()}, \code{h0testr::test_trend()} or
+    \code{h0testr::test_voom()} for those tests.
+  The reported contrast is the tested coefficient under the factor level ordering
+    \code{config$reference_levels} declares and \code{h0testr::initialize()}
+    resolves, so for a two level factor \code{logFC} is the non-reference level
+    minus the reference level. \code{msqrob2::msqrob()} builds its own design, so
+    that ordering is carried through to it explicitly; a coefficient the fit does
+    not have is an error here, since \code{msqrob2::hypothesisTest()} answers one
+    with a table of \code{NA}s rather than a complaint.
+  See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.
 }
 \examples{
@@ -77,7 +94,10 @@ config <- list(
   sample_id_col="obs",
   feat_id_col="pep",
   gene_id_col="gene",
-  frm=~grp+sex+grp:sex, 
+  ## no grp:sex term here: by marginality, testing "grp" in ~grp+sex+grp:sex is a
+  ##   joint test of grptrt and grptrt:sexM, and this method tests one
+  ##   coefficient at a time. Test "grp:sex" to test the interaction itself:
+  frm=~grp+sex,
   test_term="grp",
   reference_levels=c(grp="ctl", sex="F")
 )

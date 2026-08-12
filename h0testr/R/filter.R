@@ -154,12 +154,270 @@ filter_features_by_formula <- function(state, config,
   return(state)
 }
 
+#' Filter features whose model coefficients are not estimable.
+#' @description
+#'   Filter features for which the coefficients of \code{config$test_term}
+#'     cannot be estimated from the values actually observed for that feature.
+#' @details
+#'   This is the last and most expensive of three tiers of filtering. The
+#'     earlier tiers ask necessary but not sufficient questions:
+#'     \code{prefilter()} counts non-\code{NA} values without reference to
+#'     \code{config$frm}, and \code{filter_features_by_formula()} screens one
+#'     variable at a time, marginally. Only this function looks at the design
+#'     matrix as a whole, so only this function can answer whether the requested
+#'     test is estimable for a feature.
+#'   A value is missing if and only if it is \code{NA}; see
+#'     \code{h0testr::initialize()}. For each feature, let \code{S} be the
+#'     observations where it is not \code{NA}, \code{X} the design matrix built
+#'     from \code{config$frm}, and \code{X_red} the same matrix with the columns
+#'     of \code{config$test_term} removed. Then:
+#'     \tabular{ll}{
+#'       \code{df_test}   \cr \tab \code{rank(X[S, ]) - rank(X_red[S, ])}; estimable degrees of freedom for \code{config$test_term}. \cr
+#'       \code{df_resid}  \cr \tab \code{length(S) - rank(X[S, ])}; residual degrees of freedom. \cr
+#'       \code{df_intend} \cr \tab \code{df_test} recomputed over all observations; the test that was asked for. \cr
+#'       \code{df_deficit} \cr \tab \code{ncol(X) - rank(X[S, ])}; coefficients of the requested model that are not estimable. \cr
+#'     }
+#'   \code{X} is built once over all observations and then subset by row, so the
+#'     factor level ordering set by \code{initialize()} is preserved: a level
+#'     absent from \code{S} leaves an all-zero column, which is exactly the rank
+#'     deficiency to be detected. Transformations in \code{config$frm} are not
+#'     supported (see \code{h0testr::initialize()}), so row subsetting and
+#'     per-feature refitting agree.
+#'   The reduced model is formed by dropping term labels, not by editing the
+#'     formula text, and the labels come from the same helper the hypothesis
+#'     tests use. A \code{config$test_term} naming a variable therefore drops
+#'     every term containing that variable, keeping the reduced model
+#'     hierarchical; a \code{config$test_term} naming an interaction drops that
+#'     term alone.
+#'   \code{config$estimability} selects one of three nested requirements, each
+#'     strictly stronger than the one before it. \code{df_deficit} is the sum of
+#'     the nuisance-side deficit and \code{df_intend - df_test}, so requiring
+#'     \code{"full"} entails \code{"term"}, which entails \code{"test"}:
+#'     \tabular{ll}{
+#'       \code{"test"} \cr \tab \code{df_test >= 1}; the term is testable. The hypothesis tested, and the covariate adjustment applied, may differ between features. \cr
+#'       \code{"term"} \cr \tab \code{df_test == df_intend}; every feature is tested against the same hypothesis, but the covariate adjustment may still differ. \cr
+#'       \code{"full"} \cr \tab \code{df_deficit == 0}; every coefficient of the requested model is estimable for every feature. \cr
+#'     }
+#'   Independently of that, a feature is dropped when
+#'     \code{df_resid < df_resid_min}, which is a question of residual precision
+#'     rather than of estimability.
+#'   Counts of dropped features, broken out by reason, are logged. Features whose
+#'     covariate columns collapsed are counted in the log even when
+#'     \code{config$estimability} is too permissive to drop them: such a feature
+#'     is tested without the adjustment that was asked for, which
+#'     \code{df_test} cannot reveal, since removing the test columns removes the
+#'     same rank from both models.
+#'   Ranks are computed once per distinct missingness pattern rather than once
+#'     per feature, which on real data is usually a large saving.
+#'   Following \code{add_filter_stats()}, \code{df_test} and \code{df_resid} are
+#'     written into \code{state$features} for the features that survive.
+#'   See documentation for \code{h0testr::new_config()}
+#'     for more detailed description of configuration parameters.
+#' @param state A list with elements like that returned by \code{read_data()}:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   }
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{frm}           \cr \tab Formula object specifying model to be fitted. \cr
+#'     \code{test_term}     \cr \tab Term (character) in \code{config$frm} to test for significance. \cr
+#'     \code{estimability}  \cr \tab Requirement placed on \code{config$test_term}; scalar character in \code{c("test", "term", "full")}. \cr
+#'     \code{df_resid_min}  \cr \tab Minimum residual degrees of freedom (non-negative numeric) to keep feature. \cr
+#'     \code{df_test_col}   \cr \tab Name (character) of new column in feature metadata to hold \code{df_test}. \cr
+#'     \code{df_resid_col}  \cr \tab Name (character) of new column in feature metadata to hold \code{df_resid}. \cr
+#'     \code{n_samples_min} \cr \tab Optional; only used to warn when it is inconsistent with \code{df_resid_min}. \cr
+#'   }
+#' @param estimability Requirement placed on \code{config$test_term}; scalar character in \code{c("test", "term", "full")}. Overrides \code{config$estimability}.
+#' @param df_resid_min Minimum residual degrees of freedom to keep feature. Non-negative numeric. Overrides \code{config$df_resid_min}.
+#' @return An updated \code{state} list with the following elements:
+#'   \tabular{ll}{
+#'     \code{expression} \cr \tab Numeric matrix with expression values. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression, with \code{df_test} and \code{df_resid} added. \cr
+#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   }
+#' @examples
+#' set.seed(101)
+#' exprs <- h0testr::sim1(n_obs=8, n_feats=12, mcar_p=0.4)$mat
+#' feats <- data.frame(feature_id=rownames(exprs))
+#' samps <- data.frame(observation_id=colnames(exprs), grp=rep(c("ctl", "trt"), 4))
+#' state <- list(expression=exprs, features=feats, samples=samps)
+#' config <- list(frm=~grp, test_term="grp", reference_levels=c(grp="ctl"),
+#'   estimability="test", df_resid_min=2, df_test_col="df_test",
+#'   df_resid_col="df_resid")
+#' state2 <- h0testr::filter_features_by_estimability(state, config)
+#' print(nrow(state$expression))
+#' print(state2$features)
+
+filter_features_by_estimability <- function(state, config, estimability=NULL,
+    df_resid_min=NULL) {
+
+  if(!is.matrix(state$expression)) {
+    f.err("filter_features_by_estimability: !is.matrix(state$expression);",
+      "class(state$expression):", class(state$expression), config=config)
+  }
+
+  if(is.null(config$frm)) {
+    f.err("filter_features_by_estimability: is.null(config$frm)", config=config)
+  }
+
+  if(is.null(estimability)) estimability <- config$estimability
+  if(is.null(estimability) || estimability %in% "") {
+    estimability <- "test"
+    f.msg("filter_features_by_estimability: estimability and",
+      "config$estimability both unset; using default:", estimability,
+      config=config)
+  }
+
+  allowed <- c("test", "term", "full")
+  if(!(length(estimability) %in% 1 && estimability %in% allowed)) {
+    f.err("filter_features_by_estimability: estimability not scalar in",
+      paste0("c('", paste(allowed, collapse="', '"), "')"), "; value:",
+      estimability, config=config)
+  }
+
+  if(is.null(df_resid_min)) df_resid_min <- config$df_resid_min
+  if(is.null(df_resid_min)) {
+    df_resid_min <- 2
+    f.msg("filter_features_by_estimability: df_resid_min and",
+      "config$df_resid_min both unset; using default:", df_resid_min,
+      config=config)
+  }
+
+  if(!(is.numeric(df_resid_min) && length(df_resid_min) %in% 1 &&
+      df_resid_min >= 0)) {
+    f.err("filter_features_by_estimability: df_resid_min not a non-negative",
+      "numeric scalar; value:", df_resid_min, config=config)
+  }
+
+  ## the design, the columns carrying the test, and the df of the test that was
+  ##   asked for, measured over all observations; derived by the same helper the
+  ##   hypothesis tests use, so the reduced model screened here is the one that
+  ##   will actually be tested. Throws an informative error if config$test_term
+  ##   does not fit config$frm, or if the test it names is vacuous:
+
+  design <- f.design_test_cols(state, config)
+  X <- design$X
+  cols_test <- design$cols_test
+  rank_all <- design$rank_all
+  df_intend <- design$df_intend
+
+  f.msg("filter_features_by_estimability: estimability:", estimability,
+    "; df_resid_min:", df_resid_min, "; test_term:", config$test_term,
+    "; design columns:", ncol(X), "; test columns:", length(cols_test),
+    "; df_intend:", df_intend, config=config)
+
+  ## n_samples_min screens on the same axis as df_resid_min, so an
+  ##   n_samples_min below what df_resid_min implies does no work ahead of this
+  ##   filter; not an error, since the two are set independently:
+
+  n_needed <- df_resid_min + rank_all
+  if(length(config$n_samples_min) %in% 1 && config$n_samples_min < n_needed) {
+    f.msg("WARNING: filter_features_by_estimability: config$n_samples_min",
+      config$n_samples_min, "is below the", n_needed, "observations a feature",
+      "needs for df_resid >=", df_resid_min, "with a full rank design;", "\n",
+      "the n_samples_min screen in filter_features() therefore does no work",
+      "ahead of this filter", config=config)
+  }
+
+  ## ranks depend only on which observations are missing, so compute them once
+  ##   per distinct missingness pattern:
+
+  na_mat <- is.na(state$expression)
+  keys <- apply(na_mat, 1, function(v) paste0(as.integer(v), collapse=""))
+  u_keys <- unique(keys)
+  i_rep <- match(u_keys, keys)
+
+  f.msg("filter_features_by_estimability:", nrow(state$expression),
+    "features in", length(u_keys), "distinct missingness patterns",
+    config=config)
+
+  df_test_u <- integer(length(u_keys))
+  df_resid_u <- integer(length(u_keys))
+  df_deficit_u <- integer(length(u_keys))
+  t_last <- Sys.time()
+
+  for(idx in seq_along(u_keys)) {
+
+    i_obs <- !na_mat[i_rep[idx], ]
+    r_full <- f.design_rank(X[i_obs, , drop=F])
+
+    df_test_u[idx] <- r_full - f.design_rank(X[i_obs, -cols_test, drop=F])
+    df_resid_u[idx] <- sum(i_obs) - r_full
+    df_deficit_u[idx] <- ncol(X) - r_full
+
+    if(as.numeric(difftime(Sys.time(), t_last, units="secs")) >= 15) {
+      f.msg("filter_features_by_estimability: pattern", idx, "of",
+        length(u_keys), config=config)
+      t_last <- Sys.time()
+    }
+  }
+
+  idxs <- match(keys, u_keys)
+  df_test <- df_test_u[idxs]
+  df_resid <- df_resid_u[idxs]
+  df_deficit <- df_deficit_u[idxs]
+
+  ok_test <- df_test >= 1
+  ok_term <- df_test >= df_intend
+  ok_full <- df_deficit %in% 0
+  ok_resid <- df_resid >= df_resid_min
+
+  i <- ok_test & ok_resid
+  if(estimability %in% c("term", "full")) i <- i & ok_term
+  if(estimability %in% "full") i <- i & ok_full
+
+  ## every dropped feature attributed to the first applicable reason, so the
+  ##   counts sum to the number dropped:
+
+  why <- rep("", length(i))
+  why[!i & !ok_test] <- "test_term_not_estimable"
+  why[!i & why %in% "" & !ok_resid] <- "too_few_residual_df"
+  why[!i & why %in% "" & !ok_term] <- "test_term_partly_estimable"
+  why[!i & why %in% ""] <- "model_not_full_rank"
+
+  f.msg("filtering", sum(!i), "features by estimability; keeping", sum(i),
+    config=config)
+  for(nom in c("test_term_not_estimable", "too_few_residual_df",
+      "test_term_partly_estimable", "model_not_full_rank")) {
+    f.msg("  dropped,", nom, ":", sum(why %in% nom), config=config)
+  }
+
+  ## reported whether or not they were dropped: a feature that keeps df_test but
+  ##   loses covariate columns is tested without the adjustment that was asked
+  ##   for, and df_test cannot show that:
+
+  f.msg("  features with test_term only partly estimable:", sum(!ok_term),
+    "; features whose requested model is not full rank:", sum(!ok_full),
+    config=config)
+  f.msg("  df_test:", paste(names(table(df_test)), table(df_test), sep=":"),
+    config=config)
+  f.quantile(df_resid, config, digits=0)
+
+  df_test_col <- config$df_test_col
+  if(is.null(df_test_col) || df_test_col %in% "") df_test_col <- "df_test"
+  df_resid_col <- config$df_resid_col
+  if(is.null(df_resid_col) || df_resid_col %in% "") df_resid_col <- "df_resid"
+
+  state$features[[df_test_col]] <- df_test
+  state$features[[df_resid_col]] <- df_resid
+
+  state$expression <- state$expression[i, , drop=F]
+  state$features <- state$features[i, , drop=F]
+  ## state$samples <- state$samples
+
+  return(state)
+}
+
 #' Filter features based on number of samples
 #' @description
-#'   Filter features based on number of samples expressing feature.
+#'   Filter features based on number of samples in which feature was measured.
 #' @details
-#'   Feature considered expressed if \code{state$expression > 0}; 
-#'     \code{NA}s count as no expression.
+#'   A value is missing if and only if it is \code{NA}. Raw zeros are converted
+#'     to \code{NA} by \code{h0testr::initialize()}, so a feature is counted as
+#'     measured in a sample whenever its value there is not \code{NA},
+#'     regardless of sign.
 #'   Feature constant if \code{length(unique(expression_values)) \%in\% 1}.
 #'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
@@ -171,9 +429,9 @@ filter_features_by_formula <- function(state, config,
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{n_samples_min} \cr \tab Minimum number (non-negative numeric) of samples expressing feature to keep feature. \cr
+#'     \code{n_samples_min} \cr \tab Minimum number (non-negative numeric) of samples with a non-NA value for the feature to keep feature. \cr
 #'   }
-#' @param n_samples_min Minimum number of samples expressing feature. Non-negative numeric.
+#' @param n_samples_min Minimum number of samples with a non-NA value for the feature. Non-negative numeric.
 #' @param remove_constant Logical scalar: if constant features of \code{state$expression} should be removed.
 #' @param filter_by_formula Logical scalar: if \code{filter_features_by_formula()} should be run after other filters.
 #' @return An updated \code{state} list with the following elements:
@@ -210,11 +468,9 @@ filter_features <- function(state, config,
       config=config)
   }
   
-  f <- function(v) {
-    i <- sum(v > 0, na.rm=T) >= n_samples_min
-    i[is.na(i)] <- F
-    return(i)
-  }
+  ## NA is the only indicator of a missing value; see f.zeros_to_na():
+
+  f <- function(v) sum(!is.na(v)) >= n_samples_min
   i <- apply(state$expression, 1, f)
   
   f.msg("filtering", sum(!i), "features, keeping", sum(i), config=config)
@@ -250,10 +506,12 @@ filter_features <- function(state, config,
 
 #' Filter samples based on number of features
 #' @description
-#'   Filter samples based on number of features with \code{state$expression > 0}.
-#' @details 
-#'   Feature considered expressed if \code{state$expression > 0}; \code{NA}s 
-#'     count as no expression.
+#'   Filter samples based on number of features with a non-\code{NA} value.
+#' @details
+#'   A value is missing if and only if it is \code{NA}. Raw zeros are converted
+#'     to \code{NA} by \code{h0testr::initialize()}, so a feature is counted as
+#'     measured in a sample whenever its value there is not \code{NA},
+#'     regardless of sign.
 #'   Sample constant if \code{length(unique(expression_values)) \%in\% 1)}.
 #'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
@@ -265,9 +523,9 @@ filter_features <- function(state, config,
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{n_features_min} \cr \tab Minimum number (non-negative numeric) of features expressed in observation to keep observation. \cr
+#'     \code{n_features_min} \cr \tab Minimum number (non-negative numeric) of features with a non-NA value in the observation to keep observation. \cr
 #'   }
-#' @param n_features_min Minimum number of features expressed per sample. Non-negative numeric.
+#' @param n_features_min Minimum number of features with a non-NA value per sample. Non-negative numeric.
 #' @param remove_constant Logical scalar: if constant observations of \code{state$expression} should be removed.
 #' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
@@ -302,11 +560,9 @@ filter_observations <- function(state, config,
       config=config)
   }
   
-  f <- function(v) {
-    i <- sum(v > 0, na.rm=T) >= n_features_min
-    i[is.na(i)] <- F
-    return(i)
-  }
+  ## NA is the only indicator of a missing value; see f.zeros_to_na():
+
+  f <- function(v) sum(!is.na(v)) >= n_features_min
   i <- apply(state$expression, 2, f)
   f.msg("filtering", sum(!i), "observations, keeping", sum(i), config=config)
   state$expression <- state$expression[, i, drop=F]
@@ -335,11 +591,12 @@ filter_observations <- function(state, config,
   return(state)
 }
 
-#' Number of samples expressing each feature
+#' Number of samples in which each feature was measured
 #' @description
-#'   Calculates the number of samples expressing each feature
-#' @details Feature considered expressed if \code{state$expression > 0}; 
-#'   \code{NA}s count as no expression.
+#'   Calculates the number of samples in which each feature was measured
+#' @details A feature counts as measured in a sample whenever its value there is
+#'   not \code{NA}, regardless of sign; raw zeros are converted to \code{NA} by
+#'   \code{h0testr::initialize()}.
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -365,13 +622,10 @@ samples_per_feature <- function(state, config) {
       "class(state$expression):", class(state$expression), config=config)
   }
   
-  f <- function(v) {
-    n <- sum(v > 0, na.rm=T)
-    n[is.na(n)] <- 0      ## only if all(is.na(v))
-    return(n)
-  }
-  n <- apply(state$expression, 1, f)
-  
+  ## NA is the only indicator of a missing value; see f.zeros_to_na():
+
+  n <- apply(state$expression, 1, function(v) sum(!is.na(v)))
+
   return(n)
 }
 
@@ -379,10 +633,10 @@ samples_per_feature <- function(state, config) {
 #' @description
 #'   Calculates the median expression of each feature in each expressing sample. 
 #' @details 
-#'   Sample considered to express feature if \code{state$expression > 0}; 
-#'     \code{NA}s count as no expression.
-#'     Note that \code{NA}s and values less than or equal to zero do not count 
-#'       toward the median.
+#'   Median over the non-\code{NA} values of the feature. Values are not
+#'     screened by sign, so a transformed value of zero or below counts toward
+#'     the median; raw zeros are already \code{NA} by this point, having been
+#'     converted by \code{h0testr::initialize()}.
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -418,12 +672,13 @@ feature_median_expression <- function(state, config) {
   return(m)
 }
 
-#' Number of expressed features per sample
+#' Number of measured features per sample
 #' @description
-#'   Calculates the number of expressed features in each sample. 
+#'   Calculates the number of measured features in each sample.
 #' @details 
-#'   Features are considered to be expressed if \code{state$expression > 0}; 
-#'     \code{NA}s count as no expression.
+#'   A feature counts as measured in a sample whenever its value there is not
+#'     \code{NA}, regardless of sign; raw zeros are converted to \code{NA} by
+#'     \code{h0testr::initialize()}.
 #' @param state A list with elements like that returned by `read_data()`:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -433,7 +688,7 @@ feature_median_expression <- function(state, config) {
 #' @param config List with configuration values. Does not use any params, 
 #'   so can pass empty list.
 #' @return A numeric vector of length \code{ncol(state$expression)} with 
-#'   number of features expressed in each sample.
+#'   number of features measured in each sample.
 #' @examples
 #' set.seed(101)
 #' exprs <- h0testr::sim1(n_obs=6, n_feats=12)$mat
@@ -450,13 +705,10 @@ features_per_sample <- function(state, config) {
       "class(state$expression):", class(state$expression), config=config)
   }
   
-  f <- function(v) {
-    n <- sum(v > 0, na.rm=T)
-    n[is.na(n)] <- 0      ## only if all(is.na(v))
-    return(n)
-  }
-  n <- apply(state$expression, 2, f)
-  
+  ## NA is the only indicator of a missing value; see f.zeros_to_na():
+
+  n <- apply(state$expression, 2, function(v) sum(!is.na(v)))
+
   return(n)
 }
 
@@ -602,11 +854,11 @@ add_filter_stats <- function(state, config) {
   } 
   state$samples[[config$n_features_expr_col]] <- n
   
-  n <- apply(state$expression, 1, function(v) sum(v > 0, na.rm=T))
+  n <- apply(state$expression, 1, function(v) sum(!is.na(v)))
   f.msg("samples per feature:", config=config)
   f.quantile(n, config, digits=0)
-  
-  n <- apply(state$expression, 2, function(v) sum(v > 0, na.rm=T))
+
+  n <- apply(state$expression, 2, function(v) sum(!is.na(v)))
   f.msg("features per sample", config=config)
   f.quantile(n, config, digits=0)
   
@@ -617,9 +869,15 @@ add_filter_stats <- function(state, config) {
 #' @description
 #'   Filter features and samples based on expression. 
 #' @details 
-#'   Filters out features with too few expressing samples, and filters out 
-#'     samples with too few expressed features. Features are considered to be 
-#'     expressed if \code{state$expression > 0}; \code{NA}s count as no expression.
+#'   Filters out features measured in too few samples, and filters out samples
+#'     with too few measured features. A value is missing if and only if it is
+#'     \code{NA}; raw zeros are converted to \code{NA} by
+#'     \code{h0testr::initialize()}.
+#'   Features are filtered before observations, and then
+#'     \code{filter_features_by_estimability()} runs last, since dropping an
+#'     observation changes every feature's missingness pattern. This is a single
+#'     pass: features dropped for lack of estimability are not fed back into
+#'     \code{filter_observations()}.
 #'   Features and/or samples considered constant if 
 #'     \code{length(unique(expression_values)) \%in\% 1}.
 #'   See documentation for \code{h0testr::new_config()} 
@@ -634,14 +892,19 @@ add_filter_stats <- function(state, config) {
 #'   \tabular{ll}{
 #'     \code{feat_col}            \cr \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}.
 #'     \code{obs_col}             \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}.
-#'     \code{n_features_min}      \cr \tab Minimum number (non-negative numeric) of features expressed in observation to keep observation. \cr
-#'     \code{n_samples_min}       \cr \tab Minimum number (non-negative numeric) of samples expressing feature to keep feature. \cr
+#'     \code{n_features_min}      \cr \tab Minimum number (non-negative numeric) of features with a non-NA value in the observation to keep observation. \cr
+#'     \code{n_samples_min}       \cr \tab Minimum number (non-negative numeric) of samples with a non-NA value for the feature to keep feature. \cr
 #'     \code{median_raw_col}      \cr \tab Name (character) of new column in feature metadata to hold median expression in expressing samples. \cr
 #'     \code{n_samples_expr_col}  \cr \tab Name (character) of new column in feature metadata to hold number of expressing samples. \cr
-#'     \code{n_features_expr_col} \cr \tab Name (character) of new column in sample metadata to hold number of expressed features. \cr
+#'     \code{n_features_expr_col} \cr \tab Name (character) of new column in sample metadata to hold number of measured features. \cr
+#'     \code{estimability}        \cr \tab Requirement placed on \code{config$test_term}; scalar character in \code{c("test", "term", "full")}. \cr
+#'     \code{df_resid_min}        \cr \tab Minimum residual degrees of freedom (non-negative numeric) to keep feature. \cr
+#'     \code{df_test_col}         \cr \tab Name (character) of new column in feature metadata to hold \code{df_test}. \cr
+#'     \code{df_resid_col}        \cr \tab Name (character) of new column in feature metadata to hold \code{df_resid}. \cr
 #'   }
 #' @param remove_constant Logical scalar: if constant rows and columns of \code{state$expression} should be removed.
 #' @param filter_by_formula Logical scalar: if \code{filter_features_by_formula()} should be run after other feature filters.
+#' @param filter_by_estimability Logical scalar: if \code{filter_features_by_estimability()} should be run after features and observations have been filtered.
 #' @return A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -650,9 +913,9 @@ add_filter_stats <- function(state, config) {
 #'   }
 #' @examples
 #' set.seed(101)
-#' exprs <- h0testr::sim1(n_obs=6, n_feats=12, mcar_p=0.25)$mat
+#' exprs <- h0testr::sim1(n_obs=8, n_feats=12, mcar_p=0.2)$mat
 #' feats <- data.frame(feature_id=rownames(exprs))
-#' samps <- data.frame(observation_id=colnames(exprs), age=c(rep("4m", 3), rep("12m", 3)))
+#' samps <- data.frame(observation_id=colnames(exprs), age=c(rep("4m", 4), rep("12m", 4)))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #'
 #' ## assume default median_raw_col, n_samples_expr_col, and n_features_expr_col are ok:
@@ -660,26 +923,40 @@ add_filter_stats <- function(state, config) {
 #' config$save_state <- FALSE             ## default is TRUE
 #' config$feat_col <- config$feat_id_col
 #' config$obs_col <- config$obs_id_col
-#' config$n_features_min <- 6
+#' config$n_features_min <- 3
 #' config$n_samples_min <- 2
+#'
+#' ## filter_features_by_estimability() needs test_term to fit frm:
 #' config$frm <- ~age
+#' config$test_term <- "age"
+#' config$reference_levels <- c(age="4m")
 #' out <- h0testr::filter(state, config)
 #' print(out$state)
 #' str(out$config)
 
-filter <- function(state, config, remove_constant=TRUE, filter_by_formula=TRUE) {
-  
+filter <- function(state, config, remove_constant=TRUE, filter_by_formula=TRUE,
+    filter_by_estimability=TRUE) {
+
   check_config(config)
-  
-  f.msg("filter: remove_constant:", remove_constant, 
-    "; filter_by_formula:", filter_by_formula, config=config)
-  
-  state <- filter_features(state, config, 
-    remove_constant=remove_constant, filter_by_formula=filter_by_formula) 
-  
-  state <- filter_observations(state, config, 
+
+  f.msg("filter: remove_constant:", remove_constant,
+    "; filter_by_formula:", filter_by_formula,
+    "; filter_by_estimability:", filter_by_estimability, config=config)
+
+  state <- filter_features(state, config,
+    remove_constant=remove_constant, filter_by_formula=filter_by_formula)
+
+  state <- filter_observations(state, config,
     remove_constant=remove_constant)
-    
+
+  ## last, and after observations have been dropped: dropping an observation
+  ##   changes every feature's missingness pattern, and so its ranks. Single
+  ##   pass, so dropping features here does not re-qualify any observation:
+
+  if(filter_by_estimability) {
+    state <- filter_features_by_estimability(state, config)
+  }
+
   state <- add_filter_stats(state, config)
   
   f.check_state(state, config)

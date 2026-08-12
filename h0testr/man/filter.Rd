@@ -4,7 +4,13 @@
 \alias{filter}
 \title{Filter features and samples}
 \usage{
-filter(state, config, remove_constant = TRUE, filter_by_formula = TRUE)
+filter(
+  state,
+  config,
+  remove_constant = TRUE,
+  filter_by_formula = TRUE,
+  filter_by_estimability = TRUE
+)
 }
 \arguments{
 \item{state}{A list with elements like that returned by `read_data()`:
@@ -18,16 +24,22 @@ filter(state, config, remove_constant = TRUE, filter_by_formula = TRUE)
 \tabular{ll}{
   \code{feat_col}            \cr \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}.
   \code{obs_col}             \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}.
-  \code{n_features_min}      \cr \tab Minimum number (non-negative numeric) of features expressed in observation to keep observation. \cr
-  \code{n_samples_min}       \cr \tab Minimum number (non-negative numeric) of samples expressing feature to keep feature. \cr
+  \code{n_features_min}      \cr \tab Minimum number (non-negative numeric) of features with a non-NA value in the observation to keep observation. \cr
+  \code{n_samples_min}       \cr \tab Minimum number (non-negative numeric) of samples with a non-NA value for the feature to keep feature. \cr
   \code{median_raw_col}      \cr \tab Name (character) of new column in feature metadata to hold median expression in expressing samples. \cr
   \code{n_samples_expr_col}  \cr \tab Name (character) of new column in feature metadata to hold number of expressing samples. \cr
-  \code{n_features_expr_col} \cr \tab Name (character) of new column in sample metadata to hold number of expressed features. \cr
+  \code{n_features_expr_col} \cr \tab Name (character) of new column in sample metadata to hold number of measured features. \cr
+  \code{estimability}        \cr \tab Requirement placed on \code{config$test_term}; scalar character in \code{c("test", "term", "full")}. \cr
+  \code{df_resid_min}        \cr \tab Minimum residual degrees of freedom (non-negative numeric) to keep feature. \cr
+  \code{df_test_col}         \cr \tab Name (character) of new column in feature metadata to hold \code{df_test}. \cr
+  \code{df_resid_col}        \cr \tab Name (character) of new column in feature metadata to hold \code{df_resid}. \cr
 }}
 
 \item{remove_constant}{Logical scalar: if constant rows and columns of \code{state$expression} should be removed.}
 
 \item{filter_by_formula}{Logical scalar: if \code{filter_features_by_formula()} should be run after other feature filters.}
+
+\item{filter_by_estimability}{Logical scalar: if \code{filter_features_by_estimability()} should be run after features and observations have been filtered.}
 }
 \value{
 A list with elements like that returned by \code{read_data()}:
@@ -41,9 +53,15 @@ A list with elements like that returned by \code{read_data()}:
 Filter features and samples based on expression.
 }
 \details{
-Filters out features with too few expressing samples, and filters out 
-    samples with too few expressed features. Features are considered to be 
-    expressed if \code{state$expression > 0}; \code{NA}s count as no expression.
+Filters out features measured in too few samples, and filters out samples
+    with too few measured features. A value is missing if and only if it is
+    \code{NA}; raw zeros are converted to \code{NA} by
+    \code{h0testr::initialize()}.
+  Features are filtered before observations, and then
+    \code{filter_features_by_estimability()} runs last, since dropping an
+    observation changes every feature's missingness pattern. This is a single
+    pass: features dropped for lack of estimability are not fed back into
+    \code{filter_observations()}.
   Features and/or samples considered constant if 
     \code{length(unique(expression_values)) \%in\% 1}.
   See documentation for \code{h0testr::new_config()} 
@@ -51,9 +69,9 @@ Filters out features with too few expressing samples, and filters out
 }
 \examples{
 set.seed(101)
-exprs <- h0testr::sim1(n_obs=6, n_feats=12, mcar_p=0.25)$mat
+exprs <- h0testr::sim1(n_obs=8, n_feats=12, mcar_p=0.2)$mat
 feats <- data.frame(feature_id=rownames(exprs))
-samps <- data.frame(observation_id=colnames(exprs), age=c(rep("4m", 3), rep("12m", 3)))
+samps <- data.frame(observation_id=colnames(exprs), age=c(rep("4m", 4), rep("12m", 4)))
 state <- list(expression=exprs, features=feats, samples=samps)
 
 ## assume default median_raw_col, n_samples_expr_col, and n_features_expr_col are ok:
@@ -61,9 +79,13 @@ config <- h0testr::new_config()        ## defaults
 config$save_state <- FALSE             ## default is TRUE
 config$feat_col <- config$feat_id_col
 config$obs_col <- config$obs_id_col
-config$n_features_min <- 6
+config$n_features_min <- 3
 config$n_samples_min <- 2
+
+## filter_features_by_estimability() needs test_term to fit frm:
 config$frm <- ~age
+config$test_term <- "age"
+config$reference_levels <- c(age="4m")
 out <- h0testr::filter(state, config)
 print(out$state)
 str(out$config)

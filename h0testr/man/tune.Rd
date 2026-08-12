@@ -53,10 +53,24 @@ A data.frame with the following columns:
     \code{scale}      \cr \tab Imputation scale for \code{impute_rnorm_feature}. \cr
     \code{test}       \cr \tab Test method (character). \cr
     \code{perm}       \cr \tab Permuted variable (character). \cr
-    \code{nhits}      \cr \tab Number of hits (numeric). \cr
-    \code{ntests}     \cr \tab Number of tests (numeric). \cr
+    \code{nhits}      \cr \tab Number of hits (numeric); \code{NA} if not tested. \cr
+    \code{ntests}     \cr \tab Number of tests (numeric); \code{NA} if not tested. \cr
     \code{time}       \cr \tab Timestamp. \cr
   }
+  A combination that could not be tested yields a row with \code{nhits} and
+    \code{ntests} set to \code{NA} rather than aborting the sweep, and the reason
+    is written to \code{config$log_file}. This happens when too few samples or
+    genes survive filtering, and when \code{test_method} cannot express the test
+    \code{config$test_term} implies. \code{"deqms"} and \code{"msqrob"} test one
+    coefficient at a time, so they are skipped when \code{config$test_term} names
+    a factor with more than two levels, or a variable that also appears in an
+    interaction. \code{"prolfqua"} is bounded by terms instead of coefficients, so
+    a factor with more than two levels is fine there, but a variable that also
+    appears in an interaction is skipped. \code{"proda"} is bounded by neither,
+    testing several coefficients jointly by likelihood ratio.
+    \code{h0testr::tune_check()} counts these \code{NA} \code{nhits} as zero hits,
+    but gives such a row no \code{fdr}, so that a combination which never ran is
+    not ranked above every combination that did.
 }
 \description{
 Run a basic tuning loop according.

@@ -37,10 +37,19 @@ A list with components:
 Tests for differential expression using the \code{limma::voom()} function.
 }
 \details{
-The \code{limma::voom()} model is fit to \code{config$frm} and an F-test 
-    is performed for whether the effect of \code{config$test_term} on 
-    \code{state$expression} is zero. 
-  See documentation for \code{h0testr::new_config()} 
+The \code{limma::voom()} model is fit to \code{config$frm} and a test
+    is performed for whether the effect of \code{config$test_term} on
+    \code{state$expression} is zero.
+  Coefficients are selected exactly as in \code{h0testr::test_trend()}: the design
+    matrix columns assigned to \code{config$test_term} and to every term
+    containing it, so naming a variable that also appears in an interaction gives a
+    joint test over the interaction as well. One coefficient gives a moderated
+    t-test with a \code{logFC} column, several give an F-test with an \code{F}
+    column.
+  Note \code{limma::voom()} models a count mean-variance relationship, so it is
+    appropriate for count-like input rather than for already log-transformed
+    abundances.
+  See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.
 }
 \examples{

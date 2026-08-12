@@ -27,11 +27,14 @@ latest list of valid choices. Currently one of:
 \code{c("holm", "hochberg", "hommel", "bonferroni", "BH", "BY")}.}
 }
 \value{
-A data.frame with results of testing. Columns include: 
-    \code{c("feature", "p.adj", "pval", "Intercept")}, along with 
-    coefficient estimates corresponding to \code{config$test_term}, 
-    followed by corresponding feature metadata columns from 
-    \code{config$features}.
+A list with a \code{$hits} data.frame of results and a \code{$fit} that is
+    always \code{NULL}, since a separate model is fitted to every feature.
+    Columns of \code{$hits} are \code{c("feature", "p.adj", "pval")}, then the
+    full-model coefficient estimates for the columns under test, preceded by
+    \code{Intercept} when \code{config$frm} has one, then the feature metadata
+    columns from \code{state$features}. Coefficient columns that are
+    \code{NA} for every feature are dropped, and \code{:} in an interaction
+    coefficient name becomes \code{.}.
 }
 \description{
 Tests for differential expression by fitting full and reduced linear 
@@ -42,13 +45,27 @@ This test is suitable for use with missing values without imputation. The
     test does not use moderated standard error estimates, so should only be 
     relied upon when there is plenty of replication (at least 5 observations 
     per condition, preferably more).
-  The \code{stats::lm()} function is used to fit the full formula specified 
-    by \code{config$frm}, and also to a reduced formula derived by dropping 
-    all terms (marginal and interaction terms) involving 
-    \code{config$test_term}. The two models are compared using a likelihood 
-    ratio test, implemented with the \code{lmtest::lrtest()} function. 
-    Raw p-values are adjusted for multiple testing using 
-    \code{stats::p.adjust()}.
+  The design matrix for \code{config$frm} is built once, with
+    \code{stats::model.matrix()}. For each feature, \code{stats::lm()} fits a
+    full model to that matrix and a reduced model to the same matrix with the
+    columns of \code{config$test_term} removed, both restricted to the
+    observations where the feature was measured. Removing columns rather than
+    rebuilding a reduced formula matters: re-deriving the reduced model from
+    formula text lets \code{stats::model.matrix()} re-code the remaining
+    factors to full rank and restore the span that was to be removed, leaving
+    nothing to test. The columns removed are those of \code{config$test_term}
+    together with those of every higher-order term containing it, so testing
+    a variable involved in an interaction tests the interaction too.
+  The two models are compared using a likelihood ratio test, implemented with
+    the \code{lmtest::lrtest()} function. Raw p-values are adjusted for
+    multiple testing using \code{stats::p.adjust()}. A feature measured in too
+    few observations to support the full model yields an \code{NA} p-value,
+    which is reported as 1; use
+    \code{h0testr::filter_features_by_estimability()} beforehand to drop such
+    features instead, which screens the ranks of these same two matrices.
+  Any covariate type that \code{stats::model.matrix()} accepts is supported,
+    categorical or continuous, in any combination, as are interactions and
+    formulas without an intercept.
 }
 \examples{
 set.seed(101)

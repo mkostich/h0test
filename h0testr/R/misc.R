@@ -217,6 +217,164 @@ f.parse_frm <- function(frm, config) {
   return(out)
 }
 
+## Rank of a design matrix, tolerant of the degenerate shapes that arise when a
+##   feature was measured in too few observations, or when the reduced model has
+##   no columns left:
+
+f.design_rank <- function(mat) {
+  if(nrow(mat) %in% 0 || ncol(mat) %in% 0) return(0L)
+  return(qr(mat)$rank)
+}
+
+## The design matrix for config$frm, the columns of it that carry the test of
+##   config$test_term, and the degrees of freedom of that test measured over all
+##   observations. Single place where the full and reduced models are derived
+##   from config, so that filter_features_by_estimability() and the hypothesis
+##   tests cannot disagree about what is being tested.
+##   A df_intend of zero means the reduced model spans the same column space as
+##   the full model, so the two fits are indistinguishable and there is no
+##   hypothesis to test; any p-value reported would be an artifact of how the
+##   models were coded rather than a statement about the data. That is an error
+##   rather than a warning, since there is no result to salvage. It is reached
+##   whenever config$test_term contributes no column that the remaining terms do
+##   not already imply, most easily by naming the intercept alongside a factor
+##   that the reduced model codes to full rank: with frm ~grp and test_term '1',
+##   'y ~ 1 + grp' and 'y ~ 0 + grp' are two codings of one model:
+
+f.design_test_cols <- function(state, config) {
+
+  ## throws an informative error if config$test_term does not fit config$frm:
+
+  parsed <- f.parse_frm(config$frm, config)
+  drops <- f.normalize_terms(config)$drop_terms
+
+  X <- stats::model.matrix(parsed$frm, data=state$samples)
+
+  if(nrow(X) != ncol(state$expression)) {
+    f.err("f.design_test_cols: design matrix has", nrow(X),
+      "rows, but state$expression has", ncol(state$expression), "columns;",
+      "\n", "model.matrix() drops observations with missing covariate values",
+      config=config)
+  }
+
+  ## attr(X, 'assign') indexes the term labels in order, with 0 for the
+  ##   intercept; parsed$labels is those same labels, canonicalized:
+
+  asgn <- attr(X, "assign")
+  cols_test <- which(asgn %in% match(setdiff(drops, "1"), parsed$labels))
+  if("1" %in% drops) cols_test <- sort(c(which(asgn %in% 0), cols_test))
+
+  if(length(cols_test) %in% 0) {
+    f.err("f.design_test_cols: config$test_term", config$test_term,
+      "matches no columns of the design matrix;", "\n",
+      "terms dropped to form the reduced model:", drops, "\n",
+      "terms of config$frm:", parsed$labels, config=config)
+  }
+
+  rank_all <- f.design_rank(X)
+  rank_red <- f.design_rank(X[, -cols_test, drop=F])
+  df_intend <- rank_all - rank_red
+
+  ## nothing left in the reduced model, which happens when config$frm suppresses
+  ##   the intercept and config$test_term names every remaining term. The test is
+  ##   then against zero rather than against a common mean: well defined, but on
+  ##   log-scale abundances every feature rejects it, which is rarely the
+  ##   question. Warn rather than stop, since the test asked for is the one
+  ##   performed, and it is also what filter_features_by_estimability() screens:
+
+  if(rank_red %in% 0) {
+    f.msg("WARNING: f.design_test_cols: dropping config$test_term '",
+      config$test_term, "' leaves a reduced model with no parameters, so the",
+      "test is of whether the", config$test_term, "means are all zero, not of",
+      "whether they differ from each other;", "\n",
+      "config$frm:", deparse(parsed$frm), "; for the usual comparison among",
+      "levels, keep the intercept in config$frm", config=config)
+  }
+
+  if(df_intend %in% 0) {
+    f.err("f.design_test_cols: dropping config$test_term '", config$test_term,
+      "' leaves a reduced model spanning the same space as the full model,",
+      "so there is no hypothesis to test;", "\n",
+      "config$frm:", deparse(parsed$frm), "; terms dropped to form the",
+      "reduced model:", paste(drops, collapse=" "), "; design columns:",
+      ncol(X), "; rank:", rank_all, "\n",
+      "testing the intercept ('1') is only meaningful when no factor in",
+      "config$frm is coded to full rank in the reduced model", config=config)
+  }
+
+  out <- list(
+    parsed=parsed,
+    drops=drops,
+    X=X,
+    cols_test=cols_test,
+    rank_all=rank_all,
+    df_intend=df_intend
+  )
+
+  return(out)
+}
+
+## How many design matrix columns a test method can test at once. The limma-family
+##   methods take a vector of coefficients and return an F-test over all of them, so
+##   they are unlimited. proDA is unlimited too, by a different route:
+##   proDA::test_diff() takes either one contrast or a reduced model, and test_proda()
+##   hands it the reduced model that f.design_test_cols() built whenever more than one
+##   column carries the test, which is a likelihood ratio test over all of them. Two
+##   engines can still only report one coefficient at a time: DEqMS::outputResult()
+##   takes a single coef_col, and msqrob2::hypothesisTest() returns one table per
+##   contrast rather than a joint test over several. Those are limitations of the
+##   engines, not of how h0testr selects columns:
+
+f.test_max_cols <- function(method) {
+  if(method %in% c("deqms", "msqrob")) return(1L)
+  return(Inf)
+}
+
+## How many terms of config$frm a test method can test at once; companion to
+##   f.test_max_cols(), which counts design matrix columns. The two limits are
+##   different things and a method can be bounded by either: prolfqua reports the
+##   rows of an anova table, one per term, so a factor with several levels is
+##   already a correct multi-df F-test there, but a joint test over several terms
+##   is not something the table can express. So testing 'dose' in ~dose with a
+##   three level dose runs under prolfqua (one term, 2 df) while deqms and msqrob
+##   cannot (2 coefficients), and testing 'sex' in ~sex*batch is out of reach for
+##   all three; proda is bounded by neither limit, testing several columns by
+##   likelihood ratio against the reduced model:
+
+f.test_max_terms <- function(method) {
+  if(method %in% "prolfqua") return(1L)
+  return(Inf)
+}
+
+## The design for config$frm and the columns of it carrying the test of
+##   config$test_term, for a method that can test at most max_cols of them at once.
+##   Wraps f.design_test_cols() so that a method which cannot express the test that
+##   config$test_term implies says so, rather than quietly testing a narrower
+##   hypothesis than the one that was asked for and that
+##   filter_features_by_estimability() screened features against. The shortfall
+##   arises from the marginality rule: testing a variable tests every term
+##   containing it, so testing 'sex' in ~sex*batch is a joint test of sexM and
+##   sexM:batchb2, and testing a factor with more than two levels is a joint test of
+##   its contrasts:
+
+f.design_test_cols_max <- function(state, config, caller, max_cols=Inf) {
+
+  design <- f.design_test_cols(state, config)
+  n_cols <- length(design$cols_test)
+
+  if(n_cols > max_cols) {
+    f.err(caller, ": testing config$test_term '", config$test_term, "' in",
+      deparse(design$parsed$frm), "is a joint test of", n_cols, "coefficients (",
+      paste(colnames(design$X)[design$cols_test], collapse=", "), "), but", caller,
+      "can test at most", max_cols, "at a time;", "\n",
+      "use test_method 'lm', 'trend', 'voom' or 'proda' for this test_term, or",
+      "name a term of config$frm that resolves to a single coefficient",
+      config=config)
+  }
+
+  return(design)
+}
+
 ## Classify each variable in config$frm as "factor" or "numeric" (continuous).
 ##   Single place where covariate type is decided, so that value checking,
 ##   filtering, and hypothesis testing all agree. Rules, in order:
@@ -269,6 +427,33 @@ f.covariate_types <- function(state, config) {
         "\n", "distinct values:",
         utils::head(sort(unique(as.character(v))), 10), config=config)
     }
+  }
+
+  return(out)
+}
+
+## Rebuild a factor covariate with the level ordering initialize() resolved into
+##   config$factor_levels, with the declared reference level first. Handing a
+##   downstream fit a character vector instead leaves it to re-derive the levels by
+##   sorting, which renames the coefficients: with reference level "M", h0testr names
+##   the tested column sexF while an alphabetical re-derivation names it sexM. Where
+##   the fit reports one named contrast (test_msqrob()) that mismatch yields a table
+##   of NAs with no error; where it reports a coefficient (test_prolfqua()) it changes
+##   which contrast the reported numbers describe. Both are silent, hence this.
+##   config$factor_levels is absent when initialize() has not run, in which case the
+##   sorted levels are the best available and match what the fit would derive anyway:
+
+f.relevel_covariate <- function(v, trm, config, caller) {
+
+  lvls <- config$factor_levels[[trm]]
+  if(is.null(lvls)) lvls <- levels(factor(v))
+
+  out <- factor(as.character(v), levels=lvls)
+
+  if(any(is.na(out))) {
+    f.err(caller, ": covariate", trm, "has values that are not among the levels",
+      "set by initialize();", "\n", "levels:", lvls, "\n", "unmatched values:",
+      utils::head(sort(unique(as.character(v)[is.na(out)])), 10), config=config)
   }
 
   return(out)

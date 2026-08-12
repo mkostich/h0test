@@ -149,6 +149,73 @@ f.check_parameters <- function(state, config, initialized=F, minimal=F) {
   return(TRUE)
 }
 
+## Establish the missingness contract on state$expression: NA is the only
+##   indicator of a missing value everywhere downstream. Raw (untransformed)
+##   expression cannot be negative, and a raw zero means the feature was not
+##   detected, so zeros become NA. When config$normalization_method is "none",
+##   the input may already be transformed, in which case negative values are
+##   legitimate (e.g. vsn output, or log2 of an intensity below 1) and no
+##   conversion is done; the caller is then responsible for having marked
+##   non-detections as NA. Overwrites config$zeros_to_na with what was actually
+##   done, so that normalize() can catch a contradictory method= override:
+
+f.zeros_to_na <- function(state, config) {
+
+  if(!is.matrix(state$expression)) {
+    f.err("f.zeros_to_na: !is.matrix(state$expression);",
+      "class(state$expression):", class(state$expression), config=config)
+  }
+
+  ## unset means raw, matching the new_config() default:
+
+  raw <- TRUE
+  if(!is.null(config$zeros_to_na)) raw <- isTRUE(config$zeros_to_na)
+  if(!is.null(config$normalization_method) &&
+      config$normalization_method %in% "none") {
+    raw <- FALSE
+  }
+
+  if(!raw) {
+    f.msg("f.zeros_to_na: treating state$expression as already transformed;",
+      "zeros left as they are and negative values allowed;", "\n",
+      "NA is the only indicator of a missing value", config=config)
+    config$zeros_to_na <- FALSE
+    return(list(state=state, config=config))
+  }
+
+  i_neg <- !is.na(state$expression) & state$expression < 0
+
+  if(any(i_neg)) {
+
+    rnom <- rownames(state$expression)
+    cnom <- colnames(state$expression)
+    if(is.null(rnom)) rnom <- as.character(1:nrow(state$expression))
+    if(is.null(cnom)) cnom <- as.character(1:ncol(state$expression))
+
+    idxs <- utils::head(which(i_neg), 5)
+    rr <- ((idxs - 1) %% nrow(state$expression)) + 1
+    cc <- ((idxs - 1) %/% nrow(state$expression)) + 1
+
+    f.err("f.zeros_to_na: negative values in state$expression;",
+      "raw expression values cannot be negative;", "\n",
+      "if the input is already transformed, set config$normalization_method",
+      "to 'none', or set config$zeros_to_na to FALSE;", "\n",
+      "negative values:", sum(i_neg), "of", length(i_neg), ";",
+      "first offenders (feature, observation, value):", "\n",
+      paste(rnom[rr], cnom[cc], state$expression[idxs], sep=", "),
+      config=config)
+  }
+
+  i_zero <- !is.na(state$expression) & state$expression == 0
+  state$expression[i_zero] <- NA
+
+  f.msg("f.zeros_to_na: converted", sum(i_zero), "zero values to NA;",
+    "NA is now the only indicator of a missing value", config=config)
+  config$zeros_to_na <- TRUE
+
+  return(list(state=state, config=config))
+}
+
 ## uses config$frm, config$reference_levels, config$obs_id_col, and config$sample_id_col:
 
 f.subset_covariates <- function(state, config) {
@@ -278,14 +345,27 @@ f.set_covariate_factor_levels <- function(state, config, types=NULL) {
 #'     each factor covariate; the remaining levels are sorted. The resulting
 #'     level ordering of each factor covariate is logged, and returned in
 #'     \code{config$factor_levels}.
+#'   Establishes the missingness contract on \code{state$expression}: \code{NA}
+#'     is the only indicator of a missing value everywhere downstream. Raw
+#'     expression values cannot be negative, and a raw zero means the feature was
+#'     not detected, so a negative value is an error and zeros are converted to
+#'     \code{NA}. When \code{config$normalization_method} is \code{"none"} the
+#'     input may already be transformed, in which case negative values are
+#'     legitimate and no conversion is done; the caller is then responsible for
+#'     having marked non-detections as \code{NA}. Either way,
+#'     \code{config$zeros_to_na} is set to what was actually done, so that
+#'     \code{normalize()} can catch a contradictory \code{method} argument.
+#'     Skipped when \code{initialized=TRUE}, since an already initialized state
+#'     may legitimately hold negative (transformed) values.
 #'   Flow is:
 #'     \tabular{l}{
 #'       1. \code{check_config()}. \cr
-#'       2. Subset covariates in \code{config$frm}. \cr
-#'       3. Check feat_col and obs_col. \cr
-#'       4. Subset covariates of interest. \cr
-#'       5. Classify covariates and check their values. \cr
-#'       6. Set covariate factor levels. \cr
+#'       2. Settle missingness: raw zeros to \code{NA}; negative raw value is an error. \cr
+#'       3. Subset covariates in \code{config$frm}. \cr
+#'       4. Check feat_col and obs_col. \cr
+#'       5. Subset covariates of interest. \cr
+#'       6. Classify covariates and check their values. \cr
+#'       7. Set covariate factor levels. \cr
 #'     }
 #'   If \code{initialized=FALSE}, then checks if \code{state$features} has 
 #'     columns with names in 
@@ -312,6 +392,8 @@ f.set_covariate_factor_levels <- function(state, config, types=NULL) {
 #'     \code{test_term}            \cr \tab Term (character) in \code{config$frm} to test for significance. \cr
 #'     \code{reference_levels}     \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
 #'     \code{n_distinct_numeric_warn} \cr \tab Warn if continuous variable in \code{config$frm} has this few distinct values. \cr
+#'     \code{zeros_to_na}          \cr \tab Optional logical; whether input is raw, so zeros become \code{NA} and negative values are an error. Default \code{TRUE}; forced \code{FALSE} when \code{config$normalization_method} is \code{"none"}. \cr
+#'     \code{normalization_method} \cr \tab Optional; only consulted to decide whether the input is raw. See \code{zeros_to_na}. \cr
 #'     \code{n_samples_expr_col}   \cr \tab Column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
 #'     \code{median_raw_col}       \cr \tab Column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
 #'     \code{n_features_expr_col}  \cr \tab Column in \code{state$samples} that corresponds to columns of \code{data_file_in}. \cr
@@ -373,6 +455,16 @@ initialize <- function(state, config, initialized=F, minimal=F) {
   f.log("initializing", config=config)
   check_config(config)
   f.check_parameters(state, config, initialized=initialized, minimal=minimal)
+
+  ## settle missingness before anything else reads the matrix; skipped when the
+  ##   state was already initialized, since by then the values may legitimately
+  ##   be negative (transformed):
+
+  if(!initialized) {
+    out <- f.zeros_to_na(state, config)
+    state <- out$state
+    config <- out$config
+  }
 
   ## the dependent variable is always the expression values of one feature, so
   ##   any dependent given in config$frm carries no information; drop it here,

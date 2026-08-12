@@ -39,9 +39,18 @@ Tests for differential expression using the
     \code{DEqMS::spectraCounteBayes()} function.
 }
 \details{
-The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm} 
-    and a moderated t-test is performed for whether the effect of 
-    \code{config$test_term} on \code{state$expression} is zero. 
+The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm}
+    and a moderated t-test is performed for whether the effect of
+    \code{config$test_term} on \code{state$expression} is zero.
+  \code{DEqMS::outputResult()} reports one coefficient at a time, so
+    \code{config$test_term} must resolve to a single design matrix column; it is an
+    error if it does not. That rules out testing a factor with more than two
+    levels, and also testing a variable that appears in an interaction, since by
+    marginality the test then covers every term containing the variable: with
+    \code{config$frm = ~sex * batch} and \code{config$test_term = "sex"}, the test
+    is a joint test of \code{sexM} and \code{sexM:batchb2}, which this engine
+    cannot perform. Use \code{h0testr::test_lm()},
+    \code{h0testr::test_trend()} or \code{h0testr::test_voom()} for those tests.
   If the number of features per gene/protein-group is the same for all
     features, returns same result as \code{h0testr::test_trend()}.
   Returns gene-level hypothesis testing results based on 
@@ -85,7 +94,10 @@ config <- list(
   sample_id_col="obs",
   feat_id_col="pep",
   gene_id_col="gene",
-  frm=~grp+sex+grp:sex, 
+  ## no grp:sex term here: by marginality, testing "grp" in ~grp+sex+grp:sex is a
+  ##   joint test of grptrt and grptrt:sexM, and this method tests one
+  ##   coefficient at a time. Test "grp:sex" to test the interaction itself:
+  frm=~grp+sex,
   test_term="grp",
   reference_levels=c(grp="ctl", sex="F")
 )

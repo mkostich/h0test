@@ -26,6 +26,8 @@ initialize(state, config, initialized = F, minimal = F)
   \code{test_term}            \cr \tab Term (character) in \code{config$frm} to test for significance. \cr
   \code{reference_levels}     \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
   \code{n_distinct_numeric_warn} \cr \tab Warn if continuous variable in \code{config$frm} has this few distinct values. \cr
+  \code{zeros_to_na}          \cr \tab Optional logical; whether input is raw, so zeros become \code{NA} and negative values are an error. Default \code{TRUE}; forced \code{FALSE} when \code{config$normalization_method} is \code{"none"}. \cr
+  \code{normalization_method} \cr \tab Optional; only consulted to decide whether the input is raw. See \code{zeros_to_na}. \cr
   \code{n_samples_expr_col}   \cr \tab Column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
   \code{median_raw_col}       \cr \tab Column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
   \code{n_features_expr_col}  \cr \tab Column in \code{state$samples} that corresponds to columns of \code{data_file_in}. \cr
@@ -76,14 +78,27 @@ Checks to make sure columns specified in \code{config} parameters are
     each factor covariate; the remaining levels are sorted. The resulting
     level ordering of each factor covariate is logged, and returned in
     \code{config$factor_levels}.
+  Establishes the missingness contract on \code{state$expression}: \code{NA}
+    is the only indicator of a missing value everywhere downstream. Raw
+    expression values cannot be negative, and a raw zero means the feature was
+    not detected, so a negative value is an error and zeros are converted to
+    \code{NA}. When \code{config$normalization_method} is \code{"none"} the
+    input may already be transformed, in which case negative values are
+    legitimate and no conversion is done; the caller is then responsible for
+    having marked non-detections as \code{NA}. Either way,
+    \code{config$zeros_to_na} is set to what was actually done, so that
+    \code{normalize()} can catch a contradictory \code{method} argument.
+    Skipped when \code{initialized=TRUE}, since an already initialized state
+    may legitimately hold negative (transformed) values.
   Flow is:
     \tabular{l}{
       1. \code{check_config()}. \cr
-      2. Subset covariates in \code{config$frm}. \cr
-      3. Check feat_col and obs_col. \cr
-      4. Subset covariates of interest. \cr
-      5. Classify covariates and check their values. \cr
-      6. Set covariate factor levels. \cr
+      2. Settle missingness: raw zeros to \code{NA}; negative raw value is an error. \cr
+      3. Subset covariates in \code{config$frm}. \cr
+      4. Check feat_col and obs_col. \cr
+      5. Subset covariates of interest. \cr
+      6. Classify covariates and check their values. \cr
+      7. Set covariate factor levels. \cr
     }
   If \code{initialized=FALSE}, then checks if \code{state$features} has 
     columns with names in 
