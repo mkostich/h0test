@@ -17,8 +17,9 @@ feature_median_expression(state, config)
 \item{config}{List with configuration values. Does not use any params, so can pass empty list.}
 }
 \value{
-A numeric vector of length \code{nrow(state$expression)} with median expression in 
-  each expressing sample.
+A numeric vector of length \code{nrow(state$expression)} with median
+  expression over the expressing samples, and \code{NA} for any feature with
+  no expressing samples.
 }
 \description{
 Calculates the median expression of each feature in each expressing sample.
@@ -27,7 +28,8 @@ Calculates the median expression of each feature in each expressing sample.
 Median over the non-\code{NA} values of the feature. Values are not
     screened by sign, so a transformed value of zero or below counts toward
     the median; raw zeros are already \code{NA} by this point, having been
-    converted by \code{h0testr::initialize()}.
+    converted by \code{h0testr::initialize()}. A feature measured in no
+    sample has no median, and gets \code{NA}.
 }
 \examples{
 set.seed(101)

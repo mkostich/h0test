@@ -25,7 +25,10 @@ test_proda(state, config, is_log_transformed = NULL, prior_df = 3, maxit = 20)
   \code{normalization_method} \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
 }}
 
-\item{is_log_transformed}{Logical scalar indicating if \code{state$expression} has been log transformed.}
+\item{is_log_transformed}{Logical scalar: whether \code{state$expression} has
+been log transformed. Defaults to \code{config$is_log_transformed}, which
+\code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+passing both is an error unless they agree.}
 
 \item{prior_df}{Strictly positive count (\code{location_prior_df}) indicating number of dfs for prior.}
 

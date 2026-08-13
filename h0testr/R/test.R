@@ -320,8 +320,9 @@ test_lm <- function(state, config, fdr.method="BY") {
 #'   The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm}
 #'     and a moderated t-test is performed for whether the effect of
 #'     \code{config$test_term} on \code{state$expression} is zero.
-#'   \code{DEqMS::outputResult()} reports one coefficient at a time, so
-#'     \code{config$test_term} must resolve to a single design matrix column; it is an
+#'   \code{DEqMS} moderates the t-statistic of a single coefficient and has no
+#'     F-analogue, so \code{config$test_term} must resolve to a single design matrix
+#'     column; it is an
 #'     error if it does not. That rules out testing a factor with more than two
 #'     levels, and also testing a variable that appears in an interaction, since by
 #'     marginality the test then covers every term containing the variable: with
@@ -331,6 +332,11 @@ test_lm <- function(state, config, fdr.method="BY") {
 #'     \code{h0testr::test_trend()} or \code{h0testr::test_voom()} for those tests.
 #'   If the number of features per gene/protein-group is the same for all
 #'     features, returns same result as \code{h0testr::test_trend()}.
+#'   Aggregates peptides internally with \code{h0testr::combine_features()},
+#'     which fits an additive model and so requires
+#'     \code{config$is_log_transformed} to be \code{TRUE}; \code{DEqMS} is built
+#'     on \code{limma} and wants the same scale. Running
+#'     \code{h0testr::normalize()} first satisfies both.
 #'   Returns gene-level hypothesis testing results based on 
 #'     peptide/precursor-level input.
 #'   Flow is:
@@ -402,7 +408,14 @@ test_lm <- function(state, config, fdr.method="BY") {
 #'   reference_levels=c(grp="ctl", sex="F")
 #' )
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
-#' 
+#'
+#' ## test_deqms() aggregates peptides internally with combine_features(), which
+#' ##   fits an additive model, and DEqMS is built on limma; both want log scale.
+#' ##   normalize() does this and sets the flag in a full workflow. Applied after
+#' ##   initialize(), so that the raw zeros became NA first:
+#' out$state$expression <- log2(out$state$expression + 1)
+#' out$config$is_log_transformed <- TRUE
+#'
 #' ## actual test:
 #' result <- h0testr::test_deqms(out$state, out$config)
 #' head(result$hits)
@@ -420,12 +433,18 @@ test_deqms <- function(state, config, trend=FALSE) {
   save_state <- config$save_state
   config$save_state <- FALSE
   ## unqualified, like every other internal call in the package, so that test_deqms()
-  ##   also works when the sources are loaded without installing:
-  out <- combine_features(state, config, method="medianPolish", rescale=TRUE)
+  ##   also works when the sources are loaded without installing. rescale was TRUE
+  ##   here, a raw scale division by the per-feature mean applied to the log scale
+  ##   data combine_features() requires; medianPolish() absorbs the log scale form of
+  ##   that same centering into its own per-feature effect, so dropping it leaves the
+  ##   per-sample effects unchanged while keeping each gene's overall level, which is
+  ##   the average expression DEqMS's underlying limma trend reads:
+  out <- combine_features(state, config, method="medianPolish", rescale=FALSE)
   config$save_state <- save_state
   
-  ## the design and the single column carrying the test. DEqMS::outputResult() takes
-  ##   one coef_col, so only a test that resolves to one coefficient can be run;
+  ## the design and the single column carrying the test. DEqMS::spectraCounteBayes()
+  ##   moderates the t-statistic of one coefficient and the package offers no
+  ##   F-analogue, so only a test that resolves to one coefficient can be run;
   ##   f.design_test_cols_max() errors otherwise. Selecting by coefficient name
   ##   instead used to hide the shortfall whenever the name match happened to yield
   ##   exactly one column, which is the usual case for a two-level factor or a
@@ -555,7 +574,13 @@ test_msqrob <- function(state, config, maxit=100) {
   f.check_state(state, config)
 
   exprs <- as.data.frame(state$expression)
-  n_non0 <- apply(exprs, 1, function(v) sum(v > 0, na.rm=T))
+  ## msqrob2 reads this as the number of observations a feature was measured in,
+  ##   so it counts non-missing values, and NA is the only indicator of a missing
+  ##   value; see f.zeros_to_na(). Counting v > 0 instead undercounts on a log
+  ##   scale, where a value at or below zero is an ordinary measurement, and
+  ##   nNonZero feeds msqrob2's weighting, so the undercount moves real results:
+
+  n_non0 <- apply(exprs, 1, function(v) sum(!is.na(v)))
   exprs <- cbind(fnames=rownames(exprs), exprs)
   rownames(exprs) <- NULL
   obj <- QFeatures::readQFeatures(table=exprs, ecol=2:ncol(exprs), 
@@ -695,7 +720,10 @@ test_msqrob <- function(state, config, maxit=100) {
 #'     \code{reference_levels}     \cr \tab Reference level of each factor variable in \code{frm}; sets the direction of \code{diff}. \cr
 #'     \code{normalization_method} \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
 #'   }
-#' @param is_log_transformed Logical scalar indicating if \code{state$expression} has been log transformed.
+#' @param is_log_transformed Logical scalar: whether \code{state$expression} has
+#'   been log transformed. Defaults to \code{config$is_log_transformed}, which
+#'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+#'   passing both is an error unless they agree.
 #' @param prior_df Strictly positive count (\code{location_prior_df}) indicating number of dfs for prior.
 #' @param maxit Strictly positive count indicating maximum number of iterations for \code{proDA::proDA()} algorithm.
 #' @return
@@ -751,17 +779,8 @@ test_msqrob <- function(state, config, maxit=100) {
 
 test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit=20) {
   
-  if(is.null(is_log_transformed) || is_log_transformed %in% "") {
-    if(is.null(config$normalization_method) || config$normalization_method %in% "") {
-      f.err("test_proda: is_log_transformed and config$normalization_method both unset", 
-        config=config)
-    }
-    if(config$normalization_method %in% c("none")) {
-      is_log_transformed <- FALSE 
-    } else {
-      is_log_transformed <- TRUE
-    }
-  }
+  is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
+    "test_proda")
   
   ## the design columns carrying the test, derived before the fit so that a
   ##   config$test_term that does not fit config$frm is an error before the
@@ -862,10 +881,15 @@ test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit
 #' @description
 #'   Tests for differential expression using the \code{prolfq::build_model()} function.
 #' @details
-#'   Uses the \code{proDA::proDA()} function. Returned results sorted by p-value.
-#'     Only works if every variable in \code{config$frm} is categorical, that is,
-#'     classified as \code{"factor"} in \code{config$covariate_types}. A
-#'     continuous (numeric) covariate is an error.
+#'   Uses the \code{prolfqua::build_model()} function. Returned results sorted by
+#'     p-value.
+#'   Covariates classified as \code{"factor"} in \code{config$covariate_types} are
+#'     registered with \code{prolfqua::AnalysisTableAnnotation$factors}, which holds
+#'     categorical annotations only; continuous (numeric) covariates are passed
+#'     through unregistered. Both are supported: \code{prolfqua::build_model()} fits
+#'     a plain \code{stats::lm()} to the data.frame as given, so a numeric covariate
+#'     is read as continuous and contributes a single one degree of freedom row to
+#'     the reported ANOVA table.
 #'   The level ordering set by \code{initialize()} is preserved, so the
 #'     coefficients of the returned \code{fit} are relative to the reference
 #'     level declared in \code{config$reference_levels}. The returned
@@ -922,7 +946,10 @@ test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit
 #'     \code{factor_levels}         \cr \tab Optional; resolved levels of each factor variable, as set by \code{initialize()}. \cr
 #'     \code{normalization_method}  \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
 #'   }
-#' @param is_log_transformed Logical scalar indicating if \code{state$expression} has been log transformed.
+#' @param is_log_transformed Logical scalar: whether \code{state$expression} has
+#'   been log transformed. Defaults to \code{config$is_log_transformed}, which
+#'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+#'   passing both is an error unless they agree.
 #' @return
 #'   A list with components:
 #'   \tabular{ll}{
@@ -981,17 +1008,8 @@ test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit
 
 test_prolfqua <- function(state, config, is_log_transformed=NULL) {
 
-  if(is.null(is_log_transformed) || is_log_transformed %in% "") {
-    if(is.null(config$normalization_method) || config$normalization_method %in% "") {
-      f.err("test_prolfqua: is_log_transformed and config$normalization_method both unset", 
-        config=config)
-    }
-    if(config$normalization_method %in% c("none")) {
-      is_log_transformed <- FALSE 
-    } else {
-      is_log_transformed <- TRUE
-    }
-  }
+  is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
+    "test_prolfqua")
   
   ## prolfqua reports the rows of an anova table, one per term of the model, so a
   ##   factor with several levels is already a correct multi-df F-test here; what
@@ -1063,34 +1081,43 @@ test_prolfqua <- function(state, config, is_log_transformed=NULL) {
   meta$hierarchy[[config$gene_id_col]] <- config$gene_id_col
   meta$hierarchy[[config$feat_id_col]] <- config$feat_id_col
 
-  ## prolfqua::AnalysisTableAnnotation$factors holds categorical annotations
-  ##   only, so every covariate has to be a factor here; declaration in
+  ## prolfqua::AnalysisTableAnnotation$factors holds categorical annotations only,
+  ##   so only factor covariates are registered there; declaration in
   ##   config$reference_levels is not the test, since logical covariates and
-  ##   covariates already stored as factors are categorical without being
-  ##   declared:
+  ##   covariates already stored as factors are categorical without being declared.
+  ##   A continuous covariate is passed through unregistered rather than refused:
+  ##   the coercion that would break it, as.character() over $factors inside
+  ##   prolfqua::setup_analysis(), never runs here, since
+  ##   prolfqua::LFQData$new() takes setup=FALSE by default and so keeps dat
+  ##   verbatim. Nothing downstream reads $factors either: build_model() is handed
+  ##   obj$data with subject_Id from $hierarchy, and strategy_lm() fits a plain
+  ##   stats::lm(), which reads a numeric column as continuous:
 
   types <- f.covariate_types(state, config)
 
   for(trm in trms) {
 
-    if(!(types[[trm]] %in% "factor")) {
-      f.err("test_prolfqua: covariate", trm, "in config$frm is continuous;",
-        "test_prolfqua() only handles factor covariates;", "\n",
-        "either drop", trm, "from config$frm, or declare its reference level",
-        "in config$reference_levels to treat it as categorical;", "\n",
-        "config$covariate_types:", paste(names(types), types, sep="="),
-        config=config)
+    if(types[[trm]] %in% "factor") {
+
+      meta$factors[[trm]] <- trm
+
+      ## initialize() has already ordered the levels, with the declared reference
+      ##   level first; coercing to character here would leave the downstream fit
+      ##   to re-derive the reference level by sorting, silently changing the
+      ##   meaning of the reported coefficients:
+
+      dat[, trm] <- f.relevel_covariate(samps[dat$sample, trm, drop=T], trm, config,
+        "test_prolfqua")
+
+    } else {
+
+      ## a continuous term is one term of one degree of freedom in the anova table
+      ##   prolfqua reports, so it is within the one term at a time bound
+      ##   f.test_max_terms("prolfqua") sets, whether it is the tested term or an
+      ##   adjustment:
+
+      dat[, trm] <- samps[dat$sample, trm, drop=T]
     }
-
-    meta$factors[[trm]] <- trm
-
-    ## initialize() has already ordered the levels, with the declared reference
-    ##   level first; coercing to character here would leave the downstream fit
-    ##   to re-derive the reference level by sorting, silently changing the
-    ##   meaning of the reported coefficients:
-
-    dat[, trm] <- f.relevel_covariate(samps[dat$sample, trm, drop=T], trm, config,
-      "test_prolfqua")
   }
   obj <- prolfqua::LFQData$new(data=dat, config=meta)
   
@@ -1582,8 +1609,11 @@ test_methods <- function() {
 #'   }
 #' @param method Name of test method where 
 #'   \code{method \%in\% h0testr::test_methods()}.
-#' @param is_log_transformed Logical scalar: if \code{state$expression} has 
-#'   been log transformed. Required if \code{method \%in\% c("proda", "prolfqua")}.
+#' @param is_log_transformed Logical scalar: whether \code{state$expression} has
+#'   been log transformed. Only consulted for \code{method \%in\% c("proda",
+#'   "prolfqua")}. Defaults to \code{config$is_log_transformed}, which
+#'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+#'   passing both is an error unless they agree.
 #' @param prior_df Prior degrees of freedom for method \code{proda}; 
 #'   where \code{2 <= prior_df <= n_features}.
 #' @return A list with the following elements: \cr
@@ -1640,9 +1670,12 @@ test <- function(state, config, method=NULL,
     f.err("test: method %in% 'proda' && is.null(prior_df)", config=config)
   }
   
-  if(method %in% c("proda", "prolfqua") && !is.logical(is_log_transformed)) {
-    f.err("test: method %in% c('proda', 'prolfqua') && !is.logical(is_log_transformed)", 
-      config=config)
+  ## only these two methods are told the scale; resolved here rather than in
+  ##   them so that an unusable combination is caught before the fit:
+
+  if(method %in% c("proda", "prolfqua")) {
+    is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
+      "test")
   }
   
   f.msg("test: method:", method, "; is_log_transformed:", is_log_transformed,

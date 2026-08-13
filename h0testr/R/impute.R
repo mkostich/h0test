@@ -1,45 +1,65 @@
-## helper to ensure positive and finite imputed values:
+## Helper to check that imputed values are usable. Positivity is only a property
+##   of raw intensities, where a value at or below zero cannot be a measurement,
+##   so it is required only when the data are not on a log scale; a negative log
+##   intensity is an ordinary small value and is left alone. On the raw scale a
+##   non-positive imputed value used to be nudged upward by repeated
+##   log2(2^x + 1), which invents a measurement out of one the imputer could not
+##   produce, so it is now reported instead: the value is wrong, and which
+##   imputer produced it is the useful thing to know. is_log_transformed follows
+##   the usual resolution, so an imputer that has the argument passes it and one
+##   that does not falls back to config$is_log_transformed:
 
-f.pos_mat <- function(mat, config, maxit=10) {
-  
-  n <- 0
-  i <- mat <= 0
-  i[is.na(i)] <- F
-  
-  ## heuristic to ensure all strictly positive; 
-  ##   iteratively nudge higher till positive:
-  while(any(c(i))) {
-    n <- n + 1
-    if(n > maxit) break
-    mat[i] <- log2(2^mat[i] + 1)
+f.pos_mat <- function(mat, config, is_log_transformed=NULL, fn_name="f.pos_mat") {
+
+  is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
+    fn_name)
+
+  if(!is_log_transformed) {
+
     i <- mat <= 0
     i[is.na(i)] <- F
+
+    if(any(c(i))) {
+      f.err(fn_name, ":", sum(i), "of", length(mat), "imputed values are at or",
+        "below zero on the raw scale, where a value at or below zero cannot be",
+        "a measurement;", "\n",
+        "  min:", min(c(mat), na.rm=T), "; imputation cannot stand in a",
+        "measurement here, so the values are not usable;", "\n",
+        "  try a different config$impute_method, or normalize() first so that",
+        "imputation happens on the log scale where these values are ordinary",
+        config=config)
+    }
   }
-  
-  if(any(c(mat) <= 0)) {
-    f.err("f.pos_mat: min(c(mat)):", min(c(mat)), "after", n-1, 
-      "iterations.", config=config)
-  }
-  
-  ## heuristic to ensure all finite; randomly assign between 
-  ##   max(finite_vals) and 2*max(finite_vals):
+
+  ## infinite values are unusable on either scale; assigned at random between
+  ##   the largest finite value and twice it:
+
   i <- is.infinite(mat)
   i[is.na(i)] <- F
   maxval <- max(mat[!i], na.rm=T)
   mat[i] <- maxval * (1 + stats::runif(sum(i)))
-  
+
   return(mat)
 }
 
-#' Impute missing values between 0 and global LOD
+#' Impute missing values below a global LOD
 #' @description
-#'   Impute missing values by randomly drawing from uniform distribution 
-#'     below an estimated global LOD. 
-#' @details Imputed values are random draws from uniform distribution over the 
-#'   interval \code{[0, LOD]}, where \code{LOD} is an estimate global limit of 
-#'   detection. Only \code{NA} values are considered as missing, so if you want 
-#'   \code{0} to be considered missing, and have \code{0} in the data, do 
-#'   something like \code{state$expression[state$expression \%in\% 0] <- NA} 
+#'   Impute missing values by randomly drawing from uniform distribution
+#'     below an estimated global LOD.
+#' @details Imputed values are random draws from a uniform distribution over the
+#'   interval \code{[floor, LOD]}, where \code{LOD} is quantile
+#'   \code{impute_quantile} of the per-feature minima, an estimate of the global
+#'   limit of detection. The \code{floor} depends on the scale of the data. For
+#'   raw input (\code{config$is_log_transformed} \code{FALSE}) it is \code{0},
+#'   zero abundance. For log input it is
+#'   \code{min(state$expression, na.rm=TRUE) + config$impute_floor_offset}, since
+#'   zero on a log scale is a single count rather than the bottom of the scale,
+#'   and typically sits near the top of the range after normalization; the offset
+#'   is also what gives the interval width when \code{impute_quantile} is
+#'   \code{0}. An interval with no width is an error rather than a silent
+#'   \code{NaN}. Only \code{NA} values are considered as missing, so if you want
+#'   \code{0} to be considered missing, and have \code{0} in the data, do
+#'   something like \code{state$expression[state$expression \%in\% 0] <- NA}
 #'   prior to imputing.
 #'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
@@ -51,19 +71,23 @@ f.pos_mat <- function(mat, config, maxit=10) {
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{impute_quantile}  \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD).
+#'     \code{impute_quantile}     \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD). \cr
+#'     \code{is_log_transformed}  \cr \tab Whether the data are on a log-like scale; sets the lower bound of the draw. \cr
+#'     \code{impute_floor_offset} \cr \tab Offset from the smallest measured value giving that lower bound, for log data. \cr
 #'   }
-#' @param impute_quantile Numeric between 0 and 1 specifying 
+#' @param impute_quantile Numeric between 0 and 1 specifying
 #'   minimum non-zero/\code{NA} expression value for each feature to use as global
 #'   LOD (limit of detection). If \code{NULL}, \code{config$impute_quantile} used.
 #'   Default: \code{0}.
 #' @return An updated `state` list with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{expression} \cr \tab Numeric matrix with expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
-#'   } 
-#' Returned \code{state$xpression} matrix contains strictly positive numeric values.
+#'   }
+#' Returned \code{state$expression} matrix contains strictly positive values for
+#'   raw input, and may contain values at or below zero for log input, where such
+#'   a value is an ordinary dim measurement.
 #' @examples
 #' set.seed(101)
 #' exprs <- h0testr::sim1(n_obs=6, n_feats=12)$mat
@@ -71,7 +95,9 @@ f.pos_mat <- function(mat, config, maxit=10) {
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(impute_quantile=0.05)
+#' ## the data were log transformed above, so say so; imputed values are then
+#' ##   allowed to be negative, as an ordinary small log intensity is:
+#' config <- list(impute_quantile=0.05, is_log_transformed=TRUE)
 #' state2 <- h0testr::impute_unif_global_lod(state, config)
 #' summary(c(state$expression))   ## note number of NAs
 #' summary(c(state2$expression))  ## note number of NAs
@@ -89,40 +115,77 @@ impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
   if(is.null(impute_quantile)) impute_quantile <- config$impute_quantile
   if(is.null(impute_quantile)) impute_quantile <- 0
   
-  v <- apply(state$expression, 1, min, na.rm=T)
-  v <- v[!is.na(v)]
-  v <- v[v > 0]        ## minimum non-zero values for each gene (with non-0 vals)
-  
+  ## the smallest value measured for each feature. A feature measured nowhere
+  ##   gives Inf here rather than NA, and both are dropped: neither is an
+  ##   observed intensity, so neither belongs in the quantile below. Values at or
+  ##   below zero used to be dropped as well, from when a zero meant missing, but
+  ##   f.zeros_to_na() now converts those to NA on the raw scale, and on a log
+  ##   scale a value at or below zero is an ordinary dim measurement. Dropping
+  ##   them there discarded exactly the features that say most about the limit of
+  ##   detection this function is trying to estimate:
+
+  v <- suppressWarnings(apply(state$expression, 1, min, na.rm=T))
+  v <- v[is.finite(v)]
+
+  if(!length(v)) {
+    f.err("impute_unif_global_lod: no feature has a finite measured value, so",
+      "there is no limit of detection to estimate;", "\n",
+      "  features:", nrow(state$expression), "; observations:",
+      ncol(state$expression), config=config)
+  }
+
   max_val <- stats::quantile(v, probs=impute_quantile[1], na.rm=T)    ## quantile of min vals
-  if(is.na(max_val)) {
-    f.err("impute_unif_global_lod: is.na(max_val)", config=config)
-  }
   names(max_val) <- NULL
-  f.msg("impute_unif_global_lod: inpute_quantile: ", impute_quantile, 
-    "; max_val:", max_val, config=config)
-  
-  f <- function(v, max_val) {
-    i <- is.na(v)
-    if(any(i)) {
-      v[i] <- stats::runif(sum(i), 0, max_val)
-    }
-    v
+
+  ## the bottom of the scale: zero abundance on the raw scale, and an offset
+  ##   below the dimmest measured value on a log scale, where zero is not the
+  ##   bottom of anything. Previously the draw ran from a literal 0 whatever the
+  ##   scale, which on log data placed imputed values above much of the
+  ##   distribution they were meant to sit under:
+
+  floor_val <- f.impute_floor(state$expression, config,
+    "impute_unif_global_lod")
+
+  if(max_val <= floor_val) {
+    f.err("impute_unif_global_lod: the imputation interval has no width;",
+      "lower bound:", floor_val, "; upper bound:", max_val, ";", "\n",
+      "  the upper bound is quantile", impute_quantile[1], "of the per-feature",
+      "minima, and the lower bound is zero for raw data, or the smallest",
+      "measured value plus config$impute_floor_offset for log data;", "\n",
+      "  to fix, either raise config$impute_quantile, or make",
+      "config$impute_floor_offset more negative (log data only), or check that",
+      "config$is_log_transformed describes the data: raw data with values at or",
+      "below zero lands here", config=config)
   }
-  mat <- t(apply(state$expression, 1, f, max_val))
-  mat <- f.pos_mat(mat, config)
+
+  f.msg("impute_unif_global_lod: impute_quantile:", impute_quantile[1],
+    "; drawing from [", floor_val, ",", max_val, "]; width:",
+    max_val - floor_val, config=config)
+
+  mat <- state$expression
+  i <- is.na(mat)
+  if(any(i)) mat[i] <- stats::runif(sum(i), floor_val, max_val)
+  mat <- f.pos_mat(mat, config, fn_name="impute_unif_global_lod")
   state$expression <- mat
   
   return(state)
 }
 
-#' Impute missing values between 0 and sample LOD
+#' Impute missing values below a sample LOD
 #' @description
-#'   Impute missing values by randomly drawing from uniform distribution below 
-#'     an estimated observation-specific limit of detection (LOD). 
-#' @details Imputed values are random draws from uniform distribution over the 
-#'   interval \code{[0, LOD]}, where LOD is an estimate observation limit of 
-#'   detection. Only \code{NA} values are considered as missing, so if you 
-#'   want \code{0} to be considered missing, and have \code{0} in the data, do 
+#'   Impute missing values by randomly drawing from uniform distribution below
+#'     an estimated observation-specific limit of detection (LOD).
+#' @details Imputed values are random draws from a uniform distribution over the
+#'   interval \code{[floor, LOD]}, where \code{LOD} is quantile
+#'   \code{impute_quantile} of the values in that observation, an estimate of the
+#'   observation's limit of detection. The \code{floor} is shared by all
+#'   observations, since the bottom of the scale is a property of the data as a
+#'   whole: \code{0} for raw input, and
+#'   \code{min(state$expression, na.rm=TRUE) + config$impute_floor_offset} for
+#'   log input, where zero is a single count rather than the bottom of the scale.
+#'   An interval with no width is an error rather than a silent \code{NaN}. Only
+#'   \code{NA} values are considered as missing, so if you
+#'   want \code{0} to be considered missing, and have \code{0} in the data, do
 #'   something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing.
 #'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
@@ -134,14 +197,16 @@ impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{impute_quantile}  \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD).
+#'     \code{impute_quantile}     \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD). \cr
+#'     \code{is_log_transformed}  \cr \tab Whether the data are on a log-like scale; sets the lower bound of the draw. \cr
+#'     \code{impute_floor_offset} \cr \tab Offset from the smallest measured value giving that lower bound, for log data. \cr
 #'   }
-#' @param impute_quantile Numeric between 0 and 1 specifying 
+#' @param impute_quantile Numeric between 0 and 1 specifying
 #'   minimum non-zero/\code{NA} expression value in each observation to use as the
 #'   observation-specific LOD (limit of detection). Default: \code{0}.
 #' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{expression} \cr \tab Numeric matrix with expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
@@ -152,7 +217,9 @@ impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(impute_quantile=0.05)
+#' ## the data were log transformed above, so say so; imputed values are then
+#' ##   allowed to be negative, as an ordinary small log intensity is:
+#' config <- list(impute_quantile=0.05, is_log_transformed=TRUE)
 #' state2 <- h0testr::impute_unif_sample_lod(state, config)
 #' summary(c(state$expression))   ## note number of NAs
 #' summary(c(state2$expression))  ## note number of NAs
@@ -170,20 +237,63 @@ impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
   if(is.null(impute_quantile)) impute_quantile <- config$impute_quantile
   if(is.null(impute_quantile)) impute_quantile <- 0
   
-  f <- function(v) {
-    i <- is.na(v)
-    if(all(i)) {
-      f.err("impute_unif_sample_lod: all(is.na(state$expression[, column]))", 
-        config=config)
-    }
-    if(any(i)) {
-      max_val <- stats::quantile(v, probs=impute_quantile, na.rm=T)
-      v[i] <- stats::runif(sum(i), 0, max_val)
-    }
-    v
+  i_all <- apply(state$expression, 2, function(v) all(is.na(v)))
+
+  if(any(i_all)) {
+    nom <- colnames(state$expression)[i_all]
+    if(is.null(nom)) nom <- as.character(which(i_all))
+    f.err("impute_unif_sample_lod:", sum(i_all), "of", length(i_all),
+      "observations have no measured value, so they have no limit of detection",
+      "to impute against;", "\n",
+      "  observations:", paste(utils::head(nom, 5), collapse=", "),
+      config=config)
   }
-  mat <- apply(state$expression, 2, f)
-  mat <- f.pos_mat(mat, config)
+
+  ## one upper bound per observation, but a single lower bound: the bottom of
+  ##   the scale is a property of the data as a whole, not of a column. See
+  ##   f.impute_floor() for why it is zero only on the raw scale; the draw used
+  ##   to start from a literal 0 whatever the scale:
+
+  max_vals <- apply(state$expression, 2, stats::quantile,
+    probs=impute_quantile[1], na.rm=T)
+  names(max_vals) <- colnames(state$expression)
+
+  floor_val <- f.impute_floor(state$expression, config,
+    "impute_unif_sample_lod")
+
+  i_flat <- max_vals <= floor_val
+
+  if(any(i_flat)) {
+    nom <- names(max_vals)[i_flat]
+    if(is.null(nom)) nom <- as.character(which(i_flat))
+    f.err("impute_unif_sample_lod: the imputation interval has no width for",
+      sum(i_flat), "of", length(max_vals), "observations; lower bound:",
+      floor_val, "; smallest upper bound:", min(max_vals), ";", "\n",
+      "  each upper bound is quantile", impute_quantile[1], "of its own",
+      "observation, and the lower bound is zero for raw data, or the smallest",
+      "measured value plus config$impute_floor_offset for log data;", "\n",
+      "  to fix, either raise config$impute_quantile, or make",
+      "config$impute_floor_offset more negative (log data only), or check that",
+      "config$is_log_transformed describes the data: raw data with values at or",
+      "below zero lands here;", "\n",
+      "  observations:", paste(utils::head(nom, 5), collapse=", "),
+      config=config)
+  }
+
+  f.msg("impute_unif_sample_lod: impute_quantile:", impute_quantile[1],
+    "; drawing from [", floor_val, ", upper bound ]; upper bounds range over [",
+    min(max_vals), ",", max(max_vals), "]; widths range over [",
+    min(max_vals) - floor_val, ",", max(max_vals) - floor_val, "]",
+    config=config)
+
+  mat <- state$expression
+
+  for(k in seq_len(ncol(mat))) {
+    i <- is.na(mat[, k])
+    if(any(i)) mat[i, k] <- stats::runif(sum(i), floor_val, max_vals[k])
+  }
+
+  mat <- f.pos_mat(mat, config, fn_name="impute_unif_sample_lod")
   state$expression <- mat
   
   return(state)
@@ -371,21 +481,30 @@ impute_rnorm_feature <- function(state, config, scale.=NULL) {
 #'   \tabular{ll}{
 #'     \code{impute_n_pts}  \cr \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain.
 #'   }
-#' @param is_log_transformed Logical scalar: if \code{state$expression} has 
-#'   been log transformed.
+#' @param is_log_transformed Logical scalar: whether \code{state$expression} has
+#'   been log transformed. Defaults to \code{config$is_log_transformed}, which
+#'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+#'   passing both is an error unless they agree.
 #' @param n_pts Numeric greater than one. Granularity of prediction 
 #'   grid. Larger values lead to less chance of duplicate imputed values.
 #'   Larger values require more compute time and memory. Default: \code{1e7}.
 #' @param off Numeric offset for calculating 
 #'   \code{p.missing = (n.missing + off) / (n.total + off)}.
-#' @param f_mid Function to use for calculating central tendency of 
-#'   feature expression across samples. 
+#' @param f_mid Function to use for calculating central tendency of
+#'   feature expression across samples.
+#' @param min_fit_pts Numeric scalar (at least two): the number of distinct
+#'   feature intensities that must remain after features measured in no sample
+#'   have been dropped, before the missingness fit is attempted. Those features
+#'   have no intensity to fit against, so they are excluded from the fit and
+#'   imputed from the curve the rest determine. Stops with an error when too few
+#'   distinct intensities remain, since the fit is extrapolated across the whole
+#'   intensity range and imputed values are drawn from it. Default: \code{10}.
 #' @return An updated `state` list with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
-#'   } 
+#'   }
 #' @examples
 #' set.seed(101)
 #' exprs <- h0testr::sim1(n_obs=6, n_feats=12)$mat
@@ -409,8 +528,8 @@ impute_rnorm_feature <- function(state, config, scale.=NULL) {
 #' head(state$expression)
 #' round(head(state2$expression))
 
-impute_glm_binom <- function(state, config, is_log_transformed=NULL, 
-    n_pts=NULL, off=1, f_mid=stats::median) {
+impute_glm_binom <- function(state, config, is_log_transformed=NULL,
+    n_pts=NULL, off=1, f_mid=stats::median, min_fit_pts=10) {
   
   check_config(config)
   
@@ -419,13 +538,8 @@ impute_glm_binom <- function(state, config, is_log_transformed=NULL,
       "class(state$expression):", class(state$expression), config=config)
   }
   
-  if(!is.logical(is_log_transformed)) {
-    f.err("impute_glm_binom: !is.logical(is_log_transformed)", "\n",
-      "is_log_transformed:", is_log_transformed, "\n",
-      "typeof(is_log_transformed):", typeof(is_log_transformed), 
-      config=config
-    )
-  }
+  is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
+    "impute_glm_binom")
   
   mat <- state$expression
   if(!is_log_transformed) mat <- log2(mat + 1) 
@@ -436,13 +550,18 @@ impute_glm_binom <- function(state, config, is_log_transformed=NULL,
     f.err("impute_glm_binom: n_pts <= 0; n_pts:", n_pts, config=config)
   }
   
+  ## NA is the only indicator of a missing value; see f.zeros_to_na(). f_mid
+  ##   returns NA for a feature measured nowhere, which f.drop_unfittable()
+  ##   removes from the fit rather than standing a value in for it:
+
   m <- apply(mat, 1, f_mid, na.rm=T)
-  m[is.na(m)] <- 0
-  n0 <- apply(mat, 1, function(v) sum(is.na(v) | v %in% 0))  ## n.missing
-  n1 <- ncol(mat) - n0                                     
+
+  n0 <- apply(mat, 1, function(v) sum(is.na(v)))             ## n.missing
+  n1 <- ncol(mat) - n0
   p <- (n0 + off) / (ncol(mat) + off)
   dat <- data.frame(n0=n0, n1=n1, p=p, m=m)
-  
+  dat <- f.drop_unfittable(dat, config, "impute_glm_binom", min_fit_pts)
+
   fit <- stats::glm(cbind(n0, n1) ~ m, data=dat, family="binomial")
   
   m_new <- seq(from=max(c(mat), na.rm=T) / n_pts, 
@@ -454,7 +573,7 @@ impute_glm_binom <- function(state, config, is_log_transformed=NULL,
   mat[i_na] <- sample(m_new, sum(i_na), replace=T, prob=p_hat)
   
   if(!is_log_transformed) mat <- 2^mat
-  mat <- f.pos_mat(mat, config)
+  mat <- f.pos_mat(mat, config, is_log_transformed, "impute_glm_binom")
   state$expression <- mat
   
   return(state)
@@ -494,8 +613,15 @@ impute_glm_binom <- function(state, config, is_log_transformed=NULL,
 #' @param f_mid Function to use for calculating central tendency of 
 #'   feature expression across samples. 
 #' @param degree Numeric in set \code{c(1, 2)}. Degree for loess fit.
-#' @param fam Character in set \code{c("symmetric", "gaussian")}. Family 
+#' @param fam Character in set \code{c("symmetric", "gaussian")}. Family
 #'   for \code{loess} fit.
+#' @param min_fit_pts Numeric scalar (at least two): the number of distinct
+#'   feature intensities that must remain after features measured in no sample
+#'   have been dropped, before the missingness fit is attempted. Those features
+#'   have no intensity to fit against, so they are excluded from the fit and
+#'   imputed from the curve the rest determine. Stops with an error when too few
+#'   distinct intensities remain, since the fit is extrapolated across the whole
+#'   intensity range and imputed values are drawn from it. Default: \code{10}.
 #' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -516,8 +642,8 @@ impute_glm_binom <- function(state, config, is_log_transformed=NULL,
 #' head(state$expression)
 #' round(head(state2$expression))
 
-impute_loess_logit <- function(state, config, span=NULL, n_pts=NULL, 
-    off=0.1, f_mid=stats::median, degree=1, fam="symmetric") {
+impute_loess_logit <- function(state, config, span=NULL, n_pts=NULL,
+    off=0.1, f_mid=stats::median, degree=1, fam="symmetric", min_fit_pts=10) {
   
   check_config(config)
   
@@ -530,17 +656,25 @@ impute_loess_logit <- function(state, config, span=NULL, n_pts=NULL,
   if(is.null(n_pts)) n_pts <- config$impute_n_pts
   if(is.null(n_pts)) n_pts <- 1e7
   
+  ## NA here means the feature was measured nowhere, and is left in place for
+  ##   f.drop_unfittable() below to remove from the fit; the is.finite() checks
+  ##   that follow concern infinite expression values, which are a different
+  ##   pathology and are still handled as before:
+
   m <- apply(state$expression, 1, f_mid, na.rm=T)
-  m[is.na(m)] <- 0
   if(!any(is.finite(m))) {
     f.err("impute_loess_logit: !any(is.finite(m))", "\n",
       "sort(m):", sort(m), config=config)
   }
   m[is.infinite(m)] <- max(m[is.finite(m)])
   
-  f <- function(v) sum(is.na(v) | v %in% 0)
+  ## NA is the only indicator of a missing value; see f.zeros_to_na(). The
+  ##   all(n0 %in% 0) below is a count of zero missing values, not a value of
+  ##   zero, so it stays as it is:
+
+  f <- function(v) sum(is.na(v))
   n0 <- apply(state$expression, 1, f)                        ## n.missing
-  if(all(n0 %in% 0)) return(state)                           ## cannot model all zeros
+  if(all(n0 %in% 0)) return(state)                           ## nothing missing to model
   
   n0[is.na(n0)] <- ncol(state$expression)
   n1 <- ncol(state$expression) - n0                          ## n.found
@@ -556,8 +690,9 @@ impute_loess_logit <- function(state, config, span=NULL, n_pts=NULL,
       "sort(logitp):", sort(logitp), config=config)
   }
   dat <- data.frame(n0=n0, n1=n1, p=p, logitp=logitp, m=m)
-  
-  fit <- stats::loess(logitp ~ m, data=dat, span=span, 
+  dat <- f.drop_unfittable(dat, config, "impute_loess_logit", min_fit_pts)
+
+  fit <- stats::loess(logitp ~ m, data=dat, span=span,
     degree=degree, family=fam)
   
   m_new <- seq(from=max(c(state$expression), na.rm=T) / n_pts, 
@@ -623,8 +758,10 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
 #'   } 
 #' It is assumed that state$expression has been previously \code{log2(x+1)} transformed.
 #' @param config List with configuration values. Does not use any keys, so can pass empty list.
-#' @param is_log_transformed Logical scalar: if \code{state$expression} has 
-#'   been log transformed.
+#' @param is_log_transformed Logical scalar: whether \code{state$expression} has
+#'   been log transformed. Defaults to \code{config$is_log_transformed}, which
+#'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+#'   passing both is an error unless they agree.
 #' @param f_imp Function to use for initial rough imputation.
 #' @param ntree Numeric (greater than 0) number of trees in random forest.
 #'   \code{randomForest} \code{ntree} parameter.
@@ -682,11 +819,14 @@ impute_rf <- function(state, config, is_log_transformed=NULL,
   
   check_config(config)
   
-  if(!is.logical(is_log_transformed)) {
-    f.err("impute_rf: !is.logical(is_log_transformed)", "\n",
-      "is_log_transformed:", is_log_transformed, "\n",
-      "typeof(is_log_transformed):", typeof(is_log_transformed), config=config)
-  }
+  is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
+    "impute_rf")
+
+  ## f_imp is another imputer, called with this config; recorded so that it
+  ##   finds the scale this call resolved, whether or not the caller's config
+  ##   mentions it:
+
+  config$is_log_transformed <- is_log_transformed
   
   if(is.null(aug_steps)) aug_steps <- config$impute_aug_steps
   if(is.null(aug_steps)) aug_steps <- 3
@@ -699,7 +839,9 @@ impute_rf <- function(state, config, is_log_transformed=NULL,
       "class(state$expression):", class(state$expression), config=config)
   }
   
-  n_miss <- apply(state$expression, 1, function(v) sum(is.na(v) | v %in% 0))
+  ## NA is the only indicator of a missing value; see f.zeros_to_na():
+
+  n_miss <- apply(state$expression, 1, function(v) sum(is.na(v)))
   o <- order(n_miss, decreasing=F)
   tbl <- NULL
   
@@ -717,7 +859,7 @@ impute_rf <- function(state, config, is_log_transformed=NULL,
     if(is_log_transformed) x_train <- log2(x_train + 1)
     
     y <- state$expression[idx_feat, , drop=T]
-    i_miss <- is.na(y) | y %in% 0
+    i_miss <- is.na(y)
     col_names_miss <- colnames(state$expression)[i_miss]
     i_miss_train <- colnames(x_train) %in% col_names_miss
     x_train_i <- x_train[-idx_feat, !i_miss_train, drop=F]
@@ -780,8 +922,10 @@ impute_rf <- function(state, config, is_log_transformed=NULL,
 #'   }
 #' It is assumed that state$expression has been previously \code{log2(x+1)} transformed.
 #' @param config List with configuration values. Does not use any keys so can pass empty list.
-#' @param is_log_transformed Logical scalar: if \code{state$expression} has 
-#'   been log transformed.
+#' @param is_log_transformed Logical scalar: whether \code{state$expression} has
+#'   been log transformed. Defaults to \code{config$is_log_transformed}, which
+#'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+#'   passing both is an error unless they agree.
 #' @param f_imp Function to use for initial rough imputation.
 #' @param alpha Numeric (between 0 and 1) number of trees in random forest.
 #'  Default: \code{1.0}.
@@ -840,14 +984,14 @@ impute_glmnet <- function(state, config, is_log_transformed=NULL,
   
   check_config(config)
   
-  if(!is.logical(is_log_transformed)) {
-    f.err(
-      "impute_glmnet: !is.logical(is_log_transformed)", "\n",
-      "is_log_transformed:", is_log_transformed, "\n",
-      "typeof(is_log_transformed):", typeof(is_log_transformed), 
-      config=config
-    )
-  }
+  is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
+    "impute_glmnet")
+
+  ## f_imp is another imputer, called with this config; recorded so that it
+  ##   finds the scale this call resolved, whether or not the caller's config
+  ##   mentions it:
+
+  config$is_log_transformed <- is_log_transformed
   
   if(is.null(alpha)) alpha <- config$impute_alpha
   if(is.null(alpha)) alpha <- 1.0
@@ -867,7 +1011,9 @@ impute_glmnet <- function(state, config, is_log_transformed=NULL,
       "class(state$expression):", class(state$expression), config=config)
   }
   
-  n_miss <- apply(state$expression, 1, function(v) sum(is.na(v) | v %in% 0))
+  ## NA is the only indicator of a missing value; see f.zeros_to_na():
+
+  n_miss <- apply(state$expression, 1, function(v) sum(is.na(v)))
   o <- order(n_miss, decreasing=F)
   tbl <- NULL
   
@@ -882,7 +1028,7 @@ impute_glmnet <- function(state, config, is_log_transformed=NULL,
     if(is_log_transformed) x_train <- log2(x_train + 1)   
     
     y <- state$expression[idx_feat, , drop=T]
-    i_miss <- is.na(y) | y %in% 0
+    i_miss <- is.na(y)
     col_names_miss <- colnames(state$expression)[i_miss]
     i_miss_train <- colnames(x_train) %in% col_names_miss
     x_train_i <- x_train[-idx_feat, !i_miss_train, drop=F]
@@ -968,6 +1114,7 @@ impute_glmnet <- function(state, config, is_log_transformed=NULL,
 #' config <- list(frm=~grp+sex)    ## need frm for filter_features with filter_by_formula=TRUE
 #' state <- h0testr::filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::filter_observations(state, config, n_features_min=30)
+#' config$is_log_transformed <- FALSE   ## sim2() returns untransformed values
 #'
 #' ## impute:
 #' state2 <- h0testr::impute_knn(state, config)
@@ -999,7 +1146,7 @@ impute_knn <- function(state, config, k=NULL, rowmax=0.5, colmax=0.8, maxp=1500)
     rowmax=rowmax, colmax=colmax, maxp=maxp)
     
   mat <- out$data
-  mat <- f.pos_mat(mat, config)
+  mat <- f.pos_mat(mat, config, fn_name="impute_knn")
   state$expression <- mat
 
   return(state)
@@ -1050,6 +1197,7 @@ impute_knn <- function(state, config, k=NULL, rowmax=0.5, colmax=0.8, maxp=1500)
 #' config <- list(frm=~grp+sex)    ## need frm for filter_features with filter_by_formula=TRUE
 #' state <- h0testr::filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::filter_observations(state, config, n_features_min=30)
+#' config$is_log_transformed <- FALSE   ## sim2() returns untransformed values
 #'
 #' ## impute:
 #' state2 <- h0testr::impute_min_det(state, config)
@@ -1071,7 +1219,7 @@ impute_min_det <- function(state, config, impute_quantile=NULL) {
   if(is.null(impute_quantile)) impute_quantile <- 0.01
   
   mat <- imputeLCMD::impute.MinDet(state$expression, q=impute_quantile)
-  mat <- f.pos_mat(mat, config)
+  mat <- f.pos_mat(mat, config, fn_name="impute_min_det")
   state$expression <- mat
   
   return(state)
@@ -1092,8 +1240,10 @@ impute_min_det <- function(state, config, impute_quantile=NULL) {
 #'   } 
 #' @param config List with configuration values. Does not use any keys so 
 #'   can pass empty list.
-#' @param is_log_transformed Logical scalar: if \code{state$expression} has 
-#'   been log transformed.
+#' @param is_log_transformed Logical scalar: whether \code{state$expression} has
+#'   been log transformed. Defaults to \code{config$is_log_transformed}, which
+#'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+#'   passing both is an error unless they agree.
 #' @param impute_quantile Quantile to use for imputation; scalar with 
 #'   \code{0 <= impute_quantile < 1.0}. Default: \code{0.01}.
 #' @param scale. Scale parameter for normal distribution; scalar 
@@ -1147,9 +1297,8 @@ impute_min_prob <- function(state, config, is_log_transformed=NULL,
     
   check_config(config)
   
-  if(!is.logical(is_log_transformed)) {
-    f.err("impute_min_prob: !is.logical(is_log_transformed)", config=config)
-  }
+  is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
+    "impute_min_prob")
   
   if(!is.matrix(state$expression)) {
     f.err("impute_min_prob: !is.matrix(state$expression)", "\n",
@@ -1165,9 +1314,9 @@ impute_min_prob <- function(state, config, is_log_transformed=NULL,
   if(!is_log_transformed) mat <- log2(mat + 1)  ## otherwise can get negative
   
   mat <- imputeLCMD::impute.MinProb(mat, q=impute_quantile, tune.sigma=scale.)
-  
+
   if(!is_log_transformed) mat <- (2^mat) - 1
-  mat <- f.pos_mat(mat, config)
+  mat <- f.pos_mat(mat, config, is_log_transformed, "impute_min_prob")
   
   state$expression <- mat
   
@@ -1189,8 +1338,10 @@ impute_min_prob <- function(state, config, is_log_transformed=NULL,
 #'   } 
 #' @param config List with configuration values. Does not use any keys so can 
 #'   pass empty list.
-#' @param is_log_transformed Logical scalar: if \code{state$expression} has 
-#'   been log transformed.
+#' @param is_log_transformed Logical scalar: whether \code{state$expression} has
+#'   been log transformed. Defaults to \code{config$is_log_transformed}, which
+#'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+#'   passing both is an error unless they agree.
 #' @param scale. Scaling parameter for normal distribution; numeric scalar 
 #'   with \code{0 < scale.}. Default: \code{1.0}.
 #' @return 
@@ -1222,12 +1373,14 @@ impute_min_prob <- function(state, config, is_log_transformed=NULL,
 #' state <- h0testr::filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::filter_observations(state, config, n_features_min=30)
 #' 
-#' ## untransformed example:
-#' state2 <- h0testr::impute_qrilc(state, config, is_log_transformed=FALSE)
+#' ## untransformed example. QRILC draws from a truncated distribution fitted in
+#' ##   log space, and a draw below zero there back-transforms to a raw value
+#' ##   below the detection floor of zero, which cannot be a measurement. Whether
+#' ##   that happens depends on the draw, so this is wrapped: on the raw scale
+#' ##   the method can stop for reasons the data alone do not decide.
+#' state2 <- try(h0testr::impute_qrilc(state, config, is_log_transformed=FALSE))
 #' summary(c(state$expression))    ## Note number of NAs
-#' summary(c(state2$expression))   ## Note number of NAs
-#' head(state$expression)
-#' round(head(state2$expression))
+#' if(!inherits(state2, "try-error")) summary(c(state2$expression))
 #' 
 #' ## log-transformed example:
 #' state$expression <- log2(state$expression + 1)
@@ -1241,9 +1394,8 @@ impute_qrilc <- function(state, config, is_log_transformed=NULL, scale.=NULL) {
   
   check_config(config)
   
-  if(!is.logical(is_log_transformed)) {
-    f.err("impute_qrilc: !is.logical(is_log_transformed)", config=config)
-  }
+  is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
+    "impute_qrilc")
   
   if(!is.matrix(state$expression)) {
     f.err("impute_qrilc: !is.matrix(state$expression)", "\n",
@@ -1260,7 +1412,7 @@ impute_qrilc <- function(state, config, is_log_transformed=NULL, scale.=NULL) {
   
   mat <- obj[[1]]
   if(!is_log_transformed) mat <- (2^mat) - 1
-  mat <- f.pos_mat(mat, config)
+  mat <- f.pos_mat(mat, config, is_log_transformed, "impute_qrilc")
   state$expression <- mat
   
   return(state)
@@ -1287,8 +1439,10 @@ impute_qrilc <- function(state, config, is_log_transformed=NULL, scale.=NULL) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Does not use any keys so can pass empty list.
-#' @param is_log_transformed Logical scalar: if \code{state$expression} has 
-#'   been log transformed.
+#' @param is_log_transformed Logical scalar: whether \code{state$expression} has
+#'   been log transformed. Defaults to \code{config$is_log_transformed}, which
+#'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+#'   passing both is an error unless they agree.
 #' @param n_pcs Number (scalar numeric >= 1) of principle components to compute. Default: \code{5}.
 #' @param method Method to use. Scalar character in \code{c("bpca", "ppca", "svdImpute")}.
 #' @return 
@@ -1335,20 +1489,29 @@ impute_qrilc <- function(state, config, is_log_transformed=NULL, scale.=NULL) {
 #' summary(c(state2$expression))   ## Note number of NAs
 #' round(head(state2$expression))
 #'
-#' ## impute as linear combo of \code{n_pcs} eigengenes:
-#' state2 <- h0testr::impute_pca(state, config, method="svdImpute", 
-#'   is_log_transformed=FALSE)
+#' ## impute as linear combo of \code{n_pcs} eigengenes; on these data the
+#' ##   reconstruction runs a few cells below the raw scale's floor of zero,
+#' ##   which cannot be a measurement, so this stops rather than nudging the
+#' ##   offending values upward into fabricated ones:
+#' try(h0testr::impute_pca(state, config, method="svdImpute",
+#'   is_log_transformed=FALSE))
+#'
+#' ## the same method on the log scale, where the reconstruction has no floor to
+#' ##   fall below and every imputed value is an ordinary log intensity:
+#' state_log <- state
+#' state_log$expression <- log2(state_log$expression + 1)
+#' state2 <- h0testr::impute_pca(state_log, config, method="svdImpute",
+#'   is_log_transformed=TRUE)
 #' summary(c(state2$expression))   ## Note number of NAs
-#' round(head(state2$expression))
+#' round(head(state2$expression), 2)
 
 impute_pca <- function(state, config, is_log_transformed=NULL,
     n_pcs=NULL, method="bpca") {
   
   check_config(config)
   
-  if(!is.logical(is_log_transformed)) {
-    f.err("impute_pca: !is.logical(is_log_transformed)", config=config)
-  }
+  is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
+    "impute_pca")
   
   if(!is.matrix(state$expression)) {
     f.err("impute_pca: !is.matrix(state$expression)", "\n",
@@ -1380,7 +1543,7 @@ impute_pca <- function(state, config, is_log_transformed=NULL,
 
   if(!is_log_transformed) mat <- (2^mat) - 1
   mat <- t(mat)
-  mat <- f.pos_mat(mat, config)
+  mat <- f.pos_mat(mat, config, is_log_transformed, "impute_pca")
   state$expression <- mat
   
   return(state)
@@ -1402,8 +1565,10 @@ impute_pca <- function(state, config, is_log_transformed=NULL,
 #'   } 
 #' @param config List with configuration values. Does not use any keys so can 
 #'   pass empty list.
-#' @param is_log_transformed Logical scalar: if \code{state$expression} has 
-#'   been log transformed.
+#' @param is_log_transformed Logical scalar: whether \code{state$expression} has
+#'   been log transformed. Defaults to \code{config$is_log_transformed}, which
+#'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+#'   passing both is an error unless they agree.
 #' @param method Name of correlation method; scalar character in 
 #'   \code{c("pearson", "kendall", "spearman")}
 #' @param k Number (scalar numeric with \code{k >= 2}) of features per local cluster. Default: \code{5}.
@@ -1457,9 +1622,8 @@ impute_lls <- function(state, config, is_log_transformed=NULL,
   
   check_config(config)
   
-  if(!is.logical(is_log_transformed)) {
-    f.err("impute_lls: !is.logical(is_log_transformed)", config=config)
-  }
+  is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
+    "impute_lls")
   
   if(is.null(k)) k <- config$impute_k
   if(is.null(k)) k <- 5
@@ -1470,7 +1634,10 @@ impute_lls <- function(state, config, is_log_transformed=NULL,
   }
   
   mat <- state$expression
-  if(sum(is.na(c(mat)) | c(mat) %in% 0) %in% 0) {
+  ## NA is the only indicator of a missing value; see f.zeros_to_na(). The outer
+  ##   %in% 0 is a count of zero missing values, not a value of zero:
+
+  if(sum(is.na(c(mat))) %in% 0) {
     f.msg("no missing values found; returning input state", config=config)
     return(state)
   }
@@ -1483,7 +1650,7 @@ impute_lls <- function(state, config, is_log_transformed=NULL,
   mat <- pcaMethods::completeObs(obj)
   if(!is_log_transformed) mat <- (2^mat) - 1
   mat <- t(mat)
-  mat <- f.pos_mat(mat, config)
+  mat <- f.pos_mat(mat, config, is_log_transformed, "impute_lls")
   state$expression <- mat
   
   return(state)
@@ -1533,6 +1700,7 @@ impute_lls <- function(state, config, is_log_transformed=NULL,
 #' config <- list(frm=~grp+sex)  ## need frm for filter_features with filter_by_formula=TRUE
 #' state <- h0testr::filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::filter_observations(state, config, n_features_min=30)
+#' config$is_log_transformed <- FALSE   ## sim2() returns untransformed values
 #'
 #' ## impute:
 #' state2 <- h0testr::impute_missforest(state, config)
@@ -1551,7 +1719,7 @@ impute_missforest <- function(state, config, maxit=10, ntree=100) {
   obj <- missForest::missForest(t(state$expression), maxiter=maxit, ntree=ntree)
   
   mat <- t(obj$ximp)
-  mat <- f.pos_mat(mat, config)
+  mat <- f.pos_mat(mat, config, fn_name="impute_missforest")
   state$expression <- mat
 
   return(state)
@@ -1615,8 +1783,11 @@ impute_methods <- function() {
 #'   }
 #' @param method Method to use (required). A character scalar from the list 
 #'   returned by \code{h0testr::impute_methods()}.
-#' @param is_log_transformed Logical scalar (required): if 
-#'   \code{state$expression} has been log transformed.
+#' @param is_log_transformed Logical scalar: whether \code{state$expression} has
+#'   been log transformed. Defaults to \code{config$is_log_transformed}, which
+#'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+#'   passing both is an error unless they agree. It is an error for both to be
+#'   unset.
 #' @param k Number of nearest neighbors passed to methods for 
 #'   \code{c("knn", "lls")}.
 #' @param span Span passed to method for \code{"loess_logit"}.
@@ -1684,10 +1855,17 @@ impute <- function(state, config, method=NULL, is_log_transformed=NULL,
       method, config=config)
   }
   
-  if(!is.logical(is_log_transformed)) {
-    f.err("impute: !is.logical(is_log_transformed)", config=config)
-  }
-  
+  is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
+    "impute")
+
+  ## recorded in the config handed to the imputers below, so that the ones
+  ##   without an is_log_transformed argument of their own still find the answer
+  ##   this call resolved. Without it, passing is_log_transformed to impute()
+  ##   against a config that does not mention the scale would leave those
+  ##   imputers with nothing to read:
+
+  config$is_log_transformed <- is_log_transformed
+
   ## corresponding methods should have reasonable defaults for NULLs in config:
   if(is.null(k)) k <- config$impute_k
   if(is.null(span)) span <- config$impute_span

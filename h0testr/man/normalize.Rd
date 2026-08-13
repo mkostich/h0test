@@ -24,6 +24,7 @@ normalize(
 \tabular{ll}{
   \code{normalization_method}   \cr \tab Character scalar in \code{c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")}. \cr
   \code{normalization_quantile} \cr \tab Quantile (numeric between 0 and 1) for \code{normalization_method \%in\% c("quantile", "upperquartile")}. \cr
+  \code{is_log_transformed} \cr \tab Optional logical; if \code{TRUE}, any method other than \code{"none"} is an error, since it would transform the data a second time. \cr
   \code{feat_col}      \cr \tab Column of \code{state$features} matching \code{rownames(state$expression)}. \cr
   \code{obs_col}       \cr \tab Column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
 }}
@@ -35,7 +36,12 @@ normalize(
 \item{span}{Span for method \code{"loess"}, where \code{0 < span < 1}.}
 }
 \value{
-A list (the processed state) with the following elements:
+A list with the following two elements:
+  \tabular{ll}{
+    \code{state}  \cr \tab The processed state; see below. \cr
+    \code{config} \cr \tab The configuration, with \code{is_log_transformed} set to \code{TRUE} unless the method was \code{"none"}. \cr
+  }
+  The element \code{state} is a list with the following three elements:
   \tabular{ll}{
     \code{expression} \cr \tab Numeric matrix with normalized expression values. \cr
     \code{features}   \cr \tab Feature meta-data \code{data.frame} corresponding to rows of \code{expression}. \cr
@@ -51,7 +57,14 @@ Inter-observation normalization using any of the methods available in
     the \code{h0testr} package. See individual methods for more details. 
     Normalizes \code{state$expression}. Does not affect 
     \code{state$features} or \code{state$samples}.
-  See documentation for \code{h0testr::new_config()} 
+  Every method other than \code{"none"} ends by log transforming the data, so
+    \code{config$is_log_transformed} is set to \code{TRUE} on return and the
+    rest of the workflow reads the scale from there rather than tracking it.
+    For that reason a method other than \code{"none"} is an error when
+    \code{config$is_log_transformed} is already \code{TRUE}. \code{"vsn"}
+    counts as transforming: its output is arsinh-scaled rather than log2, but
+    is not to be transformed again either.
+  See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.
 }
 \examples{

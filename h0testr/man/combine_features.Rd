@@ -19,6 +19,7 @@ combine_features(state, config, method = NULL, rescale = FALSE)
   \code{obs_col}         \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
   \code{feat_col}        \cr \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}. \cr
   \code{gene_id_col}     \cr \tab Name of column in \code{state$features} specifying high-level feature for aggregation. \cr
+  \code{is_log_transformed} \cr \tab Logical scalar; must be \code{TRUE} unless \code{method} is \code{"none"}, since both aggregators fit an additive model. \cr
   \code{save_state}      \cr \tab Logical scalar indicating whether to save new state to disk. \cr
   \code{dir_out}         \cr \tab Output directory path (scalar character); only needed if \code{save_state == TRUE}. \cr
   \code{data_mid_out}    \cr \tab Midfix of expression matrix filename; only needed if \code{save_state == TRUE}.\cr
@@ -30,7 +31,8 @@ combine_features(state, config, method = NULL, rescale = FALSE)
 \item{method}{Name (character scalar) of method to use for combining, 
 where \code{method \%in\% c("medianPolish", "robustSummary", "none")}. Default: \code{"medianPolish"}.}
 
-\item{rescale}{Logical scalar indicating whether to rescale peptides prior to aggregation. Default: \code{FALSE}.}
+\item{rescale}{Logical scalar indicating whether to rescale peptides prior to aggregation. Must be
+\code{FALSE} unless \code{method} is \code{"none"}; see Details. Default: \code{FALSE}.}
 }
 \value{
 A list (the processed state) with the following elements:
@@ -50,15 +52,45 @@ Combines signals from lower-level features, like peptides,
     made to \code{state} or \code{config}.
   Sets \code{config$feat_col} and \code{config$feat_id_col} to 
     \code{config$gene_id_col}.
-  If \code{rescale \%in\% TRUE}, and \code{!(method \%in\% "none")}, 
-    peptides rescaled by dividing by peptide mean (after removing 
-    \code{NA}s).
+  \code{rescale=TRUE} (or \code{config$feature_aggregation_scaled=TRUE}) is
+    refused unless \code{method} is \code{"none"}, where nothing is
+    aggregated and the setting is reported as ignored. It divided each feature
+    by its own mean, which is a raw scale operation, and aggregation requires
+    log scale data (see below), where a per-feature mean near zero explodes
+    the feature and a negative one flips the sign of its contrasts. The log
+    scale form of the same idea, subtracting the per-feature mean, is absorbed
+    exactly by \code{medianPolish()}'s own per-feature effect and so changes
+    no per-sample effect, which is why the option is removed rather than
+    corrected.
+  \code{method="robustSummary"} stops if a gene group of two or more features
+    contains a sample whose every measured value in that group is exactly
+    \code{0}. \code{MsCoreUtils::robustSummary()} drops such a sample from its
+    design and reports it as \code{NA}, which cannot afterwards be told apart
+    from a sample where the gene was never measured, so it is refused rather
+    than summarized. This cannot arise from raw input, where
+    \code{h0testr::initialize()} converts zeros to \code{NA}; it is reachable
+    only for input that was already transformed and holds genuine zeros.
+    \code{method="medianPolish"} is unaffected.
   For \code{method="medianPolish"}, for each unique gene in 
     \code{state$features[, config$gene_id_col]}, the submatrix of 
       corresponding peptide signals across all samples is decomposed into: 
       \code{pep_exprs == median_column_effect + median_row_effect + overall_median},
-    Then \code{median_column_effect} is returned, after shifted to 
-      ensure all values strictly positive: \code{all(expression > 0, na.rm=TRUE)}.
+    Then \code{median_column_effect} is returned as it stands. Values at or
+      below zero are ordinary on the log scale this function requires, and are
+      returned unaltered; earlier versions added a per-group constant to lift
+      each group's vector strictly positive, which left a per-feature
+      coefficient untouched but moved the feature's average expression, and so
+      the trended prior of \code{limma::eBayes(trend=TRUE)} and the
+      \code{p(missing|intensity)} models of several imputers.
+  Both aggregation methods fit an additive model of an overall level plus
+    per-feature and per-sample effects, which holds for mass spectrometry
+    signal only after a log transform, since sample loading and precursor
+    response are multiplicative. Stops with an error unless
+    \code{config$is_log_transformed} is \code{TRUE}; run
+    \code{h0testr::normalize()} first (the default \code{config$run_order}
+    does), declare an already-transformed input with
+    \code{config$is_log_transformed <- TRUE}, or use \code{method="none"},
+    which fits nothing and is exempt.
   Uses \code{MsCoreUtils::medianPolish} and \code{MsCoreUtils::robustSummary}.
   See documentation for \code{h0testr::new_config()} 
     for more detailed description of configuration parameters.
@@ -71,9 +103,12 @@ tmp <- strsplit(rownames(exprs), "_")
 feats <- data.frame(pep=rownames(exprs), gene=sapply(tmp, "[", 1))
 tmp <- strsplit(colnames(exprs), "_")
 samps <- data.frame(obs=colnames(exprs), grp=sapply(tmp, "[", 1))
-state <- list(expression=exprs, features=feats, samples=samps)
+
+## both aggregators fit an additive model, so they need log scale data;
+##   normalize() would do this and set the flag in a full workflow:
+state <- list(expression=log2(exprs + 1), features=feats, samples=samps)
 config <- list(feat_id_col="pep", gene_id_col="gene", obs_col="obs", feat_col="pep",
-  feature_aggregation="medianPolish", save_state=FALSE)
+  feature_aggregation="medianPolish", is_log_transformed=TRUE, save_state=FALSE)
 rm(tmp, exprs, feats, samps)
 print(state)
 str(config)
@@ -88,10 +123,10 @@ out <- h0testr::combine_features(state, config, method="robustSummary")
 print(out$state)
 str(out$config)
 
-## combine peps with rescaling:
-out <- h0testr::combine_features(state, config, rescale=TRUE)
-print(out$state)
-str(out$config)
+## rescaling before aggregation is refused, since it divides by a per-feature
+##   mean, which has no meaning on the log scale aggregation requires:
+out <- try(h0testr::combine_features(state, config, rescale=TRUE), silent=TRUE)
+cat(class(out), "\n")
 
 ## with method="none":
 out <- h0testr::combine_features(state, config, method="none")

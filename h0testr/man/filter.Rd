@@ -62,9 +62,14 @@ Filters out features measured in too few samples, and filters out samples
     observation changes every feature's missingness pattern. This is a single
     pass: features dropped for lack of estimability are not fed back into
     \code{filter_observations()}.
-  Features and/or samples considered constant if 
+  Features and/or samples considered constant if
     \code{length(unique(expression_values)) \%in\% 1}.
-  See documentation for \code{h0testr::new_config()} 
+  Stops with an error if any feature is left with no measured value at all.
+    Such a feature has no intensity for any downstream step to model, so an
+    imputer would have to invent one; the filtering criteria above already
+    remove them, and one surviving means a criterion was disabled or a
+    threshold set too low.
+  See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.
 }
 \examples{

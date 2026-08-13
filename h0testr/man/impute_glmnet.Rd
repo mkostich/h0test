@@ -29,8 +29,10 @@ It is assumed that state$expression has been previously \code{log2(x+1)} transfo
 
 \item{config}{List with configuration values. Does not use any keys so can pass empty list.}
 
-\item{is_log_transformed}{Logical scalar: if \code{state$expression} has 
-been log transformed.}
+\item{is_log_transformed}{Logical scalar: whether \code{state$expression} has
+been log transformed. Defaults to \code{config$is_log_transformed}, which
+\code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+passing both is an error unless they agree.}
 
 \item{f_imp}{Function to use for initial rough imputation.}
 

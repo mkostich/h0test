@@ -10,7 +10,8 @@ impute_glm_binom(
   is_log_transformed = NULL,
   n_pts = NULL,
   off = 1,
-  f_mid = stats::median
+  f_mid = stats::median,
+  min_fit_pts = 10
 )
 }
 \arguments{
@@ -27,8 +28,10 @@ It is assumed that state$expression has been previously \code{log2(x+1)} transfo
   \code{impute_n_pts}  \cr \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain.
 }}
 
-\item{is_log_transformed}{Logical scalar: if \code{state$expression} has 
-been log transformed.}
+\item{is_log_transformed}{Logical scalar: whether \code{state$expression} has
+been log transformed. Defaults to \code{config$is_log_transformed}, which
+\code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+passing both is an error unless they agree.}
 
 \item{n_pts}{Numeric greater than one. Granularity of prediction 
 grid. Larger values lead to less chance of duplicate imputed values.
@@ -37,8 +40,16 @@ Larger values require more compute time and memory. Default: \code{1e7}.}
 \item{off}{Numeric offset for calculating 
 \code{p.missing = (n.missing + off) / (n.total + off)}.}
 
-\item{f_mid}{Function to use for calculating central tendency of 
+\item{f_mid}{Function to use for calculating central tendency of
 feature expression across samples.}
+
+\item{min_fit_pts}{Numeric scalar (at least two): the number of distinct
+feature intensities that must remain after features measured in no sample
+have been dropped, before the missingness fit is attempted. Those features
+have no intensity to fit against, so they are excluded from the fit and
+imputed from the curve the rest determine. Stops with an error when too few
+distinct intensities remain, since the fit is extrapolated across the whole
+intensity range and imputed values are drawn from it. Default: \code{10}.}
 }
 \value{
 An updated `state` list with the following elements:

@@ -33,8 +33,32 @@ This function is meant to simplify generation of configurations for
     and \code{obs_id_col}. In these cases, leave \code{feat_col} and
     \code{obs_col} as \code{""} (they will be automatically set and 
     changed after observation or precursor aggregation.
-  Otherwise, you may only need to set \code{feat_col} and \code{obs_col}. 
+  Otherwise, you may only need to set \code{feat_col} and \code{obs_col}.
     see examples for the function of interest to see what is needed.
+  \code{is_log_transformed} declares the scale of \code{state$expression} and
+    is the single place the rest of the package looks to find it out. The
+    default \code{FALSE} says the input is raw, so \code{h0testr::initialize()}
+    converts zeros to \code{NA} and rejects negative values, and
+    \code{h0testr::normalize()} may transform it. Set it to \code{TRUE} for
+    input that has already been log transformed or otherwise put on a log-like
+    scale: zeros and negative values are then left alone,
+    \code{h0testr::normalize()} accepts no method other than \code{"none"},
+    and the imputation and testing functions know not to transform it again.
+    \code{h0testr::normalize()} sets it to \code{TRUE} once it has transformed
+    the data, so a workflow does not have to track the scale itself.
+  \code{impute_floor_offset} is an offset, in log2 units, from the global
+    minimum observed value, and it is used only when
+    \code{is_log_transformed} is \code{TRUE}. The \code{unif_} imputation
+    methods draw from an interval whose lower bound is
+    \code{min(state$expression, na.rm=TRUE) + impute_floor_offset}. The
+    default \code{-1} puts that bound one log2 unit below the dimmest value
+    actually measured, so the interval has width even when
+    \code{impute_quantile} is \code{0}. A less negative value narrows the
+    interval, which reduces the variability of the imputed values and makes
+    the test anti-conservative; \code{0} leaves no width at all when
+    \code{impute_quantile} is \code{0}. A more negative value imputes dimmer
+    values, spread more widely. It is ignored for raw input, where the
+    imputation floor is zero abundance.
 }
 \examples{
 config <- new_config()    ## all possible settings with defaults

@@ -46,29 +46,20 @@ run <- function(config) {
   
   f.log_block("starting load_data", config=config)
   out <- load_data(config)
-  is_log_transformed <- FALSE
-  
+
+  ## the scale of the data lives in out$config$is_log_transformed, put there by
+  ##   initialize() and updated by normalize(), so each step below reads it from
+  ##   the config it is handed rather than from a second copy kept here:
+
   for(f_name in config$run_order) {
-    
+
     f.log_block("starting", f_name, config=config)
     fn <- get(f_name)
-    
-    if(f_name %in% c("impute", "test")) {
-      out <- fn(out$state, out$config, 
-        is_log_transformed=is_log_transformed)
-    } else {
-      out <- fn(out$state, out$config)
-    }
-    
-    if(f_name %in% "normalize") {
-      if(!config$normalization_method %in% c("none")) {
-        is_log_transformed <- TRUE
-      }
-    }
+    out <- fn(out$state, out$config)
   }
-  
+
   f.log_block("starting test", config=out$config)
-  result <- test(out$state, out$config, is_log_transformed=is_log_transformed)
+  result <- test(out$state, out$config)
   
   return(list(state=out$state, config=out$config, 
     original=result$original, standard=result$standard, fit=result$fit))
@@ -117,7 +108,7 @@ f.tune2_na_row <- function(config) {
   )
 }
 
-f.tune2 <- function(state, config, is_log_transformed=is_log_transformed) {
+f.tune2 <- function(state, config, is_log_transformed=NULL) {
 
   ## some engines can only test one coefficient at a time, so they cannot run at all
   ##   when config$test_term implies a joint test over several; skipped rather than
@@ -165,11 +156,11 @@ f.tune2 <- function(state, config, is_log_transformed=is_log_transformed) {
   }
 
   f.log_block("f.tune:2: impute", config=config)
-  out <- impute(out$state, out$config, 
+  out <- impute(out$state, out$config,
     is_log_transformed=is_log_transformed)
-  
+
   f.log_block("f.tune:2: test", config=config)
-  result <- test(out$state, out$config, 
+  result <- test(out$state, out$config,
     is_log_transformed=is_log_transformed)
   
   tbl <- result$standard
@@ -316,8 +307,7 @@ tune <- function(
   state1 <- out$state                   ## save for subsequent iterations
   config1 <- out$config                 ## save for subsequent iterations
   rslt <- NULL
-  is_log_transformed <- FALSE
-  
+
   for(normalization_method in normalization_methods) {
     
     config1$normalization_method <- normalization_method
@@ -327,14 +317,12 @@ tune <- function(
     out <- f.tune1(state1, config1, normalization_method=normalization_method)
     state2 <- out$state                 ## save for subsequent iterations
     config2 <- out$config               ## save for subsequent iterations
-    if(normalization_method %in% c("none")) {
-      is_log_transformed <- FALSE
-    } else if(normalization_method %in% c("vsn")) {
-      is_log_transformed <- TRUE  ## vsn output is arsinh-scaled, not log2
-    } else {
-      is_log_transformed <- TRUE
-    }
-    
+
+    ## normalize(), called by f.tune1(), records the scale in config, so the
+    ##   sweep does not keep a second copy of it:
+
+    is_log_transformed <- config2$is_log_transformed
+
     for(test_method in test_methods) {
       
       config2$test_method <- test_method

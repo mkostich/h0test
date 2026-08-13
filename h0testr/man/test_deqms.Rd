@@ -42,8 +42,9 @@ Tests for differential expression using the
 The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm}
     and a moderated t-test is performed for whether the effect of
     \code{config$test_term} on \code{state$expression} is zero.
-  \code{DEqMS::outputResult()} reports one coefficient at a time, so
-    \code{config$test_term} must resolve to a single design matrix column; it is an
+  \code{DEqMS} moderates the t-statistic of a single coefficient and has no
+    F-analogue, so \code{config$test_term} must resolve to a single design matrix
+    column; it is an
     error if it does not. That rules out testing a factor with more than two
     levels, and also testing a variable that appears in an interaction, since by
     marginality the test then covers every term containing the variable: with
@@ -53,6 +54,11 @@ The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm}
     \code{h0testr::test_trend()} or \code{h0testr::test_voom()} for those tests.
   If the number of features per gene/protein-group is the same for all
     features, returns same result as \code{h0testr::test_trend()}.
+  Aggregates peptides internally with \code{h0testr::combine_features()},
+    which fits an additive model and so requires
+    \code{config$is_log_transformed} to be \code{TRUE}; \code{DEqMS} is built
+    on \code{limma} and wants the same scale. Running
+    \code{h0testr::normalize()} first satisfies both.
   Returns gene-level hypothesis testing results based on 
     peptide/precursor-level input.
   Flow is:
@@ -102,6 +108,13 @@ config <- list(
   reference_levels=c(grp="ctl", sex="F")
 )
 out <- h0testr::initialize(state, config, minimal=TRUE)
+
+## test_deqms() aggregates peptides internally with combine_features(), which
+##   fits an additive model, and DEqMS is built on limma; both want log scale.
+##   normalize() does this and sets the flag in a full workflow. Applied after
+##   initialize(), so that the raw zeros became NA first:
+out$state$expression <- log2(out$state$expression + 1)
+out$config$is_log_transformed <- TRUE
 
 ## actual test:
 result <- h0testr::test_deqms(out$state, out$config)

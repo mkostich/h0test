@@ -22,8 +22,32 @@
 #'     and \code{obs_id_col}. In these cases, leave \code{feat_col} and
 #'     \code{obs_col} as \code{""} (they will be automatically set and 
 #'     changed after observation or precursor aggregation.
-#'   Otherwise, you may only need to set \code{feat_col} and \code{obs_col}. 
+#'   Otherwise, you may only need to set \code{feat_col} and \code{obs_col}.
 #'     see examples for the function of interest to see what is needed.
+#'   \code{is_log_transformed} declares the scale of \code{state$expression} and
+#'     is the single place the rest of the package looks to find it out. The
+#'     default \code{FALSE} says the input is raw, so \code{h0testr::initialize()}
+#'     converts zeros to \code{NA} and rejects negative values, and
+#'     \code{h0testr::normalize()} may transform it. Set it to \code{TRUE} for
+#'     input that has already been log transformed or otherwise put on a log-like
+#'     scale: zeros and negative values are then left alone,
+#'     \code{h0testr::normalize()} accepts no method other than \code{"none"},
+#'     and the imputation and testing functions know not to transform it again.
+#'     \code{h0testr::normalize()} sets it to \code{TRUE} once it has transformed
+#'     the data, so a workflow does not have to track the scale itself.
+#'   \code{impute_floor_offset} is an offset, in log2 units, from the global
+#'     minimum observed value, and it is used only when
+#'     \code{is_log_transformed} is \code{TRUE}. The \code{unif_} imputation
+#'     methods draw from an interval whose lower bound is
+#'     \code{min(state$expression, na.rm=TRUE) + impute_floor_offset}. The
+#'     default \code{-1} puts that bound one log2 unit below the dimmest value
+#'     actually measured, so the interval has width even when
+#'     \code{impute_quantile} is \code{0}. A less negative value narrows the
+#'     interval, which reduces the variability of the imputed values and makes
+#'     the test anti-conservative; \code{0} leaves no width at all when
+#'     \code{impute_quantile} is \code{0}. A more negative value imputes dimmer
+#'     values, spread more widely. It is ignored for raw input, where the
+#'     imputation floor is zero abundance.
 #' @return list of configuration values
 #' @examples
 #' config <- new_config()    ## all possible settings with defaults
@@ -90,7 +114,7 @@ new_config <- function() {
     ## tunable options: defaults are usually ok, except:
     ##   for dia: usually works ok: RLE:unif_sample_lod:0.05 for normalization_method:impute_method:impute_quantile
     ##   for dda: usually works ok: quantile:0.75:unif_sample_lod:0 for normalization_method:normalization_quantile:impute_method:impute_quantile
-    zeros_to_na=TRUE,                    ## whether initialize() treats input as raw: zeros become NA and negative values are an error; forced FALSE when normalization_method is "none"
+    is_log_transformed=FALSE,            ## whether state$expression is already on a log-like scale; FALSE means raw, so initialize() converts zeros to NA and rejects negative values; set TRUE by normalize()
     normalization_method="RLE",          ## normalization method; h0testr::normalize_methods() retuns options.
     normalization_quantile=0.75,         ## for quantile normalization; 0.5 is median; 0.75 is upper quartile;
     normalization_span=0.7,              ## span for normalize_loess()
@@ -99,9 +123,10 @@ new_config <- function() {
     estimability="test",                 ## estimability required of config$test_term; in c("test", "term", "full")
     df_resid_min=2,                      ## min residual degrees of freedom per feature to keep feature
     feature_aggregation="medianPolish",  ## in c("medianPolish", "robustSummary", "none")
-    feature_aggregation_scaled=FALSE,    ## whether to rescale peptide features prior to aggregation into protein/gene group.
+    feature_aggregation_scaled=FALSE,    ## whether to rescale peptide features prior to aggregation; must be FALSE unless config$feature_aggregation is "none", see combine_features()
     impute_method="sample_lod",          ## method for imputing missing values; h0testr::impute_methods() returns options.
     impute_quantile=0.01,                ## quantile for unif_ imputation methods
+    impute_floor_offset=-1,              ## offset (non-positive; log2 units) from the global observed minimum giving the lower bound of the unif_ imputation interval, when config$is_log_transformed is TRUE
     impute_scale=1,                      ## for rnorm_feature, adjustment on sd of distribution [1: no change];
     impute_span=0.5,                     ## loess span for impute_loess_logit()
     impute_k=7,                          ## k for impute_knn() or impute_lls()
@@ -166,11 +191,13 @@ check_config <- function(config) {
     "impute_k", "impute_npcs", "impute_aug_steps", "test_prior_df",
     "n_distinct_numeric_warn", "width", "df_resid_min")
   
-  scalar_props <- c("normalization_quantile", "impute_quantile", "impute_span", 
+  scalar_props <- c("normalization_quantile", "impute_quantile", "impute_span",
     "impute_alpha", "normalization_span")
   scalar_positive <- c("impute_scale")
+  scalar_nonpositive <- c("impute_floor_offset")
+  ## log_from_raw is set by normalize(), not by the user; see f.check_state():
   scalar_logical <- c("feature_aggregation_scaled", "save_state", "verbose",
-    "zeros_to_na")
+    "is_log_transformed", "log_from_raw")
   scalar_formula <- c("frm")
   ## covariate_types is set by initialize(), not by the user; see
   ##   f.covariate_types():
@@ -184,11 +211,27 @@ check_config <- function(config) {
   
   noms <- names(config)
   all_noms <- c(
-    scalar_character, scalar_counts, scalar_props, 
-    scalar_positive, scalar_logical, scalar_formula, 
-    vector_character, vector_props, 
+    scalar_character, scalar_counts, scalar_props,
+    scalar_positive, scalar_nonpositive, scalar_logical, scalar_formula,
+    vector_character, vector_props,
     list_character
   )
+
+  ## retired parameters, checked before the unrecognized name loop below so that
+  ##   a config written against an older version says what to do instead of just
+  ##   naming the offending parameter:
+
+  retired <- c(
+    zeros_to_na=paste("use is_log_transformed instead, with the opposite sense:",
+      "is_log_transformed=FALSE means the input is raw, so zeros become NA and",
+      "negative values are an error")
+  )
+  for(nom in names(retired)) {
+    if(nom %in% noms) {
+      f.err("check_config: retired parameter:", nom, ";", retired[[nom]],
+        config=config)
+    }
+  }
   
   if(is.null(noms)) f.err("check_config: is.null(names(config))", config=config)
   for(idx in 1:length(config)) {
@@ -255,12 +298,35 @@ check_config <- function(config) {
       }
     }
   }
-  
+
+  ## an offset from an observed value, so it has to be finite; a positive offset
+  ##   would put the bound it derives above the value it is measured from:
+
+  for(nom in scalar_nonpositive) {
+    if(nom %in% names(config)) {
+      if(!(is.numeric(config[[nom]]) && length(config[[nom]]) == 1)) {
+        f.err("check_config: param not scalar non-positive numeric; param:", nom,
+          "; value:", config[[nom]], config=config)
+      }
+      if(!is.finite(config[[nom]])) {
+        f.err("check_config: param not finite:", nom,
+          "; value:", config[[nom]], config=config)
+      }
+      if(config[[nom]] > 0) {
+        f.err("check_config: param not non-positive:", nom,
+          "; value:", config[[nom]], config=config)
+      }
+    }
+  }
+
   for(nom in scalar_logical) {
     if(nom %in% names(config)) {
       if(!(is.logical(config[[nom]]) && length(config[[nom]]) == 1)) {
-        f.err("check_config: param not scalar logical; param:",  nom, 
+        f.err("check_config: param not scalar logical; param:",  nom,
           "; value:", config[[nom]], config=config)
+      }
+      if(is.na(config[[nom]])) {
+        f.err("check_config: param is NA; param:", nom, config=config)
       }
     }
   }

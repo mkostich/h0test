@@ -636,7 +636,8 @@ samples_per_feature <- function(state, config) {
 #'   Median over the non-\code{NA} values of the feature. Values are not
 #'     screened by sign, so a transformed value of zero or below counts toward
 #'     the median; raw zeros are already \code{NA} by this point, having been
-#'     converted by \code{h0testr::initialize()}.
+#'     converted by \code{h0testr::initialize()}. A feature measured in no
+#'     sample has no median, and gets \code{NA}.
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -644,8 +645,9 @@ samples_per_feature <- function(state, config) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Does not use any params, so can pass empty list.
-#' @return A numeric vector of length \code{nrow(state$expression)} with median expression in 
-#'   each expressing sample.
+#' @return A numeric vector of length \code{nrow(state$expression)} with median
+#'   expression over the expressing samples, and \code{NA} for any feature with
+#'   no expressing samples.
 #' @examples
 #' set.seed(101)
 #' exprs <- h0testr::sim1(n_obs=6, n_feats=12)$mat
@@ -662,12 +664,15 @@ feature_median_expression <- function(state, config) {
       "class(state$expression):", class(state$expression), config=config)
   }
   
-  f <- function(v) {
-    m <- stats::median(v, na.rm=T)
-    m[is.na(m)] <- 0      ## only if all(is.na(v))
-    return(m)
-  }
-  m <- apply(state$expression, 1, f)
+  ## a feature measured in no sample has no median, and NA says so. Standing a
+  ##   number in for it would place a never-measured feature at a real position
+  ##   on the scale, in a statistic reported to the user; on a log scale zero is
+  ##   not even a neutral choice, but near the top of the range. Nothing in the
+  ##   package reads this column back, and combine_features() carries feature
+  ##   metadata forward by taking the first row of each group rather than by
+  ##   arithmetic, so an NA rides through untouched:
+
+  m <- apply(state$expression, 1, stats::median, na.rm=T)
   
   return(m)
 }
@@ -878,10 +883,15 @@ add_filter_stats <- function(state, config) {
 #'     observation changes every feature's missingness pattern. This is a single
 #'     pass: features dropped for lack of estimability are not fed back into
 #'     \code{filter_observations()}.
-#'   Features and/or samples considered constant if 
+#'   Features and/or samples considered constant if
 #'     \code{length(unique(expression_values)) \%in\% 1}.
-#'   See documentation for \code{h0testr::new_config()} 
-#'     for more detailed description of configuration parameters. 
+#'   Stops with an error if any feature is left with no measured value at all.
+#'     Such a feature has no intensity for any downstream step to model, so an
+#'     imputer would have to invent one; the filtering criteria above already
+#'     remove them, and one surviving means a criterion was disabled or a
+#'     threshold set too low.
+#'   See documentation for \code{h0testr::new_config()}
+#'     for more detailed description of configuration parameters.
 #' @param state A list with elements like that returned by `read_data()`:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -958,7 +968,30 @@ filter <- function(state, config, remove_constant=TRUE, filter_by_formula=TRUE,
   }
 
   state <- add_filter_stats(state, config)
-  
+
+  ## nothing downstream can work with a feature measured in no sample: it has no
+  ##   intensity to model, so an imputer would have to invent one outright.
+  ##   filter_features() and filter_features_by_estimability() both remove such
+  ##   features, so one surviving to here means a criterion was disabled or a
+  ##   threshold set too low. Reported plainly rather than left for an imputer to
+  ##   trip over several steps later:
+
+  n_obs <- rowSums(!is.na(state$expression))   ## a count, not a value
+
+  if(any(n_obs %in% 0)) {
+
+    i_none <- n_obs %in% 0
+    nom <- state$features[[config$feat_col]][i_none]
+    if(is.null(nom)) nom <- rownames(state$expression)[i_none]
+
+    f.err("filter:", sum(i_none), "of", length(n_obs), "features have no",
+      "measured values after filtering, so nothing downstream can model or",
+      "impute them;", "\n",
+      "  check the filtering criteria (remove_constant, filter_by_formula,",
+      "filter_by_estimability) and their thresholds;", "\n",
+      "  features:", paste(utils::head(nom, 5), collapse=", "), config=config)
+  }
+
   f.check_state(state, config)
   f.report_state(state, config)
   

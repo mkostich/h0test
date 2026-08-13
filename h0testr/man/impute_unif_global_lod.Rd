@@ -2,7 +2,7 @@
 % Please edit documentation in R/impute.R
 \name{impute_unif_global_lod}
 \alias{impute_unif_global_lod}
-\title{Impute missing values between 0 and global LOD}
+\title{Impute missing values below a global LOD}
 \usage{
 impute_unif_global_lod(state, config, impute_quantile = NULL)
 }
@@ -16,10 +16,12 @@ impute_unif_global_lod(state, config, impute_quantile = NULL)
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{impute_quantile}  \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD).
+  \code{impute_quantile}     \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD). \cr
+  \code{is_log_transformed}  \cr \tab Whether the data are on a log-like scale; sets the lower bound of the draw. \cr
+  \code{impute_floor_offset} \cr \tab Offset from the smallest measured value giving that lower bound, for log data. \cr
 }}
 
-\item{impute_quantile}{Numeric between 0 and 1 specifying 
+\item{impute_quantile}{Numeric between 0 and 1 specifying
 minimum non-zero/\code{NA} expression value for each feature to use as global
 LOD (limit of detection). If \code{NULL}, \code{config$impute_quantile} used.
 Default: \code{0}.}
@@ -27,22 +29,33 @@ Default: \code{0}.}
 \value{
 An updated `state` list with the following elements:
   \tabular{ll}{
-    \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+    \code{expression} \cr \tab Numeric matrix with expression values. \cr
     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
-  } 
-Returned \code{state$xpression} matrix contains strictly positive numeric values.
+  }
+Returned \code{state$expression} matrix contains strictly positive values for
+  raw input, and may contain values at or below zero for log input, where such
+  a value is an ordinary dim measurement.
 }
 \description{
-Impute missing values by randomly drawing from uniform distribution 
+Impute missing values by randomly drawing from uniform distribution
     below an estimated global LOD.
 }
 \details{
-Imputed values are random draws from uniform distribution over the 
-  interval \code{[0, LOD]}, where \code{LOD} is an estimate global limit of 
-  detection. Only \code{NA} values are considered as missing, so if you want 
-  \code{0} to be considered missing, and have \code{0} in the data, do 
-  something like \code{state$expression[state$expression \%in\% 0] <- NA} 
+Imputed values are random draws from a uniform distribution over the
+  interval \code{[floor, LOD]}, where \code{LOD} is quantile
+  \code{impute_quantile} of the per-feature minima, an estimate of the global
+  limit of detection. The \code{floor} depends on the scale of the data. For
+  raw input (\code{config$is_log_transformed} \code{FALSE}) it is \code{0},
+  zero abundance. For log input it is
+  \code{min(state$expression, na.rm=TRUE) + config$impute_floor_offset}, since
+  zero on a log scale is a single count rather than the bottom of the scale,
+  and typically sits near the top of the range after normalization; the offset
+  is also what gives the interval width when \code{impute_quantile} is
+  \code{0}. An interval with no width is an error rather than a silent
+  \code{NaN}. Only \code{NA} values are considered as missing, so if you want
+  \code{0} to be considered missing, and have \code{0} in the data, do
+  something like \code{state$expression[state$expression \%in\% 0] <- NA}
   prior to imputing.
   See documentation for \code{h0testr::new_config()} 
     for more detailed description of configuration parameters.
@@ -54,7 +67,9 @@ exprs <- log2(exprs + 1)
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(impute_quantile=0.05)
+## the data were log transformed above, so say so; imputed values are then
+##   allowed to be negative, as an ordinary small log intensity is:
+config <- list(impute_quantile=0.05, is_log_transformed=TRUE)
 state2 <- h0testr::impute_unif_global_lod(state, config)
 summary(c(state$expression))   ## note number of NAs
 summary(c(state2$expression))  ## note number of NAs

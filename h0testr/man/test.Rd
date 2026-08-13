@@ -28,8 +28,11 @@ test(state, config, method = NULL, is_log_transformed = NULL, prior_df = NULL)
 \item{method}{Name of test method where 
 \code{method \%in\% h0testr::test_methods()}.}
 
-\item{is_log_transformed}{Logical scalar: if \code{state$expression} has 
-been log transformed. Required if \code{method \%in\% c("proda", "prolfqua")}.}
+\item{is_log_transformed}{Logical scalar: whether \code{state$expression} has
+been log transformed. Only consulted for \code{method \%in\% c("proda",
+"prolfqua")}. Defaults to \code{config$is_log_transformed}, which
+\code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+passing both is an error unless they agree.}
 
 \item{prior_df}{Prior degrees of freedom for method \code{proda}; 
 where \code{2 <= prior_df <= n_features}.}

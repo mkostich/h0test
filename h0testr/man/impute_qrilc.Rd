@@ -17,8 +17,10 @@ impute_qrilc(state, config, is_log_transformed = NULL, scale. = NULL)
 \item{config}{List with configuration values. Does not use any keys so can 
 pass empty list.}
 
-\item{is_log_transformed}{Logical scalar: if \code{state$expression} has 
-been log transformed.}
+\item{is_log_transformed}{Logical scalar: whether \code{state$expression} has
+been log transformed. Defaults to \code{config$is_log_transformed}, which
+\code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+passing both is an error unless they agree.}
 
 \item{scale.}{Scaling parameter for normal distribution; numeric scalar 
 with \code{0 < scale.}. Default: \code{1.0}.}
@@ -61,12 +63,14 @@ config <- list(frm=~grp+sex)    ## need frm for filter_features with filter_by_f
 state <- h0testr::filter_features(state, config, n_samples_min=3)
 state <- h0testr::filter_observations(state, config, n_features_min=30)
 
-## untransformed example:
-state2 <- h0testr::impute_qrilc(state, config, is_log_transformed=FALSE)
+## untransformed example. QRILC draws from a truncated distribution fitted in
+##   log space, and a draw below zero there back-transforms to a raw value
+##   below the detection floor of zero, which cannot be a measurement. Whether
+##   that happens depends on the draw, so this is wrapped: on the raw scale
+##   the method can stop for reasons the data alone do not decide.
+state2 <- try(h0testr::impute_qrilc(state, config, is_log_transformed=FALSE))
 summary(c(state$expression))    ## Note number of NAs
-summary(c(state2$expression))   ## Note number of NAs
-head(state$expression)
-round(head(state2$expression))
+if(!inherits(state2, "try-error")) summary(c(state2$expression))
 
 ## log-transformed example:
 state$expression <- log2(state$expression + 1)

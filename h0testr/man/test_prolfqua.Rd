@@ -27,7 +27,10 @@ test_prolfqua(state, config, is_log_transformed = NULL)
   \code{normalization_method}  \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
 }}
 
-\item{is_log_transformed}{Logical scalar indicating if \code{state$expression} has been log transformed.}
+\item{is_log_transformed}{Logical scalar: whether \code{state$expression} has
+been log transformed. Defaults to \code{config$is_log_transformed}, which
+\code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+passing both is an error unless they agree.}
 }
 \value{
 A list with components:
@@ -50,10 +53,15 @@ A list with components:
 Tests for differential expression using the \code{prolfq::build_model()} function.
 }
 \details{
-Uses the \code{proDA::proDA()} function. Returned results sorted by p-value.
-    Only works if every variable in \code{config$frm} is categorical, that is,
-    classified as \code{"factor"} in \code{config$covariate_types}. A
-    continuous (numeric) covariate is an error.
+Uses the \code{prolfqua::build_model()} function. Returned results sorted by
+    p-value.
+  Covariates classified as \code{"factor"} in \code{config$covariate_types} are
+    registered with \code{prolfqua::AnalysisTableAnnotation$factors}, which holds
+    categorical annotations only; continuous (numeric) covariates are passed
+    through unregistered. Both are supported: \code{prolfqua::build_model()} fits
+    a plain \code{stats::lm()} to the data.frame as given, so a numeric covariate
+    is read as continuous and contributes a single one degree of freedom row to
+    the reported ANOVA table.
   The level ordering set by \code{initialize()} is preserved, so the
     coefficients of the returned \code{fit} are relative to the reference
     level declared in \code{config$reference_levels}. The returned

@@ -2,7 +2,7 @@
 % Please edit documentation in R/impute.R
 \name{impute_unif_sample_lod}
 \alias{impute_unif_sample_lod}
-\title{Impute missing values between 0 and sample LOD}
+\title{Impute missing values below a sample LOD}
 \usage{
 impute_unif_sample_lod(state, config, impute_quantile = NULL)
 }
@@ -16,30 +16,39 @@ impute_unif_sample_lod(state, config, impute_quantile = NULL)
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{impute_quantile}  \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD).
+  \code{impute_quantile}     \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD). \cr
+  \code{is_log_transformed}  \cr \tab Whether the data are on a log-like scale; sets the lower bound of the draw. \cr
+  \code{impute_floor_offset} \cr \tab Offset from the smallest measured value giving that lower bound, for log data. \cr
 }}
 
-\item{impute_quantile}{Numeric between 0 and 1 specifying 
+\item{impute_quantile}{Numeric between 0 and 1 specifying
 minimum non-zero/\code{NA} expression value in each observation to use as the
 observation-specific LOD (limit of detection). Default: \code{0}.}
 }
 \value{
 An updated \code{state} list with the following elements:
   \tabular{ll}{
-    \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
+    \code{expression} \cr \tab Numeric matrix with expression values. \cr
     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
   }
 }
 \description{
-Impute missing values by randomly drawing from uniform distribution below 
+Impute missing values by randomly drawing from uniform distribution below
     an estimated observation-specific limit of detection (LOD).
 }
 \details{
-Imputed values are random draws from uniform distribution over the 
-  interval \code{[0, LOD]}, where LOD is an estimate observation limit of 
-  detection. Only \code{NA} values are considered as missing, so if you 
-  want \code{0} to be considered missing, and have \code{0} in the data, do 
+Imputed values are random draws from a uniform distribution over the
+  interval \code{[floor, LOD]}, where \code{LOD} is quantile
+  \code{impute_quantile} of the values in that observation, an estimate of the
+  observation's limit of detection. The \code{floor} is shared by all
+  observations, since the bottom of the scale is a property of the data as a
+  whole: \code{0} for raw input, and
+  \code{min(state$expression, na.rm=TRUE) + config$impute_floor_offset} for
+  log input, where zero is a single count rather than the bottom of the scale.
+  An interval with no width is an error rather than a silent \code{NaN}. Only
+  \code{NA} values are considered as missing, so if you
+  want \code{0} to be considered missing, and have \code{0} in the data, do
   something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing.
   See documentation for \code{h0testr::new_config()} 
     for more detailed description of configuration parameters.
@@ -51,7 +60,9 @@ exprs <- log2(exprs + 1)
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(impute_quantile=0.05)
+## the data were log transformed above, so say so; imputed values are then
+##   allowed to be negative, as an ordinary small log intensity is:
+config <- list(impute_quantile=0.05, is_log_transformed=TRUE)
 state2 <- h0testr::impute_unif_sample_lod(state, config)
 summary(c(state$expression))   ## note number of NAs
 summary(c(state2$expression))  ## note number of NAs

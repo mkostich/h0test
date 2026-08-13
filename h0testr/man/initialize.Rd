@@ -26,8 +26,7 @@ initialize(state, config, initialized = F, minimal = F)
   \code{test_term}            \cr \tab Term (character) in \code{config$frm} to test for significance. \cr
   \code{reference_levels}     \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
   \code{n_distinct_numeric_warn} \cr \tab Warn if continuous variable in \code{config$frm} has this few distinct values. \cr
-  \code{zeros_to_na}          \cr \tab Optional logical; whether input is raw, so zeros become \code{NA} and negative values are an error. Default \code{TRUE}; forced \code{FALSE} when \code{config$normalization_method} is \code{"none"}. \cr
-  \code{normalization_method} \cr \tab Optional; only consulted to decide whether the input is raw. See \code{zeros_to_na}. \cr
+  \code{is_log_transformed}   \cr \tab Optional logical; whether the input is already on a log-like scale. Default \code{FALSE}, meaning raw, so zeros become \code{NA} and negative values are an error. \cr
   \code{n_samples_expr_col}   \cr \tab Column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
   \code{median_raw_col}       \cr \tab Column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
   \code{n_features_expr_col}  \cr \tab Column in \code{state$samples} that corresponds to columns of \code{data_file_in}. \cr
@@ -82,14 +81,14 @@ Checks to make sure columns specified in \code{config} parameters are
     is the only indicator of a missing value everywhere downstream. Raw
     expression values cannot be negative, and a raw zero means the feature was
     not detected, so a negative value is an error and zeros are converted to
-    \code{NA}. When \code{config$normalization_method} is \code{"none"} the
-    input may already be transformed, in which case negative values are
-    legitimate and no conversion is done; the caller is then responsible for
-    having marked non-detections as \code{NA}. Either way,
-    \code{config$zeros_to_na} is set to what was actually done, so that
-    \code{normalize()} can catch a contradictory \code{method} argument.
-    Skipped when \code{initialized=TRUE}, since an already initialized state
-    may legitimately hold negative (transformed) values.
+    \code{NA}. When \code{config$is_log_transformed} is \code{TRUE} the input
+    is already on a log-like scale, in which case zeros and negative values
+    are legitimate and no conversion is done; the caller is then responsible
+    for having marked non-detections as \code{NA}. Either way,
+    \code{config$is_log_transformed} is filled in if it was unset, so that
+    every downstream step finds the scale recorded there. Skipped when
+    \code{initialized=TRUE}, since an already initialized state may
+    legitimately hold negative (transformed) values.
   Flow is:
     \tabular{l}{
       1. \code{check_config()}. \cr

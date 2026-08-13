@@ -24,8 +24,10 @@ impute_lls(
 \item{config}{List with configuration values. Does not use any keys so can 
 pass empty list.}
 
-\item{is_log_transformed}{Logical scalar: if \code{state$expression} has 
-been log transformed.}
+\item{is_log_transformed}{Logical scalar: whether \code{state$expression} has
+been log transformed. Defaults to \code{config$is_log_transformed}, which
+\code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+passing both is an error unless they agree.}
 
 \item{k}{Number (scalar numeric with \code{k >= 2}) of features per local cluster. Default: \code{5}.}
 

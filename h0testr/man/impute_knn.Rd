@@ -60,6 +60,7 @@ rm(nsamps, sim, exprs, feats, samps)
 config <- list(frm=~grp+sex)    ## need frm for filter_features with filter_by_formula=TRUE
 state <- h0testr::filter_features(state, config, n_samples_min=3)
 state <- h0testr::filter_observations(state, config, n_features_min=30)
+config$is_log_transformed <- FALSE   ## sim2() returns untransformed values
 
 ## impute:
 state2 <- h0testr::impute_knn(state, config)

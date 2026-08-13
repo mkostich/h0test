@@ -22,8 +22,10 @@ impute_pca(
 
 \item{config}{List with configuration values. Does not use any keys so can pass empty list.}
 
-\item{is_log_transformed}{Logical scalar: if \code{state$expression} has 
-been log transformed.}
+\item{is_log_transformed}{Logical scalar: whether \code{state$expression} has
+been log transformed. Defaults to \code{config$is_log_transformed}, which
+\code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+passing both is an error unless they agree.}
 
 \item{n_pcs}{Number (scalar numeric >= 1) of principle components to compute. Default: \code{5}.}
 
@@ -89,9 +91,19 @@ state2 <- h0testr::impute_pca(state, config, method="ppca",
 summary(c(state2$expression))   ## Note number of NAs
 round(head(state2$expression))
 
-## impute as linear combo of \code{n_pcs} eigengenes:
-state2 <- h0testr::impute_pca(state, config, method="svdImpute", 
-  is_log_transformed=FALSE)
+## impute as linear combo of \code{n_pcs} eigengenes; on these data the
+##   reconstruction runs a few cells below the raw scale's floor of zero,
+##   which cannot be a measurement, so this stops rather than nudging the
+##   offending values upward into fabricated ones:
+try(h0testr::impute_pca(state, config, method="svdImpute",
+  is_log_transformed=FALSE))
+
+## the same method on the log scale, where the reconstruction has no floor to
+##   fall below and every imputed value is an ordinary log intensity:
+state_log <- state
+state_log$expression <- log2(state_log$expression + 1)
+state2 <- h0testr::impute_pca(state_log, config, method="svdImpute",
+  is_log_transformed=TRUE)
 summary(c(state2$expression))   ## Note number of NAs
-round(head(state2$expression))
+round(head(state2$expression), 2)
 }

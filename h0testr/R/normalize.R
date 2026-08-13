@@ -509,8 +509,15 @@ normalize_methods <- function() {
 #'     the \code{h0testr} package. See individual methods for more details. 
 #'     Normalizes \code{state$expression}. Does not affect 
 #'     \code{state$features} or \code{state$samples}.
-#'   See documentation for \code{h0testr::new_config()} 
-#'     for more detailed description of configuration parameters. 
+#'   Every method other than \code{"none"} ends by log transforming the data, so
+#'     \code{config$is_log_transformed} is set to \code{TRUE} on return and the
+#'     rest of the workflow reads the scale from there rather than tracking it.
+#'     For that reason a method other than \code{"none"} is an error when
+#'     \code{config$is_log_transformed} is already \code{TRUE}. \code{"vsn"}
+#'     counts as transforming: its output is arsinh-scaled rather than log2, but
+#'     is not to be transformed again either.
+#'   See documentation for \code{h0testr::new_config()}
+#'     for more detailed description of configuration parameters.
 #' @param state List with elements formatted like the list returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -521,18 +528,24 @@ normalize_methods <- function() {
 #'   \tabular{ll}{
 #'     \code{normalization_method}   \cr \tab Character scalar in \code{c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")}. \cr
 #'     \code{normalization_quantile} \cr \tab Quantile (numeric between 0 and 1) for \code{normalization_method \%in\% c("quantile", "upperquartile")}. \cr
+#'     \code{is_log_transformed} \cr \tab Optional logical; if \code{TRUE}, any method other than \code{"none"} is an error, since it would transform the data a second time. \cr
 #'     \code{feat_col}      \cr \tab Column of \code{state$features} matching \code{rownames(state$expression)}. \cr
 #'     \code{obs_col}       \cr \tab Column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
 #'   }
 #' @param method Name of method to use, where scalar \code{method \%in\% h0testr::normalization_methods()}.
 #' @param normalization_quantile Quantile for methods \code{c("quantile", "upperquartile")}, where \code{0 <= normalization_quantile <= 1}.
 #' @param span Span for method \code{"loess"}, where \code{0 < span < 1}.
-#' @return A list (the processed state) with the following elements:
+#' @return A list with the following two elements:
+#'   \tabular{ll}{
+#'     \code{state}  \cr \tab The processed state; see below. \cr
+#'     \code{config} \cr \tab The configuration, with \code{is_log_transformed} set to \code{TRUE} unless the method was \code{"none"}. \cr
+#'   }
+#'   The element \code{state} is a list with the following three elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with normalized expression values. \cr
 #'     \code{features}   \cr \tab Feature meta-data \code{data.frame} corresponding to rows of \code{expression}. \cr
 #'     \code{samples}    \cr \tab Observation meta-data \code{data.frame} corresponding to columns of \code{expression}. \cr
-#'   } 
+#'   }
 #' @examples
 #' ## some toy data:
 #' set.seed(101)
@@ -583,18 +596,18 @@ normalize <- function(state, config, method=NULL,
     "; normalization_quantile:", normalization_quantile,
     "; normalization_span:", span, config=config)
 
-  ## initialize() converts zeros to NA and rejects negative values only when it
-  ##   treats the input as raw; if it decided the input was already transformed,
-  ##   then every method other than "none" would transform it a second time.
-  ##   Reachable because the method argument overrides config$normalization_method:
+  ## every method other than "none" ends by transforming the data, so running one
+  ##   on input that is already on a log-like scale would transform it a second
+  ##   time. Reachable because the method argument overrides
+  ##   config$normalization_method:
 
-  if(!(method %in% "none") && !is.null(config$zeros_to_na) &&
-      !isTRUE(config$zeros_to_na)) {
-    f.err("normalize: config$zeros_to_na is FALSE, so initialize() treated",
-      "state$expression as already transformed, but normalization method is",
+  if(!(method %in% "none") && isTRUE(config$is_log_transformed)) {
+    f.err("normalize: config$is_log_transformed is TRUE, so state$expression is",
+      "already on a log-like scale, but normalization method is",
       method, ", which would transform it again;", "\n",
       "set method (or config$normalization_method) to 'none', or set",
-      "config$zeros_to_na to TRUE if the input really is raw", config=config)
+      "config$is_log_transformed to FALSE if the input really is raw",
+      config=config)
   }
 
   if(method %in% c("TMM", "TMMwsp", "RLE", "upperquartile")) {
@@ -627,7 +640,39 @@ normalize <- function(state, config, method=NULL,
   if(!(method %in% c("vsn", "none"))) {
     f.log("transforming data", config=config)
     state$expression <- log2(state$expression + 1)
-  } 
+  }
+
+  ## record the scale so that no caller has to track it: every method but "none"
+  ##   leaves the data on a log-like scale, vsn included, whose output is
+  ##   arsinh-scaled rather than log2 but is not to be transformed again either.
+  ##   "none" leaves the scale as the caller declared it:
+
+  if(!(method %in% "none")) config$is_log_transformed <- TRUE
+
+  ## config$log_from_raw is narrower, and says that an exact 0 in this matrix
+  ##   cannot be a measurement, which is what f.check_state() then watches for
+  ##   downstream: the zeros of raw input became NA in f.zeros_to_na(), so
+  ##   log2(x + 1) of what is left is 0 only where the value going into it was
+  ##   exactly 0. Rather than argue that no normalization method can emit one,
+  ##   the matrix is checked here, before anything else has had a chance to write
+  ##   to it, and the guarantee is claimed only if it holds. vsn output is
+  ##   excluded outright, as is input the caller declared already transformed,
+  ##   where a 0 is an ordinary value:
+
+  config$log_from_raw <- FALSE
+
+  if(!(method %in% c("vsn", "none"))) {
+    n_zero <- sum(state$expression %in% 0)     ## a count; NAs are not counted
+    if(n_zero %in% 0) {
+      config$log_from_raw <- TRUE
+    } else {
+      f.msg("normalize: WARNING:", n_zero, "exact zeros in the transformed",
+        "data, which log2(x + 1) of a positive value cannot produce, so",
+        method, "must have emitted them;", "\n",
+        "  they cannot be told apart from a missing value written as a",
+        "measurement, so that check is disabled for this run", config=config)
+    }
+  }
 
   f.check_state(state, config)
   f.report_state(state, config)

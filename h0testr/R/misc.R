@@ -320,10 +320,18 @@ f.design_test_cols <- function(state, config) {
 ##   proDA::test_diff() takes either one contrast or a reduced model, and test_proda()
 ##   hands it the reduced model that f.design_test_cols() built whenever more than one
 ##   column carries the test, which is a likelihood ratio test over all of them. Two
-##   engines can still only report one coefficient at a time: DEqMS::outputResult()
-##   takes a single coef_col, and msqrob2::hypothesisTest() returns one table per
-##   contrast rather than a joint test over several. Those are limitations of the
-##   engines, not of how h0testr selects columns:
+##   engines can still only report one coefficient at a time. DEqMS moderates a
+##   single coefficient's t-statistic: DEqMS::spectraCounteBayes() forms sca.t from
+##   fit$coefficients[, coef_col] over fit$stdev.unscaled[, coef_col], and the
+##   package has no F-analogue anywhere, so the limit is in the moderation itself.
+##   DEqMS::outputResult() takes a single coef_col because there is nothing joint
+##   for it to report, so it is the wrong place to look for the constraint.
+##   msqrob2::hypothesisTest() loops over the columns of the contrast and returns
+##   one table per column rather than a joint test over several; that one is an API
+##   limit rather than a statistical one, since msqrob2 exports getCoef(),
+##   getVcovUnscaled(), getVarPosterior() and getDfPosterior(), which is everything
+##   a joint Wald test would need. Both are limitations of the engines, not of how
+##   h0testr selects columns:
 
 f.test_max_cols <- function(method) {
   if(method %in% c("deqms", "msqrob")) return(1L)
@@ -550,6 +558,186 @@ f.check_state <- function(state, config) {
   if(!is.matrix(state$expression)) {
     f.err("f.check_state: !is.matrix(state$expression)", config=config)
   }
+
+  ## NA is the only indicator of a missing value; see f.zeros_to_na(). Where
+  ##   normalize() was able to guarantee that an exact 0 cannot be a measurement,
+  ##   it says so in config$log_from_raw, and one appearing afterwards can only
+  ##   have been written by code using 0 to mean missing. That is easy to do by
+  ##   accident: combining a replicate group with sum(na.rm=TRUE) returns 0 for a
+  ##   group in which nothing was measured, and on a log scale 0 is not a neutral
+  ##   value but the most extreme one in the matrix. Checked at every step
+  ##   boundary because the value is indistinguishable from a real measurement
+  ##   once anything downstream has read it. Unset means no guarantee, so no
+  ##   check, which is also what a minimal config gets:
+
+  if(isTRUE(config$log_from_raw)) {
+
+    i_zero <- which(state$expression %in% 0)   ## NAs are not matched
+
+    if(length(i_zero) > 0) {
+
+      rnom <- rownames(state$expression)
+      cnom <- colnames(state$expression)
+      if(is.null(rnom)) rnom <- as.character(1:nrow(state$expression))
+      if(is.null(cnom)) cnom <- as.character(1:ncol(state$expression))
+
+      idxs <- utils::head(i_zero, 5)
+      rr <- ((idxs - 1) %% nrow(state$expression)) + 1
+      cc <- ((idxs - 1) %/% nrow(state$expression)) + 1
+
+      f.err("f.check_state: exact zeros in state$expression;",
+        "the data are log2(x + 1) of raw input whose zeros became NA, so a 0",
+        "here is a missing value written as a measurement, not a measurement;",
+        "\n", "zeros:", length(i_zero), "of", length(state$expression), ";",
+        "first offenders (feature, observation):", "\n",
+        paste(rnom[rr], cnom[cc], sep=", "), config=config)
+    }
+  }
+}
+
+## Resolve the scale of state$expression for a function that takes an
+##   is_log_transformed argument. The argument wins when given, so that the
+##   function can be called on its own with a config that says nothing about the
+##   scale; otherwise config$is_log_transformed answers, having been set by
+##   initialize() and updated by normalize(). Disagreement between the two is an
+##   error rather than a silent preference, since it means the caller and the
+##   workflow hold different beliefs about the data and only one of them can be
+##   right:
+
+f.is_log_transformed <- function(is_log_transformed, config, fn_name) {
+
+  from_config <- config$is_log_transformed
+
+  if(!is.null(from_config) &&
+      !(is.logical(from_config) && length(from_config) %in% 1 &&
+        !is.na(from_config))) {
+    f.err(fn_name, ": config$is_log_transformed is not TRUE or FALSE; value:",
+      from_config, config=config)
+  }
+
+  ## "" is accepted as unset for callers that pass an empty character:
+
+  unset <- is.null(is_log_transformed) ||
+    (is.character(is_log_transformed) && all(is_log_transformed %in% ""))
+
+  if(unset) {
+    if(is.null(from_config)) {
+      f.err(fn_name, ": is_log_transformed and config$is_log_transformed both",
+        "unset;", "\n",
+        "set config$is_log_transformed to declare the scale of the data, or",
+        "pass is_log_transformed to this function", config=config)
+    }
+    return(from_config)
+  }
+
+  if(!(is.logical(is_log_transformed) && length(is_log_transformed) %in% 1 &&
+      !is.na(is_log_transformed))) {
+    f.err(fn_name, ": is_log_transformed is not TRUE or FALSE; value:",
+      is_log_transformed, "; typeof:", typeof(is_log_transformed),
+      config=config)
+  }
+
+  if(!is.null(from_config) && !identical(is_log_transformed, from_config)) {
+    f.err(fn_name, ": is_log_transformed argument is", is_log_transformed,
+      "but config$is_log_transformed is", from_config, ";", "\n",
+      "these describe the same data and cannot both be right; drop the",
+      "argument to use the scale the workflow recorded, or correct",
+      "config$is_log_transformed", config=config)
+  }
+
+  return(is_log_transformed)
+}
+
+## Drop the features that cannot contribute to a fit of missingness against
+##   intensity, and refuse the fit outright if too little is left of it. A
+##   feature measured nowhere has no observed intensity, so the f_mid summary of
+##   it is NA. Substituting a stand-in value would enter it into the fit as a
+##   genuine point, sitting at the extreme of the response axis where it carries
+##   the most leverage over the slope, so it is dropped instead; it is still
+##   imputed afterwards, from the curve the remaining features determine.
+##   h0testr::filter() rejects features measured nowhere, so this normally only
+##   arises when an imputer is called on its own. Degeneracy is judged on the
+##   number of distinct intensities rather than the number of features, since
+##   many features sharing one intensity still cannot identify a slope. The fit
+##   is extrapolated across the whole intensity range and imputed values are
+##   drawn from it, so a curve resting on a handful of points does not merely
+##   estimate badly, it invents structure that then enters the data as
+##   measurements:
+
+f.drop_unfittable <- function(dat, config, fn_name, min_fit_pts) {
+
+  if(!(is.numeric(min_fit_pts) && length(min_fit_pts) %in% 1 &&
+      is.finite(min_fit_pts) && min_fit_pts >= 2)) {
+    f.err(fn_name, ": min_fit_pts is not a finite numeric scalar >= 2; value:",
+      min_fit_pts, config=config)
+  }
+
+  i_drop <- is.na(dat$m)
+
+  if(any(i_drop)) {
+
+    nom <- rownames(dat)[i_drop]
+    if(is.null(nom)) nom <- as.character(which(i_drop))
+
+    f.msg(fn_name, ": dropping", sum(i_drop), "of", nrow(dat), "features from",
+      "the missingness fit; nothing was measured for them, so they have no",
+      "intensity to fit against;", "\n",
+      "  they are still imputed, from the fit the remaining features give;",
+      "first:", paste(utils::head(nom, 5), collapse=", "), config=config)
+
+    dat <- dat[!i_drop, , drop=F]
+  }
+
+  n_distinct <- length(unique(dat$m))
+
+  if(n_distinct < min_fit_pts) {
+    f.err(fn_name, ": too few distinct intensities to fit missingness against;",
+      "distinct intensities:", n_distinct, "; required:", min_fit_pts, ";",
+      "features retained:", nrow(dat), "\n",
+      "  the fit is extrapolated over the whole intensity range and imputed",
+      "values are drawn from it, so this few points would invent structure",
+      "instead of estimating it;", "\n",
+      "  use a different config$impute_method, or lower min_fit_pts if you",
+      "understand the consequences", config=config)
+  }
+
+  return(dat)
+}
+
+## The lower bound of the interval the unif_ imputation methods draw from. A
+##   missing value means the feature fell below detection in that sample, so the
+##   bound belongs at the bottom of the scale the data are on. On the raw scale
+##   that is zero abundance, a fixed point of the measurement that needs no
+##   configuration. A log scale has no such point: zero there is a single count,
+##   which after normalization usually sits near the top of the range rather than
+##   the bottom, so the bound is placed relative to the dimmest value actually
+##   measured and displaced by config$impute_floor_offset. That offset is also
+##   what gives the interval any width when config$impute_quantile is 0, since
+##   the upper bound is then the observed minimum itself:
+
+f.impute_floor <- function(mat, config, fn_name, is_log_transformed=NULL) {
+
+  is_log_transformed <- f.is_log_transformed(is_log_transformed, config, fn_name)
+
+  if(!is_log_transformed) return(0)
+
+  offset <- config$impute_floor_offset
+  if(is.null(offset)) offset <- -1              ## the new_config() default
+
+  if(!(is.numeric(offset) && length(offset) %in% 1 && is.finite(offset) &&
+      offset <= 0)) {
+    f.err(fn_name, ": config$impute_floor_offset is not a finite non-positive",
+      "numeric scalar; value:", offset, config=config)
+  }
+
+  min_val <- suppressWarnings(min(mat, na.rm=T))
+
+  if(!is.finite(min_val)) {
+    f.err(fn_name, ": no finite observed value to place the imputation floor",
+      "below, so there is nothing to impute from; min:", min_val, config=config)
+  }
+
+  return(min_val + offset)
 }
 
 f.report_state <- function(state, config) {

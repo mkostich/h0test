@@ -46,8 +46,11 @@ impute(
 \item{method}{Method to use (required). A character scalar from the list 
 returned by \code{h0testr::impute_methods()}.}
 
-\item{is_log_transformed}{Logical scalar (required): if 
-\code{state$expression} has been log transformed.}
+\item{is_log_transformed}{Logical scalar: whether \code{state$expression} has
+been log transformed. Defaults to \code{config$is_log_transformed}, which
+\code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+passing both is an error unless they agree. It is an error for both to be
+unset.}
 
 \item{k}{Number of nearest neighbors passed to methods for 
 \code{c("knn", "lls")}.}

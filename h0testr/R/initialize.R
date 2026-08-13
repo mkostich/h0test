@@ -152,12 +152,16 @@ f.check_parameters <- function(state, config, initialized=F, minimal=F) {
 ## Establish the missingness contract on state$expression: NA is the only
 ##   indicator of a missing value everywhere downstream. Raw (untransformed)
 ##   expression cannot be negative, and a raw zero means the feature was not
-##   detected, so zeros become NA. When config$normalization_method is "none",
-##   the input may already be transformed, in which case negative values are
-##   legitimate (e.g. vsn output, or log2 of an intensity below 1) and no
-##   conversion is done; the caller is then responsible for having marked
-##   non-detections as NA. Overwrites config$zeros_to_na with what was actually
-##   done, so that normalize() can catch a contradictory method= override:
+##   detected, so zeros become NA. When config$is_log_transformed is TRUE the
+##   input is already on a log-like scale, in which case zeros and negative
+##   values are legitimate (e.g. vsn output, or log2 of an intensity below 1)
+##   and no conversion is done; the caller is then responsible for having marked
+##   non-detections as NA. config$normalization_method is deliberately not
+##   consulted: "none" says only that no normalization is wanted, which is a
+##   separate question from what scale the values are already on, and reading a
+##   scale out of it left the two able to disagree. Fills in
+##   config$is_log_transformed when it was unset, so that every downstream step
+##   finds an answer there:
 
 f.zeros_to_na <- function(state, config) {
 
@@ -168,18 +172,14 @@ f.zeros_to_na <- function(state, config) {
 
   ## unset means raw, matching the new_config() default:
 
-  raw <- TRUE
-  if(!is.null(config$zeros_to_na)) raw <- isTRUE(config$zeros_to_na)
-  if(!is.null(config$normalization_method) &&
-      config$normalization_method %in% "none") {
-    raw <- FALSE
-  }
+  raw <- !isTRUE(config$is_log_transformed)
 
   if(!raw) {
-    f.msg("f.zeros_to_na: treating state$expression as already transformed;",
+    f.msg("f.zeros_to_na: config$is_log_transformed is TRUE, so treating",
+      "state$expression as already transformed;",
       "zeros left as they are and negative values allowed;", "\n",
       "NA is the only indicator of a missing value", config=config)
-    config$zeros_to_na <- FALSE
+    config$is_log_transformed <- TRUE
     return(list(state=state, config=config))
   }
 
@@ -198,8 +198,8 @@ f.zeros_to_na <- function(state, config) {
 
     f.err("f.zeros_to_na: negative values in state$expression;",
       "raw expression values cannot be negative;", "\n",
-      "if the input is already transformed, set config$normalization_method",
-      "to 'none', or set config$zeros_to_na to FALSE;", "\n",
+      "if the input is already log transformed, set config$is_log_transformed",
+      "to TRUE;", "\n",
       "negative values:", sum(i_neg), "of", length(i_neg), ";",
       "first offenders (feature, observation, value):", "\n",
       paste(rnom[rr], cnom[cc], state$expression[idxs], sep=", "),
@@ -211,7 +211,7 @@ f.zeros_to_na <- function(state, config) {
 
   f.msg("f.zeros_to_na: converted", sum(i_zero), "zero values to NA;",
     "NA is now the only indicator of a missing value", config=config)
-  config$zeros_to_na <- TRUE
+  config$is_log_transformed <- FALSE
 
   return(list(state=state, config=config))
 }
@@ -349,14 +349,14 @@ f.set_covariate_factor_levels <- function(state, config, types=NULL) {
 #'     is the only indicator of a missing value everywhere downstream. Raw
 #'     expression values cannot be negative, and a raw zero means the feature was
 #'     not detected, so a negative value is an error and zeros are converted to
-#'     \code{NA}. When \code{config$normalization_method} is \code{"none"} the
-#'     input may already be transformed, in which case negative values are
-#'     legitimate and no conversion is done; the caller is then responsible for
-#'     having marked non-detections as \code{NA}. Either way,
-#'     \code{config$zeros_to_na} is set to what was actually done, so that
-#'     \code{normalize()} can catch a contradictory \code{method} argument.
-#'     Skipped when \code{initialized=TRUE}, since an already initialized state
-#'     may legitimately hold negative (transformed) values.
+#'     \code{NA}. When \code{config$is_log_transformed} is \code{TRUE} the input
+#'     is already on a log-like scale, in which case zeros and negative values
+#'     are legitimate and no conversion is done; the caller is then responsible
+#'     for having marked non-detections as \code{NA}. Either way,
+#'     \code{config$is_log_transformed} is filled in if it was unset, so that
+#'     every downstream step finds the scale recorded there. Skipped when
+#'     \code{initialized=TRUE}, since an already initialized state may
+#'     legitimately hold negative (transformed) values.
 #'   Flow is:
 #'     \tabular{l}{
 #'       1. \code{check_config()}. \cr
@@ -392,8 +392,7 @@ f.set_covariate_factor_levels <- function(state, config, types=NULL) {
 #'     \code{test_term}            \cr \tab Term (character) in \code{config$frm} to test for significance. \cr
 #'     \code{reference_levels}     \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
 #'     \code{n_distinct_numeric_warn} \cr \tab Warn if continuous variable in \code{config$frm} has this few distinct values. \cr
-#'     \code{zeros_to_na}          \cr \tab Optional logical; whether input is raw, so zeros become \code{NA} and negative values are an error. Default \code{TRUE}; forced \code{FALSE} when \code{config$normalization_method} is \code{"none"}. \cr
-#'     \code{normalization_method} \cr \tab Optional; only consulted to decide whether the input is raw. See \code{zeros_to_na}. \cr
+#'     \code{is_log_transformed}   \cr \tab Optional logical; whether the input is already on a log-like scale. Default \code{FALSE}, meaning raw, so zeros become \code{NA} and negative values are an error. \cr
 #'     \code{n_samples_expr_col}   \cr \tab Column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
 #'     \code{median_raw_col}       \cr \tab Column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
 #'     \code{n_features_expr_col}  \cr \tab Column in \code{state$samples} that corresponds to columns of \code{data_file_in}. \cr
