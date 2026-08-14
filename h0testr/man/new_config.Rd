@@ -23,6 +23,20 @@ This function is meant to simplify generation of configurations for
     configuration needed.
   For hypothesis testing or calls to \code{h0testr::initialize()},
     customize \code{frm}, \code{test_term}, and \code{reference_levels}.
+  \code{contrast} is the alternative to \code{test_term}: it names a weighted
+    sum of the coefficients of \code{frm} to test within the full model, written
+    as arithmetic over coefficient names, e.g. \code{"grpb - grpc"} or
+    \code{"(grpb + grpc)/2 - grpd"}. A coefficient whose name is not a syntactic
+    name, such as an interaction, has to be backquoted, e.g.
+    \code{"`sexM:batchb2`"}. Constants may scale a coefficient; two coefficient
+    names may not be multiplied together, that not being a weighted sum.
+  The two are mutually exclusive and one run tests one hypothesis, so set
+    \code{test_term} to \code{""} to test a contrast. The difference is what
+    each answers: \code{test_term} obeys marginality, testing the named term
+    together with every term containing it, which for a factor of more than two
+    levels is a joint test over all of its coefficients; a contrast is one
+    degree of freedom, so it can compare two particular levels, and reaches
+    \code{test_method="deqms"}, which cannot run a joint test at all.
   When using the config to load data from files (e.g. by calling 
     \code{h0testr::load_data(config)}), calling 
     \code{h0testr::initialize()}, or for aggregating multiple 

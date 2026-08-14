@@ -50,8 +50,26 @@ Combines signals from lower-level features, like peptides,
     into higher level features, like gene groups or protein groups.
   If \code{config$gene_id_col == config$feat_col}, then no changes
     made to \code{state} or \code{config}.
-  Sets \code{config$feat_col} and \code{config$feat_id_col} to 
+  Sets \code{config$feat_col} and \code{config$feat_id_col} to
     \code{config$gene_id_col}.
+  A feature whose gene id is missing or blank becomes a gene of its own, named
+    \code{unknown_} followed by its feature id, rather than all such features
+    being pooled into one group.
+  The returned \code{state$features} has one row per gene and keeps only those
+    columns whose value is the same for every feature of a gene. A column that
+    varies within a gene describes the feature rather than the gene, so it has
+    no gene level value; carried forward it would report whichever feature
+    happened to come first. The dropped columns are named in the log. This
+    always removes \code{config$feat_id_col}, and removes the per-feature
+    statistics \code{h0testr::add_filter_stats()} writes, which
+    \code{h0testr::filter()} recomputes for the aggregated features.
+  Adds \code{config$n_feats_col} (default \code{"n_feats"}), the number of
+    features aggregated into each gene. This is the covariate
+    \code{h0testr::test_deqms()} moderates against, so recording it here lets
+    that method run on an already aggregated state. An existing column of that
+    name is preserved rather than recomputed, since a table that has been
+    aggregated once has one feature per gene and recounting would report
+    \code{1} for every gene.
   \code{rescale=TRUE} (or \code{config$feature_aggregation_scaled=TRUE}) is
     refused unless \code{method} is \code{"none"}, where nothing is
     aggregated and the setting is reported as ignored. It divided each feature

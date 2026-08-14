@@ -21,6 +21,7 @@ test(state, config, method = NULL, is_log_transformed = NULL, prior_df = NULL)
   \code{gene_id_col}    \cr \tab Name of column in \code{state$fetaures} with gene/protein-group ids. \cr
   \code{frm}            \cr \tab Formula (formula) to be fit. \cr
   \code{test_term}      \cr \tab Term (character scalar) to be tested for non-zero coefficient. \cr
+  \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
   \code{reference_levels} \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm} (see examples). \cr
   \code{test_method}    \cr \tab Character scalar in \code{c("lm", "trend", "deqms", "msqrob", "proda", "prolfqua", "voom")}. \cr
 }}
@@ -48,12 +49,65 @@ A list with the following elements: \cr
   \tabular{ll}{
     \code{feature}   \cr \tab Name of feature tested. \cr
     \code{expr}      \cr \tab Average feature expression. \cr
-    \code{logfc}     \cr \tab Estimated log fold-change between conditions. \cr
+    \code{logfc}     \cr \tab Estimated effect size; see below. \cr
     \code{stat}      \cr \tab Value of test statistic. \cr
     \code{lod}       \cr \tab Log-odds of differential expression. \cr
     \code{pval}      \cr \tab Raw p-value resulting from test. \cr
     \code{adj_pval}  \cr \tab Adjusted (for multiple testing) p-value. \cr
   }
+  What \code{logfc} holds depends on how many design matrix columns
+    \code{config$test_term} resolves to, which is a property of
+    \code{config$frm} and \code{config$test_term} and so is the same for every
+    row of one result:
+  \itemize{
+    \item One column: the coefficient of that column, signed. For a two level
+      factor that is the difference between its levels on the scale of
+      \code{state$expression}, so a log fold change when the input is log
+      transformed. For a \strong{continuous} covariate it is instead the change
+      \strong{per unit} of that covariate, which is not a fold change between
+      groups and whose size depends on the units the covariate is recorded in:
+      an effect per month is a twelfth of the same effect per year. Thresholds
+      on \code{abs(logfc)} therefore have to be chosen with the covariate's
+      units in mind, although rankings and p-values are unaffected.
+    \item More than one column: a joint test of several coefficients has no
+      single contrast to report, so what is reported is the total swing, the
+      range over the observations of the fitted contribution of the terms under
+      test. This is the largest difference those terms can account for between
+      any two observations: for a factor of more than two levels, the largest
+      difference between any two of its levels; for a continuous covariate, the
+      slope times the range of the covariate, that is the total change across
+      the observed range. It is unsigned, since several coefficients have no one
+      direction, and it is on the same scale as the single coefficient case.
+    \item \code{config$contrast}: the weighted sum of the coefficients it names,
+      signed, which is the quantity being tested and is on the same scale as the
+      single coefficient case. A contrast is one degree of freedom however many
+      coefficients it weights, so unlike a joint test it always has one number to
+      report. See \code{h0testr::new_config()} for how to write one.
+  }
+  \code{feature} holds the value of \code{config$feat_col} identifying the row
+    of \code{state$expression} the result describes, except for \code{method
+    \%in\% c("deqms", "msqrob")}, which aggregate internally and report one row
+    per value of \code{config$gene_id_col} whatever level the input is at. So a
+    method other than those two reports precursors when handed precursors and
+    genes when handed the output of \code{h0testr::combine_features()}, which
+    sets \code{config$feat_col} to \code{config$gene_id_col}. The feature
+    metadata reported in \code{original} is at the matching level: for the two
+    gene level methods it is the gene level form of \code{state$features},
+    built exactly as \code{h0testr::combine_features()} builds it.
+  \code{expr} is the mean of the values handed to the test, over the
+    observations where the feature was seen; for \code{method \%in\% c("deqms",
+    "msqrob")}, which take feature level input and report gene level results, it
+    is also over the features of each gene.
+  \code{stat} is the statistic the engine itself reports, with one exception: a
+    joint test with \code{method="msqrob"} reports an F computed by \code{h0testr}
+    from the fitted \code{msqrob2} models, since
+    \code{msqrob2::hypothesisTest()} answers one contrast at a time. See
+    \code{h0testr::test_msqrob()} for what that statistic is. A
+    \code{config$contrast} run has no such exception: every engine reports its
+    own statistic for a contrast, including \code{method="msqrob"}, which
+    answers it with \code{msqrob2::hypothesisTest()}, and
+    \code{method="deqms"}, which cannot run the corresponding
+    \code{config$test_term} at all.
 }
 \description{
 Wrapper for various hypothesis testing methods.

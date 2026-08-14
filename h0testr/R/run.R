@@ -116,8 +116,16 @@ f.tune2 <- function(state, config, is_log_transformed=NULL) {
   ##   this is a property of config$frm and config$test_term, not of the data, so it
   ##   holds for every parameter combination using this test_method:
 
-  n_cols <- length(f.design_test_cols(state, config)$cols_test)
-  if(n_cols > f.test_max_cols(config$test_method)) {
+  ## config$contrast is one degree of freedom whatever config$frm looks like, and
+  ##   every engine can express it, so neither guard below applies to a contrast run;
+  ##   the second would also have nothing to count, config$test_term being "" for
+  ##   one. See f.design_test_cols_max():
+
+  design <- f.design_test_cols(state, config)
+  n_cols <- length(design$cols_test)
+  capped <- is.null(design$contrast)
+
+  if(capped && n_cols > f.test_max_cols(config$test_method)) {
     f.msg("WARNING: f.tune2: test_method", config$test_method, "can test at most",
       f.test_max_cols(config$test_method), "coefficient at a time, but",
       "config$test_term", config$test_term, "implies a joint test of", n_cols,
@@ -125,14 +133,17 @@ f.tune2 <- function(state, config, is_log_transformed=NULL) {
     return(f.tune2_na_row(config))
   }
 
-  ## prolfqua is bounded by terms rather than by coefficients, since it reports the
-  ##   rows of a per-term anova table; a multi-level factor is fine there, a joint
-  ##   test over several terms is not. Same treatment as above, and for the same
-  ##   reason: a property of config$frm and config$test_term, so it holds for every
-  ##   parameter combination using this test_method:
+  ## the companion guard for an engine bounded by terms rather than by coefficients.
+  ##   prolfqua was the only one, while it read the rows of a per-term anova table;
+  ##   test_prolfqua() now compares an explicit full and reduced design, so
+  ##   f.test_max_terms() returns Inf for every method and this never fires. Kept in
+  ##   place because the two bounds are different things (see f.test_max_terms()) and
+  ##   a later engine may be bounded this way. Same treatment as above, and for the
+  ##   same reason: a property of config$frm and config$test_term, so it holds for
+  ##   every parameter combination using this test_method:
 
-  n_terms <- length(f.normalize_terms(config)$drop_terms)
-  if(n_terms > f.test_max_terms(config$test_method)) {
+  n_terms <- if(capped) length(f.normalize_terms(config)$drop_terms) else 0L
+  if(capped && n_terms > f.test_max_terms(config$test_method)) {
     f.msg("WARNING: f.tune2: test_method", config$test_method, "can test at most",
       f.test_max_terms(config$test_method), "term at a time, but",
       "config$test_term", config$test_term, "implies a joint test over", n_terms,
@@ -159,12 +170,44 @@ f.tune2 <- function(state, config, is_log_transformed=NULL) {
   out <- impute(out$state, out$config,
     is_log_transformed=is_log_transformed)
 
+  ## test_deqms() refuses a run in which every gene has the same number of features,
+  ##   there being no spread for its variance prior to be fitted against. Unlike the
+  ##   guards above this is a property of the data reaching the test rather than of
+  ##   config$frm, so it is checked here, after filtering, and only for the one method
+  ##   it applies to. Checked rather than caught so that the reason is specific:
+
+  if(config$test_method %in% "deqms") {
+    counts <- f.gene_counts(out$state, out$config, "f.tune2")
+    if(length(unique(counts)) < 2) {
+      f.msg("WARNING: f.tune2: test_method deqms needs the number of features per",
+        "gene to vary, and every one of", length(counts), "genes has",
+        unique(counts), "; skipping and returning NA", config=config)
+      return(f.tune2_na_row(config))
+    }
+  }
+
+  ## a sweep exists to fill in a matrix of parameter combinations, so one combination
+  ##   that an engine cannot fit should cost that cell and not the rest of the run. The
+  ##   guards above catch the failures that can be predicted; anything else is caught
+  ##   here, logged in full so that the run says where it ran into trouble, and recorded
+  ##   as a combination that was never tested. tune_check() already reads such a row as
+  ##   untested rather than as one that found nothing. f.err() logs its whole message
+  ##   before stopping, so the detail is in the log immediately above the warning below,
+  ##   which only records which combination the log entry belongs to:
+
   f.log_block("f.tune:2: test", config=config)
-  result <- test(out$state, out$config,
-    is_log_transformed=is_log_transformed)
-  
+  result <- try(test(out$state, out$config,
+    is_log_transformed=is_log_transformed), silent=T)
+
+  if(inherits(result, "try-error")) {
+    f.msg("WARNING: f.tune2: test_method", config$test_method, "failed on this",
+      "combination; skipping and returning NA;", "\n",
+      "  ", as.character(result), config=config)
+    return(f.tune2_na_row(config))
+  }
+
   tbl <- result$standard
-  
+
   result <- data.frame(norm=config$normalization_method, nquant=config$normalization_quantile, 
     impute=config$impute_method, iquant=config$impute_quantile, 
     scale=config$impute_scale, span=config$impute_span, 
@@ -237,13 +280,24 @@ f.tune2 <- function(state, config, is_log_transformed=NULL) {
 #'     \code{ntests} set to \code{NA} rather than aborting the sweep, and the reason
 #'     is written to \code{config$log_file}. This happens when too few samples or
 #'     genes survive filtering, and when \code{test_method} cannot express the test
-#'     \code{config$test_term} implies. \code{"deqms"} and \code{"msqrob"} test one
-#'     coefficient at a time, so they are skipped when \code{config$test_term} names
-#'     a factor with more than two levels, or a variable that also appears in an
-#'     interaction. \code{"prolfqua"} is bounded by terms instead of coefficients, so
-#'     a factor with more than two levels is fine there, but a variable that also
-#'     appears in an interaction is skipped. \code{"proda"} is bounded by neither,
-#'     testing several coefficients jointly by likelihood ratio.
+#'     \code{config$test_term} implies. \code{"deqms"} tests one coefficient at a
+#'     time, so it is skipped when \code{config$test_term} names a factor with more
+#'     than two levels, or a variable that also appears in an interaction.
+#'     \code{"msqrob"} was bounded the same way, by
+#'     \code{msqrob2::hypothesisTest()} rather than by its fit, and is not any longer:
+#'     it reports a joint Wald test computed from the fitted models for those cases.
+#'     \code{"proda"} and \code{"prolfqua"} are bounded by neither,
+#'     testing several coefficients jointly: \code{"proda"} by likelihood ratio and
+#'     \code{"prolfqua"} by an F-test comparing the full design against the design
+#'     with the tested columns removed, with the error variance moderated across
+#'     features as the \code{limma}-based methods do.
+#'     \code{"deqms"} is also skipped when every gene has the same number of
+#'     features, there being no spread for its variance prior to be fitted against;
+#'     see \code{h0testr::test_deqms()}.
+#'     Any other failure of the test step is caught the same way, so that one
+#'     combination an engine cannot fit costs that cell and not the rest of the
+#'     sweep; the error is written to \code{config$log_file} in full, immediately
+#'     above the line naming the combination it belongs to.
 #'     \code{h0testr::tune_check()} counts these \code{NA} \code{nhits} as zero hits,
 #'     but gives such a row no \code{fdr}, so that a combination which never ran is
 #'     not ranked above every combination that did.
@@ -328,7 +382,7 @@ tune <- function(
       config2$test_method <- test_method
       f.msg("test_method:", test_method, config=config2)
       
-      if(!(test_method %in% c("deqms", "msqrob"))) {
+      if(!f.gene_level_method(test_method)) {
         ## for methods that do not use peptides for gene testing:
         f.log_block("combine_features", config=config2)
         out <- combine_features(state2, config2)

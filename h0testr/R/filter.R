@@ -80,7 +80,11 @@ f.filter_features_by_term <- function(term, state, config, type="factor",
 #'     the variable takes at least two distinct values across the observations
 #'     where the feature was measured.
 #'   Variables are classified as factor or numeric as described for
-#'     \code{h0testr::initialize()}.
+#'     \code{h0testr::initialize()}, and their values are checked as described
+#'     there: missing, blank, non-finite and constant covariate values are
+#'     errors here too, since the counts below would otherwise be taken over the
+#'     observations whose covariates happen to be known, while every step that
+#'     builds a design matrix refuses the same \code{state}.
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -127,6 +131,18 @@ filter_features_by_formula <- function(state, config,
   ##   criteria depend on whether the variable is a factor or continuous:
 
   types <- f.covariate_types(state, config)
+
+  ## the counts below are per level of a factor and per observation for a continuous
+  ##   variable, neither of which needs a design matrix, so nothing here would notice
+  ##   a covariate that no fit can use: base::table() drops missing values silently,
+  ##   so a feature would be screened over the observations whose covariates happen
+  ##   to be known and then reported as kept, while every downstream step that builds
+  ##   a design refuses the same state. Checked here so that the count this reports
+  ##   is over the observations that would actually be fit:
+
+  f.check_covariate_values(state, config, types=types,
+    caller="filter_features_by_formula", warn_distinct=FALSE)
+
   vars <- names(types)
 
   result <- matrix(TRUE, nrow=nrow(state$expression), ncol=length(vars),
@@ -223,6 +239,7 @@ filter_features_by_formula <- function(state, config,
 #'   \tabular{ll}{
 #'     \code{frm}           \cr \tab Formula object specifying model to be fitted. \cr
 #'     \code{test_term}     \cr \tab Term (character) in \code{config$frm} to test for significance. \cr
+#'     \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
 #'     \code{estimability}  \cr \tab Requirement placed on \code{config$test_term}; scalar character in \code{c("test", "term", "full")}. \cr
 #'     \code{df_resid_min}  \cr \tab Minimum residual degrees of freedom (non-negative numeric) to keep feature. \cr
 #'     \code{df_test_col}   \cr \tab Name (character) of new column in feature metadata to hold \code{df_test}. \cr
@@ -299,12 +316,15 @@ filter_features_by_estimability <- function(state, config, estimability=NULL,
 
   design <- f.design_test_cols(state, config)
   X <- design$X
+  X_red <- design$X_red
   cols_test <- design$cols_test
   rank_all <- design$rank_all
   df_intend <- design$df_intend
 
   f.msg("filter_features_by_estimability: estimability:", estimability,
-    "; df_resid_min:", df_resid_min, "; test_term:", config$test_term,
+    "; df_resid_min:", df_resid_min, ";",
+    if(is.null(design$contrast)) paste("test_term:", config$test_term)
+      else paste("contrast:", config$contrast),
     "; design columns:", ncol(X), "; test columns:", length(cols_test),
     "; df_intend:", df_intend, config=config)
 
@@ -343,7 +363,12 @@ filter_features_by_estimability <- function(state, config, estimability=NULL,
     i_obs <- !na_mat[i_rep[idx], ]
     r_full <- f.design_rank(X[i_obs, , drop=F])
 
-    df_test_u[idx] <- r_full - f.design_rank(X[i_obs, -cols_test, drop=F])
+    ## the reduced model comes from f.design_test_cols() rather than by dropping
+    ##   columns here, so that a config$contrast run screens features against the
+    ##   constrained design the tests will compare against, which is a
+    ##   re-parameterization of X and not a subset of its columns:
+
+    df_test_u[idx] <- r_full - f.design_rank(X_red[i_obs, , drop=F])
     df_resid_u[idx] <- sum(i_obs) - r_full
     df_deficit_u[idx] <- ncol(X) - r_full
 

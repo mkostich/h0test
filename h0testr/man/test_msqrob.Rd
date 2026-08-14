@@ -21,6 +21,7 @@ test_msqrob(state, config, maxit = 100)
   \code{obs_col}          \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
   \code{frm}              \cr \tab Formula (formula) to be fit. \cr
   \code{test_term}        \cr \tab Term (character) to be tested for non-zero coefficient. \cr
+  \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
   \code{reference_levels} \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
   \code{covariate_types}  \cr \tab Optional; classification of variables in \code{config$frm}, as set by \code{initialize()}. \cr
   \code{factor_levels}    \cr \tab Optional; resolved levels of each factor variable, as set by \code{initialize()}. \cr
@@ -31,9 +32,14 @@ test_msqrob(state, config, maxit = 100)
 \value{
 A list with components:
   \tabular{ll}{
-    \code{hits}  \cr \tab \code{data.frame} of results; columns \code{config$gene_id_col} and: 
-      \code{c("nNonZero .n", "logFC", "se", "df", "t", "pval", "adjPval")}. \cr
-    \code{fit}   \cr \tab Model returned by \code{msqrob2::hypothesisTest()}. \cr
+    \code{hits}  \cr \tab \code{data.frame} of results; columns \code{config$gene_id_col},
+      \code{c("nNonZero", ".n")}, and then either
+      \code{c("logFC", "se", "df", "t", "pval", "adjPval")} when one design matrix
+      column carries the test, or
+      \code{c("f_statistic", "df1", "df2", "pval", "adjPval")} when several do. \cr
+    \code{fit}   \cr \tab Model returned by \code{msqrob2::hypothesisTest()}, or by
+      \code{msqrob2::msqrob()} for a joint test, which does not go through
+      \code{msqrob2::hypothesisTest()}. \cr
   }
 }
 \description{
@@ -48,15 +54,32 @@ Returns gene-level hypothesis testing results based on
       2. Convert \code{NA}s to zero using \code{QFeatures::zeroIsNA()}. \cr
       3. Make gene/protein-group expression with \code{QFeatures::aggregateFeatures()}. \cr
       4. Estimate model parameters using \code{msqrob2::msqrob()}. \cr
-      5. Calculate test statistics with \code{msqrob2::hypothesisTest()}. \cr
+      5. Calculate test statistics with \code{msqrob2::hypothesisTest()}, when
+           \code{config$test_term} resolves to a single design matrix column, and
+           otherwise with a joint Wald test over the columns carrying the test. \cr
     }
   \code{msqrob2::hypothesisTest()} returns one table per contrast rather than a
-    joint test over several, so \code{config$test_term} must resolve to a single
-    design matrix column; it is an error if it does not. That rules out testing a
-    factor with more than two levels, and also testing a variable that appears in
-    an interaction, since by marginality the test then covers every term containing
-    the variable. Use \code{h0testr::test_lm()}, \code{h0testr::test_trend()} or
-    \code{h0testr::test_voom()} for those tests.
+    joint test over several, so it can answer only a \code{config$test_term} that
+    resolves to a single design matrix column. That would rule out testing a factor
+    with more than two levels, and testing a variable that appears in an
+    interaction, since by marginality the test then covers every term containing the
+    variable. The limit is in that function rather than in the fit: each fitted
+    \code{msqrob2} \code{StatModel} carries the coefficients, the unscaled
+    covariance of the design, and the moderated variance and posterior degrees of
+    freedom, so for a test spanning several columns the joint statistic is computed
+    here from those models: \code{W}, the quadratic form of the coefficients under
+    test in the inverse of their covariance, that covariance being the unscaled
+    covariance of those columns times the posterior variance. It is reported as
+    \code{F = W / length(cols)} on \code{length(cols)} and \code{dfPosterior}
+    degrees of freedom.
+  \strong{That joint statistic is computed by \code{h0testr}, not returned by
+    \code{msqrob2}}, which is the one place in this package where the reported
+    statistic is not the engine's own. The single column case is untouched and is
+    still exactly what \code{msqrob2::hypothesisTest()} returns; with one column the
+    statistic above reduces to the square of the moderated t that function reports,
+    which is why it is referred to an F rather than to a chi-square.
+  A gene whose model could not be fit, or whose covariance is singular over the
+    columns under test, is reported as \code{NA} rather than dropped.
   The reported contrast is the tested coefficient under the factor level ordering
     \code{config$reference_levels} declares and \code{h0testr::initialize()}
     resolves, so for a two level factor \code{logFC} is the non-reference level
@@ -94,9 +117,9 @@ config <- list(
   sample_id_col="obs",
   feat_id_col="pep",
   gene_id_col="gene",
-  ## no grp:sex term here: by marginality, testing "grp" in ~grp+sex+grp:sex is a
-  ##   joint test of grptrt and grptrt:sexM, and this method tests one
-  ##   coefficient at a time. Test "grp:sex" to test the interaction itself:
+  ## no grp:sex term here, so testing "grp" is the single coefficient grptrt, which
+  ##   msqrob2::hypothesisTest() reports as a moderated t. Adding grp:sex would make
+  ##   it a joint test of grptrt and grptrt:sexM, reported as an F computed here:
   frm=~grp+sex,
   test_term="grp",
   reference_levels=c(grp="ctl", sex="F")

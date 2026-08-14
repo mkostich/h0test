@@ -12,6 +12,20 @@
 #'     configuration needed.
 #'   For hypothesis testing or calls to \code{h0testr::initialize()},
 #'     customize \code{frm}, \code{test_term}, and \code{reference_levels}.
+#'   \code{contrast} is the alternative to \code{test_term}: it names a weighted
+#'     sum of the coefficients of \code{frm} to test within the full model, written
+#'     as arithmetic over coefficient names, e.g. \code{"grpb - grpc"} or
+#'     \code{"(grpb + grpc)/2 - grpd"}. A coefficient whose name is not a syntactic
+#'     name, such as an interaction, has to be backquoted, e.g.
+#'     \code{"`sexM:batchb2`"}. Constants may scale a coefficient; two coefficient
+#'     names may not be multiplied together, that not being a weighted sum.
+#'   The two are mutually exclusive and one run tests one hypothesis, so set
+#'     \code{test_term} to \code{""} to test a contrast. The difference is what
+#'     each answers: \code{test_term} obeys marginality, testing the named term
+#'     together with every term containing it, which for a factor of more than two
+#'     levels is a joint test over all of its coefficients; a contrast is one
+#'     degree of freedom, so it can compare two particular levels, and reaches
+#'     \code{test_method="deqms"}, which cannot run a joint test at all.
 #'   When using the config to load data from files (e.g. by calling 
 #'     \code{h0testr::load_data(config)}), calling 
 #'     \code{h0testr::initialize()}, or for aggregating multiple 
@@ -88,7 +102,8 @@ new_config <- function() {
     
     ## formula for testing: actual formula can have '+' and ':'; not tested w/ e.g. '*' yet.
     frm=~age+gender+age:gender,          ## formula with variable of interest and covariates
-    test_term="age:gender",              ## term (scalar character) in $frm on which test is to be performed
+    test_term="age:gender",              ## term (scalar character) in $frm on which test is to be performed; "" iff $contrast is set
+    contrast="",                         ## weighted sum (scalar character) of coefficients of $frm to test, e.g. "grpb - grpc"; "" for none (test $test_term instead)
     permute_var="",                      ## name (scalar character) of variable to permute; "" for no permutation (normal execution)
     reference_levels=c(                  ## reference level of each factor variable in $frm
       age="young",                       ## numeric variable treated as continuous unless named here
@@ -100,6 +115,7 @@ new_config <- function() {
     n_samples_expr_col="n_samps_expr",   ## new col (scalar character) for feature metadata; n samples expressing feature
     median_raw_col="median_raw",         ## new col (scalar character) for feature metadata; median feature expression in expressing samples
     n_features_expr_col="n_feats_expr",  ## new col (scalar character) for sample metadata; n features expressed
+    n_feats_col="n_feats",               ## new col (scalar character) for gene-level feature metadata; n features aggregated into each gene; preserved if already present
     df_test_col="df_test",               ## new col (scalar character) for feature metadata; estimable df for config$test_term
     df_resid_col="df_resid",             ## new col (scalar character) for feature metadata; residual df of model fitted to feature
 
@@ -136,6 +152,9 @@ new_config <- function() {
     impute_aug_steps=3,                  ## data augmentation iterations for impute_rf() and impute_glmnet()
     test_method="trend",                 ## hypothesis test method; h0testr::test_methods() returns options.
     test_prior_df=3,                     ## prior df for test_proda()
+    test_moderate=TRUE,                  ## whether to shrink the per-feature error variance across features before testing; used by test_prolfqua(), which is the only method here that can be told not to; the limma-based methods always moderate and proda always shrinks
+    test_trend=FALSE,                    ## whether the prior variance of that shrinkage is fitted against mean feature intensity instead of being flat; used by test_prolfqua(), where it makes the prior the one test_method="trend" uses; unrelated to test_method
+
     ## run_order character vector with elements from {"normalize", "combine_replicates", "combine_features", "filter", "impute"}:
     run_order=c("normalize", "combine_replicates", "combine_features", "filter", "impute"),   ## order of workflow operations
     
@@ -178,10 +197,11 @@ check_config <- function(config) {
   }
   
   scalar_character <- c("feature_file_in", "sample_file_in", "data_file_in", 
-    "dir_in", "dir_out", "test_term", "permute_var", 
+    "dir_in", "dir_out", "test_term", "contrast", "permute_var",
     "feat_id_col", "gene_id_col", "feat_col",
     "obs_id_col", "sample_id_col", "obs_col", "n_samples_expr_col",
-    "median_raw_col", "n_features_expr_col", "df_test_col", "df_resid_col",
+    "median_raw_col", "n_features_expr_col", "n_feats_col", "df_test_col",
+    "df_resid_col",
     "log_file", "feature_mid_out",
     "sample_mid_out", "data_mid_out", "result_mid_out", "suffix_out",
     "normalization_method", "feature_aggregation", "impute_method", "test_method",
@@ -197,7 +217,7 @@ check_config <- function(config) {
   scalar_nonpositive <- c("impute_floor_offset")
   ## log_from_raw is set by normalize(), not by the user; see f.check_state():
   scalar_logical <- c("feature_aggregation_scaled", "save_state", "verbose",
-    "is_log_transformed", "log_from_raw")
+    "is_log_transformed", "log_from_raw", "test_moderate", "test_trend")
   scalar_formula <- c("frm")
   ## covariate_types is set by initialize(), not by the user; see
   ##   f.covariate_types():
@@ -384,6 +404,25 @@ check_config <- function(config) {
     }
   }
 
+  ## config$test_term and config$contrast are two different hypotheses about the
+  ##   same model, and one run tests one hypothesis: the results file carries one
+  ##   row per feature, and run.R's permutation aggregation reads it back that way.
+  ##   Which of the two was tested cannot be recovered from the config if both are
+  ##   set, and neither is a safe default to prefer: new_config() ships a non-empty
+  ##   test_term, so preferring the contrast would silently ignore a populated key,
+  ##   and preferring test_term would silently ignore the key that was deliberately
+  ##   added. So set config$test_term to "" to test a contrast:
+
+  if(f.contrast_set(config) && length(config$test_term) %in% 1 &&
+      !is.na(config$test_term) && nzchar(trimws(config$test_term))) {
+    f.err("check_config: config$contrast and config$test_term both name",
+      "something to test, and one run tests one hypothesis;", "\n",
+      "config$contrast:", config$contrast, "; config$test_term:",
+      config$test_term, "\n",
+      "set config$test_term to \"\" to test the contrast, or config$contrast to",
+      "\"\" to test the term", config=config)
+  }
+
   ## reference_levels holds one reference level per factor variable in
   ##   config$frm, so every element needs a variable name, and every value has
   ##   to be a usable level:
@@ -459,8 +498,11 @@ report_config <- function(config) {
     } else f.msg(k1, ":", paste(as.character(v1), sep=", "), config=config)
   }
   
-  ## check config$test_term compatible with config$frm; throws error if not, 
-  ##   else returns NULL:
+  ## check config$test_term compatible with config$frm; throws error if not,
+  ##   else returns NULL. A run testing config$contrast has no config$test_term to
+  ##   check, check_config() having just refused a config that sets both; the
+  ##   contrast is checked against the coefficients of the design by
+  ##   f.design_contrast(), which needs the observations to build it:
 
-  f.normalize_terms(config)
+  if(!f.contrast_set(config)) f.normalize_terms(config)
 }

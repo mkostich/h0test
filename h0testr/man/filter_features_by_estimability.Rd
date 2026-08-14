@@ -23,6 +23,7 @@ filter_features_by_estimability(
 \tabular{ll}{
   \code{frm}           \cr \tab Formula object specifying model to be fitted. \cr
   \code{test_term}     \cr \tab Term (character) in \code{config$frm} to test for significance. \cr
+  \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
   \code{estimability}  \cr \tab Requirement placed on \code{config$test_term}; scalar character in \code{c("test", "term", "full")}. \cr
   \code{df_resid_min}  \cr \tab Minimum residual degrees of freedom (non-negative numeric) to keep feature. \cr
   \code{df_test_col}   \cr \tab Name (character) of new column in feature metadata to hold \code{df_test}. \cr

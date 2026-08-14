@@ -64,7 +64,11 @@ Every variable in \code{config$frm} is screened, including variables that
     the variable takes at least two distinct values across the observations
     where the feature was measured.
   Variables are classified as factor or numeric as described for
-    \code{h0testr::initialize()}.
+    \code{h0testr::initialize()}, and their values are checked as described
+    there: missing, blank, non-finite and constant covariate values are
+    errors here too, since the counts below would otherwise be taken over the
+    observations whose covariates happen to be known, while every step that
+    builds a design matrix refuses the same \code{state}.
 }
 \examples{
 set.seed(101)

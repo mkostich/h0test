@@ -21,9 +21,12 @@ test_prolfqua(state, config, is_log_transformed = NULL)
   \code{obs_col}               \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
   \code{frm}                   \cr \tab Formula (formula) to be fit. \cr
   \code{test_term}             \cr \tab Term (character) to be tested for non-zero coefficient. \cr
+  \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
   \code{reference_levels}      \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
   \code{covariate_types}       \cr \tab Optional; classification of variables in \code{config$frm}, as set by \code{initialize()}. \cr
   \code{factor_levels}         \cr \tab Optional; resolved levels of each factor variable, as set by \code{initialize()}. \cr
+  \code{test_moderate}         \cr \tab Optional logical; whether to shrink the error variance across features. Defaults to \code{TRUE} when absent. \cr
+  \code{test_trend}            \cr \tab Optional logical; whether the prior of that shrinkage is fitted against mean feature intensity rather than flat. Defaults to \code{FALSE} when absent. Unrelated to \code{config$test_method="trend"}. \cr
   \code{normalization_method}  \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
 }}
 
@@ -35,13 +38,34 @@ passing both is an error unless they agree.}
 \value{
 A list with components:
   \tabular{ll}{
-    \code{hits}  \cr \tab \code{data.frame} of the \code{prolfqua::build_model()}
-      ANOVA rows for \code{config$test_term}: the feature id columns
+    \code{hits}  \cr \tab \code{data.frame} of the per-feature F-tests of
+      \code{config$test_term}: the feature id columns
       (\code{config$gene_id_col} and \code{config$feat_id_col}, which are the same
       column once \code{combine_features()} has run) and:
       \code{c("isSingular", "nrcoef", "factor", "Df", "Sum.Sq", "Mean.Sq",
-      "F.value", "p.value", "FDR")}. One row per feature. \cr
-    \code{fit}   \cr \tab Model returned by \code{prolfqua::build_model()}. \cr
+      "F.value", "p.value", "moderated", "trend", "s2.denom", "df.denom",
+      "df.prior", "s2.prior", "F.value.unmod", "p.value.unmod", "FDR")}. One row per
+      feature, sorted by
+      \code{p.value}; \code{isSingular} and \code{nrcoef} describe the full fit,
+      and \code{factor} is \code{config$test_term}. \code{F.value} and
+      \code{p.value} are the reported test, moderated unless
+      \code{config$test_moderate} is \code{FALSE}; \code{s2.denom} and
+      \code{df.denom} are the error variance and denominator degrees of freedom it
+      used, \code{df.prior} and \code{s2.prior} the degrees of freedom and the value
+      of the prior the variance was shrunk toward, \code{trend} whether that prior
+      was fitted against mean feature intensity, in which case \code{s2.prior}
+      varies by feature, and \code{F.value.unmod} and \code{p.value.unmod} the same
+      test without moderation. Features for which the test is
+      not estimable are absent; see Details. \cr
+    \code{fit}   \cr \tab Model returned by \code{prolfqua::build_model()} for the
+      full design. \cr
+    \code{fit_reduced} \cr \tab Model returned by \code{prolfqua::build_model()}
+      for the design without the columns carrying \code{config$test_term}. \cr
+    \code{design} \cr \tab The design used, as returned by
+      \code{f.design_test_cols()}: \code{X} is the full design matrix, whose
+      column names are the coefficient names of \code{fit}, \code{cols_test}
+      indexes the columns carrying the test, and \code{df_intend} is the numerator
+      degrees of freedom the test is meant to have. \cr
   }
   Note the granularity of \code{hits} follows the input: called on
     peptide-level data, as in the example below, it gives one row per peptide,
@@ -55,48 +79,83 @@ Tests for differential expression using the \code{prolfq::build_model()} functio
 \details{
 Uses the \code{prolfqua::build_model()} function. Returned results sorted by
     p-value.
-  Covariates classified as \code{"factor"} in \code{config$covariate_types} are
-    registered with \code{prolfqua::AnalysisTableAnnotation$factors}, which holds
-    categorical annotations only; continuous (numeric) covariates are passed
-    through unregistered. Both are supported: \code{prolfqua::build_model()} fits
-    a plain \code{stats::lm()} to the data.frame as given, so a numeric covariate
-    is read as continuous and contributes a single one degree of freedom row to
-    the reported ANOVA table.
-  The level ordering set by \code{initialize()} is preserved, so the
-    coefficients of the returned \code{fit} are relative to the reference
-    level declared in \code{config$reference_levels}. The returned
-    \code{hits} are term-level ANOVA F-tests, which do not depend on the
-    choice of reference level.
-  Results are one row per term of the model rather than one per coefficient, so
-    a factor with more than two levels is a single multi-df F-test over its
-    contrasts. What that table cannot express is a joint test over several
-    terms, which is what the marginality rule makes \code{config$test_term}
-    mean when the named variable also appears in an interaction: testing
-    \code{"grp"} in \code{~grp*sex} covers both \code{grp} and \code{grp:sex}.
-    That is an error here rather than a silently narrower test; use
-    \code{test_method} \code{"lm"}, \code{"trend"} or \code{"voom"} for such a
-    \code{test_term}. \code{h0testr::tune()} skips those combinations instead of
-    stopping.
-  The terms of \code{config$frm} are reordered so that the tested term comes
-    last. \code{stats::anova()} decomposes a model sequentially (Type I sums of
-    squares), so a term is adjusted only for the terms entered before it, and
-    the p-value for \code{config$test_term} would otherwise depend on where in
-    \code{config$frm} it was written. Reordering makes the reported test the one
-    adjusted for every other term; the fit itself is unchanged.
-  The false discovery rate \code{prolfqua} reports is computed within each term,
-    so the \code{FDR} column of \code{hits} is adjusted over the features tested
-    and not over the other terms of the model.
+  The test is a comparison of nested models: \code{prolfqua::build_model()} fits
+    the full design and the design with the columns carrying
+    \code{config$test_term} removed, and the reported F-test is of whether those
+    columns are all zero. This is exact for a linear model, is the same hypothesis
+    \code{test_proda()} tests by likelihood ratio, and equals the Wald F-test of
+    the same contrast. Any \code{config$test_term} is therefore testable, including
+    one that the marginality rule spreads over several terms: testing \code{"grp"}
+    in \code{~grp*sex} covers \code{grp} and \code{grp:sex} together, as it does
+    under \code{test_method} \code{"lm"}, \code{"trend"} and \code{"voom"}.
+  The design is built by \code{stats::model.matrix()} and its columns are handed to
+    the fit as numeric columns, so the fit contains no factors: categorical and
+    continuous covariates go through the same code, and a covariate of either kind
+    may appear anywhere in \code{config$frm}, including in an interaction. The
+    consequence for the returned \code{fit} is that it has no \code{xlevels} and
+    its \code{model} holds indicator columns rather than the original covariates.
+    Nothing is lost, since \code{colnames(design$X)} are exactly the coefficient
+    names of the fit: the level ordering set by \code{initialize()} is visible
+    there as which level of each factor is absent, that being the reference level
+    declared in \code{config$reference_levels}. The F-test itself does not depend
+    on the choice of reference level.
+  The error variance of each feature is shrunk toward a common prior across
+    features before the F is formed, unless \code{config$test_moderate} is
+    \code{FALSE}. The shrinkage is \code{prolfqua::squeezeVarRob(robust=FALSE)},
+    which returns exactly what \code{limma::squeezeVar()} returns, so the reported
+    statistic is the moderated F of \code{limma}: the ordinary F with the
+    denominator replaced by the posterior variance and the denominator degrees of
+    freedom raised by those of the prior. Nothing switches on the numerator degrees
+    of freedom. At one degree of freedom this is the square of the moderated t that
+    \code{prolfqua::ContrastsModerated()} reports for a single contrast, and above
+    one it is what \code{test_trend()} reports for several coefficients, so one
+    variance estimator covers every \code{config$test_term} and p-values stay
+    comparable across a sweep of terms of differing degrees of freedom. The
+    unmoderated F and its p-value are returned alongside, in
+    \code{F.value.unmod} and \code{p.value.unmod}, so the effect of moderating can
+    be seen without refitting; with \code{config$test_moderate=FALSE} they are
+    equal to the reported ones.
+  The prior that variance is shrunk toward is one number shared by every feature
+    unless \code{config$test_trend} is \code{TRUE}, which fits it against the mean
+    intensity of each feature as a natural spline of up to four degrees of freedom
+    on the log residual variances. That covariate is the one
+    \code{limma::eBayes(trend=TRUE)} uses, the row mean of the response over the
+    observations where the feature was seen, so with the trend on this method and
+    \code{test_trend()} moderate identically and differ only in which package fits
+    the models. It is off by default, since a mean-variance trend is a property of
+    the data worth asking for deliberately, and it needs enough features to fit the
+    spline: given too few, or a mean intensity with no spread, the prior stays flat
+    and a warning says so, and the \code{trend} column of \code{hits} records what
+    was actually done. Note the trend is defined on log intensities, so requesting
+    it for a response that is not log transformed also warns. It is ignored,
+    with a warning, when \code{config$test_moderate} is \code{FALSE}: it sets the
+    prior of a shrinkage that is then not performed.
+  A feature is dropped, with a warning naming how many and which, when its own
+    data do not support the test: if removing the tested columns does not reduce
+    the rank of that feature's fit by \code{design$df_intend}, the hypothesis is
+    not estimable for it. This happens when missingness leaves a covariate
+    constant, or a factor level unobserved, among the samples where that feature
+    was measured. \code{filter_features_by_estimability()} screens for the same
+    condition earlier in the pipeline, so features reach this point only when
+    \code{test()} is called without it.
+  The \code{FDR} column of \code{hits} is \code{stats::p.adjust(..., "BH")} over
+    the features tested, computed here rather than taken from \code{prolfqua},
+    which adjusts within each row of its per-term ANOVA table.
   Flow is:
     \tabular{l}{
       1. Reshape data into long format with intensities, feature meta, and sample meta. \cr
-      2. Make and populate \code{prolfqua::AnalysisTableAnnotation} object. \cr
-      3. Make \code{prolfqua::LFQData} object from data and
-           \code{prolfqua::AnalysisTableAnnotation} object. \cr
-      4. Make \code{prolfqua::strategy_lm} object from \code{config$frm}, with the
-           tested term moved last. \cr
-      5. Build \code{prolfqua} model from \code{prolfqua::LFQData} and
-           \code{prolfqua::strategy_lm} objects. \cr
-      5. Return sub-table of ANOVA results corresponding to \code{config$test_term}. \cr
+      2. Build the design with \code{f.design_test_cols()} and add its columns to
+           the long data as numeric columns. \cr
+      3. Make \code{prolfqua::AnalysisTableAnnotation} and \code{prolfqua::LFQData}
+           objects. \cr
+      4. Make two \code{prolfqua::strategy_lm} objects, for the full design and for
+           the design without the columns carrying \code{config$test_term}. \cr
+      5. Build a \code{prolfqua} model from each. \cr
+      6. Moderate the per-feature error variance across features with
+           \code{prolfqua::squeezeVarRob()}, toward a flat prior or, with
+           \code{config$test_trend}, one fitted against mean feature intensity. \cr
+      7. Return the per-feature F-test comparing the two fits, dropping features
+           for which the test is not estimable. \cr
     }
   See documentation for \code{h0testr::new_config()} 
     for more detailed description of configuration parameters.
@@ -128,9 +187,6 @@ config <- list(
   sample_id_col="obs",
   feat_id_col="pep",
   gene_id_col="gene",
-  ## no grp:sex term here: this function reports one term of the model at a
-  ##   time, so with ~grp+sex+grp:sex testing 'grp' would be a joint test over
-  ##   grp and grp:sex, which it refuses; use 'lm', 'trend' or 'voom' for that:
   frm=~grp+sex,
   test_term="grp",
   reference_levels=c(grp="ctl", sex="F")
@@ -140,4 +196,35 @@ out <- h0testr::initialize(state, config, minimal=TRUE)
 ## actual test:
 result <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
 head(result$hits)
+
+## an interaction is fine too: testing 'grp' in ~grp*sex is a joint test over grp
+##   and grp:sex, which the nested model comparison carries as one F-test. The
+##   design columns it covers, and the reference level of each factor, being the
+##   level with no column of its own:
+config$frm <- ~grp*sex
+out <- h0testr::initialize(state, config, minimal=TRUE)
+result <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
+colnames(result$design$X)
+colnames(result$design$X)[result$design$cols_test]
+head(result$hits)
+
+## the same 2 df test with the error variance moderated across features, which is
+##   the default, next to the same test without it. The moderated p-value is the
+##   one reported; both are in every result:
+head(result$hits[, c("Df", "p.value", "p.value.unmod", "df.denom", "df.prior")])
+config$test_moderate <- FALSE
+out <- h0testr::initialize(state, config, minimal=TRUE)
+plain <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
+head(plain$hits[, c("Df", "p.value", "p.value.unmod", "df.denom", "df.prior")])
+
+## and the prior can be fitted against mean feature intensity instead of being one
+##   number, which is the prior test_trend() uses. s2.prior is then a value per
+##   feature, and the range of it is the fitted mean-variance trend:
+config$test_moderate <- TRUE
+config$test_trend <- TRUE
+out <- h0testr::initialize(state, config, minimal=TRUE)
+trended <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
+head(trended$hits[, c("Df", "p.value", "moderated", "trend", "s2.prior")])
+range(trended$hits$s2.prior)
+range(result$hits$s2.prior)                     ## one value, the flat prior
 }

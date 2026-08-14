@@ -217,6 +217,233 @@ f.parse_frm <- function(frm, config) {
   return(out)
 }
 
+## TRUE iff config$contrast asks for a contrast. "" (the default) means none, the
+##   same convention config$permute_var uses. Single place where that is decided,
+##   so that the config checks, the estimability filter and every hypothesis test
+##   agree about which of the two hypotheses a run is testing:
+
+f.contrast_set <- function(config) {
+  if(length(config$contrast) != 1) return(FALSE)
+  if(is.na(config$contrast)) return(FALSE)
+  return(nzchar(trimws(config$contrast)))
+}
+
+## What a run is testing, for progress messages: config$test_term, or the contrast
+##   when config$contrast is set, the two being mutually exclusive:
+
+f.test_label <- function(design, config) {
+  if(!is.null(design$contrast)) return(paste("contrast:", trimws(config$contrast)))
+  return(paste("test_term:", config$test_term))
+}
+
+## Operators supported in config$contrast. A contrast is arithmetic over
+##   coefficient names rather than a model formula, so the supported set differs
+##   from f.frm_ops: '(' and '/' are allowed here, since averaging a group of
+##   levels ('(grpb + grpc)/2') is the usual way to write one side of a contrast,
+##   while ':' and '*' are not interaction operators here. An interaction
+##   coefficient is named by one backquoted name ('`sexM:batchb2`') rather than
+##   built from its variables, since what a contrast weights is a column of the
+##   design matrix that config$frm has already produced:
+
+f.contrast_ops <- c("+", "-", "*", "/", "(")
+
+## TRUE iff expr mentions any coefficient name; helper for f.check_contrast_expr(),
+##   which needs to know whether an operand of '*' or '/' is a constant:
+
+f.contrast_has_name <- function(expr) {
+  if(is.symbol(expr)) return(TRUE)
+  if(!is.call(expr) || length(expr) < 2) return(FALSE)
+  for(idx in 2:length(expr)) {
+    if(f.contrast_has_name(expr[[idx]])) return(TRUE)
+  }
+  return(FALSE)
+}
+
+## Recursively check one expression from config$contrast against cols, the
+##   coefficient names of the design matrix for config$frm. Throws an informative
+##   error on any unsupported construct; otherwise returns TRUE invisibly.
+##   Same shape as f.check_frm_expr(), and for the same reason: the expression is
+##   evaluated below, so what it may contain is decided here rather than by
+##   whatever base::eval() would accept:
+
+f.check_contrast_expr <- function(expr, cols, config, top=NULL) {
+
+  if(is.null(top)) top <- expr
+
+  ## terminal symbol: a coefficient name, which must be a column of the design.
+  ##   Checking here rather than after evaluation is what makes a misspelled or
+  ##   mis-cased level name say so, and say what was available instead:
+
+  if(is.symbol(expr)) {
+
+    nom <- as.character(expr)
+
+    if(!(nom %in% cols)) {
+      f.err("f.check_contrast_expr: '", nom, "' in config$contrast is not a",
+        "coefficient of the design matrix for config$frm;", "\n",
+        "config$contrast:", deparse(top), "\n",
+        "coefficients available:", paste(cols, collapse=", "), "\n",
+        "a coefficient whose name is not a syntactic name, such as an",
+        "interaction, has to be backquoted, e.g. `sexM:batchb2`", config=config)
+    }
+
+    return(invisible(TRUE))
+  }
+
+  ## terminal constant: any finite number, unlike in a formula, where only 0 and 1
+  ##   (the intercept) mean anything. Here a constant is a weight:
+
+  if(is.numeric(expr) && length(expr) %in% 1) {
+    if(!is.finite(expr)) {
+      f.err("f.check_contrast_expr: constant", expr, "in config$contrast is not",
+        "finite; config$contrast:", deparse(top), config=config)
+    }
+    return(invisible(TRUE))
+  }
+
+  if(!is.call(expr)) {
+    f.err("f.check_contrast_expr: unsupported element", deparse(expr),
+      "in config$contrast; config$contrast:", deparse(top), config=config)
+  }
+
+  op <- as.character(expr[[1]])
+
+  if(!(op %in% f.contrast_ops)) {
+    f.err("f.check_contrast_expr: operator or function '", op,
+      "' not supported in config$contrast; supported operators:",
+      paste(f.contrast_ops, collapse=" "),
+      "; a contrast is a weighted sum of coefficients, so coefficient names must",
+      "be bare (backquoted if not syntactic) and may be scaled by constants",
+      "only; config$contrast:", deparse(top), config=config)
+  }
+
+  ## '*' and '/' scale a contrast by a constant. Between two coefficient names
+  ##   they would multiply the two weight vectors elementwise, which is not a
+  ##   linear combination of the coefficients at all, and would silently yield a
+  ##   contrast of all zeros for two different coefficients:
+
+  if(op %in% c("*", "/")) {
+
+    if(length(expr) != 3) {
+      f.err("f.check_contrast_expr: '", op, "' needs two operands in",
+        "config$contrast; got", deparse(expr), "; config$contrast:",
+        deparse(top), config=config)
+    }
+
+    lhs <- f.contrast_has_name(expr[[2]])
+    rhs <- f.contrast_has_name(expr[[3]])
+
+    if(op %in% "/" && rhs) {
+      f.err("f.check_contrast_expr: the divisor of '/' in config$contrast must be",
+        "a constant, not an expression in coefficient names; got",
+        deparse(expr[[3]]), "; config$contrast:", deparse(top), config=config)
+    }
+
+    if(op %in% "*" && lhs && rhs) {
+      f.err("f.check_contrast_expr: '*' in config$contrast multiplies two",
+        "expressions in coefficient names, which is not a weighted sum of",
+        "coefficients; one side must be a constant; got", deparse(expr),
+        "; config$contrast:", deparse(top), config=config)
+    }
+  }
+
+  for(idx in 2:length(expr)) {
+    f.check_contrast_expr(expr[[idx]], cols, config, top=top)
+  }
+
+  return(invisible(TRUE))
+}
+
+## The weight vector L of config$contrast over cols, the coefficient names of the
+##   design matrix for config$frm. The hypothesis tested is that the weighted sum
+##   of the coefficients is zero, which is one degree of freedom whatever
+##   config$frm looks like. Evaluated by binding each coefficient name to its own
+##   indicator vector over cols and letting '+', '-', '*', '/' and '(' do ordinary
+##   vector arithmetic, so that the weights are built by the same rules a reader
+##   of the expression would apply. The environment's parent is baseenv() so that
+##   those operators resolve and nothing else does:
+
+f.contrast_vector <- function(config, cols, caller="f.contrast_vector") {
+
+  txt <- trimws(config$contrast)
+  expr <- try(str2lang(txt), silent=T)
+
+  if(inherits(expr, "try-error")) {
+    f.err(caller, ": config$contrast does not parse as an R expression;",
+      "config$contrast:", txt, "\n", "parse error:",
+      conditionMessage(attr(expr, "condition")), "\n",
+      "expected a weighted sum of coefficient names, e.g. 'grpb - grpc' or",
+      "'(grpb + grpc)/2 - grpd'", config=config)
+  }
+
+  f.check_contrast_expr(expr, cols, config)
+
+  env <- new.env(parent=baseenv())
+
+  for(idx in seq_along(cols)) {
+    wts <- rep(0, length(cols))
+    wts[idx] <- 1
+    assign(cols[idx], wts, envir=env)
+  }
+
+  out <- try(eval(expr, envir=env), silent=T)
+
+  if(inherits(out, "try-error") || !is.numeric(out) ||
+      length(out) != length(cols) || any(!is.finite(out))) {
+    f.err(caller, ": config$contrast did not evaluate to one weight per",
+      "coefficient of the design matrix;", "config$contrast:", txt,
+      "; coefficients:", length(cols), "; weights:",
+      if(is.numeric(out)) length(out) else paste("evaluation failed:",
+        if(inherits(out, "try-error")) conditionMessage(attr(out, "condition"))
+        else class(out)), config=config)
+  }
+
+  names(out) <- cols
+
+  ## all weights zero, most easily by writing a coefficient minus itself. There is
+  ##   then no hypothesis, the same situation f.design_test_cols() reports as a
+  ##   df_intend of zero for config$test_term:
+
+  if(all(abs(out) < sqrt(.Machine$double.eps))) {
+    f.err(caller, ": every coefficient weight in config$contrast is zero, so",
+      "there is no hypothesis to test; config$contrast:", txt, config=config)
+  }
+
+  return(out)
+}
+
+## A basis for the null space of the contrast, as the columns of a matrix with one
+##   column fewer than L has elements. Post-multiplying the design by it gives the
+##   design of the model constrained so that the contrast is zero, which is nested
+##   in the full model and one rank below it. That reduced design is what makes a
+##   contrast reach the engines that test a full model against a reduced one
+##   without any contrast-specific code of their own; see f.design_contrast().
+##   The first column of the complete Q of L spans L, so the rest span its
+##   orthogonal complement:
+
+f.contrast_null_basis <- function(L) {
+  qrl <- qr(matrix(L, ncol=1))
+  return(qr.Q(qrl, complete=TRUE)[, -1, drop=F])
+}
+
+## The design matrix for config$frm over the observations of state, checked against
+##   state$expression. Shared by the config$test_term and config$contrast branches
+##   of f.design_test_cols():
+
+f.design_X <- function(state, parsed, config, caller="f.design_test_cols") {
+
+  X <- stats::model.matrix(parsed$frm, data=state$samples)
+
+  if(nrow(X) != ncol(state$expression)) {
+    f.err(caller, ": design matrix has", nrow(X),
+      "rows, but state$expression has", ncol(state$expression), "columns;",
+      "\n", "model.matrix() drops observations with missing covariate values",
+      config=config)
+  }
+
+  return(X)
+}
+
 ## Rank of a design matrix, tolerant of the degenerate shapes that arise when a
 ##   feature was measured in too few observations, or when the reduced model has
 ##   no columns left:
@@ -243,19 +470,18 @@ f.design_rank <- function(mat) {
 
 f.design_test_cols <- function(state, config) {
 
+  ## config$contrast tests a weighted sum of coefficients within the full model
+  ##   instead of a term of it, so it is a different hypothesis, derived below by
+  ##   its own route. check_config() has already refused a config that sets both:
+
+  if(f.contrast_set(config)) return(f.design_contrast(state, config))
+
   ## throws an informative error if config$test_term does not fit config$frm:
 
   parsed <- f.parse_frm(config$frm, config)
   drops <- f.normalize_terms(config)$drop_terms
 
-  X <- stats::model.matrix(parsed$frm, data=state$samples)
-
-  if(nrow(X) != ncol(state$expression)) {
-    f.err("f.design_test_cols: design matrix has", nrow(X),
-      "rows, but state$expression has", ncol(state$expression), "columns;",
-      "\n", "model.matrix() drops observations with missing covariate values",
-      config=config)
-  }
+  X <- f.design_X(state, parsed, config)
 
   ## attr(X, 'assign') indexes the term labels in order, with 0 for the
   ##   intercept; parsed$labels is those same labels, canonicalized:
@@ -291,6 +517,28 @@ f.design_test_cols <- function(state, config) {
       "levels, keep the intercept in config$frm", config=config)
   }
 
+  ## the intercept is the fitted value where every covariate is zero. For a factor
+  ##   that is its reference level, which is an observed group; for a continuous
+  ##   covariate it need not be anywhere near the observed range, and where zero falls
+  ##   decides the answer rather than merely the labelling: testing the intercept in
+  ##   ~age compares the space spanned by (1, age) against the space spanned by age
+  ##   alone, and shifting age leaves the first unchanged while changing the second.
+  ##   Centering the covariate in state$samples makes the intercept the fitted value at
+  ##   its mean, which is usually the intended quantity:
+
+  if("1" %in% drops) {
+    types <- f.covariate_types(state, config)
+    nums <- names(types)[types %in% "numeric"]
+    if(length(nums)) {
+      f.msg("WARNING: f.design_test_cols: config$test_term names the intercept",
+        "('1'), and config$frm has the continuous covariate(s)",
+        paste(paste(nums, collapse=", "), ","), "so the intercept is the fitted",
+        "value where those are zero, which need not be near any observation;", "\n",
+        "the test therefore depends on where zero falls for them: center the",
+        "covariate(s) in state$samples to test at their mean instead", config=config)
+    }
+  }
+
   if(df_intend %in% 0) {
     f.err("f.design_test_cols: dropping config$test_term '", config$test_term,
       "' leaves a reduced model spanning the same space as the full model,",
@@ -302,16 +550,168 @@ f.design_test_cols <- function(state, config) {
       "config$frm is coded to full rank in the reduced model", config=config)
   }
 
+  ## the reduced model, returned explicitly rather than left to each engine to form
+  ##   by dropping columns, so that the engines which compare a full model against a
+  ##   reduced one need no contrast-specific code: see f.design_contrast(), where
+  ##   this is not a subset of the columns of X:
+
   out <- list(
     parsed=parsed,
     drops=drops,
     X=X,
+    X_red=X[, -cols_test, drop=F],
     cols_test=cols_test,
     rank_all=rank_all,
-    df_intend=df_intend
+    df_intend=df_intend,
+    contrast=NULL
   )
 
   return(out)
+}
+
+## The design matrix for config$frm and the weighted sum of its coefficients that
+##   config$contrast tests, in the shape f.design_test_cols() returns for
+##   config$test_term, so that the estimability filter and the hypothesis tests take
+##   the two the same way. The test is of whether that weighted sum is zero, which
+##   is one degree of freedom however many coefficients carry a non-zero weight, and
+##   is the reason a contrast reaches engines that a joint test does not: see
+##   f.test_max_cols(), whose cap is a cap on coefficients reported at once.
+##   $X_red is the design of the model constrained so that the contrast is zero,
+##   which is nested in the full model and one rank below it, so comparing the two
+##   is exactly the test of the contrast. It is a re-parameterization rather than a
+##   subset of the columns of X, which is why f.design_test_cols() returns it
+##   explicitly in both cases:
+
+f.design_contrast <- function(state, config) {
+
+  parsed <- f.parse_frm(config$frm, config)
+  X <- f.design_X(state, parsed, config, caller="f.design_contrast")
+
+  L <- f.contrast_vector(config, colnames(X), caller="f.design_contrast")
+  cols_test <- which(abs(L) >= sqrt(.Machine$double.eps))
+
+  ## the contrast has to be estimable over all observations, which it is exactly
+  ##   when it lies in the row space of the design: otherwise no linear combination
+  ##   of the fitted values estimates it, and every engine would report either a
+  ##   silently aliased coefficient or an error of its own naming neither
+  ##   config$contrast nor config$frm. Reached by weighting a coefficient that
+  ##   config$frm codes as aliased with another. Per feature estimability is a
+  ##   separate matter, screened by filter_features_by_estimability() from the same
+  ##   pair of designs:
+
+  rank_all <- f.design_rank(X)
+  Lr <- L / sqrt(sum(L^2))
+
+  if(f.design_rank(rbind(X, matrix(Lr, nrow=1))) != rank_all) {
+    f.err("f.design_contrast: config$contrast", config$contrast, "is not",
+      "estimable: it does not lie in the row space of the design matrix for",
+      "config$frm, so no combination of the fitted values estimates it;", "\n",
+      "config$frm:", deparse(parsed$frm), "; design columns:", ncol(X),
+      "; rank:", rank_all, "\n", "coefficients weighted:",
+      paste(names(L)[cols_test], collapse=", "), config=config)
+  }
+
+  X_red <- X %*% f.contrast_null_basis(L)
+  colnames(X_red) <- paste0("h0red", seq_len(ncol(X_red)))
+  df_intend <- rank_all - f.design_rank(X_red)
+
+  ## the constrained model is one rank below the full model whenever the contrast is
+  ##   estimable, which the check above has established, so this cannot fire; kept
+  ##   because it is the assumption every engine below relies on, and a silent
+  ##   failure of it would be reported as a test of the wrong number of degrees of
+  ##   freedom rather than as an error:
+
+  if(df_intend != 1) {
+    f.err("f.design_contrast: the model constrained so that config$contrast",
+      config$contrast, "is zero is", df_intend, "degrees of freedom below the",
+      "full model rather than 1;", "\n", "config$frm:", deparse(parsed$frm),
+      "; design rank:", rank_all, config=config)
+  }
+
+  f.warn_contrast_marginality(parsed, X, L, cols_test, state, config)
+
+  out <- list(
+    parsed=parsed,
+    drops=character(0),
+    X=X,
+    X_red=X_red,
+    cols_test=cols_test,
+    rank_all=rank_all,
+    df_intend=df_intend,
+    contrast=L
+  )
+
+  return(out)
+}
+
+## Warn when config$contrast weights a coefficient of a term that a higher-order
+##   term of config$frm also contains. Testing a term obeys marginality: dropping
+##   'grp' from ~grp*sex drops the interaction too, so the test covers every term
+##   containing grp. A contrast cannot, being a statement about named coefficients
+##   inside one model, so 'grpb - grpc' in ~grp*sex compares those levels at the
+##   reference level of sex alone rather than averaged over it. That is a legitimate
+##   question and is the one asked for, so it is a warning rather than an error, but
+##   it is rarely the question intended, and the coefficients involved do not say so
+##   on their own. Same shape of problem, and the same remedy, as the intercept
+##   warning in f.design_test_cols(): the answer depends on where the variables not
+##   under test are held:
+
+f.warn_contrast_marginality <- function(parsed, X, L, cols_test, state, config) {
+
+  asgn <- attr(X, "assign")
+  if(is.null(asgn)) return(invisible(NULL))
+
+  ## the terms of config$frm carrying a weighted coefficient, and any term of
+  ##   config$frm strictly containing one of them:
+
+  trms <- unique(asgn[cols_test])
+  labs <- parsed$labels[trms[trms > 0]]
+  if(!length(labs)) return(invisible(NULL))
+
+  higher <- character(0)
+
+  for(lab in labs) {
+    vars1 <- unlist(strsplit(lab, ":", fixed=T))
+    for(lab2 in setdiff(parsed$labels, lab)) {
+      vars2 <- unlist(strsplit(lab2, ":", fixed=T))
+      if(all(vars1 %in% vars2) && length(vars2) > length(vars1)) {
+        higher <- c(higher, lab2)
+      }
+    }
+  }
+
+  if(!length(higher)) return(invisible(NULL))
+
+  higher <- unique(higher)
+  vars_held <- setdiff(unlist(strsplit(higher, ":", fixed=T)),
+    unlist(strsplit(labs, ":", fixed=T)))
+
+  types <- f.covariate_types(state, config)
+  held <- vapply(
+    vars_held,
+    function(nom) {
+      if(!(nom %in% names(types))) return(nom)
+      if(types[[nom]] %in% "factor") {
+        lvl <- levels(f.relevel_covariate(state$samples[[nom]], nom, config,
+          "f.warn_contrast_marginality"))[1]
+        return(paste0(nom, " = ", lvl))
+      }
+      return(paste0(nom, " = 0"))
+    },
+    character(1)
+  )
+
+  f.msg("WARNING: f.design_contrast: config$contrast", config$contrast,
+    "weights coefficients of the term(s)", paste(paste(labs, collapse=", "), ","),
+    "which the higher-order term(s)", paste(paste(higher, collapse=", "), ""),
+    "of config$frm also contain;", "\n",
+    "the contrast therefore compares them with", paste(held, collapse=", "),
+    "rather than averaged over", paste(paste(vars_held, collapse=", "), ","),
+    "unlike config$test_term, which by marginality would test every term",
+    "containing them;", "\n", "config$frm:", deparse(parsed$frm),
+    "; to average instead, weight the higher-order coefficients too", config=config)
+
+  return(invisible(NULL))
 }
 
 ## How many design matrix columns a test method can test at once. The limma-family
@@ -319,38 +719,63 @@ f.design_test_cols <- function(state, config) {
 ##   they are unlimited. proDA is unlimited too, by a different route:
 ##   proDA::test_diff() takes either one contrast or a reduced model, and test_proda()
 ##   hands it the reduced model that f.design_test_cols() built whenever more than one
-##   column carries the test, which is a likelihood ratio test over all of them. Two
-##   engines can still only report one coefficient at a time. DEqMS moderates a
+##   column carries the test, which is a likelihood ratio test over all of them. One
+##   engine can still only report one coefficient at a time. DEqMS moderates a
 ##   single coefficient's t-statistic: DEqMS::spectraCounteBayes() forms sca.t from
 ##   fit$coefficients[, coef_col] over fit$stdev.unscaled[, coef_col], and the
 ##   package has no F-analogue anywhere, so the limit is in the moderation itself.
 ##   DEqMS::outputResult() takes a single coef_col because there is nothing joint
 ##   for it to report, so it is the wrong place to look for the constraint.
-##   msqrob2::hypothesisTest() loops over the columns of the contrast and returns
-##   one table per column rather than a joint test over several; that one is an API
-##   limit rather than a statistical one, since msqrob2 exports getCoef(),
-##   getVcovUnscaled(), getVarPosterior() and getDfPosterior(), which is everything
-##   a joint Wald test would need. Both are limitations of the engines, not of how
-##   h0testr selects columns:
+##   msqrob2 was bounded the same way, but only at its API: msqrob2::hypothesisTest()
+##   loops over the columns of the contrast and returns one table per column rather
+##   than a joint test over several, while the fit itself carries everything a joint
+##   test needs. test_msqrob() now computes that test from the fitted models, so the
+##   bound is gone; see f.msqrob_wald(). The remaining limit is a limitation of the
+##   engine, not of how h0testr selects columns:
 
 f.test_max_cols <- function(method) {
-  if(method %in% c("deqms", "msqrob")) return(1L)
+  if(method %in% "deqms") return(1L)
   return(Inf)
+}
+
+## Whether a test method takes feature level input and reports gene level results,
+##   whatever level state$expression is at. test_deqms() aggregates with
+##   combine_features() and test_msqrob() with QFeatures::aggregateFeatures(), both
+##   internally, so their results have one row per gene even when handed precursors;
+##   every other method is row-wise on state$expression and reports one row per row of
+##   it. Written once here because four places need the same answer: test() (for the
+##   row ids and the feature metadata it reports), f.feature_means() (for the level the
+##   average expression is over), the f.format_*() functions (for which column of an
+##   engine's table holds the id) and tune() (for whether to aggregate before testing):
+
+f.gene_level_method <- function(method) {
+  return(method %in% c("deqms", "msqrob"))
+}
+
+## Which column of state$features identifies the rows a test method returns.
+##   config$feat_col is by definition the column matching rownames(state$expression)
+##   at every point in the pipeline, so it is the answer for a row-wise method whether
+##   state is at precursor level or has already been through combine_features(), which
+##   sets config$feat_col to config$gene_id_col when it aggregates. The two gene level
+##   methods aggregate for themselves, so they are keyed by the gene id either way:
+
+f.test_id_col <- function(method, config) {
+  if(f.gene_level_method(method)) return(config$gene_id_col)
+  return(config$feat_col)
 }
 
 ## How many terms of config$frm a test method can test at once; companion to
 ##   f.test_max_cols(), which counts design matrix columns. The two limits are
-##   different things and a method can be bounded by either: prolfqua reports the
-##   rows of an anova table, one per term, so a factor with several levels is
-##   already a correct multi-df F-test there, but a joint test over several terms
-##   is not something the table can express. So testing 'dose' in ~dose with a
-##   three level dose runs under prolfqua (one term, 2 df) while deqms and msqrob
-##   cannot (2 coefficients), and testing 'sex' in ~sex*batch is out of reach for
-##   all three; proda is bounded by neither limit, testing several columns by
-##   likelihood ratio against the reduced model:
+##   different things and a method can be bounded by either, which is why this is a
+##   separate function even though no engine is currently bounded this way.
+##   prolfqua was: it reported the rows of a per-term anova table, which can carry a
+##   multi-df F-test for one factor but cannot express a joint test over several
+##   terms, so testing 'sex' in ~sex*batch was out of reach. test_prolfqua() no
+##   longer reads that table, comparing an explicit full and reduced design instead,
+##   so the bound is gone. Retained rather than deleted so that f.tune2()'s guard
+##   stays in place for an engine that turns out to be term-bounded later:
 
 f.test_max_terms <- function(method) {
-  if(method %in% "prolfqua") return(1L)
   return(Inf)
 }
 
@@ -370,13 +795,22 @@ f.design_test_cols_max <- function(state, config, caller, max_cols=Inf) {
   design <- f.design_test_cols(state, config)
   n_cols <- length(design$cols_test)
 
+  ## config$contrast is one degree of freedom however many coefficients it weights,
+  ##   and every engine here can express it: the limma-based ones through
+  ##   limma::contrasts.fit(), which leaves a fit with a single coefficient to
+  ##   report, and the rest through the constrained design f.design_contrast()
+  ##   returns. So the cap, which counts coefficients reported at once, does not
+  ##   apply, and a contrast is how a capped engine reaches a multi-level factor:
+
+  if(!is.null(design$contrast)) return(design)
+
   if(n_cols > max_cols) {
     f.err(caller, ": testing config$test_term '", config$test_term, "' in",
       deparse(design$parsed$frm), "is a joint test of", n_cols, "coefficients (",
       paste(colnames(design$X)[design$cols_test], collapse=", "), "), but", caller,
       "can test at most", max_cols, "at a time;", "\n",
-      "use test_method 'lm', 'trend', 'voom' or 'proda' for this test_term, or",
-      "name a term of config$frm that resolves to a single coefficient",
+      "use test_method 'lm', 'trend', 'voom', 'prolfqua' or 'proda' for this",
+      "test_term, or name a term of config$frm that resolves to a single coefficient",
       config=config)
   }
 
@@ -467,15 +901,19 @@ f.relevel_covariate <- function(v, trm, config, caller) {
   return(out)
 }
 
-## Check the values of the covariates in config$frm. Missing, non-finite, and
-##   constant covariates are errors: they cannot be fit, and letting them
+## Check the values of the covariates in config$frm. Missing, blank, non-finite,
+##   and constant covariates are errors: they cannot be fit, and letting them
 ##   through means model.matrix() silently drops observations (so that the
 ##   number of observations differs between features) or yields a
 ##   rank-deficient design. A numeric covariate with few distinct values is
 ##   often a miscoded factor, so is warned about; threshold is
-##   config$n_distinct_numeric_warn. Optional types from f.covariate_types():
+##   config$n_distinct_numeric_warn. Optional types from f.covariate_types().
+##   caller names the function to blame in the messages, since this is called from
+##   more than one entry point; warn_distinct=FALSE suppresses the distinct-value
+##   warning for callers that run after initialize() has already issued it:
 
-f.check_covariate_values <- function(state, config, types=NULL) {
+f.check_covariate_values <- function(state, config, types=NULL,
+    caller="f.check_covariate_values", warn_distinct=TRUE) {
 
   if(is.null(types)) types <- f.covariate_types(state, config)
 
@@ -500,7 +938,7 @@ f.check_covariate_values <- function(state, config, types=NULL) {
 
     i <- is.na(v)
     if(any(i)) {
-      f.err("f.check_covariate_values: covariate", nom, "has missing values,",
+      f.err(caller, ": covariate", nom, "has missing values,",
         "which are not supported;", "\n", "n missing:", sum(i),
         "; first offending observations:", utils::head(obs[i], 10),
         config=config)
@@ -508,21 +946,42 @@ f.check_covariate_values <- function(state, config, types=NULL) {
 
     if(types[nom] %in% "numeric" && !all(is.finite(v))) {
       i <- !is.finite(v)
-      f.err("f.check_covariate_values: covariate", nom, "has non-finite",
+      f.err(caller, ": covariate", nom, "has non-finite",
         "values;", "\n", "n non-finite:", sum(i),
         "; first offending observations:", utils::head(obs[i], 10),
         config=config)
     }
 
+    ## a blank is a missing value that does not look like one: utils::read.table(),
+    ##   which read_data() uses, reads an empty field in a character column as "",
+    ##   and only the strings in na.strings (default "NA") as NA. An empty cell in
+    ##   the samples file therefore arrives here as a value rather than as a gap,
+    ##   and would be carried into the design as a factor level of its own, silently
+    ##   adding a group made of the observations whose annotation is missing. An
+    ##   empty field in a numeric column does become NA, so this only applies to the
+    ##   covariates that carry text:
+
+    if(types[nom] %in% "factor") {
+      i <- !nzchar(trimws(as.character(v)))
+      if(any(i)) {
+        f.err(caller, ": covariate", nom, "has blank values, which are treated",
+          "as missing and are not supported;", "\n", "n blank:", sum(i),
+          "; first offending observations:", utils::head(obs[i], 10), "\n",
+          "an empty cell in the samples file is read as an empty string rather",
+          "than as NA, so it would otherwise become a factor level of its own",
+          config=config)
+      }
+    }
+
     lvls <- unique(v)
 
     if(length(lvls) %in% 1) {
-      f.err("f.check_covariate_values: covariate", nom, "is constant, with",
+      f.err(caller, ": covariate", nom, "is constant, with",
         "single distinct value:", utils::head(as.character(lvls), 1), ";", "\n",
         "it cannot be fit; drop it from config$frm", config=config)
     }
 
-    if(types[nom] %in% "numeric" && length(lvls) <= cutoff) {
+    if(warn_distinct && types[nom] %in% "numeric" && length(lvls) <= cutoff) {
       f.msg("WARNING: numeric (continuous) covariate", nom, "has only",
         length(lvls), "distinct values:", sort(as.character(lvls)), "\n",
         "  if it is categorical, declare it in config$reference_levels;",

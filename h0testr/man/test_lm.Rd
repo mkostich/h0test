@@ -19,6 +19,7 @@ test_lm(state, config, fdr.method = "BY")
   \code{feat_col}       \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
   \code{frm}            \cr \tab Formula (formula object) to be fit \cr
   \code{test_term}      \cr \tab Term (character scalar) to be tested for non-zero coefficient. \cr
+  \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
 }}
 
 \item{fdr.method}{Character scalar specifying method to use for multiple 

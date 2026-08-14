@@ -21,6 +21,7 @@ test_proda(state, config, is_log_transformed = NULL, prior_df = 3, maxit = 20)
   \code{obs_col}              \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
   \code{frm}                  \cr \tab Formula (formula) to be fit. \cr
   \code{test_term}            \cr \tab Term (character) to be tested for non-zero coefficient. \cr
+  \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
   \code{reference_levels}     \cr \tab Reference level of each factor variable in \code{frm}; sets the direction of \code{diff}. \cr
   \code{normalization_method} \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
 }}
@@ -66,6 +67,18 @@ Uses the \code{proDA::proDA()} function. Returned results sorted by p-value.
     dropped. That test is reported as an F statistic with \code{logFC} \code{NA},
     there being no single difference to report, as for the F tests of
     \code{h0testr::test_trend()} and \code{h0testr::test_voom()}.
+  Testing the intercept (\code{config$test_term} \code{"1"}) is supported:
+    \code{proDA::proDA()} renames that column \code{Intercept}, and the contrast is
+    looked up under that name.
+  The one formula this method cannot take that the others can is a
+    \code{config$test_term} that leaves no parameters in the reduced model, which
+    happens when \code{config$frm} suppresses the intercept and
+    \code{config$test_term} names every remaining term (\code{~0+grp} testing
+    \code{"grp"}). \code{proDA} cannot fit a model with no parameters, so that is
+    refused with an informative error; use \code{h0testr::test_lm()},
+    \code{h0testr::test_trend()}, \code{h0testr::test_voom()} or
+    \code{h0testr::test_prolfqua()} for it, or keep the intercept in
+    \code{config$frm}, which is the usual comparison among levels in any case.
   See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.
 }

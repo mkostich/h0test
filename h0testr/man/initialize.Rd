@@ -24,6 +24,7 @@ initialize(state, config, initialized = F, minimal = F)
   \code{gene_id_col}          \cr \tab Column in \code{state$features} with unique gene/protein group ids. \cr
   \code{frm}                  \cr \tab Formula object specifying formula to be fit. \cr
   \code{test_term}            \cr \tab Term (character) in \code{config$frm} to test for significance. \cr
+  \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
   \code{reference_levels}     \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
   \code{n_distinct_numeric_warn} \cr \tab Warn if continuous variable in \code{config$frm} has this few distinct values. \cr
   \code{is_log_transformed}   \cr \tab Optional logical; whether the input is already on a log-like scale. Default \code{FALSE}, meaning raw, so zeros become \code{NA} and negative values are an error. \cr
@@ -70,7 +71,13 @@ Checks to make sure columns specified in \code{config} parameters are
     and hence the meaning of its coefficients, would otherwise be set by
     locale dependent sorting of its values. The classification is returned in
     \code{config$covariate_types}. Missing, non-finite, and constant
-    covariate values are errors. A continuous covariate with
+    covariate values are errors, as are blank (empty or whitespace only)
+    values of a factor covariate: \code{utils::read.table()}, which
+    \code{h0testr::read_data()} uses, reads an empty field in a character
+    column as an empty string rather than as \code{NA}, so an empty cell in
+    the samples file would otherwise become a factor level of its own,
+    silently adding a group made of the observations whose annotation is
+    missing. A continuous covariate with
     \code{config$n_distinct_numeric_warn} or fewer distinct values is
     warned about, as it may be a miscoded factor.
   \code{config$reference_levels} declares only the reference (first) level of

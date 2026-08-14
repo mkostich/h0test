@@ -146,25 +146,99 @@ combine_replicates <- function(state, config, fn=stats::median) {
   return(list(state=state, config=config))
 }
 
-## helper for combine_features(); uses config$gene_id_col; 
+## The gene level form of a feature metadata table: one row per value of
+##   config$gene_id_col, carrying only what is actually a property of the gene. Used by
+##   both aggregators below and by test() for the two methods that aggregate
+##   internally, so that a gene level result table reports the same metadata whichever
+##   route produced it.
+##   A column whose value differs among the features of a gene describes the feature
+##   and not the gene, so it has no reading on a gene row; carried forward it silently
+##   reports whichever feature happened to sort first, which is what this used to do.
+##   Dropped rather than collapsed into a list or a joined string, since every
+##   downstream step expects one value per gene. Nothing is lost that matters:
+##   config$feat_id_col always varies within a gene and so goes automatically, and the
+##   per-feature statistics add_filter_stats() writes are recomputed by filter().
+##   Returns the table and the per-input-row gene ids, since the caller needs the
+##   latter to group the expression matrix and the two must agree about which features
+##   fell into the unknown_* genes below:
+
+## The gene id of each row of a feature metadata table, with a feature that has no
+##   gene assignment made its own gene rather than all such features being pooled into
+##   one meaningless group. Separate from f.gene_features() because f.gene_counts()
+##   needs these ids and nothing else, and the two must agree about them:
+
+## The name of the column holding the number of features behind each gene. Defaulted
+##   rather than required, since a hand-built config carrying only the keys a function
+##   documents is supported usage throughout the package, and the aggregators would
+##   otherwise fail on one that predates this column:
+
+f.n_feats_col <- function(config) {
+  nom <- config$n_feats_col
+  if(length(nom) != 1 || is.na(nom) || !nzchar(nom)) return("n_feats")
+  return(nom)
+}
+
+f.gene_ids <- function(feats, config, caller="f.gene_ids") {
+
+  if(is.null(config$gene_id_col) || !(config$gene_id_col %in% names(feats))) {
+    f.err(caller, ": !(config$gene_id_col %in% names(feats));",
+      "config$gene_id_col:", config$gene_id_col,
+      "; names(feats):", names(feats), config=config)
+  }
+
+  genes <- as.character(feats[[config$gene_id_col]])
+  i <- is.na(genes) | genes %in% ""
+  if(any(i)) genes[i] <- paste0("unknown_", feats[[config$feat_id_col]][i])
+
+  return(genes)
+}
+
+f.gene_features <- function(feats, config, caller="f.gene_features") {
+
+  genes <- f.gene_ids(feats, config, caller)
+  feats[[config$gene_id_col]] <- genes
+
+  keep <- rep(TRUE, ncol(feats))
+  for(idx in seq_len(ncol(feats))) {
+    if(names(feats)[idx] %in% config$gene_id_col) next
+    v <- as.character(feats[[idx]])
+    v[is.na(v)] <- "\001na\001"          ## so that NA and NA count as agreeing
+    keep[idx] <- all(tapply(v, genes, function(w) length(unique(w)) %in% 1))
+  }
+
+  if(any(!keep)) {
+    f.msg(caller, ": dropping", sum(!keep), "of", ncol(feats), "feature metadata",
+      "columns whose values vary among the features of a gene, and so have no gene",
+      "level value:", names(feats)[!keep], config=config)
+  }
+
+  out <- feats[!duplicated(genes), keep, drop=F]
+
+  ## the number of features aggregated into each gene, which is a property of the gene
+  ##   and is what DEqMS moderates on; see f.gene_counts(). Preserved rather than
+  ##   recomputed when already present, since a table that has been here before is
+  ##   already one row per gene and would recount every gene as 1, discarding the
+  ##   counts of the features that actually went into it:
+
+  nom <- f.n_feats_col(config)
+  if(!(nom %in% names(out))) {
+    n <- table(genes)
+    out[[nom]] <- as.integer(n[out[[config$gene_id_col]]])
+  }
+
+  return(list(features=out, genes=genes))
+}
+
+## helper for combine_features(); uses config$gene_id_col;
 ##   sets config$feat_col and config$feat_id_col to config$gene_id_col:
 
 f.combine_features_median_polish <- function(state, config, maxit=30) {
-  
-  feats <- state$features
-  genes <- feats[[config$gene_id_col]]
-  i <- is.na(genes) | genes %in% ""
-  feats[[config$gene_id_col]][i] <- paste0("unknown_", feats[[config$feat_id_col]][i])
-  genes <- feats[[config$gene_id_col]]
-  feats <- feats[!duplicated(genes), , drop=F]
-  
-  if(!is.null(config$feat_id_col)) {
-    if(config$feat_id_col != config$gene_id_col) {
-      feats[[config$feat_id_col]] <- NULL
-    }
-  }
+
+  out <- f.gene_features(state$features, config, "f.combine_features_median_polish")
+  feats <- out$features
+  genes <- out$genes
   config$feat_col <- config$feat_id_col <- config$gene_id_col
-  
+
   ## medianPolish() decomposes into overall, feature and sample effects, so a
   ##   sample sitting far enough below the overall level comes back at or below
   ##   zero. On the log scale combine_features() requires, that is an ordinary
@@ -193,21 +267,12 @@ f.combine_features_median_polish <- function(state, config, maxit=30) {
 ##   sets config$feat_col and config$feat_id_col to config$gene_id_col:
 
 f.combine_features_robust_summary <- function(state, config) {
-  
-  feats <- state$features
-  genes <- feats[[config$gene_id_col]]
-  i <- is.na(genes) | genes %in% ""
-  feats[[config$gene_id_col]][i] <- paste0("unknown_", feats[[config$feat_id_col]][i])
-  genes <- feats[[config$gene_id_col]]
-  feats <- feats[!duplicated(genes), , drop=F]
-  
-  if(!is.null(config$feat_id_col)) {
-    if(config$feat_id_col != config$gene_id_col) {
-      feats[[config$feat_id_col]] <- NULL
-    }
-  }
+
+  out <- f.gene_features(state$features, config, "f.combine_features_robust_summary")
+  feats <- out$features
+  genes <- out$genes
   config$feat_col <- config$feat_id_col <- config$gene_id_col
-  
+
   f <- function(idxs) {
     x <- state$expression[idxs, , drop=F]
     ## NA is the only indicator of a missing value; see f.zeros_to_na(). Treating
@@ -279,8 +344,26 @@ f.combine_features_robust_summary <- function(state, config) {
 #'     into higher level features, like gene groups or protein groups.
 #'   If \code{config$gene_id_col == config$feat_col}, then no changes
 #'     made to \code{state} or \code{config}.
-#'   Sets \code{config$feat_col} and \code{config$feat_id_col} to 
+#'   Sets \code{config$feat_col} and \code{config$feat_id_col} to
 #'     \code{config$gene_id_col}.
+#'   A feature whose gene id is missing or blank becomes a gene of its own, named
+#'     \code{unknown_} followed by its feature id, rather than all such features
+#'     being pooled into one group.
+#'   The returned \code{state$features} has one row per gene and keeps only those
+#'     columns whose value is the same for every feature of a gene. A column that
+#'     varies within a gene describes the feature rather than the gene, so it has
+#'     no gene level value; carried forward it would report whichever feature
+#'     happened to come first. The dropped columns are named in the log. This
+#'     always removes \code{config$feat_id_col}, and removes the per-feature
+#'     statistics \code{h0testr::add_filter_stats()} writes, which
+#'     \code{h0testr::filter()} recomputes for the aggregated features.
+#'   Adds \code{config$n_feats_col} (default \code{"n_feats"}), the number of
+#'     features aggregated into each gene. This is the covariate
+#'     \code{h0testr::test_deqms()} moderates against, so recording it here lets
+#'     that method run on an already aggregated state. An existing column of that
+#'     name is preserved rather than recomputed, since a table that has been
+#'     aggregated once has one feature per gene and recounting would report
+#'     \code{1} for every gene.
 #'   \code{rescale=TRUE} (or \code{config$feature_aggregation_scaled=TRUE}) is
 #'     refused unless \code{method} is \code{"none"}, where nothing is
 #'     aggregated and the setting is reported as ignored. It divided each feature

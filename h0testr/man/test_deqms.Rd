@@ -21,6 +21,7 @@ test_deqms(state, config, trend = FALSE)
   \code{obs_col}        \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
   \code{frm}            \cr \tab Formula (formula) to be fit. \cr
   \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
+  \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
 }}
 
 \item{trend}{Logical scalar. Whether \code{limma::eBayes()} should use trended dispersion estimate.}
@@ -52,8 +53,31 @@ The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm}
     is a joint test of \code{sexM} and \code{sexM:batchb2}, which this engine
     cannot perform. Use \code{h0testr::test_lm()},
     \code{h0testr::test_trend()} or \code{h0testr::test_voom()} for those tests.
-  If the number of features per gene/protein-group is the same for all
-    features, returns same result as \code{h0testr::test_trend()}.
+  \code{config$contrast} is the other way through that restriction, and the only
+    one that keeps this engine: a contrast is one degree of freedom however many
+    coefficients it weights, and \code{limma::contrasts.fit()} leaves a fit with
+    the single coefficient \code{DEqMS} moderates. So a comparison between two
+    particular levels of a factor with more than two, or between two levels of a
+    factor that also appears in an interaction, runs here, while the
+    corresponding \code{config$test_term} does not. What is given up is the joint
+    hypothesis: a contrast compares the levels it names, holding the other
+    variables of any higher-order term at their reference level, which
+    \code{h0testr::new_config()} describes and which is warned about when it
+    applies.
+  Stops if every gene/protein-group has the same number of features. The whole
+    of what \code{DEqMS} adds to \code{limma} is a variance prior fitted against
+    that count, and \code{DEqMS::spectraCounteBayes()} has no spread to fit its
+    loess against when the count does not vary. Earlier versions fell through to
+    \code{h0testr::test_trend()} on the un-aggregated state, which returned
+    feature level rows under the \code{"deqms"} label together with a \code{fit}
+    that was not a \code{DEqMS} fit. Use \code{config$test_method="trend"}, which
+    is the same \code{limma} fit without the count based prior, or supply feature
+    level data. \code{h0testr::tune()} checks the same condition before testing
+    and records the combination as untested rather than stopping the sweep.
+  The counts come from \code{config$n_feats_col} when \code{state$features}
+    carries it, which \code{h0testr::combine_features()} writes, and are counted
+    from \code{config$gene_id_col} otherwise. So this method runs on an already
+    aggregated state as well as on feature level input.
   Aggregates peptides internally with \code{h0testr::combine_features()},
     which fits an additive model and so requires
     \code{config$is_log_transformed} to be \code{TRUE}; \code{DEqMS} is built
