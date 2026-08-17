@@ -40,8 +40,11 @@ See \code{impute_rnorm_feature()} \code{scale}. parameter.}
 
 \item{impute_ks}{Numeric vector of \code{k} to use for \code{impute_method \%in\% c("knn", "lls")}.}
 
-\item{test_methods}{Character vector with one or more of: 
-\code{c("voom", "trend", "deqms", "msqrob", "proda")}.}
+\item{test_methods}{Character vector with one or more element of
+\code{h0testr::test_methods()}. Defaults to every method except
+\code{"prolfqua_lmer"} and \code{"msqrob_agg"}, each of which fits a mixed model
+per gene and so costs orders of magnitude more time per cell than the rest of the
+sweep put together; name either explicitly to include it.}
 }
 \value{
 A data.frame with the following columns:
@@ -72,9 +75,17 @@ A data.frame with the following columns:
     \code{"prolfqua"} by an F-test comparing the full design against the design
     with the tested columns removed, with the error variance moderated across
     features as the \code{limma}-based methods do.
+    \code{"prolfqua_lmer"} is unbounded in the same way, testing the same
+    coefficients by a Satterthwaite Wald F from one mixed model per gene, and
+    \code{"msqrob_agg"} by a joint Wald F from one \code{msqrob2} mixed model per
+    gene.
     \code{"deqms"} is also skipped when every gene has the same number of
     features, there being no spread for its variance prior to be fitted against;
-    see \code{h0testr::test_deqms()}.
+    see \code{h0testr::test_deqms()}. \code{"prolfqua_lmer"} and
+    \code{"msqrob_agg"} are skipped when
+    \code{config$feat_id_col} and \code{config$gene_id_col} name one column, there
+    being no feature level for them to model; see
+    \code{h0testr::test_prolfqua()} and \code{h0testr::test_msqrob()}.
     Any other failure of the test step is caught the same way, so that one
     combination an engine cannot fit costs that cell and not the rest of the
     sweep; the error is written to \code{config$log_file} in full, immediately

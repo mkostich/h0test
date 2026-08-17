@@ -4,7 +4,7 @@
 \alias{test_msqrob}
 \title{Hypothesis testing using the \code{msqrob2} package}
 \usage{
-test_msqrob(state, config, maxit = 100)
+test_msqrob(state, config, maxit = 100, aggregate = FALSE)
 }
 \arguments{
 \item{state}{List with elements like those returned by \code{read_data()}:
@@ -25,28 +25,46 @@ test_msqrob(state, config, maxit = 100)
   \code{reference_levels} \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
   \code{covariate_types}  \cr \tab Optional; classification of variables in \code{config$frm}, as set by \code{initialize()}. \cr
   \code{factor_levels}    \cr \tab Optional; resolved levels of each factor variable, as set by \code{initialize()}. \cr
+  \code{feat_id_col}      \cr \tab Name of column in \code{state$features} with unique feature ids; must differ from \code{config$gene_id_col} when \code{aggregate=TRUE}. \cr
+  \code{test_random_obs}  \cr \tab Optional logical; whether the \code{aggregate=TRUE} fit includes a random observation effect alongside the random feature effect. Defaults to \code{TRUE} when absent, which is the calibrated model; see Details. Ignored when \code{aggregate=FALSE}. \cr
+  \code{test_ridge}       \cr \tab Optional logical; whether the \code{aggregate=TRUE} fit penalizes the fixed effects. Defaults to \code{FALSE} when absent, which is \code{msqrob2}'s own default; see Details. Ignored when \code{aggregate=FALSE}. \cr
 }}
 
 \item{maxit}{Integer scalar >= 1. How many iterations to use for \code{rlm} fitting.}
+
+\item{aggregate}{Logical scalar. \code{FALSE}, the default, aggregates the features of
+a gene and fits the aggregated values, \code{msqrob2::msqrob()}. \code{TRUE} fits
+one mixed model per gene over the rows of its features instead,
+\code{msqrob2::msqrobAggregate()}, which is what
+\code{config$test_method="msqrob_agg"} selects. \code{TRUE} needs feature level
+input, so \code{config$feat_id_col} and \code{config$gene_id_col} must name
+different columns of \code{state$features}; naming one column as both is refused,
+the fit it describes being the one \code{aggregate=FALSE} performs.}
 }
 \value{
 A list with components:
   \tabular{ll}{
     \code{hits}  \cr \tab \code{data.frame} of results; columns \code{config$gene_id_col},
-      \code{c("nNonZero", ".n")}, and then either
+      \code{c("nNonZero", ".n")}, \code{fit_type} when \code{aggregate=TRUE}, and then
+      either
       \code{c("logFC", "se", "df", "t", "pval", "adjPval")} when one design matrix
       column carries the test, or
       \code{c("f_statistic", "df1", "df2", "pval", "adjPval")} when several do. \cr
     \code{fit}   \cr \tab Model returned by \code{msqrob2::hypothesisTest()}, or by
       \code{msqrob2::msqrob()} for a joint test, which does not go through
-      \code{msqrob2::hypothesisTest()}. \cr
+      \code{msqrob2::hypothesisTest()}. With \code{aggregate=TRUE} it is what
+      \code{msqrob2::msqrobAggregate()} returned, with the same two possibilities on
+      top of it; the fitted models are in
+      \code{rowData(fit[["genes"]])$msqrobModels} either way. \cr
   }
 }
 \description{
-Tests for differential expression using the \code{msqrob2::msqrob()} function.
+Tests for differential expression using the \code{msqrob2::msqrob()} function, or
+  with \code{aggregate=TRUE} the \code{msqrob2::msqrobAggregate()} function, which
+  fits one mixed model per gene over the rows of its features instead.
 }
 \details{
-Returns gene-level hypothesis testing results based on 
+Returns gene-level hypothesis testing results based on
     peptide/precursor-level input.
   Flow is:
     \tabular{l}{
@@ -58,6 +76,79 @@ Returns gene-level hypothesis testing results based on
            \code{config$test_term} resolves to a single design matrix column, and
            otherwise with a joint Wald test over the columns carrying the test. \cr
     }
+  With \code{aggregate=TRUE}, which \code{config$test_method="msqrob_agg"} selects,
+    steps 3 and 4 are replaced by a single call to
+    \code{msqrob2::msqrobAggregate()}. That function is not an alternative to
+    aggregating so much as a different use of it: it aggregates to make the assay
+    that carries the result, one row per gene, but fits \code{msqrob2::msqrobLmer()}
+    on the un-aggregated assay with the features of a gene as one group, so the
+    models are feature level and the results gene level. Nothing reads the aggregated
+    values, which is why \code{base::colMeans()} is passed as the summary rather than
+    \code{msqrob2}'s default \code{MsCoreUtils::robustSummary()}: the latter reports a
+    sample whose every value in a group is exactly \code{0} as \code{NA}, silently,
+    as \code{h0testr::combine_features()} documents, and there is nothing to gain by
+    inviting that into a quantity no test uses.
+  The model \code{aggregate=TRUE} fits is
+    \code{intensity ~ <design columns> + (1|config$feat_id_col) +
+    (1|config$obs_col)}, the second random term dropped when
+    \code{config$test_random_obs} is \code{FALSE}. The random feature effect is what
+    \code{msqrob2} documents: it absorbs the baseline of each feature as one variance
+    component rather than as one coefficient per feature, which is what lets a
+    thinly observed feature contribute without dominating. The random observation
+    effect is added because the covariates come from \code{state$samples} and so vary
+    across observations rather than across a gene's features: without a term for the
+    observation, the features of a gene stand as independent measurements of it and
+    the test is anti-conservative. Simulated under the null with 300 genes, 5 features
+    per gene and 12 observations in two groups of six, with a per-observation effect
+    the size of the residual, the rejection rate at the 5\% level was 0.360 with the
+    feature effect alone and 0.093 with both; with no per-observation effect present,
+    0.063 and 0.053. \code{config$test_random_obs=FALSE} is kept so that the
+    structure \code{msqrob2} documents can be compared, and warns when set.
+  \strong{The residual 0.093 above is \code{msqrob2}'s own calibration, and it is
+    worth knowing about}: \code{msqrob2} refers its moderated t to
+    \code{dfPosterior}, which is \code{limma}'s prior degrees of freedom plus an
+    effective residual df for the whole feature level fit, and that is much larger
+    than the degrees of freedom the tested contrast actually has. In the simulation
+    above the median was 253 where the observations supply 9. The covariance of the
+    fixed effects does account for both random terms, which is what keeps the
+    rejection rate near the level rather than at 0.360, but the reference
+    distribution is too generous and the test is mildly anti-conservative. This is
+    what \code{msqrob2} reports and it is reported unchanged, as
+    \code{config$test_method="prolfqua"} reports \code{prolfqua}'s own statistic;
+    \code{config$test_method="prolfqua_lmer"} fits the same random structure and
+    takes Satterthwaite degrees of freedom for the contrast instead, giving 0.053 on
+    the same simulation, and is the better calibrated of the two feature level mixed
+    model paths.
+  \code{config$test_ridge=TRUE} penalizes the fixed effects,
+    \code{msqrob2::msqrobAggregate(ridge=TRUE)}. It is \code{FALSE} by default, which
+    is \code{msqrob2}'s own default in every one of its entry points, for three
+    reasons: the penalty biases the coefficients toward zero by construction, so
+    \code{logFC} stops being comparable to what the other methods report; it renames
+    every fitted fixed effect \code{ridge<column>}, which this function translates
+    but which any reader of \code{result$fit} will meet; and it refuses a mean model
+    with fewer than two non-intercept columns, so \code{config$frm=~grp} for a two
+    level factor stops working and has to be written \code{~0+grp}.
+  A gene with fewer than two observed features is fitted at the gene level instead,
+    by \code{msqrob2::msqrob()} on the aggregated values. Its random feature effect
+    would be a single unknown confounded with the intercept, so that variance is not
+    identified and \code{lme4} refuses the fit outright, which \code{msqrob2} records
+    as a \code{fitError} and would report as a row of \code{NA}s. Such genes are
+    common, and dropping them would leave a gene table that does not line up with
+    what another \code{config$test_method} produces, so they get the same fixed model
+    without the term that could not be estimated, which is the model
+    \code{config$test_method="msqrob"} fits. The gene level fit is run for every gene
+    and used for these, so that the variance prior \code{msqrob2} shrinks toward is
+    estimated across all of them rather than across the handful that needed it;
+    \code{hits$fit_type} records which route each row took.
+  \code{hits$nNonZero} is the number of observations in which the gene was measured
+    at all, meaning in which at least one of its features has a value. It is computed
+    from \code{state$expression} rather than read from the aggregated
+    \code{rowData()}, for both paths: \code{QFeatures::aggregateFeatures()} keeps only
+    the \code{rowData()} columns that are constant within a group, so a per feature
+    count of observed values survives aggregation only when every feature of a gene
+    was measured the same number of times and is dropped silently otherwise. On the
+    inputs where reading it worked the two agree, a per feature count that is constant
+    within a gene being that gene's count of observations.
   \code{msqrob2::hypothesisTest()} returns one table per contrast rather than a
     joint test over several, so it can answer only a \code{config$test_term} that
     resolves to a single design matrix column. That would rule out testing a factor
@@ -129,4 +220,16 @@ out <- h0testr::initialize(state, config, minimal=TRUE)
 ## actual test:
 result <- h0testr::test_msqrob(out$state, out$config)
 head(result$hits)
+
+## the same genes tested from their peptides instead, one mixed model each, which
+##   test_method="msqrob_agg" selects. A few genes are enough to show the shape:
+keep <- out$state$features$gene \%in\% unique(out$state$features$gene)[1:8]
+small <- list(expression=out$state$expression[keep, , drop=FALSE],
+  features=out$state$features[keep, , drop=FALSE], samples=out$state$samples)
+mixed <- h0testr::test_msqrob(small, out$config, aggregate=TRUE)
+head(mixed$hits[, c("gene", "nNonZero", ".n", "fit_type", "logFC", "df", "pval")])
+
+## fit_type says which genes could not carry a random feature effect and were fitted
+##   at the gene level instead, and the formula used is in the log:
+table(mixed$hits$fit_type)
 }

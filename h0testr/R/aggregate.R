@@ -178,6 +178,35 @@ f.n_feats_col <- function(config) {
   return(nom)
 }
 
+f.combine_method_col <- function(config) {
+  nom <- config$combine_method_col
+  if(length(nom) != 1 || is.na(nom) || !nzchar(nom)) return("combine_method")
+  return(nom)
+}
+
+## helper for the combine_features() aggregators; records which aggregator
+##   summarized each gene in the gene level feature table. An existing column of
+##   that name is preserved rather than overwritten, for the same reason
+##   f.gene_features() preserves the feature counts: a table that has been
+##   aggregated once already carries the record of how its values were combined
+##   from features, and a second pass has one feature per gene and so nothing to
+##   say about it:
+
+f.set_combine_method <- function(feats, route, config, caller) {
+  nom <- f.combine_method_col(config)
+  if(nom %in% names(feats)) {
+    f.msg(caller, ": state$features already has a column named", nom,
+      "; leaving it as it is rather than recording this call in it", config=config)
+    return(feats)
+  }
+  if(length(route) %in% 1 && is.null(names(route))) {   ## one route for every gene
+    feats[[nom]] <- rep(as.character(route), nrow(feats))
+  } else {
+    feats[[nom]] <- as.character(route[as.character(feats[[config$gene_id_col]])])
+  }
+  return(feats)
+}
+
 f.gene_ids <- function(feats, config, caller="f.gene_ids") {
 
   if(is.null(config$gene_id_col) || !(config$gene_id_col %in% names(feats))) {
@@ -229,6 +258,64 @@ f.gene_features <- function(feats, config, caller="f.gene_features") {
   return(list(features=out, genes=genes))
 }
 
+## helper for the combine_features() aggregators; both summarize some or all gene
+##   groups with MsCoreUtils::medianPolish(), which calls stats::medpolish(), which
+##   warns once per group when it runs out of sweeps. Called here so that warning
+##   can be reported by the caller, once per call and in terms of what it means,
+##   rather than escaping one gene at a time.
+##
+##   medpolish() stops when the sum of absolute residuals changes between
+##   successive sweeps by less than eps=0.01 of itself, which is a statement about
+##   the sweeps and not about the fit, and it is routinely unreachable: a residual
+##   sum that decays by a constant fraction each sweep changes by that same
+##   fraction forever, and one that cycles with period 2 never settles either.
+##   Neither is pathological. Measured over the rdtc_seer2 precursors, 3913 protein
+##   groups of two or more: 84 groups do not converge in 30 sweeps, and raising
+##   maxiter to 1000 leaves 82 of those 84 still unconverged while tripling the
+##   time spent aggregating (39 s to 127 s) and changing a summary by more than
+##   0.01 for a single group. Over 4512 random groups the split was exact: where
+##   the residual sum cycled, the returned summary was a fixed point, identical at
+##   30 and at 1000 sweeps for all 87 such groups; where it was still creeping, 60
+##   of 60 moved, one by 8.7 on the log2 scale. So more sweeps is neither the
+##   remedy the warning implies nor free, and silence would hide the creeping
+##   minority that really are cut short. Hence a message rather than either.
+##
+##   Only the non-convergence warning is intercepted; any other warning from the
+##   fit is left to propagate:
+
+f.median_polish <- function(x, maxit) {
+  converged <- TRUE
+  v <- withCallingHandlers(
+    MsCoreUtils::medianPolish(x, na.rm=T, maxiter=maxit),
+    warning=function(w) {
+      if(grepl("did not converge", conditionMessage(w), fixed=T)) {
+        converged <<- FALSE
+        invokeRestart("muffleWarning")
+      }
+    })
+  return(list(x=v, converged=converged))
+}
+
+## helper for the combine_features() aggregators; reports the gene groups whose
+##   median polish ran out of sweeps, in the terms established above. Both
+##   aggregators say the same thing, so both call this:
+
+f.msg_median_polish <- function(noms, n_polished, caller, maxit, config) {
+  if(length(noms) < 1) return(invisible(NULL))
+  f.msg(caller, ":", length(noms), "of", n_polished, "gene group(s) summarized by",
+    "MsCoreUtils::medianPolish() did not meet stats::medpolish()'s convergence",
+    "criterion within", maxit, "sweeps. That criterion compares the sum of absolute",
+    "residuals between successive sweeps, so it describes the sweeps rather than the",
+    "fit, and a residual sum that decays by a constant fraction or cycles never",
+    "meets it however many sweeps are allowed, even where the summary itself has",
+    "stopped moving; raising the sweep limit is usually not the remedy the wording",
+    "of medpolish()'s own warning implies. The summaries are returned as they stand,",
+    "which for most such groups is the fully iterated value to within 1e-8, but a",
+    "minority are genuinely cut short: check these genes if a summary looks wrong.",
+    "First affected gene(s):", utils::head(noms, 5), config=config)
+  return(invisible(NULL))
+}
+
 ## helper for combine_features(); uses config$gene_id_col;
 ##   sets config$feat_col and config$feat_id_col to config$gene_id_col:
 
@@ -250,23 +337,30 @@ f.combine_features_median_polish <- function(state, config, maxit=30) {
   ##   read. On rdtc_seer2 precursors it displaced 23% of protein groups:
 
   f <- function(idxs) {
-    MsCoreUtils::medianPolish(state$expression[idxs, , drop=F],
-      na.rm=T, maxiter=maxit)
+    f.median_polish(state$expression[idxs, , drop=F], maxit)
   }
-  exprs <- tapply(1:nrow(state$expression), genes, f)
-  exprs <- do.call(rbind, exprs)
-  
+  out <- tapply(1:nrow(state$expression), genes, f)
+  nom <- names(out)
+  exprs <- do.call(rbind, lapply(out, function(v) v$x))
+  rownames(exprs) <- nom
+
+  unconv <- !vapply(out, function(v) v$converged, logical(1))
+  f.msg_median_polish(nom[unconv], length(out),
+    "f.combine_features_median_polish", maxit, config)
+
   genes <- feats[[config$gene_id_col]]
   exprs <- exprs[genes, , drop=F]
+  feats <- f.set_combine_method(feats, "medianPolish", config,
+    "f.combine_features_median_polish")
   state <- list(expression=exprs, features=feats, samples=state$samples)
-  
+
   return(list(state=state, config=config))
 }
 
 ## helper for combine_features(); uses config$gene_id_col;
 ##   sets config$feat_col and config$feat_id_col to config$gene_id_col:
 
-f.combine_features_robust_summary <- function(state, config) {
+f.combine_features_robust_summary <- function(state, config, maxit=30) {
 
   out <- f.gene_features(state$features, config, "f.combine_features_robust_summary")
   feats <- out$features
@@ -294,45 +388,83 @@ f.combine_features_robust_summary <- function(state, config) {
     ##   at the end of robustSummary() finds nothing: the summary comes back NA
     ##   for it, silently, and indistinguishably from a sample where the gene was
     ##   never measured. When every column qualifies the design empties out
-    ##   altogether and MASS::rlm() stops with a dimnames error instead. Checked
-    ##   for here because neither outcome is recoverable downstream, and because
-    ##   no upstream filter covers it: the features involved need not be constant,
+    ##   altogether and MASS::rlm() stops with a dimnames error instead. Detected
+    ##   here because neither outcome is recoverable downstream, and because no
+    ##   upstream filter covers it: the features involved need not be constant,
     ##   so prefilter()'s distinct value rule and filter_features(remove_constant)
     ##   both pass them. Only groups of two or more features are affected, since
     ##   robustSummary() returns a single feature as it stands without fitting.
-    ##   Tested against MsCoreUtils 1.12.0:
+    ##
+    ##   Such a group is summarized by MsCoreUtils::medianPolish() instead, which
+    ##   fits the same additive model by medians and so has no design to shed and
+    ##   no rank to lose. The alternatives were refusing the run, which was the
+    ##   previous behaviour and stops a whole analysis over a handful of genes,
+    ##   and writing NA for the affected samples, which cannot be right: the
+    ##   failing unit is a (gene, sample) cell, so removing features can never
+    ##   resolve it, and a value of 0 on the log scale is an ordinary measurement
+    ##   here (see f.zeros_to_na()), not a missing one. The route taken is
+    ##   recorded per gene rather than left to the log, since the two aggregators
+    ##   do not return the same numbers.
+    ##
+    ##   The rule is deliberately conservative: with an odd number of features the
+    ##   offending coefficient sometimes comes back at 1e-16 rather than exactly
+    ##   0, survives the != 0 test and is summarized correctly. Those genes are
+    ##   routed to medianPolish() as well, which costs a small difference in the
+    ##   summary rather than a wrong value. Tested against MsCoreUtils 1.12.0:
 
     if(nrow(x) >= 2) {
       j <- apply(x, 2, function(v) any(!is.na(v)) && all(v[!is.na(v)] %in% 0))
       if(any(j)) {
-        f.err("f.combine_features_robust_summary: gene", genes[idxs][1], "has",
-          sum(j), "sample(s) whose every measured value in the group is exactly",
-          "0, which MsCoreUtils::robustSummary() silently summarizes as NA;",
-          "\n", "affected samples:", colnames(x)[j], "\n",
-          "features in the group:", rownames(x), "\n",
-          "use config$feature_aggregation 'medianPolish', which is unaffected,",
-          "or set those values to NA if they are meant to be missing",
-          config=config)
+        p <- f.median_polish(x, maxit)
+        return(list(x=p$x, route="medianPolish", n_samps=sum(j),
+          converged=p$converged))
       }
     }
 
     ## a sample estimated below the overall level of the group comes back at or
     ##   below zero, which on the log scale combine_features() requires is an
     ##   ordinary small value; see f.combine_features_median_polish() for why the
-    ##   per-group constant that used to lift these is not harmless:
+    ##   per-group constant that used to lift these is not harmless.
+    ##
+    ##   No na.rm here: robustSummary()'s formals are (x, ...), so an na.rm passed
+    ##   in falls through to MASS::rlm(), which has no such argument either and
+    ##   warns "some of ... do not match" on every group summarized. It drops NA
+    ##   itself, by the !is.na(x) mask it builds before fitting, so the values are
+    ##   identical either way; only the warning goes. Checked against MsCoreUtils
+    ##   1.12.0 and MASS 7.3-60:
 
-    return(MsCoreUtils::robustSummary(x, na.rm=T))
+    return(list(x=MsCoreUtils::robustSummary(x),
+      route="robustSummary", n_samps=0, converged=TRUE))
   }
-  exprs <- tapply(1:nrow(state$expression), genes, f)
-  nom <- names(exprs)
-  exprs <- do.call(rbind, exprs)
+  out <- tapply(1:nrow(state$expression), genes, f)
+  nom <- names(out)
+  route <- stats::setNames(vapply(out, function(v) v$route, character(1)), nom)
+  n_samps <- vapply(out, function(v) v$n_samps, numeric(1))
+  exprs <- do.call(rbind, lapply(out, function(v) v$x))
   rownames(exprs) <- nom
-  
+
+  i <- route %in% "medianPolish"
+  if(any(i)) {
+    f.msg("f.combine_features_robust_summary:", sum(i), "of", length(route),
+      "gene group(s) contain a sample whose every measured value in the group is",
+      "exactly 0,", sum(n_samps), "such (gene, sample) cell(s) in all;",
+      "MsCoreUtils::robustSummary() summarizes those samples as NA, silently, so",
+      "these groups were summarized with MsCoreUtils::medianPolish() instead;",
+      "recorded per gene in", paste0("state$features$", f.combine_method_col(config)),
+      "; first affected gene(s):", utils::head(nom[i], 5), config=config)
+  }
+
+  unconv <- !vapply(out, function(v) v$converged, logical(1))
+  f.msg_median_polish(nom[unconv], sum(i),
+    "f.combine_features_robust_summary", maxit, config)
+
   genes <- feats[[config$gene_id_col]]
   exprs <- exprs[genes, , drop=F]
-  
+  feats <- f.set_combine_method(feats, route, config,
+    "f.combine_features_robust_summary")
+
   state <- list(expression=exprs, features=feats, samples=state$samples)
-  
+
   return(list(state=state, config=config))
 }
 
@@ -364,9 +496,10 @@ f.combine_features_robust_summary <- function(state, config) {
 #'     name is preserved rather than recomputed, since a table that has been
 #'     aggregated once has one feature per gene and recounting would report
 #'     \code{1} for every gene.
-#'   \code{rescale=TRUE} (or \code{config$feature_aggregation_scaled=TRUE}) is
-#'     refused unless \code{method} is \code{"none"}, where nothing is
-#'     aggregated and the setting is reported as ignored. It divided each feature
+#'   \code{rescale=TRUE} is refused unless \code{method} is \code{"none"}, where
+#'     nothing is aggregated and the setting is reported as ignored. The config
+#'     key that used to set it, \code{config$feature_aggregation_scaled}, has been
+#'     removed, having only ever been refused. It divided each feature
 #'     by its own mean, which is a raw scale operation, and aggregation requires
 #'     log scale data (see below), where a per-feature mean near zero explodes
 #'     the feature and a negative one flips the sign of its contrasts. The log
@@ -374,15 +507,37 @@ f.combine_features_robust_summary <- function(state, config) {
 #'     exactly by \code{medianPolish()}'s own per-feature effect and so changes
 #'     no per-sample effect, which is why the option is removed rather than
 #'     corrected.
-#'   \code{method="robustSummary"} stops if a gene group of two or more features
-#'     contains a sample whose every measured value in that group is exactly
-#'     \code{0}. \code{MsCoreUtils::robustSummary()} drops such a sample from its
-#'     design and reports it as \code{NA}, which cannot afterwards be told apart
-#'     from a sample where the gene was never measured, so it is refused rather
-#'     than summarized. This cannot arise from raw input, where
+#'   Adds \code{config$combine_method_col} (default \code{"combine_method"}),
+#'     naming the aggregator that summarized each gene. For
+#'     \code{method="medianPolish"} that is \code{"medianPolish"} throughout; for
+#'     \code{method="robustSummary"} it is \code{"robustSummary"} except for the
+#'     gene groups described next. Nothing is added by \code{method="none"},
+#'     which aggregates nothing. An existing column of that name is preserved
+#'     rather than overwritten, for the same reason the feature counts are.
+#'   \code{method="robustSummary"} summarizes a gene group with
+#'     \code{MsCoreUtils::medianPolish()} instead if the group holds two or more
+#'     features and contains a sample whose every measured value in the group is
+#'     exactly \code{0}. \code{MsCoreUtils::robustSummary()} sheds such a sample
+#'     from its design, since its coefficient comes back exactly \code{0} as
+#'     though the design were rank deficient, and reports the sample as
+#'     \code{NA}, which cannot afterwards be told apart from a sample where the
+#'     gene was never measured; when every sample qualifies, the design empties
+#'     and \code{MASS::rlm()} stops instead. \code{medianPolish()} fits the same
+#'     additive model by medians, so it has no design to shed, and the affected
+#'     genes are summarized rather than lost. Earlier versions refused the whole
+#'     run here. Writing \code{NA} for those samples was the other option and is
+#'     wrong: the failing unit is a (gene, sample) cell, so no choice of features
+#'     to keep can resolve it, and \code{0} on the log scale this function
+#'     requires is an ordinary measurement, not a missing one. The count of
+#'     affected genes and cells is logged and the route recorded per gene, since
+#'     the two aggregators do not return the same numbers. The rule is
+#'     deliberately conservative: the offending coefficient sometimes comes back
+#'     at \code{1e-16} rather than exactly \code{0} and is then summarized
+#'     correctly, and such a group is routed to \code{medianPolish()} anyway.
+#'     None of this can arise from raw input, where
 #'     \code{h0testr::initialize()} converts zeros to \code{NA}; it is reachable
 #'     only for input that was already transformed and holds genuine zeros.
-#'     \code{method="medianPolish"} is unaffected.
+#'     \code{method="medianPolish"} is unaffected throughout.
 #'   For \code{method="medianPolish"}, for each unique gene in 
 #'     \code{state$features[, config$gene_id_col]}, the submatrix of 
 #'       corresponding peptide signals across all samples is decomposed into: 
@@ -394,6 +549,19 @@ f.combine_features_robust_summary <- function(state, config) {
 #'       coefficient untouched but moved the feature's average expression, and so
 #'       the trended prior of \code{limma::eBayes(trend=TRUE)} and the
 #'       \code{p(missing|intensity)} models of several imputers.
+#'   \code{stats::medpolish()}, which \code{MsCoreUtils::medianPolish()} calls,
+#'     warns when it runs out of sweeps. That warning is intercepted and reported
+#'     through the log instead, once per call, naming the affected genes. Its own
+#'     wording implies that more sweeps would help, and usually they would not:
+#'     the convergence criterion compares the sum of absolute residuals between
+#'     successive sweeps, so a residual sum that decays by a constant fraction, or
+#'     cycles with period 2, never satisfies it however long it runs, even once the
+#'     summary itself has stopped moving. On 3913 rdtc_seer2 protein groups, 84 did
+#'     not converge in the 30 sweeps used here, and allowing 1000 left 82 of them
+#'     unconverged while tripling the time spent aggregating and changing one
+#'     group's summary by more than \code{0.01}. A minority are genuinely cut
+#'     short, which is why this is reported rather than suppressed. Any other
+#'     warning from the fit propagates as usual.
 #'   Both aggregation methods fit an additive model of an overall level plus
 #'     per-feature and per-sample effects, which holds for mass spectrometry
 #'     signal only after a log transform, since sample loading and precursor
@@ -417,6 +585,8 @@ f.combine_features_robust_summary <- function(state, config) {
 #'     \code{obs_col}         \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
 #'     \code{feat_col}        \cr \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}. \cr
 #'     \code{gene_id_col}     \cr \tab Name of column in \code{state$features} specifying high-level feature for aggregation. \cr
+#'     \code{n_feats_col}     \cr \tab Name of new column in \code{state$features} for the number of features aggregated into each gene; preserved if already present. \cr
+#'     \code{combine_method_col} \cr \tab Name of new column in \code{state$features} for the aggregator that summarized each gene; preserved if already present. \cr
 #'     \code{is_log_transformed} \cr \tab Logical scalar; must be \code{TRUE} unless \code{method} is \code{"none"}, since both aggregators fit an additive model. \cr
 #'     \code{save_state}      \cr \tab Logical scalar indicating whether to save new state to disk. \cr
 #'     \code{dir_out}         \cr \tab Output directory path (scalar character); only needed if \code{save_state == TRUE}. \cr
@@ -432,9 +602,9 @@ f.combine_features_robust_summary <- function(state, config) {
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression; one row per gene unless \code{method} is \code{"none"}, and carrying \code{config$n_feats_col} and \code{config$combine_method_col}. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
-#'   } 
+#'   }
 #' @examples
 #' ## set up data for examples:
 #' set.seed(101)
@@ -458,10 +628,21 @@ f.combine_features_robust_summary <- function(state, config) {
 #' print(out$state)
 #' str(out$config)
 #' 
-#' ## combine peps, overriding config$feature_aggregation:
+#' ## combine peps, overriding config$feature_aggregation; state$features records
+#' ##   which aggregator summarized each gene:
 #' out <- h0testr::combine_features(state, config, method="robustSummary")
 #' print(out$state)
 #' str(out$config)
+#'
+#' ## a gene group holding a sample whose every measured value is exactly 0 is
+#' ##   summarized with medianPolish() instead, robustSummary() reporting such a
+#' ##   sample as NA; the route is recorded per gene:
+#' state2 <- state
+#' gene1 <- state2$features$gene[1]
+#' state2$expression[state2$features$gene %in% gene1, 1] <- 0
+#' out <- h0testr::combine_features(state2, config, method="robustSummary")
+#' print(out$state$features)
+#' print(out$state$expression[, 1])
 #'
 #' ## rescaling before aggregation is refused, since it divides by a per-feature
 #' ##   mean, which has no meaning on the log scale aggregation requires:
@@ -485,7 +666,10 @@ combine_features <- function(state, config, method=NULL, rescale=FALSE) {
   
   if(is.null(method) || method %in% "") method <- config$feature_aggregation
   if(is.null(method) || method %in% "") method <- "medianPolish"
-  if(is.null(rescale)) rescale <- config$feature_aggregation_scaled
+  ## no config key sets this any more: config$feature_aggregation_scaled was removed,
+  ##   having only ever been refused, so rescaling is reachable only by asking for it
+  ##   here, and only to be told why it is gone:
+
   if(is.null(rescale)) rescale <- FALSE
   
   if(config$gene_id_col %in% config$feat_col) {
@@ -555,10 +739,9 @@ combine_features <- function(state, config, method=NULL, rescale=FALSE) {
         "  done correctly on the log scale it would subtract the per-feature",
         "mean, which medianPolish() already absorbs into its own per-feature",
         "effect, so removing it changes no per-sample effect;", "\n",
-        "  to fix, set rescale=FALSE and config$feature_aggregation_scaled to",
-        "FALSE;", "\n",
-        "  config$feature_aggregation_scaled:",
-        config$feature_aggregation_scaled, config=config)
+        "  to fix, drop the argument or set rescale=FALSE; the config key that used",
+        "to set it, config$feature_aggregation_scaled, has been removed",
+        config=config)
     }
   }
 

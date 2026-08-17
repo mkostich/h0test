@@ -225,7 +225,6 @@ normalization_span=0.7              ## span for normalization_method %in% "loess
 n_samples_min=2                     ## min(samples/feature w/ feature expression > 0) to keep feature
 n_features_min=1000                 ## min(features/sample w/ expression > 0) to keep sample
 feature_aggregation="medianPolish"  ## in c("medianPolish", "robustSummary", "none")
-feature_aggregation_scaled=FALSE    ## whether to rescale peptide features prior to aggregation into protein/gene group.
 impute_method="sample_lod"          ## imputation method; h0testr::impute_methods() to see available choices.
 impute_quantile=0.01                ## quantile for unif_* imputation methods
 impute_scale=1                      ## for rnorm_feature, adjustment on sd of distribution [1: no change];

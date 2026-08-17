@@ -116,6 +116,7 @@ new_config <- function() {
     median_raw_col="median_raw",         ## new col (scalar character) for feature metadata; median feature expression in expressing samples
     n_features_expr_col="n_feats_expr",  ## new col (scalar character) for sample metadata; n features expressed
     n_feats_col="n_feats",               ## new col (scalar character) for gene-level feature metadata; n features aggregated into each gene; preserved if already present
+    combine_method_col="combine_method", ## new col (scalar character) for gene-level feature metadata; which aggregator summarized each gene; preserved if already present
     df_test_col="df_test",               ## new col (scalar character) for feature metadata; estimable df for config$test_term
     df_resid_col="df_resid",             ## new col (scalar character) for feature metadata; residual df of model fitted to feature
 
@@ -139,7 +140,6 @@ new_config <- function() {
     estimability="test",                 ## estimability required of config$test_term; in c("test", "term", "full")
     df_resid_min=2,                      ## min residual degrees of freedom per feature to keep feature
     feature_aggregation="medianPolish",  ## in c("medianPolish", "robustSummary", "none")
-    feature_aggregation_scaled=FALSE,    ## whether to rescale peptide features prior to aggregation; must be FALSE unless config$feature_aggregation is "none", see combine_features()
     impute_method="sample_lod",          ## method for imputing missing values; h0testr::impute_methods() returns options.
     impute_quantile=0.01,                ## quantile for unif_ imputation methods
     impute_floor_offset=-1,              ## offset (non-positive; log2 units) from the global observed minimum giving the lower bound of the unif_ imputation interval, when config$is_log_transformed is TRUE
@@ -154,6 +154,8 @@ new_config <- function() {
     test_prior_df=3,                     ## prior df for test_proda()
     test_moderate=TRUE,                  ## whether to shrink the per-feature error variance across features before testing; used by test_prolfqua(), which is the only method here that can be told not to; the limma-based methods always moderate and proda always shrinks
     test_trend=FALSE,                    ## whether the prior variance of that shrinkage is fitted against mean feature intensity instead of being flat; used by test_prolfqua(), where it makes the prior the one test_method="trend" uses; unrelated to test_method
+    test_random_obs=TRUE,                ## whether the feature level mixed model paths, test_method %in% c("prolfqua_lmer", "msqrob_agg"), add a random observation effect to the random feature effect; TRUE is the calibrated model; FALSE gives the feature-only structure both packages document, which is anti-conservative; see test_prolfqua() and test_msqrob()
+    test_ridge=FALSE,                    ## whether test_method="msqrob_agg" penalizes the fixed effects, msqrob2::msqrobAggregate(ridge=TRUE); FALSE is msqrob2's own default throughout; TRUE shrinks the coefficients toward zero, so the reported logFC is not comparable to what the other methods report, renames the fitted parameters, and refuses a mean model with fewer than two non-intercept columns; see test_msqrob()
 
     ## run_order character vector with elements from {"normalize", "combine_replicates", "combine_features", "filter", "impute"}:
     run_order=c("normalize", "combine_replicates", "combine_features", "filter", "impute"),   ## order of workflow operations
@@ -200,8 +202,8 @@ check_config <- function(config) {
     "dir_in", "dir_out", "test_term", "contrast", "permute_var",
     "feat_id_col", "gene_id_col", "feat_col",
     "obs_id_col", "sample_id_col", "obs_col", "n_samples_expr_col",
-    "median_raw_col", "n_features_expr_col", "n_feats_col", "df_test_col",
-    "df_resid_col",
+    "median_raw_col", "n_features_expr_col", "n_feats_col", "combine_method_col",
+    "df_test_col", "df_resid_col",
     "log_file", "feature_mid_out",
     "sample_mid_out", "data_mid_out", "result_mid_out", "suffix_out",
     "normalization_method", "feature_aggregation", "impute_method", "test_method",
@@ -216,8 +218,9 @@ check_config <- function(config) {
   scalar_positive <- c("impute_scale")
   scalar_nonpositive <- c("impute_floor_offset")
   ## log_from_raw is set by normalize(), not by the user; see f.check_state():
-  scalar_logical <- c("feature_aggregation_scaled", "save_state", "verbose",
-    "is_log_transformed", "log_from_raw", "test_moderate", "test_trend")
+  scalar_logical <- c("save_state", "verbose",
+    "is_log_transformed", "log_from_raw", "test_moderate", "test_trend",
+    "test_random_obs", "test_ridge")
   scalar_formula <- c("frm")
   ## covariate_types is set by initialize(), not by the user; see
   ##   f.covariate_types():

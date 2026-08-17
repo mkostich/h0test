@@ -19,6 +19,8 @@ combine_features(state, config, method = NULL, rescale = FALSE)
   \code{obs_col}         \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
   \code{feat_col}        \cr \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}. \cr
   \code{gene_id_col}     \cr \tab Name of column in \code{state$features} specifying high-level feature for aggregation. \cr
+  \code{n_feats_col}     \cr \tab Name of new column in \code{state$features} for the number of features aggregated into each gene; preserved if already present. \cr
+  \code{combine_method_col} \cr \tab Name of new column in \code{state$features} for the aggregator that summarized each gene; preserved if already present. \cr
   \code{is_log_transformed} \cr \tab Logical scalar; must be \code{TRUE} unless \code{method} is \code{"none"}, since both aggregators fit an additive model. \cr
   \code{save_state}      \cr \tab Logical scalar indicating whether to save new state to disk. \cr
   \code{dir_out}         \cr \tab Output directory path (scalar character); only needed if \code{save_state == TRUE}. \cr
@@ -38,7 +40,7 @@ where \code{method \%in\% c("medianPolish", "robustSummary", "none")}. Default: 
 A list (the processed state) with the following elements:
   \tabular{ll}{
     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-    \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
+    \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression; one row per gene unless \code{method} is \code{"none"}, and carrying \code{config$n_feats_col} and \code{config$combine_method_col}. \cr
     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
   }
 }
@@ -70,9 +72,10 @@ Combines signals from lower-level features, like peptides,
     name is preserved rather than recomputed, since a table that has been
     aggregated once has one feature per gene and recounting would report
     \code{1} for every gene.
-  \code{rescale=TRUE} (or \code{config$feature_aggregation_scaled=TRUE}) is
-    refused unless \code{method} is \code{"none"}, where nothing is
-    aggregated and the setting is reported as ignored. It divided each feature
+  \code{rescale=TRUE} is refused unless \code{method} is \code{"none"}, where
+    nothing is aggregated and the setting is reported as ignored. The config
+    key that used to set it, \code{config$feature_aggregation_scaled}, has been
+    removed, having only ever been refused. It divided each feature
     by its own mean, which is a raw scale operation, and aggregation requires
     log scale data (see below), where a per-feature mean near zero explodes
     the feature and a negative one flips the sign of its contrasts. The log
@@ -80,15 +83,37 @@ Combines signals from lower-level features, like peptides,
     exactly by \code{medianPolish()}'s own per-feature effect and so changes
     no per-sample effect, which is why the option is removed rather than
     corrected.
-  \code{method="robustSummary"} stops if a gene group of two or more features
-    contains a sample whose every measured value in that group is exactly
-    \code{0}. \code{MsCoreUtils::robustSummary()} drops such a sample from its
-    design and reports it as \code{NA}, which cannot afterwards be told apart
-    from a sample where the gene was never measured, so it is refused rather
-    than summarized. This cannot arise from raw input, where
+  Adds \code{config$combine_method_col} (default \code{"combine_method"}),
+    naming the aggregator that summarized each gene. For
+    \code{method="medianPolish"} that is \code{"medianPolish"} throughout; for
+    \code{method="robustSummary"} it is \code{"robustSummary"} except for the
+    gene groups described next. Nothing is added by \code{method="none"},
+    which aggregates nothing. An existing column of that name is preserved
+    rather than overwritten, for the same reason the feature counts are.
+  \code{method="robustSummary"} summarizes a gene group with
+    \code{MsCoreUtils::medianPolish()} instead if the group holds two or more
+    features and contains a sample whose every measured value in the group is
+    exactly \code{0}. \code{MsCoreUtils::robustSummary()} sheds such a sample
+    from its design, since its coefficient comes back exactly \code{0} as
+    though the design were rank deficient, and reports the sample as
+    \code{NA}, which cannot afterwards be told apart from a sample where the
+    gene was never measured; when every sample qualifies, the design empties
+    and \code{MASS::rlm()} stops instead. \code{medianPolish()} fits the same
+    additive model by medians, so it has no design to shed, and the affected
+    genes are summarized rather than lost. Earlier versions refused the whole
+    run here. Writing \code{NA} for those samples was the other option and is
+    wrong: the failing unit is a (gene, sample) cell, so no choice of features
+    to keep can resolve it, and \code{0} on the log scale this function
+    requires is an ordinary measurement, not a missing one. The count of
+    affected genes and cells is logged and the route recorded per gene, since
+    the two aggregators do not return the same numbers. The rule is
+    deliberately conservative: the offending coefficient sometimes comes back
+    at \code{1e-16} rather than exactly \code{0} and is then summarized
+    correctly, and such a group is routed to \code{medianPolish()} anyway.
+    None of this can arise from raw input, where
     \code{h0testr::initialize()} converts zeros to \code{NA}; it is reachable
     only for input that was already transformed and holds genuine zeros.
-    \code{method="medianPolish"} is unaffected.
+    \code{method="medianPolish"} is unaffected throughout.
   For \code{method="medianPolish"}, for each unique gene in 
     \code{state$features[, config$gene_id_col]}, the submatrix of 
       corresponding peptide signals across all samples is decomposed into: 
@@ -100,6 +125,19 @@ Combines signals from lower-level features, like peptides,
       coefficient untouched but moved the feature's average expression, and so
       the trended prior of \code{limma::eBayes(trend=TRUE)} and the
       \code{p(missing|intensity)} models of several imputers.
+  \code{stats::medpolish()}, which \code{MsCoreUtils::medianPolish()} calls,
+    warns when it runs out of sweeps. That warning is intercepted and reported
+    through the log instead, once per call, naming the affected genes. Its own
+    wording implies that more sweeps would help, and usually they would not:
+    the convergence criterion compares the sum of absolute residuals between
+    successive sweeps, so a residual sum that decays by a constant fraction, or
+    cycles with period 2, never satisfies it however long it runs, even once the
+    summary itself has stopped moving. On 3913 rdtc_seer2 protein groups, 84 did
+    not converge in the 30 sweeps used here, and allowing 1000 left 82 of them
+    unconverged while tripling the time spent aggregating and changing one
+    group's summary by more than \code{0.01}. A minority are genuinely cut
+    short, which is why this is reported rather than suppressed. Any other
+    warning from the fit propagates as usual.
   Both aggregation methods fit an additive model of an overall level plus
     per-feature and per-sample effects, which holds for mass spectrometry
     signal only after a log transform, since sample loading and precursor
@@ -136,10 +174,21 @@ out <- h0testr::combine_features(state, config)
 print(out$state)
 str(out$config)
 
-## combine peps, overriding config$feature_aggregation:
+## combine peps, overriding config$feature_aggregation; state$features records
+##   which aggregator summarized each gene:
 out <- h0testr::combine_features(state, config, method="robustSummary")
 print(out$state)
 str(out$config)
+
+## a gene group holding a sample whose every measured value is exactly 0 is
+##   summarized with medianPolish() instead, robustSummary() reporting such a
+##   sample as NA; the route is recorded per gene:
+state2 <- state
+gene1 <- state2$features$gene[1]
+state2$expression[state2$features$gene \%in\% gene1, 1] <- 0
+out <- h0testr::combine_features(state2, config, method="robustSummary")
+print(out$state$features)
+print(out$state$expression[, 1])
 
 ## rescaling before aggregation is refused, since it divides by a per-feature
 ##   mean, which has no meaning on the log scale aggregation requires:

@@ -23,15 +23,15 @@ test(state, config, method = NULL, is_log_transformed = NULL, prior_df = NULL)
   \code{test_term}      \cr \tab Term (character scalar) to be tested for non-zero coefficient. \cr
   \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
   \code{reference_levels} \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm} (see examples). \cr
-  \code{test_method}    \cr \tab Character scalar in \code{c("lm", "trend", "deqms", "msqrob", "proda", "prolfqua", "voom")}. \cr
+  \code{test_method}    \cr \tab Character scalar in \code{h0testr::test_methods()}. \cr
 }}
 
-\item{method}{Name of test method where 
+\item{method}{Name of test method where
 \code{method \%in\% h0testr::test_methods()}.}
 
 \item{is_log_transformed}{Logical scalar: whether \code{state$expression} has
 been log transformed. Only consulted for \code{method \%in\% c("proda",
-"prolfqua")}. Defaults to \code{config$is_log_transformed}, which
+"prolfqua", "prolfqua_lmer")}. Defaults to \code{config$is_log_transformed}, which
 \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
 passing both is an error unless they agree.}
 
@@ -85,27 +85,28 @@ A list with the following elements: \cr
       report. See \code{h0testr::new_config()} for how to write one.
   }
   \code{feature} holds the value of \code{config$feat_col} identifying the row
-    of \code{state$expression} the result describes, except for \code{method
-    \%in\% c("deqms", "msqrob")}, which aggregate internally and report one row
-    per value of \code{config$gene_id_col} whatever level the input is at. So a
-    method other than those two reports precursors when handed precursors and
+    of \code{state$expression} the result describes, except for the gene level
+    methods, \code{method \%in\% c("deqms", "msqrob", "msqrob_agg",
+    "prolfqua_lmer")}, which report one row per value of
+    \code{config$gene_id_col} whatever level the input is at. So a
+    method other than those reports precursors when handed precursors and
     genes when handed the output of \code{h0testr::combine_features()}, which
     sets \code{config$feat_col} to \code{config$gene_id_col}. The feature
-    metadata reported in \code{original} is at the matching level: for the two
-    gene level methods it is the gene level form of \code{state$features},
+    metadata reported in \code{original} is at the matching level: for the gene
+    level methods it is the gene level form of \code{state$features},
     built exactly as \code{h0testr::combine_features()} builds it.
   \code{expr} is the mean of the values handed to the test, over the
-    observations where the feature was seen; for \code{method \%in\% c("deqms",
-    "msqrob")}, which take feature level input and report gene level results, it
+    observations where the feature was seen; for the gene level methods, which
+    take feature level input and report gene level results, it
     is also over the features of each gene.
   \code{stat} is the statistic the engine itself reports, with one exception: a
-    joint test with \code{method="msqrob"} reports an F computed by \code{h0testr}
-    from the fitted \code{msqrob2} models, since
+    joint test with \code{method \%in\% c("msqrob", "msqrob_agg")} reports an F
+    computed by \code{h0testr} from the fitted \code{msqrob2} models, since
     \code{msqrob2::hypothesisTest()} answers one contrast at a time. See
     \code{h0testr::test_msqrob()} for what that statistic is. A
     \code{config$contrast} run has no such exception: every engine reports its
-    own statistic for a contrast, including \code{method="msqrob"}, which
-    answers it with \code{msqrob2::hypothesisTest()}, and
+    own statistic for a contrast, including those two, which
+    answer it with \code{msqrob2::hypothesisTest()}, and
     \code{method="deqms"}, which cannot run the corresponding
     \code{config$test_term} at all.
 }
@@ -117,12 +118,32 @@ Tests for differential expression using method specified in config.
   See invididual \code{test_*} methods for more details. 
   The \code{method} setting meanings are: 
   \tabular{ll}{
+    \code{lm}     \cr \tab Use \code{stats::lm()} on each feature. \cr
     \code{trend}  \cr \tab Use \code{limma::eBayes(trend=TRUE)}. \cr
     \code{deqms}  \cr \tab Use \code{DEqMS::spectraCounteBayes()}. \cr
     \code{msqrob} \cr \tab Use \code{msqrob2::msqrob()}. \cr
+    \code{msqrob_agg} \cr \tab Use \code{msqrob2::msqrobAggregate()}: one mixed model per gene over the rows of its features, with the feature and the observation as random effects. \cr
     \code{proda}  \cr \tab Use \code{proDA::proDA()}. \cr
+    \code{prolfqua} \cr \tab Use \code{prolfqua::strategy_lm()} on each feature. \cr
+    \code{prolfqua_lmer} \cr \tab Use \code{prolfqua::strategy_lmer()}: one mixed model per gene over the rows of its features, with the feature and the observation as random effects. \cr
     \code{voom}   \cr \tab Use \code{limma::voom()}. \cr
-  } 
+  }
+  Most methods are row-wise on \code{state$expression} and return one row per row of
+    it, so their granularity follows the input. \code{"deqms"}, \code{"msqrob"},
+    \code{"msqrob_agg"} and \code{"prolfqua_lmer"} return one row per gene whatever
+    the input is: the first two aggregate internally, and the last two model the
+    features of a gene instead of aggregating them, \code{"msqrob_agg"} aggregating
+    only to carry the result. \code{h0testr::tune()} therefore does not call
+    \code{combine_features()} before those four, and \code{h0testr::run()} should be
+    given a \code{config$run_order} without it; \code{"prolfqua_lmer"} and
+    \code{"msqrob_agg"} need feature level input and refuse a state whose features
+    are already aggregated.
+  The two feature level mixed model paths fit the same random structure by different
+    engines. \code{"prolfqua_lmer"} takes Satterthwaite degrees of freedom for the
+    tested contrast and is the better calibrated of the two; \code{"msqrob_agg"}
+    reports \code{msqrob2}'s moderated t against \code{dfPosterior}, which is
+    generous, and is mildly anti-conservative as a result. See
+    \code{h0testr::test_msqrob()} for the simulated rejection rates.
   See documentation for \code{h0testr::new_config()} 
     for more detailed description of configuration parameters.
 }

@@ -580,9 +580,11 @@ test_deqms <- function(state, config, trend=FALSE) {
 
 #' Hypothesis testing using the \code{msqrob2} package
 #' @description
-#'   Tests for differential expression using the \code{msqrob2::msqrob()} function.
+#'   Tests for differential expression using the \code{msqrob2::msqrob()} function, or
+#'   with \code{aggregate=TRUE} the \code{msqrob2::msqrobAggregate()} function, which
+#'   fits one mixed model per gene over the rows of its features instead.
 #' @details
-#'   Returns gene-level hypothesis testing results based on 
+#'   Returns gene-level hypothesis testing results based on
 #'     peptide/precursor-level input.
 #'   Flow is:
 #'     \tabular{l}{
@@ -594,6 +596,79 @@ test_deqms <- function(state, config, trend=FALSE) {
 #'            \code{config$test_term} resolves to a single design matrix column, and
 #'            otherwise with a joint Wald test over the columns carrying the test. \cr
 #'     }
+#'   With \code{aggregate=TRUE}, which \code{config$test_method="msqrob_agg"} selects,
+#'     steps 3 and 4 are replaced by a single call to
+#'     \code{msqrob2::msqrobAggregate()}. That function is not an alternative to
+#'     aggregating so much as a different use of it: it aggregates to make the assay
+#'     that carries the result, one row per gene, but fits \code{msqrob2::msqrobLmer()}
+#'     on the un-aggregated assay with the features of a gene as one group, so the
+#'     models are feature level and the results gene level. Nothing reads the aggregated
+#'     values, which is why \code{base::colMeans()} is passed as the summary rather than
+#'     \code{msqrob2}'s default \code{MsCoreUtils::robustSummary()}: the latter reports a
+#'     sample whose every value in a group is exactly \code{0} as \code{NA}, silently,
+#'     as \code{h0testr::combine_features()} documents, and there is nothing to gain by
+#'     inviting that into a quantity no test uses.
+#'   The model \code{aggregate=TRUE} fits is
+#'     \code{intensity ~ <design columns> + (1|config$feat_id_col) +
+#'     (1|config$obs_col)}, the second random term dropped when
+#'     \code{config$test_random_obs} is \code{FALSE}. The random feature effect is what
+#'     \code{msqrob2} documents: it absorbs the baseline of each feature as one variance
+#'     component rather than as one coefficient per feature, which is what lets a
+#'     thinly observed feature contribute without dominating. The random observation
+#'     effect is added because the covariates come from \code{state$samples} and so vary
+#'     across observations rather than across a gene's features: without a term for the
+#'     observation, the features of a gene stand as independent measurements of it and
+#'     the test is anti-conservative. Simulated under the null with 300 genes, 5 features
+#'     per gene and 12 observations in two groups of six, with a per-observation effect
+#'     the size of the residual, the rejection rate at the 5\% level was 0.360 with the
+#'     feature effect alone and 0.093 with both; with no per-observation effect present,
+#'     0.063 and 0.053. \code{config$test_random_obs=FALSE} is kept so that the
+#'     structure \code{msqrob2} documents can be compared, and warns when set.
+#'   \strong{The residual 0.093 above is \code{msqrob2}'s own calibration, and it is
+#'     worth knowing about}: \code{msqrob2} refers its moderated t to
+#'     \code{dfPosterior}, which is \code{limma}'s prior degrees of freedom plus an
+#'     effective residual df for the whole feature level fit, and that is much larger
+#'     than the degrees of freedom the tested contrast actually has. In the simulation
+#'     above the median was 253 where the observations supply 9. The covariance of the
+#'     fixed effects does account for both random terms, which is what keeps the
+#'     rejection rate near the level rather than at 0.360, but the reference
+#'     distribution is too generous and the test is mildly anti-conservative. This is
+#'     what \code{msqrob2} reports and it is reported unchanged, as
+#'     \code{config$test_method="prolfqua"} reports \code{prolfqua}'s own statistic;
+#'     \code{config$test_method="prolfqua_lmer"} fits the same random structure and
+#'     takes Satterthwaite degrees of freedom for the contrast instead, giving 0.053 on
+#'     the same simulation, and is the better calibrated of the two feature level mixed
+#'     model paths.
+#'   \code{config$test_ridge=TRUE} penalizes the fixed effects,
+#'     \code{msqrob2::msqrobAggregate(ridge=TRUE)}. It is \code{FALSE} by default, which
+#'     is \code{msqrob2}'s own default in every one of its entry points, for three
+#'     reasons: the penalty biases the coefficients toward zero by construction, so
+#'     \code{logFC} stops being comparable to what the other methods report; it renames
+#'     every fitted fixed effect \code{ridge<column>}, which this function translates
+#'     but which any reader of \code{result$fit} will meet; and it refuses a mean model
+#'     with fewer than two non-intercept columns, so \code{config$frm=~grp} for a two
+#'     level factor stops working and has to be written \code{~0+grp}.
+#'   A gene with fewer than two observed features is fitted at the gene level instead,
+#'     by \code{msqrob2::msqrob()} on the aggregated values. Its random feature effect
+#'     would be a single unknown confounded with the intercept, so that variance is not
+#'     identified and \code{lme4} refuses the fit outright, which \code{msqrob2} records
+#'     as a \code{fitError} and would report as a row of \code{NA}s. Such genes are
+#'     common, and dropping them would leave a gene table that does not line up with
+#'     what another \code{config$test_method} produces, so they get the same fixed model
+#'     without the term that could not be estimated, which is the model
+#'     \code{config$test_method="msqrob"} fits. The gene level fit is run for every gene
+#'     and used for these, so that the variance prior \code{msqrob2} shrinks toward is
+#'     estimated across all of them rather than across the handful that needed it;
+#'     \code{hits$fit_type} records which route each row took.
+#'   \code{hits$nNonZero} is the number of observations in which the gene was measured
+#'     at all, meaning in which at least one of its features has a value. It is computed
+#'     from \code{state$expression} rather than read from the aggregated
+#'     \code{rowData()}, for both paths: \code{QFeatures::aggregateFeatures()} keeps only
+#'     the \code{rowData()} columns that are constant within a group, so a per feature
+#'     count of observed values survives aggregation only when every feature of a gene
+#'     was measured the same number of times and is dropped silently otherwise. On the
+#'     inputs where reading it worked the two agree, a per feature count that is constant
+#'     within a gene being that gene's count of observations.
 #'   \code{msqrob2::hypothesisTest()} returns one table per contrast rather than a
 #'     joint test over several, so it can answer only a \code{config$test_term} that
 #'     resolves to a single design matrix column. That would rule out testing a factor
@@ -642,19 +717,34 @@ test_deqms <- function(state, config, trend=FALSE) {
 #'     \code{reference_levels} \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
 #'     \code{covariate_types}  \cr \tab Optional; classification of variables in \code{config$frm}, as set by \code{initialize()}. \cr
 #'     \code{factor_levels}    \cr \tab Optional; resolved levels of each factor variable, as set by \code{initialize()}. \cr
+#'     \code{feat_id_col}      \cr \tab Name of column in \code{state$features} with unique feature ids; must differ from \code{config$gene_id_col} when \code{aggregate=TRUE}. \cr
+#'     \code{test_random_obs}  \cr \tab Optional logical; whether the \code{aggregate=TRUE} fit includes a random observation effect alongside the random feature effect. Defaults to \code{TRUE} when absent, which is the calibrated model; see Details. Ignored when \code{aggregate=FALSE}. \cr
+#'     \code{test_ridge}       \cr \tab Optional logical; whether the \code{aggregate=TRUE} fit penalizes the fixed effects. Defaults to \code{FALSE} when absent, which is \code{msqrob2}'s own default; see Details. Ignored when \code{aggregate=FALSE}. \cr
 #'   }
 #' @param maxit Integer scalar >= 1. How many iterations to use for \code{rlm} fitting.
+#' @param aggregate Logical scalar. \code{FALSE}, the default, aggregates the features of
+#'   a gene and fits the aggregated values, \code{msqrob2::msqrob()}. \code{TRUE} fits
+#'   one mixed model per gene over the rows of its features instead,
+#'   \code{msqrob2::msqrobAggregate()}, which is what
+#'   \code{config$test_method="msqrob_agg"} selects. \code{TRUE} needs feature level
+#'   input, so \code{config$feat_id_col} and \code{config$gene_id_col} must name
+#'   different columns of \code{state$features}; naming one column as both is refused,
+#'   the fit it describes being the one \code{aggregate=FALSE} performs.
 #' @return
 #'   A list with components:
 #'   \tabular{ll}{
 #'     \code{hits}  \cr \tab \code{data.frame} of results; columns \code{config$gene_id_col},
-#'       \code{c("nNonZero", ".n")}, and then either
+#'       \code{c("nNonZero", ".n")}, \code{fit_type} when \code{aggregate=TRUE}, and then
+#'       either
 #'       \code{c("logFC", "se", "df", "t", "pval", "adjPval")} when one design matrix
 #'       column carries the test, or
 #'       \code{c("f_statistic", "df1", "df2", "pval", "adjPval")} when several do. \cr
 #'     \code{fit}   \cr \tab Model returned by \code{msqrob2::hypothesisTest()}, or by
 #'       \code{msqrob2::msqrob()} for a joint test, which does not go through
-#'       \code{msqrob2::hypothesisTest()}. \cr
+#'       \code{msqrob2::hypothesisTest()}. With \code{aggregate=TRUE} it is what
+#'       \code{msqrob2::msqrobAggregate()} returned, with the same two possibilities on
+#'       top of it; the fitted models are in
+#'       \code{rowData(fit[["genes"]])$msqrobModels} either way. \cr
 #'   }
 #' @examples
 #' ## lengthy setup of expression data:
@@ -695,11 +785,38 @@ test_deqms <- function(state, config, trend=FALSE) {
 #' ## actual test:
 #' result <- h0testr::test_msqrob(out$state, out$config)
 #' head(result$hits)
+#'
+#' ## the same genes tested from their peptides instead, one mixed model each, which
+#' ##   test_method="msqrob_agg" selects. A few genes are enough to show the shape:
+#' keep <- out$state$features$gene %in% unique(out$state$features$gene)[1:8]
+#' small <- list(expression=out$state$expression[keep, , drop=FALSE],
+#'   features=out$state$features[keep, , drop=FALSE], samples=out$state$samples)
+#' mixed <- h0testr::test_msqrob(small, out$config, aggregate=TRUE)
+#' head(mixed$hits[, c("gene", "nNonZero", ".n", "fit_type", "logFC", "df", "pval")])
+#'
+#' ## fit_type says which genes could not carry a random feature effect and were fitted
+#' ##   at the gene level instead, and the formula used is in the log:
+#' table(mixed$hits$fit_type)
 
-test_msqrob <- function(state, config, maxit=100) {
+test_msqrob <- function(state, config, maxit=100, aggregate=FALSE) {
 
   check_config(config)
   f.check_state(state, config)
+
+  ## the aggregate path models the feature level, so there has to be one. With one
+  ##   feature per gene the random feature effect is a single unknown confounded with
+  ##   the intercept, its variance is not identified, and the model reduces to the one
+  ##   aggregate=FALSE fits, so that is what to use. Same refusal, and for the same
+  ##   reason, as test_prolfqua(mixed=TRUE):
+
+  if(aggregate && config$feat_id_col %in% config$gene_id_col) {
+    f.err("test_msqrob: the aggregate path needs feature level input, so",
+      "config$feat_id_col and config$gene_id_col must name different columns of",
+      "state$features, and both are '", config$feat_id_col, "';", "\n",
+      "with one feature per gene the random feature effect is not identified and the",
+      "model reduces to the one test_method 'msqrob' fits, so use that instead, or",
+      "supply un-aggregated data carrying a gene id column", config=config)
+  }
 
   exprs <- as.data.frame(state$expression)
   ## msqrob2 reads this as the number of observations a feature was measured in,
@@ -757,11 +874,7 @@ test_msqrob <- function(state, config, maxit=100) {
 
   ## convert NA to 0:
   obj <- QFeatures::zeroIsNA(obj, i="features")
-  
-  ## aggregate peptides into genes:
-  obj <- QFeatures::aggregateFeatures(obj, i="features", 
-    fcol=config$gene_id_col, na.rm=T, name="genes", fun=base::colMeans)
-  
+
   ## f.parse_frm()$frm, not config$frm: f.design_test_cols_max() below selects the
   ##   tested column from a design built on the parsed formula, whose interaction
   ##   labels have their variables sorted, and stats::model.matrix() names an
@@ -771,7 +884,26 @@ test_msqrob <- function(state, config, maxit=100) {
 
   parsed <- f.parse_frm(config$frm, config)
 
-  obj <- msqrob2::msqrob(object=obj, i="genes", formula=parsed$frm, maxitRob=maxit)
+  ## one gene level fit of the aggregated values, or one feature level mixed model per
+  ##   gene; either way the aggregated assay is called "genes" and the models sit in
+  ##   rowData(obj[["genes"]])$msqrobModels, so everything below is shared:
+
+  fit_type <- NULL
+
+  if(aggregate) {
+
+    fitted <- f.msqrob_agg(obj, state, config, parsed$frm, maxit)
+    obj <- fitted$obj
+    fit_type <- fitted$fit_type
+
+  } else {
+
+    ## aggregate peptides into genes:
+    obj <- QFeatures::aggregateFeatures(obj, i="features",
+      fcol=config$gene_id_col, na.rm=T, name="genes", fun=base::colMeans)
+
+    obj <- msqrob2::msqrob(object=obj, i="genes", formula=parsed$frm, maxitRob=maxit)
+  }
 
   ## the design and the columns carrying the test. msqrob2::hypothesisTest() returns
   ##   one table per contrast rather than a joint test over several, so it can answer
@@ -800,8 +932,46 @@ test_msqrob <- function(state, config, maxit=100) {
       paste(parms, collapse=", "), config=config)
   }
 
+  ## config$test_ridge renames every fitted fixed effect, so the design column names
+  ##   are translated once here and everything below asks for the fitted names. The
+  ##   translation is checked against a fit rather than trusted, since a name msqrob2
+  ##   does not have is answered with NAs and not with an error:
+
+  ridge <- aggregate && isTRUE(config$test_ridge)
+  cols_fit <- f.msqrob_parms(cols_pick, ridge)
+
+  if(ridge) {
+
+    models <- SummarizedExperiment::rowData(obj[["genes"]])$msqrobModels
+    ok <- which(!vapply(models, msqrob2::getFitMethod, character(1)) %in% "fitError")
+
+    if(!length(ok)) {
+      f.err("test_msqrob: no gene could be fit, so there is nothing to test",
+        config=config)
+    }
+
+    nom <- names(msqrob2::getCoef(models[[ok[1]]]))
+
+    if(!all(cols_fit %in% nom)) {
+      f.err("test_msqrob: parameter", cols_fit, "carrying the test of",
+        f.test_label(design, config), "is not among those msqrob2 fitted with",
+        "config$test_ridge TRUE;", "\n", "parameters fit:",
+        paste(nom, collapse=", "), config=config)
+    }
+  }
+
+  ## the number of observations each gene was measured in, and the number of features
+  ##   behind it. See f.msqrob_n_obs() for why the first is not read from the
+  ##   aggregated rowData():
+
   dat <- SummarizedExperiment::rowData(obj[["genes"]])
-  dat <- as.data.frame(dat[, c(config$gene_id_col, "nNonZero", ".n"), drop=F])
+  dat <- as.data.frame(dat[, c(config$gene_id_col, ".n"), drop=F])
+  dat$nNonZero <- as.numeric(f.msqrob_n_obs(state, config)[dat[[config$gene_id_col]]])
+  dat <- dat[, c(config$gene_id_col, "nNonZero", ".n"), drop=F]
+
+  if(!is.null(fit_type)) {
+    dat$fit_type <- as.character(fit_type[dat[[config$gene_id_col]]])
+  }
 
   ## config$contrast is a weighted sum of coefficients, which is one contrast however
   ##   many it weights, so msqrob2::hypothesisTest() answers it directly and the
@@ -815,7 +985,7 @@ test_msqrob <- function(state, config, maxit=100) {
     nom <- make.names(trimws(config$contrast))
 
     con <- matrix(design$contrast, ncol=1,
-      dimnames=list(colnames(design$X), nom))
+      dimnames=list(f.msqrob_parms(colnames(design$X), ridge), nom))
 
     obj <- msqrob2::hypothesisTest(object=obj, i="genes", contrast=con,
       modelColumn="msqrobModels")
@@ -832,21 +1002,21 @@ test_msqrob <- function(state, config, maxit=100) {
   ##   Wald test over the same fitted models, whose one column case reproduces the
   ##   branch above exactly, which is asserted in the tests rather than assumed:
 
-  if(length(cols_pick) %in% 1) {
+  if(length(cols_fit) %in% 1) {
 
-    con <- msqrob2::makeContrast(contrasts=paste0(cols_pick, "=0"),
-      parameterNames=c(cols_pick))
+    con <- msqrob2::makeContrast(contrasts=paste0(cols_fit, "=0"),
+      parameterNames=c(cols_fit))
 
     obj <- msqrob2::hypothesisTest(object=obj, i="genes", contrast=con,
       modelColumn="msqrobModels")
 
-    tbl <- SummarizedExperiment::rowData(obj[["genes"]])[[cols_pick]]
+    tbl <- SummarizedExperiment::rowData(obj[["genes"]])[[cols_fit]]
     tbl <- cbind(dat[rownames(tbl), , drop=F], tbl)
     tbl <- tbl[order(tbl$adjPval, -abs(tbl$logFC)), ]
 
   } else {
 
-    tbl <- f.msqrob_wald(obj, cols_pick, config)
+    tbl <- f.msqrob_wald(obj, cols_fit, config)
     tbl <- cbind(dat[rownames(tbl), , drop=F], tbl)
     tbl <- tbl[order(tbl$adjPval, -tbl$f_statistic), ]
   }
@@ -909,6 +1079,12 @@ f.msqrob_wald <- function(obj, cols, config) {
     if(inherits(vcv, "try-error") || inherits(sig, "try-error") ||
       inherits(dfp, "try-error")) next
 
+    ## msqrob2 leaves the covariance of a mixed fit as a Matrix rather than as a base
+    ##   matrix, msqrob2:::.noridge_msqrobLmer() not coercing it the way its ridge
+    ##   counterpart does, so coerce here before subsetting by name:
+
+    vcv <- try(as.matrix(vcv), silent=T)
+    if(inherits(vcv, "try-error")) next
     if(!is.matrix(vcv) || !all(cols %in% rownames(vcv))) next
     if(length(sig) != 1 || is.na(sig) || !is.finite(sig) || sig <= 0) next
     if(length(dfp) != 1 || is.na(dfp) || dfp <= 0) next    ## dfp may be Inf
@@ -932,6 +1108,150 @@ f.msqrob_wald <- function(obj, cols, config) {
   out$adjPval <- stats::p.adjust(out$pval, method="BH")
 
   return(out)
+}
+
+## helper for test_msqrob(): the names under which msqrob2 fitted the columns of the
+##   design. msqrob2 penalizes the fixed effects, ridge=TRUE, by refitting them as a
+##   random effect over a grouping factor it calls "ridge" whose levels are the design
+##   columns, and lme4 names a random effect estimate by pasting the name of the
+##   grouping factor in front of the level, so each column comes back as
+##   "ridge<column>". The intercept is not penalized and keeps its own name; a design
+##   that suppresses the intercept still gets one, unpenalized, which is simply not
+##   asked about. Checked against msqrob2 1.8.0 and pinned by the tests rather than
+##   assumed. With ridge=FALSE, which is msqrob2's default throughout and this
+##   package's, the fitted names are the design column names unchanged:
+
+f.msqrob_parms <- function(cols, ridge) {
+  if(!isTRUE(ridge)) return(cols)
+  return(ifelse(cols %in% "(Intercept)", cols, paste0("ridge", cols)))
+}
+
+## helper for test_msqrob(): the number of observations in which each gene was measured
+##   at all, meaning in which at least one of its features has a value. Computed here
+##   rather than read from the aggregated rowData() because
+##   QFeatures::aggregateFeatures() reduces rowData() by keeping only the columns that
+##   are constant within a group, so a per feature count of observed values survives
+##   aggregation only when every feature of a gene was measured the same number of
+##   times, and is silently dropped otherwise. Reading it was a latent error for any
+##   data with feature specific missingness, which is essentially all of it. On the
+##   inputs where the old lookup worked the two agree: a per feature count that is
+##   constant within a gene is that gene's count of observations:
+
+f.msqrob_n_obs <- function(state, config, who="test_msqrob") {
+  genes <- f.gene_ids(state$features, config, who)
+  ok <- !is.na(state$expression)
+  n <- tapply(1:nrow(ok), genes, function(idxs) {
+    sum(apply(ok[idxs, , drop=F], 2, any))
+  })
+  return(n)
+}
+
+## helper for test_msqrob(): the aggregate=TRUE fit. msqrob2::msqrobAggregate() is not
+##   an alternative to aggregating so much as a different use of it: it aggregates to
+##   make the assay that carries the result, one row per gene, but fits
+##   msqrob2::msqrobLmer() on the un-aggregated assay with the features of a gene as one
+##   group, so the models are feature level and the results gene level. The aggregated
+##   values take no part in any fit, which is why base::colMeans() is passed as the
+##   summary rather than msqrob2's default MsCoreUtils::robustSummary(): the latter
+##   summarizes a sample whose every value in a group is exactly 0 as NA, silently, see
+##   f.combine_features_robust_summary(), and there is nothing to be gained by inviting
+##   that in a quantity nothing reads.
+##   The random part is the feature effect msqrob2 documents plus, unless
+##   config$test_random_obs is FALSE, a random observation effect. Both are needed for
+##   the same reason as in f.prolfqua_mixed(): the covariates come from state$samples
+##   and so vary across observations rather than across a gene's features, and without a
+##   term for the observation the features of a gene stand as independent measurements of
+##   it. Simulated under the null at 300 genes, 5 features per gene and 12 observations,
+##   with a per-observation effect the size of the residual, rejection at the 5% level
+##   was 0.360 with the feature effect alone and 0.093 with both; with no such effect
+##   present, 0.063 and 0.053. See test_msqrob() for what the residual 0.093 is.
+##   Returns the object with the fitted models in rowData(obj[["genes"]])$msqrobModels
+##   and the route each gene took:
+
+f.msqrob_agg <- function(obj, state, config, frm, maxit) {
+
+  ridge <- isTRUE(config$test_ridge)
+  random_obs <- is.null(config$test_random_obs) || isTRUE(config$test_random_obs)
+
+  ran <- paste0("(1|`", config$feat_id_col, "`)")
+
+  if(random_obs) {
+    ran <- paste(ran, "+", paste0("(1|`", config$obs_col, "`)"))
+  } else {
+    f.msg("WARNING: test_msqrob: config$test_random_obs is FALSE, so the model carries",
+      "a random feature effect but no random observation effect, which is the structure",
+      "msqrob2 documents;", "\n", "the covariates vary across observations rather than",
+      "across a gene's features, so without that term the features of a gene stand as",
+      "independent measurements of it and the test is anti-conservative; see",
+      "test_msqrob() for the simulated rejection rates", config=config)
+  }
+
+  rhs <- paste(deparse(frm[[length(frm)]]), collapse=" ")
+  frm_mix <- stats::as.formula(paste("~", rhs, "+", ran))
+
+  f.msg("test_msqrob: fitting one mixed model per gene over the rows of its features:",
+    paste(deparse(frm_mix), collapse=" "), if(ridge) "with the fixed effects penalized",
+    config=config)
+
+  ## the aggregated assay is named "genes" for both paths, so that everything
+  ##   downstream of the fit reads the same place:
+
+  obj <- f.quiet_fits(msqrob2::msqrobAggregate(object=obj, i="features",
+    fcol=config$gene_id_col, name="genes", formula=frm_mix, ridge=ridge, robust=T,
+    maxitRob=maxit, modelColumnName="msqrobModels",
+    aggregateFun=function(x, ...) base::colMeans(x, na.rm=T)),
+    "mixed", config, "test_msqrob")
+
+  dat <- SummarizedExperiment::rowData(obj[["genes"]])
+  models <- dat$msqrobModels
+  ids <- as.character(dat[[config$gene_id_col]])
+  fit_type <- vapply(models, msqrob2::getFitMethod, character(1))
+
+  ## genes with fewer than two observed features are fitted at the gene level instead:
+  ##   their random feature effect would be a single unknown confounded with the
+  ##   intercept, so its variance is not identified and lme4 refuses the fit, which
+  ##   msqrob2 records as a fitError and would report as a row of NAs. Such genes are
+  ##   common, and dropping them would leave a gene table that does not line up with
+  ##   what another test_method produces, so they get the same fixed model without the
+  ##   term that could not be estimated, which is what test_method="msqrob" fits.
+  ##   Fitted for every gene and used for these, rather than fitted for these alone,
+  ##   so that the variance prior msqrob2 shrinks toward is estimated across all of
+  ##   them; hits$fit_type records which route each row took:
+
+  n_feat <- tapply(rowSums(!is.na(state$expression)) > 0,
+    f.gene_ids(state$features, config, "test_msqrob"), sum)
+  thin <- names(n_feat)[n_feat < 2]
+  need <- which(fit_type %in% "fitError" & ids %in% thin)
+
+  if(length(need)) {
+
+    f.msg("test_msqrob:", length(need), "gene(s) have fewer than two observed",
+      "features, so the random feature effect is not identified and lme4 refuses the",
+      "fit; fitting those at the gene level instead, which is the same fixed model",
+      "without the term that could not be estimated;", "\n", "affected genes:",
+      paste(utils::head(ids[need], 5), collapse=", "),
+      if(length(need) > 5) paste("and", length(need) - 5, "more") else "",
+      config=config)
+
+    obj2 <- try(f.quiet_fits(msqrob2::msqrob(object=obj, i="genes", formula=frm,
+      ridge=ridge, robust=T, maxitRob=maxit, modelColumnName="msqrobModelsGene"),
+      "gene level", config, "test_msqrob"), silent=T)
+
+    if(inherits(obj2, "try-error")) {
+      f.msg("WARNING: test_msqrob: the gene level fit for those genes failed, so they",
+        "are reported as NA;", "\n", "  ",
+        trimws(conditionMessage(attr(obj2, "condition"))), config=config)
+    } else {
+      m2 <- SummarizedExperiment::rowData(obj2[["genes"]])$msqrobModelsGene
+      for(idx in need) {
+        models[[idx]] <- m2[[idx]]
+        fit_type[idx] <- msqrob2::getFitMethod(m2[[idx]])
+      }
+      SummarizedExperiment::rowData(obj[["genes"]])[["msqrobModels"]] <- models
+    }
+  }
+
+  return(list(obj=obj, fit_type=stats::setNames(fit_type, ids)))
 }
 
 #' Hypothesis testing using the \code{proDA} package
@@ -1142,7 +1462,8 @@ test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit
         "config$frm:", deparse(design$parsed$frm), "; columns carrying the test:",
         paste0(paste(cols_pick, collapse=", "), ";"), "\n",
         "keep the intercept in config$frm for the usual comparison among levels, or",
-        "use test_method 'lm', 'trend', 'voom' or 'prolfqua' to test against zero",
+        "use test_method 'lm', 'trend', 'voom', 'msqrob', 'msqrob_agg', 'prolfqua'",
+        "or 'prolfqua_lmer' to test against zero",
         config=config)
     }
 
@@ -1188,6 +1509,96 @@ f.nested_f <- function(rss_red, rss_full, df_red, df_full, s2_err, df_err) {
 
   return(data.frame(Df=df_num, Sum.Sq=ss, Mean.Sq=ms, F.value=fval,
     p.value=stats::pf(fval, df_num, df_err, lower.tail=F)))
+}
+
+## The rows of L for f.wald_f(): the hypothesis as a matrix over the coefficients of
+##   the design, which is the identity rows of the tested columns for config$test_term
+##   and the single row of weights for config$contrast. One shape for both, so that
+##   nothing downstream branches on which was asked for. Named by the make.names()
+##   forms of the design matrix column names, those being the names the fits carry:
+
+f.test_L <- function(design) {
+
+  cols <- make.names(colnames(design$X), unique=T)
+
+  L <- if(is.null(design$contrast)) {
+    diag(length(cols))[design$cols_test, , drop=F]
+  } else {
+    matrix(design$contrast, nrow=1)
+  }
+
+  colnames(L) <- cols
+
+  return(L)
+}
+
+## The Wald F-test of L %*% beta == 0 from one fitted model. For a mixed model that is
+##   what lmerTest::contest() computes, an F whose denominator degrees of freedom come
+##   from the Satterthwaite approximation, so that a covariate which varies across
+##   observations is tested against between-observation variation rather than against
+##   the feature by observation residual; for a least squares fit it is the ordinary
+##   F, which is also the nested model comparison f.nested_f() performs. Both are
+##   needed because the mixed path falls back to stats::lm() for a gene with a single
+##   feature, and both come back in one shape so that the two kinds of row sit in one
+##   table.
+##   Differencing the residual sums of squares of two mixed fits, which is what
+##   f.prolfqua_nested_f() does for the least squares path, is not available here: the
+##   variance components are re-estimated for each fit, so sigma^2 times the residual
+##   degrees of freedom is not a residual sum of squares that decomposes, and the
+##   difference of two of them is not an F. Hence a Wald test of one fit rather than a
+##   comparison of two.
+##   NULL when the fit cannot support the test, which the caller reports as a dropped
+##   gene: a coefficient that lme4 dropped for rank deficiency or that least squares
+##   left aliased is absent or NA, and the hypothesis is then not estimable for that
+##   gene. A singular fit, meaning a variance component estimated at zero, is not such
+##   a case: the F is still the right test, and the model has simply collapsed toward
+##   the one without that effect:
+
+f.wald_f <- function(fit, L) {
+
+  if(inherits(fit, "merMod")) {
+
+    beta <- try(lme4::fixef(fit), silent=T)
+    if(inherits(beta, "try-error") || is.null(names(beta))) return(NULL)
+    if(!all(colnames(L) %in% names(beta))) return(NULL)
+
+    tst <- try(lmerTest::contest(fit, L[, names(beta), drop=F], joint=T), silent=T)
+    if(inherits(tst, "try-error") || !nrow(tst)) return(NULL)
+
+    return(data.frame(Df=tst[["NumDF"]], Sum.Sq=tst[["Sum Sq"]],
+      Mean.Sq=tst[["Mean Sq"]], F.value=tst[["F value"]], p.value=tst[["Pr(>F)"]],
+      df.denom=tst[["DenDF"]]))
+  }
+
+  beta <- try(stats::coef(fit), silent=T)
+  if(inherits(beta, "try-error") || is.null(names(beta))) return(NULL)
+  if(!all(colnames(L) %in% names(beta))) return(NULL)
+
+  nom <- colnames(L)
+  if(any(is.na(beta[nom]))) return(NULL)
+
+  ## the Wald statistic is the extra sum of squares divided by the error variance, so
+  ##   multiplying it back by that variance recovers the sum of squares the nested
+  ##   comparison would report, and at one degree of freedom the whole thing is the
+  ##   square of the t-statistic:
+
+  V <- try(stats::vcov(fit)[nom, nom, drop=F], silent=T)
+  if(inherits(V, "try-error")) return(NULL)
+
+  Lb <- L %*% beta[nom]
+  w <- try(drop(t(Lb) %*% solve(L %*% V %*% t(L), Lb)), silent=T)
+  if(inherits(w, "try-error") || !is.finite(w)) return(NULL)
+
+  df_num <- qr(L)$rank
+  df_den <- stats::df.residual(fit)
+  if(!is.finite(df_den) || df_den <= 0 || df_num < 1) return(NULL)
+
+  s2 <- stats::sigma(fit)^2
+  fval <- w / df_num
+
+  return(data.frame(Df=df_num, Sum.Sq=w * s2, Mean.Sq=w * s2 / df_num,
+    F.value=fval, p.value=stats::pf(fval, df_num, df_den, lower.tail=F),
+    df.denom=df_den))
 }
 
 ## The error variance and its degrees of freedom, shrunk across features toward a
@@ -1404,6 +1815,312 @@ f.prolfqua_nested_f <- function(fit_full, fit_red, design, config, covariate=NUL
   return(out)
 }
 
+## The fixed effects of a fit from either strategy, under the names test_prolfqua()
+##   gave the design matrix columns. stats::coef() of a mixed model returns the per
+##   group coefficients as a list rather than the fixed effects, hence the branch:
+
+f.fixed_coefs <- function(fit) {
+  if(inherits(fit, "merMod")) return(lme4::fixef(fit))
+  return(stats::coef(fit))
+}
+
+## Fit a collection of models with what they have to say about themselves collected
+##   rather than emitted. A mixed model reports non-convergence and a fit at the
+##   boundary of the parameter space per model, which over a few thousand genes is a few
+##   thousand lines saying something already recorded per gene in hits$isSingular, so
+##   the count and the first message go to the log and the rest is muffled. Warnings are
+##   counted rather than passed through because they arrive from inside
+##   prolfqua::build_model()'s dplyr::mutate(), which relabels them as its own, and from
+##   inside msqrob2::msqrobLmer()'s BiocParallel::bplapply(), which does the same.
+##   Shared by test_prolfqua(mixed=TRUE) and test_msqrob(aggregate=TRUE), hence who:
+
+f.quiet_fits <- function(expr, what, config, who="test_prolfqua") {
+
+  n <- 0L
+  first <- NULL
+
+  out <- withCallingHandlers(suppressMessages(expr),
+    warning=function(w) {
+      n <<- n + 1L
+      if(is.null(first)) first <<- conditionMessage(w)
+      invokeRestart("muffleWarning")
+    })
+
+  if(n) {
+    f.msg(paste0("WARNING: ", who, ":"), n, "warning(s) raised while fitting the",
+      what, "models; the first was:", "\n", "  ", trimws(first), config=config)
+  }
+
+  return(out)
+}
+
+## The mixed path of test_prolfqua(): one model per gene over the long table of its
+##   features, giving gene level inference from feature level data without aggregating.
+##   Takes the LFQData object, the design and the make.names() forms of its column
+##   names that test_prolfqua() has already put into the long table, so that the fixed
+##   part of the model is the same design every other engine here is handed.
+##   The random effects are a random intercept per feature and a random intercept per
+##   observation.
+##   The feature effect absorbs the feature baselines, which differ by orders of
+##   magnitude among the precursors of one protein. Random rather than a fixed effect
+##   per feature: it costs one variance component instead of one coefficient per
+##   feature, and shrinks a thinly observed feature toward the gene mean rather than
+##   estimating it from its own few observations, which is what makes the fit unbiased
+##   under feature specific missingness. Aggregating the features of a gene first
+##   instead compares a different subset of them in each observation.
+##   The observation effect is the error stratum the fixed effects belong to. Every
+##   covariate of config$frm comes from state$samples, so it varies across observations
+##   and not within one; without this term the features of a gene are asserted to be
+##   independent measurements of that observation and the Satterthwaite denominator
+##   degrees of freedom come out near the number of feature by observation rows rather
+##   than near the number of observations. Simulated under the null at 12 observations,
+##   5 features per gene and a per observation effect the size of the residual, that
+##   rejects 26% of the time at the 5% level, against 4.7% with the term present. Where
+##   the per observation variance really is zero the term costs a little conservatism,
+##   3.0% against 5.3%, which is the safe direction. config$test_random_obs=FALSE drops
+##   it, giving the feature only structure prolfqua documents, for comparison.
+##   Not included is a random slope: letting each feature respond differently to the
+##   tested covariate makes the fixed effect an average over a distribution of feature
+##   specific responses, which is a different hypothesis, and it is rarely identifiable
+##   at proteomics sample sizes:
+
+f.prolfqua_mixed <- function(obj, design, cols, config) {
+
+  dat <- obj$data
+
+  ran <- paste0("(1|`", config$feat_id_col, "`)")
+  random_obs <- is.null(config$test_random_obs) || isTRUE(config$test_random_obs)
+
+  if(random_obs) {
+    ran <- paste(ran, "+ (1|sample)")
+  } else {
+    f.msg("WARNING: test_prolfqua: config$test_random_obs is FALSE, so the fit carries",
+      "no random observation effect and the features of a gene are treated as",
+      "independent measurements of it;", "\n", "the test is anti-conservative to the",
+      "extent that the features of a gene co-vary within an observation, which under",
+      "simulation was a rejection rate of 26% at the 5% level", config=config)
+  }
+
+  ## config$test_moderate and config$test_trend describe a shrinkage of the per feature
+  ##   error variance across features, which this path does not perform: its denominator
+  ##   is a Satterthwaite combination of variance components rather than one residual
+  ##   variance, so there is nothing single to shrink. Said out loud rather than left
+  ##   implicit, because both keys are consulted by the least squares path and their
+  ##   being ignored here is otherwise invisible. A note rather than a warning:
+  ##   new_config() sets test_moderate=TRUE, so nothing is wrong with a default config
+  ##   arriving here, and flagging every default run as a warning would be noise:
+
+  ignored <- character(0)
+  if("test_moderate" %in% names(config) && isTRUE(config$test_moderate)) {
+    ignored <- c(ignored, "config$test_moderate")
+  }
+  if("test_trend" %in% names(config) && isTRUE(config$test_trend)) {
+    ignored <- c(ignored, "config$test_trend")
+  }
+
+  if(length(ignored)) {
+    f.msg("NOTE: test_prolfqua:", paste(ignored, collapse=" and "),
+      if(length(ignored) > 1) "are" else "is", "TRUE, but the mixed path does not",
+      "moderate the error variance across genes and does not consult",
+      if(length(ignored) > 1) "them" else "it", ";", "\n",
+      "the denominator of a Satterthwaite F is a combination of variance components",
+      "rather than one residual variance, so there is no single quantity to shrink;",
+      "the reported test is unmoderated and hits$moderated is FALSE", config=config)
+  }
+
+  ## genes with a single observed feature are fitted by least squares: lme4 refuses a
+  ##   grouping factor with one level, correctly, the variance of that effect having no
+  ##   between-feature contrast to be estimated from. Counted over the observed values,
+  ##   since a feature missing everywhere is dropped by the fit and so contributes no
+  ##   level:
+
+  genes <- as.character(dat[[config$gene_id_col]])
+  ok <- !is.na(dat$intensity)
+
+  n_feat <- tapply(as.character(dat[[config$feat_id_col]])[ok], genes[ok],
+    function(v) length(unique(v)))
+
+  multi <- names(n_feat)[n_feat > 1]
+  single <- names(n_feat)[n_feat %in% 1]
+  gone <- setdiff(unique(genes), names(n_feat))
+
+  if(length(gone)) {
+    f.msg("WARNING: test_prolfqua: dropping", length(gone), "of",
+      length(unique(genes)), "genes with no observed value in any feature;", "\n",
+      "first few:", paste(utils::head(gone, 5), collapse=", "), config=config)
+  }
+
+  if(!length(multi) && !length(single)) {
+    f.err("test_prolfqua: no gene has an observed value", config=config)
+  }
+
+  frm_fix <- paste("intensity ~ 0 +", paste(cols, collapse=" + "))
+  frm_mix <- paste(frm_fix, "+", ran)
+
+  f.msg("test_prolfqua:", f.test_label(design, config), "; mixed:", frm_mix, "\n",
+    "  genes with several observed features:", length(multi), "; with one:",
+    length(single), "; numerator df:", design$df_intend, config=config)
+
+  mods <- list()
+
+  if(length(multi)) {
+    mods[[length(mods) + 1]] <- list(fit_type="lmer",
+      model=f.quiet_fits(prolfqua::build_model(
+        data=dat[genes %in% multi, , drop=F],
+        model_strategy=prolfqua::strategy_lmer(frm_mix),
+        subject_Id=config$gene_id_col), "lmer", config))
+  }
+
+  if(length(single)) {
+    f.msg("test_prolfqua: fitting", length(single), "gene(s) with a single observed",
+      "feature by least squares instead:", frm_fix, config=config)
+    mods[[length(mods) + 1]] <- list(fit_type="lm",
+      model=f.quiet_fits(prolfqua::build_model(
+        data=dat[genes %in% single, , drop=F],
+        model_strategy=prolfqua::strategy_lm(frm_fix),
+        subject_Id=config$gene_id_col), "lm", config))
+  }
+
+  out <- f.prolfqua_mixed_f(mods, design, config, "test_prolfqua")
+
+  f.msg("tested", nrow(out$hits), "genes; found",
+    sum(out$hits$FDR < 0.05, na.rm=T), "hits", config=config)
+
+  ## the two collections of fits are returned separately and named for what they are,
+  ##   rather than as one object, because they were built by different strategies and a
+  ##   caller reading a fit needs to know which. Either can be NULL, when no gene took
+  ##   that route. The coefficients are assembled where the fits are, since they come
+  ##   from both:
+
+  types <- vapply(mods, function(m) m$fit_type, character(1))
+
+  return(list(hits=out$hits, coefs=out$coefs,
+    fit=if("lmer" %in% types) mods[[which(types %in% "lmer")[1]]]$model else NULL,
+    fit_lm=if("lm" %in% types) mods[[which(types %in% "lm")[1]]]$model else NULL,
+    fit_reduced=NULL, design=design))
+}
+
+## Per-gene Wald F-tests from the mixed path of test_prolfqua(), where one model is
+##   fitted per gene over its features rather than one model per feature. Takes the
+##   models as a list of prolfqua Model objects each labelled with how it was fitted,
+##   because a gene with a single feature is fitted by least squares: its random
+##   feature effect would be a single unknown confounded with the intercept, so its
+##   variance is not identified and lme4 refuses the fit outright. That leaves the
+##   model those genes get identical to the mixed model minus a term that could not
+##   have been estimated, and the fit_type column of the result records which route
+##   each row took.
+##   Genes whose data do not support the test are dropped and reported, on the same
+##   terms as f.prolfqua_nested_f() drops features: a fit that failed, or one where the
+##   test does not come out at the intended degrees of freedom, which happens when
+##   missingness leaves a tested column aliased for that gene.
+##   The error variance is not moderated across genes here. The denominator of a
+##   Satterthwaite F is a combination of variance components rather than one residual
+##   variance, so there is no single quantity to shrink; s2.denom reports the effective
+##   denominator the F actually used, being Mean.Sq divided by F.value, and the columns
+##   describing a moderation are NA:
+
+f.prolfqua_mixed_f <- function(mods, design, config, caller="f.prolfqua_mixed_f") {
+
+  L <- f.test_L(design)
+  cols <- colnames(design$X)[design$cols_test]
+  nom <- make.names(colnames(design$X), unique=T)[design$cols_test]
+
+  rows <- list()
+  betas <- list()
+  ids_out <- character(0)
+  bad <- character(0)
+  n_in <- 0
+  n_by_type <- integer(0)
+
+  for(mod in mods) {
+
+    mdf <- as.data.frame(mod$model$modelDF)
+    if(!nrow(mdf)) next
+
+    ids <- as.character(mdf[[config$gene_id_col]])
+    n_in <- n_in + nrow(mdf)
+    n_by_type[mod$fit_type] <- nrow(mdf)
+
+    for(idx in seq_len(nrow(mdf))) {
+
+      fit <- mdf$linear_model[[idx]]
+      stat <- if(is.null(fit) || is.character(fit)) NULL else f.wald_f(fit, L)
+
+      if(is.null(stat) || !(stat$Df %in% design$df_intend)) {
+        bad <- c(bad, ids[idx])
+        next
+      }
+
+      beta <- try(f.fixed_coefs(fit), silent=T)
+      if(inherits(beta, "try-error")) beta <- stats::setNames(numeric(0), character(0))
+
+      rows[[length(rows) + 1]] <- data.frame(
+        isSingular=mdf$isSingular[idx], nrcoef=mdf$nrcoef[idx],
+        factor=config$test_term, stat, fit_type=mod$fit_type, stringsAsFactors=F)
+
+      betas[[length(betas) + 1]] <- beta[match(nom, names(beta))]
+      ids_out <- c(ids_out, ids[idx])
+    }
+  }
+
+  if(length(bad)) {
+    f.msg("WARNING:", caller, ": dropping", length(bad), "of", n_in,
+      "genes whose data do not support the test of",
+      if(is.null(design$contrast)) {
+        paste0("config$test_term '", config$test_term, "';")
+      } else {
+        paste0("config$contrast '", trimws(config$contrast), "';")
+      }, "\n", "the model could not be fitted for these genes, or the test does not",
+      "come out at", design$df_intend, "degree(s) of freedom for them, so the",
+      "hypothesis is not estimable;", "\n", "first few:",
+      paste(utils::head(bad, 5), collapse=", "), config=config)
+  }
+
+  if(!length(rows)) {
+    f.err(caller, ": no gene supports the test of",
+      if(is.null(design$contrast)) {
+        paste0("config$test_term '", config$test_term, "'")
+      } else {
+        paste0("config$contrast '", trimws(config$contrast), "'")
+      }, ";", "genes considered:", n_in, "; design columns carrying the test:",
+      length(design$cols_test), "; degrees of freedom intended:", design$df_intend,
+      config=config)
+  }
+
+  out <- do.call(rbind, rows)
+  out[[config$gene_id_col]] <- ids_out
+
+  ## the columns of the least squares path that a Wald F on a mixed fit has no value
+  ##   for, carried as NA rather than dropped so that a result table reads the same
+  ##   whichever prolfqua path produced it:
+
+  out$moderated <- FALSE
+  out$trend <- FALSE
+  out$s2.denom <- out$Mean.Sq / out$F.value
+  out$df.prior <- as.numeric(NA)
+  out$s2.prior <- as.numeric(NA)
+  out$F.value.unmod <- as.numeric(NA)
+  out$p.value.unmod <- as.numeric(NA)
+  out$FDR <- stats::p.adjust(out$p.value, method="BH")
+
+  keep <- c(config$gene_id_col, "isSingular", "nrcoef", "factor", "Df", "Sum.Sq",
+    "Mean.Sq", "F.value", "p.value", "fit_type", "moderated", "trend", "s2.denom",
+    "df.denom", "df.prior", "s2.prior", "F.value.unmod", "p.value.unmod", "FDR")
+  out <- out[, keep, drop=F]
+
+  coefs <- do.call(rbind, betas)
+  dimnames(coefs) <- list(ids_out, cols)
+
+  f.msg(caller, ": tested", nrow(out), "of", n_in, "genes; fitted",
+    paste(paste0(n_by_type, " by ", names(n_by_type)), collapse=", "),
+    "; singular fits:", sum(out$isSingular %in% TRUE), config=config)
+
+  out <- out[order(out$p.value, decreasing=F), , drop=F]
+  rownames(out) <- NULL
+
+  return(list(hits=out, coefs=coefs))
+}
+
 #' Hypothesis testing using the \code{prolfq} package
 #' @description
 #'   Tests for differential expression using the \code{prolfq::build_model()} function.
@@ -1472,6 +2189,77 @@ f.prolfqua_nested_f <- function(fit_full, fit_red, design, config, covariate=NUL
 #'   The \code{FDR} column of \code{hits} is \code{stats::p.adjust(..., "BH")} over
 #'     the features tested, computed here rather than taken from \code{prolfqua},
 #'     which adjusts within each row of its per-term ANOVA table.
+#'   With \code{mixed=TRUE}, which \code{test_method="prolfqua_lmer"} selects, the
+#'     engine changes from \code{prolfqua::strategy_lm()} to
+#'     \code{prolfqua::strategy_lmer()} and one model is fitted per gene over the rows
+#'     of all of its features, rather than one model per feature. The result is gene
+#'     level inference from feature level data with no aggregation step: the fixed part
+#'     of the model is the same design matrix, whose columns come from
+#'     \code{state$samples} and so are identical across the features of a gene, which
+#'     makes its coefficients gene level quantities. \code{hits} then has one row per
+#'     gene, keyed by \code{config$gene_id_col}, and \code{h0testr::run()} and
+#'     \code{h0testr::tune()} do not call \code{combine_features()} before it, as they
+#'     do not for \code{test_method} \code{"deqms"} and \code{"msqrob"}. Handing it
+#'     data that have already been aggregated is an error rather than a silent
+#'     degenerate fit; see below.
+#'   The model is \code{intensity ~ 0 + <design columns> + (1|<feat_id_col>) +
+#'     (1|<obs_col>)}. The random feature intercept absorbs the feature baselines,
+#'     which differ by orders of magnitude among the precursors of one protein. It is
+#'     random rather than a fixed effect per feature because it then costs one variance
+#'     component instead of one coefficient per feature, and because a thinly observed
+#'     feature is shrunk toward the gene mean rather than estimated from its own few
+#'     observations, which is what makes the fit unbiased under feature specific
+#'     missingness: aggregating first instead compares a different subset of a gene's
+#'     features in each observation.
+#'   The random observation intercept is the error stratum the fixed effects belong to.
+#'     Every covariate of \code{config$frm} comes from \code{state$samples}, so it
+#'     varies across observations and not within one, and without this term the
+#'     features of a gene are asserted to be independent measurements of that
+#'     observation. The Satterthwaite denominator degrees of freedom then come out near
+#'     the number of feature by observation rows instead of near the number of
+#'     observations, and the test rejects far more often than it should: simulated under
+#'     the null at 12 observations, 5 features per gene and a per observation effect the
+#'     size of the residual, 26 percent at the 5 percent level, against 4.7 percent with
+#'     the term present. Where the per observation variance really is zero the term
+#'     costs a little conservatism, 3.0 percent against 5.3 percent, which is the safe
+#'     direction. \code{config$test_random_obs=FALSE} drops it, giving the feature only
+#'     structure \code{prolfqua} documents, for comparison; a warning says so. A random
+#'     slope is not offered: letting each feature respond differently to the tested
+#'     covariate makes the fixed effect an average over a distribution of feature
+#'     specific responses, which is a different hypothesis.
+#'   The mixed test is a Wald F of one fit rather than a comparison of two, computed by
+#'     \code{lmerTest::contest()} from the same coefficients every other engine here
+#'     selects, so \code{config$test_term} still covers every term containing it and
+#'     \code{config$contrast} is still one degree of freedom. Its denominator degrees of
+#'     freedom are the Satterthwaite approximation, reported in \code{df.denom}, and are
+#'     fractional in general. Differencing the residual sums of squares of a full and a
+#'     reduced fit, which is what the least squares path does, is not available: the
+#'     variance components are re-estimated for each fit, so the difference is not an F.
+#'   The error variance is not moderated across genes on this path, since the
+#'     denominator of a Satterthwaite F is a combination of variance components rather
+#'     than one residual variance and there is no single quantity to shrink.
+#'     \code{hits$moderated} is \code{FALSE}, \code{df.prior}, \code{s2.prior},
+#'     \code{F.value.unmod} and \code{p.value.unmod} are \code{NA}, and
+#'     \code{s2.denom} reports the effective denominator variance the F did use.
+#'     \code{config$test_moderate} and \code{config$test_trend} are not consulted, and
+#'     a note says so when either is present and \code{TRUE}. A note rather than a
+#'     warning because \code{h0testr::new_config()} sets \code{test_moderate=TRUE}, so
+#'     it applies to a default configuration and describes nothing wrong.
+#'   A gene with a single observed feature is fitted by \code{stats::lm()} instead: its
+#'     random feature effect would be a single unknown confounded with the intercept, so
+#'     that variance is not identified and \code{lme4} refuses the fit outright, and
+#'     what is left is the mixed model without a term that could not have been
+#'     estimated. Such genes are reported rather than dropped, since they are common and
+#'     dropping them would leave a gene table that does not line up with the one another
+#'     \code{test_method} produces; the \code{fit_type} column of \code{hits} records
+#'     which route each row took. A gene with no observed value at all, and a gene for
+#'     which the test does not come out at the intended degrees of freedom, are dropped
+#'     with a warning naming how many and the first few.
+#'   A fit at the boundary of the parameter space, meaning a variance component
+#'     estimated at zero, is kept and flagged in \code{hits$isSingular}: the F is still
+#'     the right test and the model has simply collapsed toward the one without that
+#'     effect. Messages and warnings from the fits are counted and summarized in the log
+#'     rather than emitted one per gene.
 #'   Flow is:
 #'     \tabular{l}{
 #'       1. Reshape data into long format with intensities, feature meta, and sample meta. \cr
@@ -1509,12 +2297,20 @@ f.prolfqua_nested_f <- function(fit_full, fit_red, design, config, covariate=NUL
 #'     \code{factor_levels}         \cr \tab Optional; resolved levels of each factor variable, as set by \code{initialize()}. \cr
 #'     \code{test_moderate}         \cr \tab Optional logical; whether to shrink the error variance across features. Defaults to \code{TRUE} when absent. \cr
 #'     \code{test_trend}            \cr \tab Optional logical; whether the prior of that shrinkage is fitted against mean feature intensity rather than flat. Defaults to \code{FALSE} when absent. Unrelated to \code{config$test_method="trend"}. \cr
+#'     \code{test_random_obs}       \cr \tab Optional logical; whether the \code{mixed=TRUE} fit includes a random observation effect alongside the random feature effect. Defaults to \code{TRUE} when absent, which is the calibrated model; see Details. Ignored when \code{mixed=FALSE}. \cr
+#'     \code{feat_id_col}           \cr \tab Name of column in \code{state$features} with unique feature ids; must differ from \code{config$gene_id_col} when \code{mixed=TRUE}. \cr
 #'     \code{normalization_method}  \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
 #'   }
 #' @param is_log_transformed Logical scalar: whether \code{state$expression} has
 #'   been log transformed. Defaults to \code{config$is_log_transformed}, which
 #'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
 #'   passing both is an error unless they agree.
+#' @param mixed Logical scalar: whether to fit one mixed model per gene over the rows
+#'   of its features, with the feature and the observation as random effects, instead
+#'   of one least squares model per feature. \code{TRUE} is what
+#'   \code{config$test_method="prolfqua_lmer"} selects, gives one result row per gene
+#'   from feature level input, and requires \code{config$feat_id_col} and
+#'   \code{config$gene_id_col} to name different columns. See Details.
 #' @return
 #'   A list with components:
 #'   \tabular{ll}{
@@ -1547,11 +2343,21 @@ f.prolfqua_nested_f <- function(fit_full, fit_red, design, config, covariate=NUL
 #'       indexes the columns carrying the test, and \code{df_intend} is the numerator
 #'       degrees of freedom the test is meant to have. \cr
 #'   }
-#'   Note the granularity of \code{hits} follows the input: called on
-#'     peptide-level data, as in the example below, it gives one row per peptide,
-#'     while in the \code{h0testr::run()} and \code{h0testr::tune()} pipelines
-#'     \code{combine_features()} has already run, so it gives one row per
-#'     gene/protein group, like every other test method.
+#'   With \code{mixed=TRUE} the components differ: \code{hits} has one row per gene,
+#'     keyed by \code{config$gene_id_col} alone, with \code{df.denom} holding the
+#'     Satterthwaite denominator degrees of freedom, an extra \code{fit_type} column
+#'     recording whether that gene was fitted by \code{lmer} or fell back to \code{lm},
+#'     and the columns describing a moderation \code{NA}; \code{coefs} is a matrix of
+#'     the tested coefficients, one row per gene, assembled from both collections of
+#'     fits; \code{fit} holds the mixed models and \code{fit_lm} the least squares
+#'     models for single feature genes, either of which is \code{NULL} when no gene took
+#'     that route; and \code{fit_reduced} is \code{NULL}, no reduced model being fitted.
+#'   Note the granularity of \code{hits} follows the input: called with
+#'     \code{mixed=FALSE} on peptide-level data, as in the example below, it gives one
+#'     row per peptide, while in the \code{h0testr::run()} and \code{h0testr::tune()}
+#'     pipelines \code{combine_features()} has already run, so it gives one row per
+#'     gene/protein group, like every other test method. With \code{mixed=TRUE} it is
+#'     gene level whatever the input, that being the point of the mixed model.
 #' @examples
 #' ## lengthy setup of expression data:
 #' set.seed(101)
@@ -1619,15 +2425,63 @@ f.prolfqua_nested_f <- function(fit_full, fit_red, design, config, covariate=NUL
 #' head(trended$hits[, c("Df", "p.value", "moderated", "trend", "s2.prior")])
 #' range(trended$hits$s2.prior)
 #' range(result$hits$s2.prior)                     ## one value, the flat prior
+#'
+#' ## the mixed path, which test_method="prolfqua_lmer" selects: one model per gene
+#' ##   over the rows of its peptides, so the result is gene level although the input
+#' ##   is not. A few genes are enough to show the shape:
+#' config$test_moderate <- NULL
+#' config$test_trend <- NULL
+#' keep <- state$features$gene %in% unique(state$features$gene)[1:8]
+#' small <- list(expression=state$expression[keep, , drop=FALSE],
+#'   features=state$features[keep, , drop=FALSE], samples=state$samples)
+#' out <- h0testr::initialize(small, config, minimal=TRUE)
+#' mix <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE,
+#'   mixed=TRUE)
+#' nrow(mix$hits)                                  ## one row per gene, not per peptide
+#' head(mix$hits[, c("gene", "Df", "F.value", "p.value", "df.denom", "fit_type")])
+#'
+#' ## df.denom is the Satterthwaite denominator, which the random observation effect
+#' ##   pulls down toward the number of observations; dropping that effect gives
+#' ##   prolfqua's documented peptide-only structure and a much larger denominator,
+#' ##   which is why it is not the default:
+#' out$config$test_random_obs <- FALSE
+#' peponly <- h0testr::test_prolfqua(out$state, out$config,
+#'   is_log_transformed=FALSE, mixed=TRUE)
+#' range(mix$hits$df.denom)
+#' range(peponly$hits$df.denom)
 
-test_prolfqua <- function(state, config, is_log_transformed=NULL) {
+test_prolfqua <- function(state, config, is_log_transformed=NULL, mixed=FALSE) {
 
   is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
     "test_prolfqua")
-  
+
   parsed <- f.parse_frm(config$frm, config)
 
+  ## the mixed path models the features of a gene instead of aggregating them, so it
+  ##   needs both levels present and distinct. With one feature per gene the random
+  ##   feature effect is a single unknown confounded with the intercept, so its variance
+  ##   is not identified and lme4 refuses the fit; what remains is the model the least
+  ##   squares path already fits:
+
+  if(mixed && config$feat_id_col %in% config$gene_id_col) {
+    f.err("test_prolfqua: the mixed path needs feature level input, so",
+      "config$feat_id_col and config$gene_id_col must name different columns of",
+      "state$features, and both are '", config$feat_id_col, "';", "\n",
+      "with one feature per gene the random feature effect is not identified and the",
+      "model reduces to the one test_method 'prolfqua' fits, so use that instead, or",
+      "supply un-aggregated data carrying a gene id column", config=config)
+  }
+
   idvars <- unique(c(config$gene_id_col, config$feat_id_col))
+
+  ## the ids the mixed path groups by are the ones test() reports its rows under, so
+  ##   they are resolved here the same way, giving a feature with no gene id of its own
+  ##   an id rather than pooling every such feature into one group:
+
+  if(mixed) {
+    state$features[[config$gene_id_col]] <- f.gene_ids(state$features, config,
+      "test_prolfqua")
+  }
   dat <- data.frame(state$features[, idvars, drop=F], state$expression)
   times <- colnames(state$expression)
   i <- grepl("^[[:digit:]]", times)
@@ -1719,7 +2573,15 @@ test_prolfqua <- function(state, config, is_log_transformed=NULL) {
   ##   a re-parameterization of X rather than a subset of its columns, and those
   ##   columns go into dat under names of their own:
 
-  if(is.null(design$contrast)) {
+  cols_red <- character(0)
+
+  if(mixed) {
+
+    ## the mixed path tests one fit by Wald rather than comparing two, so it forms no
+    ##   reduced design; see f.wald_f() for why differencing two mixed fits is not
+    ##   available:
+
+  } else if(is.null(design$contrast)) {
 
     cols_red <- cols[-design$cols_test]
 
@@ -1745,6 +2607,13 @@ test_prolfqua <- function(state, config, is_log_transformed=NULL) {
   meta$hierarchy[[config$feat_id_col]] <- config$feat_id_col
 
   obj <- prolfqua::LFQData$new(data=dat, config=meta)
+
+  ## the mixed path takes over here: one model per gene over the rows of its features,
+  ##   with the feature and the observation entering as random effects, rather than one
+  ##   model per feature. Everything above is shared, the long table and the design
+  ##   being the same either way:
+
+  if(mixed) return(f.prolfqua_mixed(obj, design, cols, config))
 
   ## the test is the comparison of the full design against the design with the
   ##   columns carrying config$test_term removed, which is an exact F-test for a
@@ -2123,10 +2992,16 @@ f.test_coefs <- function(result, method, design, config) {
   ##   columns of design$X; see f.msqrob_wald(), which reads the same models. A model
   ##   that could not be fit leaves NA:
 
-  if(method %in% "msqrob") {
+  if(method %in% c("msqrob", "msqrob_agg")) {
 
     dat <- SummarizedExperiment::rowData(result$fit[["genes"]])
     if(!all(c("msqrobModels", config$gene_id_col) %in% names(dat))) return(NULL)
+
+    ## a mixed fit carries the estimates of the random effects alongside the fixed ones
+    ##   and, with config$test_ridge, under renamed fixed names; see f.msqrob_parms():
+
+    nom <- f.msqrob_parms(cols,
+      method %in% "msqrob_agg" && isTRUE(config$test_ridge))
 
     models <- dat$msqrobModels
     coefs <- matrix(as.numeric(NA), nrow=length(models), ncol=length(cols),
@@ -2135,7 +3010,7 @@ f.test_coefs <- function(result, method, design, config) {
     for(idx in seq_along(models)) {
       beta <- try(msqrob2::getCoef(models[[idx]]), silent=T)
       if(inherits(beta, "try-error") || is.null(names(beta))) next
-      coefs[idx, ] <- beta[match(cols, names(beta))]
+      coefs[idx, ] <- beta[match(nom, names(beta))]
     }
 
     return(coefs)
@@ -2157,6 +3032,17 @@ f.test_coefs <- function(result, method, design, config) {
   ##   of design$X, under the make.names() forms of their names that test_prolfqua()
   ##   built, one model per feature in fit$modelDF. A model that could not be fit, or
   ##   that dropped a column as non-estimable for that feature, leaves NA:
+
+  ## the mixed path fits one model per gene and falls back to stats::lm() for a gene
+  ##   with a single feature, so its coefficients come from two collections of fits and
+  ##   are assembled where those are, in f.prolfqua_mixed_f(), rather than re-walked
+  ##   here:
+
+  if(method %in% "prolfqua_lmer") {
+    coefs <- result$coefs
+    if(!is.matrix(coefs) || !all(cols %in% colnames(coefs))) return(NULL)
+    return(coefs[, cols, drop=F])
+  }
 
   if(method %in% "prolfqua") {
 
@@ -2455,7 +3341,8 @@ f.format_limma.old <- function(tbl, config) {
 
 test_methods <- function() {
   return(
-    c("lm", "trend", "deqms", "msqrob", "proda", "prolfqua", "voom")
+    c("lm", "trend", "deqms", "msqrob", "msqrob_agg", "proda", "prolfqua",
+      "prolfqua_lmer", "voom")
   )
 }
 
@@ -2467,12 +3354,32 @@ test_methods <- function() {
 #'   See invididual \code{test_*} methods for more details. 
 #'   The \code{method} setting meanings are: 
 #'   \tabular{ll}{
+#'     \code{lm}     \cr \tab Use \code{stats::lm()} on each feature. \cr
 #'     \code{trend}  \cr \tab Use \code{limma::eBayes(trend=TRUE)}. \cr
 #'     \code{deqms}  \cr \tab Use \code{DEqMS::spectraCounteBayes()}. \cr
 #'     \code{msqrob} \cr \tab Use \code{msqrob2::msqrob()}. \cr
+#'     \code{msqrob_agg} \cr \tab Use \code{msqrob2::msqrobAggregate()}: one mixed model per gene over the rows of its features, with the feature and the observation as random effects. \cr
 #'     \code{proda}  \cr \tab Use \code{proDA::proDA()}. \cr
+#'     \code{prolfqua} \cr \tab Use \code{prolfqua::strategy_lm()} on each feature. \cr
+#'     \code{prolfqua_lmer} \cr \tab Use \code{prolfqua::strategy_lmer()}: one mixed model per gene over the rows of its features, with the feature and the observation as random effects. \cr
 #'     \code{voom}   \cr \tab Use \code{limma::voom()}. \cr
-#'   } 
+#'   }
+#'   Most methods are row-wise on \code{state$expression} and return one row per row of
+#'     it, so their granularity follows the input. \code{"deqms"}, \code{"msqrob"},
+#'     \code{"msqrob_agg"} and \code{"prolfqua_lmer"} return one row per gene whatever
+#'     the input is: the first two aggregate internally, and the last two model the
+#'     features of a gene instead of aggregating them, \code{"msqrob_agg"} aggregating
+#'     only to carry the result. \code{h0testr::tune()} therefore does not call
+#'     \code{combine_features()} before those four, and \code{h0testr::run()} should be
+#'     given a \code{config$run_order} without it; \code{"prolfqua_lmer"} and
+#'     \code{"msqrob_agg"} need feature level input and refuse a state whose features
+#'     are already aggregated.
+#'   The two feature level mixed model paths fit the same random structure by different
+#'     engines. \code{"prolfqua_lmer"} takes Satterthwaite degrees of freedom for the
+#'     tested contrast and is the better calibrated of the two; \code{"msqrob_agg"}
+#'     reports \code{msqrob2}'s moderated t against \code{dfPosterior}, which is
+#'     generous, and is mildly anti-conservative as a result. See
+#'     \code{h0testr::test_msqrob()} for the simulated rejection rates.
 #'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by \code{read_data()}:
@@ -2490,13 +3397,13 @@ test_methods <- function() {
 #'     \code{test_term}      \cr \tab Term (character scalar) to be tested for non-zero coefficient. \cr
 #'     \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
 #'     \code{reference_levels} \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm} (see examples). \cr
-#'     \code{test_method}    \cr \tab Character scalar in \code{c("lm", "trend", "deqms", "msqrob", "proda", "prolfqua", "voom")}. \cr
+#'     \code{test_method}    \cr \tab Character scalar in \code{h0testr::test_methods()}. \cr
 #'   }
-#' @param method Name of test method where 
+#' @param method Name of test method where
 #'   \code{method \%in\% h0testr::test_methods()}.
 #' @param is_log_transformed Logical scalar: whether \code{state$expression} has
 #'   been log transformed. Only consulted for \code{method \%in\% c("proda",
-#'   "prolfqua")}. Defaults to \code{config$is_log_transformed}, which
+#'   "prolfqua", "prolfqua_lmer")}. Defaults to \code{config$is_log_transformed}, which
 #'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
 #'   passing both is an error unless they agree.
 #' @param prior_df Prior degrees of freedom for method \code{proda}; 
@@ -2547,27 +3454,28 @@ test_methods <- function() {
 #'       report. See \code{h0testr::new_config()} for how to write one.
 #'   }
 #'   \code{feature} holds the value of \code{config$feat_col} identifying the row
-#'     of \code{state$expression} the result describes, except for \code{method
-#'     \%in\% c("deqms", "msqrob")}, which aggregate internally and report one row
-#'     per value of \code{config$gene_id_col} whatever level the input is at. So a
-#'     method other than those two reports precursors when handed precursors and
+#'     of \code{state$expression} the result describes, except for the gene level
+#'     methods, \code{method \%in\% c("deqms", "msqrob", "msqrob_agg",
+#'     "prolfqua_lmer")}, which report one row per value of
+#'     \code{config$gene_id_col} whatever level the input is at. So a
+#'     method other than those reports precursors when handed precursors and
 #'     genes when handed the output of \code{h0testr::combine_features()}, which
 #'     sets \code{config$feat_col} to \code{config$gene_id_col}. The feature
-#'     metadata reported in \code{original} is at the matching level: for the two
-#'     gene level methods it is the gene level form of \code{state$features},
+#'     metadata reported in \code{original} is at the matching level: for the gene
+#'     level methods it is the gene level form of \code{state$features},
 #'     built exactly as \code{h0testr::combine_features()} builds it.
 #'   \code{expr} is the mean of the values handed to the test, over the
-#'     observations where the feature was seen; for \code{method \%in\% c("deqms",
-#'     "msqrob")}, which take feature level input and report gene level results, it
+#'     observations where the feature was seen; for the gene level methods, which
+#'     take feature level input and report gene level results, it
 #'     is also over the features of each gene.
 #'   \code{stat} is the statistic the engine itself reports, with one exception: a
-#'     joint test with \code{method="msqrob"} reports an F computed by \code{h0testr}
-#'     from the fitted \code{msqrob2} models, since
+#'     joint test with \code{method \%in\% c("msqrob", "msqrob_agg")} reports an F
+#'     computed by \code{h0testr} from the fitted \code{msqrob2} models, since
 #'     \code{msqrob2::hypothesisTest()} answers one contrast at a time. See
 #'     \code{h0testr::test_msqrob()} for what that statistic is. A
 #'     \code{config$contrast} run has no such exception: every engine reports its
-#'     own statistic for a contrast, including \code{method="msqrob"}, which
-#'     answers it with \code{msqrob2::hypothesisTest()}, and
+#'     own statistic for a contrast, including those two, which
+#'     answer it with \code{msqrob2::hypothesisTest()}, and
 #'     \code{method="deqms"}, which cannot run the corresponding
 #'     \code{config$test_term} at all.
 #' @examples
@@ -2611,7 +3519,7 @@ test <- function(state, config, method=NULL,
   ## only these two methods are told the scale; resolved here rather than in
   ##   them so that an unusable combination is caught before the fit:
 
-  if(method %in% c("proda", "prolfqua")) {
+  if(method %in% c("proda", "prolfqua", "prolfqua_lmer")) {
     is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
       "test")
   }
@@ -2647,6 +3555,9 @@ test <- function(state, config, method=NULL,
   } else if(method %in% "msqrob") {
     result <- test_msqrob(state, config)
     tbl2 <- f.format_msqrob(result$hits, test_col, config)
+  } else if(method %in% "msqrob_agg") {
+    result <- test_msqrob(state, config, aggregate=TRUE)
+    tbl2 <- f.format_msqrob(result$hits, test_col, config)
   } else if(method %in% "proda") {
     result <- test_proda(state, config,
       is_log_transformed=is_log_transformed, prior_df=prior_df)
@@ -2654,6 +3565,10 @@ test <- function(state, config, method=NULL,
   } else if(method %in% "prolfqua") {
     result <- test_prolfqua(state, config,
       is_log_transformed=is_log_transformed)
+    tbl2 <- f.format_prolfqua(result$hits, test_col, config)
+  } else if(method %in% "prolfqua_lmer") {
+    result <- test_prolfqua(state, config,
+      is_log_transformed=is_log_transformed, mixed=TRUE)
     tbl2 <- f.format_prolfqua(result$hits, test_col, config)
   } else if(method %in% "voom") {
     result <- test_voom(state, config)

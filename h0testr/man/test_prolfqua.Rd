@@ -4,7 +4,7 @@
 \alias{test_prolfqua}
 \title{Hypothesis testing using the \code{prolfq} package}
 \usage{
-test_prolfqua(state, config, is_log_transformed = NULL)
+test_prolfqua(state, config, is_log_transformed = NULL, mixed = FALSE)
 }
 \arguments{
 \item{state}{List with elements like those returned by \code{read_data()}:
@@ -27,6 +27,8 @@ test_prolfqua(state, config, is_log_transformed = NULL)
   \code{factor_levels}         \cr \tab Optional; resolved levels of each factor variable, as set by \code{initialize()}. \cr
   \code{test_moderate}         \cr \tab Optional logical; whether to shrink the error variance across features. Defaults to \code{TRUE} when absent. \cr
   \code{test_trend}            \cr \tab Optional logical; whether the prior of that shrinkage is fitted against mean feature intensity rather than flat. Defaults to \code{FALSE} when absent. Unrelated to \code{config$test_method="trend"}. \cr
+  \code{test_random_obs}       \cr \tab Optional logical; whether the \code{mixed=TRUE} fit includes a random observation effect alongside the random feature effect. Defaults to \code{TRUE} when absent, which is the calibrated model; see Details. Ignored when \code{mixed=FALSE}. \cr
+  \code{feat_id_col}           \cr \tab Name of column in \code{state$features} with unique feature ids; must differ from \code{config$gene_id_col} when \code{mixed=TRUE}. \cr
   \code{normalization_method}  \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
 }}
 
@@ -34,6 +36,13 @@ test_prolfqua(state, config, is_log_transformed = NULL)
 been log transformed. Defaults to \code{config$is_log_transformed}, which
 \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
 passing both is an error unless they agree.}
+
+\item{mixed}{Logical scalar: whether to fit one mixed model per gene over the rows
+of its features, with the feature and the observation as random effects, instead
+of one least squares model per feature. \code{TRUE} is what
+\code{config$test_method="prolfqua_lmer"} selects, gives one result row per gene
+from feature level input, and requires \code{config$feat_id_col} and
+\code{config$gene_id_col} to name different columns. See Details.}
 }
 \value{
 A list with components:
@@ -67,11 +76,21 @@ A list with components:
       indexes the columns carrying the test, and \code{df_intend} is the numerator
       degrees of freedom the test is meant to have. \cr
   }
-  Note the granularity of \code{hits} follows the input: called on
-    peptide-level data, as in the example below, it gives one row per peptide,
-    while in the \code{h0testr::run()} and \code{h0testr::tune()} pipelines
-    \code{combine_features()} has already run, so it gives one row per
-    gene/protein group, like every other test method.
+  With \code{mixed=TRUE} the components differ: \code{hits} has one row per gene,
+    keyed by \code{config$gene_id_col} alone, with \code{df.denom} holding the
+    Satterthwaite denominator degrees of freedom, an extra \code{fit_type} column
+    recording whether that gene was fitted by \code{lmer} or fell back to \code{lm},
+    and the columns describing a moderation \code{NA}; \code{coefs} is a matrix of
+    the tested coefficients, one row per gene, assembled from both collections of
+    fits; \code{fit} holds the mixed models and \code{fit_lm} the least squares
+    models for single feature genes, either of which is \code{NULL} when no gene took
+    that route; and \code{fit_reduced} is \code{NULL}, no reduced model being fitted.
+  Note the granularity of \code{hits} follows the input: called with
+    \code{mixed=FALSE} on peptide-level data, as in the example below, it gives one
+    row per peptide, while in the \code{h0testr::run()} and \code{h0testr::tune()}
+    pipelines \code{combine_features()} has already run, so it gives one row per
+    gene/protein group, like every other test method. With \code{mixed=TRUE} it is
+    gene level whatever the input, that being the point of the mixed model.
 }
 \description{
 Tests for differential expression using the \code{prolfq::build_model()} function.
@@ -141,6 +160,77 @@ Uses the \code{prolfqua::build_model()} function. Returned results sorted by
   The \code{FDR} column of \code{hits} is \code{stats::p.adjust(..., "BH")} over
     the features tested, computed here rather than taken from \code{prolfqua},
     which adjusts within each row of its per-term ANOVA table.
+  With \code{mixed=TRUE}, which \code{test_method="prolfqua_lmer"} selects, the
+    engine changes from \code{prolfqua::strategy_lm()} to
+    \code{prolfqua::strategy_lmer()} and one model is fitted per gene over the rows
+    of all of its features, rather than one model per feature. The result is gene
+    level inference from feature level data with no aggregation step: the fixed part
+    of the model is the same design matrix, whose columns come from
+    \code{state$samples} and so are identical across the features of a gene, which
+    makes its coefficients gene level quantities. \code{hits} then has one row per
+    gene, keyed by \code{config$gene_id_col}, and \code{h0testr::run()} and
+    \code{h0testr::tune()} do not call \code{combine_features()} before it, as they
+    do not for \code{test_method} \code{"deqms"} and \code{"msqrob"}. Handing it
+    data that have already been aggregated is an error rather than a silent
+    degenerate fit; see below.
+  The model is \code{intensity ~ 0 + <design columns> + (1|<feat_id_col>) +
+    (1|<obs_col>)}. The random feature intercept absorbs the feature baselines,
+    which differ by orders of magnitude among the precursors of one protein. It is
+    random rather than a fixed effect per feature because it then costs one variance
+    component instead of one coefficient per feature, and because a thinly observed
+    feature is shrunk toward the gene mean rather than estimated from its own few
+    observations, which is what makes the fit unbiased under feature specific
+    missingness: aggregating first instead compares a different subset of a gene's
+    features in each observation.
+  The random observation intercept is the error stratum the fixed effects belong to.
+    Every covariate of \code{config$frm} comes from \code{state$samples}, so it
+    varies across observations and not within one, and without this term the
+    features of a gene are asserted to be independent measurements of that
+    observation. The Satterthwaite denominator degrees of freedom then come out near
+    the number of feature by observation rows instead of near the number of
+    observations, and the test rejects far more often than it should: simulated under
+    the null at 12 observations, 5 features per gene and a per observation effect the
+    size of the residual, 26 percent at the 5 percent level, against 4.7 percent with
+    the term present. Where the per observation variance really is zero the term
+    costs a little conservatism, 3.0 percent against 5.3 percent, which is the safe
+    direction. \code{config$test_random_obs=FALSE} drops it, giving the feature only
+    structure \code{prolfqua} documents, for comparison; a warning says so. A random
+    slope is not offered: letting each feature respond differently to the tested
+    covariate makes the fixed effect an average over a distribution of feature
+    specific responses, which is a different hypothesis.
+  The mixed test is a Wald F of one fit rather than a comparison of two, computed by
+    \code{lmerTest::contest()} from the same coefficients every other engine here
+    selects, so \code{config$test_term} still covers every term containing it and
+    \code{config$contrast} is still one degree of freedom. Its denominator degrees of
+    freedom are the Satterthwaite approximation, reported in \code{df.denom}, and are
+    fractional in general. Differencing the residual sums of squares of a full and a
+    reduced fit, which is what the least squares path does, is not available: the
+    variance components are re-estimated for each fit, so the difference is not an F.
+  The error variance is not moderated across genes on this path, since the
+    denominator of a Satterthwaite F is a combination of variance components rather
+    than one residual variance and there is no single quantity to shrink.
+    \code{hits$moderated} is \code{FALSE}, \code{df.prior}, \code{s2.prior},
+    \code{F.value.unmod} and \code{p.value.unmod} are \code{NA}, and
+    \code{s2.denom} reports the effective denominator variance the F did use.
+    \code{config$test_moderate} and \code{config$test_trend} are not consulted, and
+    a note says so when either is present and \code{TRUE}. A note rather than a
+    warning because \code{h0testr::new_config()} sets \code{test_moderate=TRUE}, so
+    it applies to a default configuration and describes nothing wrong.
+  A gene with a single observed feature is fitted by \code{stats::lm()} instead: its
+    random feature effect would be a single unknown confounded with the intercept, so
+    that variance is not identified and \code{lme4} refuses the fit outright, and
+    what is left is the mixed model without a term that could not have been
+    estimated. Such genes are reported rather than dropped, since they are common and
+    dropping them would leave a gene table that does not line up with the one another
+    \code{test_method} produces; the \code{fit_type} column of \code{hits} records
+    which route each row took. A gene with no observed value at all, and a gene for
+    which the test does not come out at the intended degrees of freedom, are dropped
+    with a warning naming how many and the first few.
+  A fit at the boundary of the parameter space, meaning a variance component
+    estimated at zero, is kept and flagged in \code{hits$isSingular}: the F is still
+    the right test and the model has simply collapsed toward the one without that
+    effect. Messages and warnings from the fits are counted and summarized in the log
+    rather than emitted one per gene.
   Flow is:
     \tabular{l}{
       1. Reshape data into long format with intensities, feature meta, and sample meta. \cr
@@ -227,4 +317,28 @@ trended <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALS
 head(trended$hits[, c("Df", "p.value", "moderated", "trend", "s2.prior")])
 range(trended$hits$s2.prior)
 range(result$hits$s2.prior)                     ## one value, the flat prior
+
+## the mixed path, which test_method="prolfqua_lmer" selects: one model per gene
+##   over the rows of its peptides, so the result is gene level although the input
+##   is not. A few genes are enough to show the shape:
+config$test_moderate <- NULL
+config$test_trend <- NULL
+keep <- state$features$gene \%in\% unique(state$features$gene)[1:8]
+small <- list(expression=state$expression[keep, , drop=FALSE],
+  features=state$features[keep, , drop=FALSE], samples=state$samples)
+out <- h0testr::initialize(small, config, minimal=TRUE)
+mix <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE,
+  mixed=TRUE)
+nrow(mix$hits)                                  ## one row per gene, not per peptide
+head(mix$hits[, c("gene", "Df", "F.value", "p.value", "df.denom", "fit_type")])
+
+## df.denom is the Satterthwaite denominator, which the random observation effect
+##   pulls down toward the number of observations; dropping that effect gives
+##   prolfqua's documented peptide-only structure and a much larger denominator,
+##   which is why it is not the default:
+out$config$test_random_obs <- FALSE
+peponly <- h0testr::test_prolfqua(out$state, out$config,
+  is_log_transformed=FALSE, mixed=TRUE)
+range(mix$hits$df.denom)
+range(peponly$hits$df.denom)
 }

@@ -133,23 +133,12 @@ f.tune2 <- function(state, config, is_log_transformed=NULL) {
     return(f.tune2_na_row(config))
   }
 
-  ## the companion guard for an engine bounded by terms rather than by coefficients.
-  ##   prolfqua was the only one, while it read the rows of a per-term anova table;
-  ##   test_prolfqua() now compares an explicit full and reduced design, so
-  ##   f.test_max_terms() returns Inf for every method and this never fires. Kept in
-  ##   place because the two bounds are different things (see f.test_max_terms()) and
-  ##   a later engine may be bounded this way. Same treatment as above, and for the
-  ##   same reason: a property of config$frm and config$test_term, so it holds for
-  ##   every parameter combination using this test_method:
-
-  n_terms <- if(capped) length(f.normalize_terms(config)$drop_terms) else 0L
-  if(capped && n_terms > f.test_max_terms(config$test_method)) {
-    f.msg("WARNING: f.tune2: test_method", config$test_method, "can test at most",
-      f.test_max_terms(config$test_method), "term at a time, but",
-      "config$test_term", config$test_term, "implies a joint test over", n_terms,
-      "terms; skipping and returning NA", config=config)
-    return(f.tune2_na_row(config))
-  }
+  ## there was a companion guard here for an engine bounded by terms rather than by
+  ##   coefficients. prolfqua was the only one, while it read the rows of a per-term
+  ##   anova table; test_prolfqua() now compares an explicit full and reduced design,
+  ##   so no engine is bounded that way and the guard could never fire. Removed with
+  ##   f.test_max_terms(), which returned Inf for every method; the coefficient bound
+  ##   above is the live one:
 
   f.log_block("f.tune:2: filter", config=config)
   out <- filter(state, config)
@@ -184,6 +173,20 @@ f.tune2 <- function(state, config, is_log_transformed=NULL) {
         unique(counts), "; skipping and returning NA", config=config)
       return(f.tune2_na_row(config))
     }
+  }
+
+  ## the mixed model paths of test_prolfqua() and test_msqrob() need feature level
+  ##   input, which is what tune() hands them by not aggregating for a gene level
+  ##   method. A config naming one column as both the feature and the gene id has no
+  ##   feature level to model, and no other parameter in the sweep changes that:
+
+  if(config$test_method %in% c("prolfqua_lmer", "msqrob_agg") &&
+      out$config$feat_id_col %in% out$config$gene_id_col) {
+    f.msg("WARNING: f.tune2: test_method", config$test_method, "needs feature level",
+      "input, and config$feat_id_col and config$gene_id_col both name '",
+      out$config$feat_id_col, "', so there is no feature level to model;",
+      "skipping and returning NA", config=config)
+    return(f.tune2_na_row(config))
   }
 
   ## a sweep exists to fill in a matrix of parameter combinations, so one combination
@@ -261,8 +264,11 @@ f.tune2 <- function(state, config, is_log_transformed=NULL) {
 #' @param impute_spans Numeric vector of spans to try for \code{impute_loess_logit}.
 #' @param impute_npcs Numeric vector of N PCs to try for \code{impute_method \%in\% c("bpca", "ppca", "svdImpute")}.
 #' @param impute_ks Numeric vector of \code{k} to use for \code{impute_method \%in\% c("knn", "lls")}.
-#' @param test_methods Character vector with one or more of: 
-#'   \code{c("voom", "trend", "deqms", "msqrob", "proda")}.
+#' @param test_methods Character vector with one or more element of
+#'   \code{h0testr::test_methods()}. Defaults to every method except
+#'   \code{"prolfqua_lmer"} and \code{"msqrob_agg"}, each of which fits a mixed model
+#'   per gene and so costs orders of magnitude more time per cell than the rest of the
+#'   sweep put together; name either explicitly to include it.
 #' @return A data.frame with the following columns:
 #'   \tabular{ll}{
 #'     \code{norm}       \cr \tab Normalization method (character). \cr
@@ -291,9 +297,17 @@ f.tune2 <- function(state, config, is_log_transformed=NULL) {
 #'     \code{"prolfqua"} by an F-test comparing the full design against the design
 #'     with the tested columns removed, with the error variance moderated across
 #'     features as the \code{limma}-based methods do.
+#'     \code{"prolfqua_lmer"} is unbounded in the same way, testing the same
+#'     coefficients by a Satterthwaite Wald F from one mixed model per gene, and
+#'     \code{"msqrob_agg"} by a joint Wald F from one \code{msqrob2} mixed model per
+#'     gene.
 #'     \code{"deqms"} is also skipped when every gene has the same number of
 #'     features, there being no spread for its variance prior to be fitted against;
-#'     see \code{h0testr::test_deqms()}.
+#'     see \code{h0testr::test_deqms()}. \code{"prolfqua_lmer"} and
+#'     \code{"msqrob_agg"} are skipped when
+#'     \code{config$feat_id_col} and \code{config$gene_id_col} name one column, there
+#'     being no feature level for them to model; see
+#'     \code{h0testr::test_prolfqua()} and \code{h0testr::test_msqrob()}.
 #'     Any other failure of the test step is caught the same way, so that one
 #'     combination an engine cannot fit costs that cell and not the rest of the
 #'     sweep; the error is written to \code{config$log_file} in full, immediately

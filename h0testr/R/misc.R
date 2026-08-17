@@ -742,14 +742,18 @@ f.test_max_cols <- function(method) {
 ##   whatever level state$expression is at. test_deqms() aggregates with
 ##   combine_features() and test_msqrob() with QFeatures::aggregateFeatures(), both
 ##   internally, so their results have one row per gene even when handed precursors;
-##   every other method is row-wise on state$expression and reports one row per row of
-##   it. Written once here because four places need the same answer: test() (for the
-##   row ids and the feature metadata it reports), f.feature_means() (for the level the
-##   average expression is over), the f.format_*() functions (for which column of an
-##   engine's table holds the id) and tune() (for whether to aggregate before testing):
+##   "prolfqua_lmer" reaches the same place by modelling instead of aggregating, fitting
+##   one mixed model per gene with a random effect for the feature, and "msqrob_agg" the
+##   same way through msqrob2::msqrobAggregate(), which aggregates only to carry the
+##   result and fits on the un-aggregated assay; every other method
+##   is row-wise on state$expression and reports one row per row of it. Written once
+##   here because four places need the same answer: test() (for the row ids and the
+##   feature metadata it reports), f.feature_means() (for the level the average
+##   expression is over), the f.format_*() functions (for which column of an engine's
+##   table holds the id) and tune() (for whether to aggregate before testing):
 
 f.gene_level_method <- function(method) {
-  return(method %in% c("deqms", "msqrob"))
+  return(method %in% c("deqms", "msqrob", "prolfqua_lmer", "msqrob_agg"))
 }
 
 ## Which column of state$features identifies the rows a test method returns.
@@ -762,21 +766,6 @@ f.gene_level_method <- function(method) {
 f.test_id_col <- function(method, config) {
   if(f.gene_level_method(method)) return(config$gene_id_col)
   return(config$feat_col)
-}
-
-## How many terms of config$frm a test method can test at once; companion to
-##   f.test_max_cols(), which counts design matrix columns. The two limits are
-##   different things and a method can be bounded by either, which is why this is a
-##   separate function even though no engine is currently bounded this way.
-##   prolfqua was: it reported the rows of a per-term anova table, which can carry a
-##   multi-df F-test for one factor but cannot express a joint test over several
-##   terms, so testing 'sex' in ~sex*batch was out of reach. test_prolfqua() no
-##   longer reads that table, comparing an explicit full and reduced design instead,
-##   so the bound is gone. Retained rather than deleted so that f.tune2()'s guard
-##   stays in place for an engine that turns out to be term-bounded later:
-
-f.test_max_terms <- function(method) {
-  return(Inf)
 }
 
 ## The design for config$frm and the columns of it carrying the test of
@@ -809,7 +798,8 @@ f.design_test_cols_max <- function(state, config, caller, max_cols=Inf) {
       deparse(design$parsed$frm), "is a joint test of", n_cols, "coefficients (",
       paste(colnames(design$X)[design$cols_test], collapse=", "), "), but", caller,
       "can test at most", max_cols, "at a time;", "\n",
-      "use test_method 'lm', 'trend', 'voom', 'prolfqua' or 'proda' for this",
+      "use test_method 'lm', 'trend', 'voom', 'msqrob', 'msqrob_agg', 'prolfqua',",
+      "'prolfqua_lmer' or 'proda' for this",
       "test_term, or name a term of config$frm that resolves to a single coefficient",
       config=config)
   }
