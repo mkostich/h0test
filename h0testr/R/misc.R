@@ -573,9 +573,11 @@ f.design_test_cols <- function(state, config) {
 ##   config$contrast tests, in the shape f.design_test_cols() returns for
 ##   config$test_term, so that the estimability filter and the hypothesis tests take
 ##   the two the same way. The test is of whether that weighted sum is zero, which
-##   is one degree of freedom however many coefficients carry a non-zero weight, and
-##   is the reason a contrast reaches engines that a joint test does not: see
-##   f.test_max_cols(), whose cap is a cap on coefficients reported at once.
+##   is one degree of freedom however many coefficients carry a non-zero weight. That
+##   used to be the only way a capped engine could reach a multi-level factor; no engine
+##   is capped any more, so a contrast is now a different hypothesis rather than a way
+##   around one, and it stays one degree of freedom for the limma-family engines because
+##   limma::contrasts.fit() leaves them a single coefficient.
 ##   $X_red is the design of the model constrained so that the contrast is zero,
 ##   which is nested in the full model and one rank below it, so comparing the two
 ##   is exactly the test of the contrast. It is a re-parameterization rather than a
@@ -714,29 +716,30 @@ f.warn_contrast_marginality <- function(parsed, X, L, cols_test, state, config) 
   return(invisible(NULL))
 }
 
-## How many design matrix columns a test method can test at once. The limma-family
-##   methods take a vector of coefficients and return an F-test over all of them, so
-##   they are unlimited. proDA is unlimited too, by a different route:
+## f.test_max_cols() was here, returning how many design matrix columns a test method
+##   could test at once, along with f.design_test_cols_max(), which wrapped
+##   f.design_test_cols() so that a method which could not express the hypothesis
+##   config$test_term implied said so rather than quietly testing a narrower one. Both
+##   are gone, because no method is bounded that way any more.
+##   The limma-family methods were always unlimited, taking a vector of coefficients and
+##   returning an F over all of them, and proDA is unlimited by a different route:
 ##   proDA::test_diff() takes either one contrast or a reduced model, and test_proda()
-##   hands it the reduced model that f.design_test_cols() built whenever more than one
-##   column carries the test, which is a likelihood ratio test over all of them. One
-##   engine can still only report one coefficient at a time. DEqMS moderates a
-##   single coefficient's t-statistic: DEqMS::spectraCounteBayes() forms sca.t from
-##   fit$coefficients[, coef_col] over fit$stdev.unscaled[, coef_col], and the
-##   package has no F-analogue anywhere, so the limit is in the moderation itself.
-##   DEqMS::outputResult() takes a single coef_col because there is nothing joint
-##   for it to report, so it is the wrong place to look for the constraint.
-##   msqrob2 was bounded the same way, but only at its API: msqrob2::hypothesisTest()
-##   loops over the columns of the contrast and returns one table per column rather
-##   than a joint test over several, while the fit itself carries everything a joint
-##   test needs. test_msqrob() now computes that test from the fitted models, so the
-##   bound is gone; see f.msqrob_wald(). The remaining limit is a limitation of the
-##   engine, not of how h0testr selects columns:
-
-f.test_max_cols <- function(method) {
-  if(method %in% "deqms") return(1L)
-  return(Inf)
-}
+##   hands it the reduced model f.design_test_cols() built whenever more than one column
+##   carries the test, which is a likelihood ratio test over all of them.
+##   The other two were bounded only at their APIs, not in what their fits could support.
+##   msqrob2::hypothesisTest() loops over the columns of the contrast and returns one
+##   table per column rather than a joint test over several, while the fit carries
+##   everything a joint test needs; test_msqrob() computes that test from the fitted
+##   models, see f.msqrob_wald(). DEqMS moderates one coefficient's t-statistic and has
+##   no F-analogue anywhere, but the moderation is a variance prior: its
+##   DEqMS::spectraCounteBayes() returns a per-gene posterior variance and a prior
+##   degrees of freedom, neither of which mentions a coefficient, and coef_col enters
+##   only where sca.t is formed from them. test_deqms() computes the joint test from
+##   those, see f.deqms_moderated_f(). What was said here before, that "the limit is in
+##   the moderation itself", was wrong on that second point.
+##   So config$test_term and config$contrast now reach every method, and the only
+##   remaining refusals are properties of an engine's model rather than of its API: see
+##   the capability table in the tests directory.
 
 ## Whether a test method takes feature level input and reports gene level results,
 ##   whatever level state$expression is at. test_deqms() aggregates with
@@ -766,45 +769,6 @@ f.gene_level_method <- function(method) {
 f.test_id_col <- function(method, config) {
   if(f.gene_level_method(method)) return(config$gene_id_col)
   return(config$feat_col)
-}
-
-## The design for config$frm and the columns of it carrying the test of
-##   config$test_term, for a method that can test at most max_cols of them at once.
-##   Wraps f.design_test_cols() so that a method which cannot express the test that
-##   config$test_term implies says so, rather than quietly testing a narrower
-##   hypothesis than the one that was asked for and that
-##   filter_features_by_estimability() screened features against. The shortfall
-##   arises from the marginality rule: testing a variable tests every term
-##   containing it, so testing 'sex' in ~sex*batch is a joint test of sexM and
-##   sexM:batchb2, and testing a factor with more than two levels is a joint test of
-##   its contrasts:
-
-f.design_test_cols_max <- function(state, config, caller, max_cols=Inf) {
-
-  design <- f.design_test_cols(state, config)
-  n_cols <- length(design$cols_test)
-
-  ## config$contrast is one degree of freedom however many coefficients it weights,
-  ##   and every engine here can express it: the limma-based ones through
-  ##   limma::contrasts.fit(), which leaves a fit with a single coefficient to
-  ##   report, and the rest through the constrained design f.design_contrast()
-  ##   returns. So the cap, which counts coefficients reported at once, does not
-  ##   apply, and a contrast is how a capped engine reaches a multi-level factor:
-
-  if(!is.null(design$contrast)) return(design)
-
-  if(n_cols > max_cols) {
-    f.err(caller, ": testing config$test_term '", config$test_term, "' in",
-      deparse(design$parsed$frm), "is a joint test of", n_cols, "coefficients (",
-      paste(colnames(design$X)[design$cols_test], collapse=", "), "), but", caller,
-      "can test at most", max_cols, "at a time;", "\n",
-      "use test_method 'lm', 'trend', 'voom', 'msqrob', 'msqrob_agg', 'prolfqua',",
-      "'prolfqua_lmer' or 'proda' for this",
-      "test_term, or name a term of config$frm that resolves to a single coefficient",
-      config=config)
-  }
-
-  return(design)
 }
 
 ## Classify each variable in config$frm as "factor" or "numeric" (continuous).
@@ -1095,6 +1059,43 @@ f.is_log_transformed <- function(is_log_transformed, config, fn_name) {
   }
 
   return(is_log_transformed)
+}
+
+## Resolve whether the variance prior of the moderation is fitted against mean feature
+##   intensity, for a function that takes a trend argument. The argument wins when given,
+##   config$test_trend answers otherwise, and FALSE when neither says anything, which is
+##   what new_config() ships. Unlike f.is_log_transformed(), disagreement between the two
+##   is not an error: the scale of the data is a fact and the two cannot both be right,
+##   whereas this is a preference about how to fit a prior, so a caller passing one is
+##   overriding the configuration on purpose. Which methods honor it, and what the ones
+##   that cannot do instead, is test()'s business; see f.trend_methods():
+
+f.is_trend <- function(trend, config, fn_name="f.is_trend") {
+
+  from_config <- config$test_trend
+
+  if(!is.null(from_config) &&
+      !(is.logical(from_config) && length(from_config) %in% 1 &&
+        !is.na(from_config))) {
+    f.err(fn_name, ": config$test_trend is not TRUE or FALSE; value:",
+      from_config, config=config)
+  }
+
+  ## "" is accepted as unset for callers that pass an empty character:
+
+  unset <- is.null(trend) || (is.character(trend) && all(trend %in% ""))
+
+  if(unset) {
+    if(is.null(from_config)) return(FALSE)
+    return(from_config)
+  }
+
+  if(!(is.logical(trend) && length(trend) %in% 1 && !is.na(trend))) {
+    f.err(fn_name, ": trend is not TRUE or FALSE; value:", trend,
+      "; typeof:", typeof(trend), config=config)
+  }
+
+  return(trend)
 }
 
 ## Drop the features that cannot contribute to a fit of missingness against

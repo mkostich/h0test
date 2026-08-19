@@ -364,33 +364,185 @@ f.gene_counts <- function(state, config, caller="f.gene_counts") {
   return(out)
 }
 
+## The moderated test of the design matrix columns carrying the test, from a fit
+##   DEqMS::spectraCounteBayes() has moderated. DEqMS's own statistic is one
+##   coefficient's moderated t, and its API stops there: spectraCounteBayes() takes a
+##   coef_col and DEqMS::outputResult() reports one column. The moderation itself does
+##   not: that function fits a variance prior against the number of features behind
+##   each gene and returns, per gene, a posterior variance in $sca.postvar and a prior
+##   degrees of freedom in $sca.dfprior, neither of which mentions a coefficient. Its
+##   coef_col enters only in the last two statements, where it forms sca.t and sca.p
+##   from them. So the prior is a variance prior of exactly limma's kind, and a joint
+##   test over several coefficients is the same substitution limma makes for its own F:
+##   the ordinary F with the per-gene residual variance replaced by the posterior
+##   variance and the denominator degrees of freedom raised by those of the prior. See
+##   f.moderate_var(), which says the same thing about prolfqua's prior.
+##   At one numerator degree of freedom that F is the square of DEqMS's own moderated
+##   t, so both cases are computed here rather than only the joint one, and the numbers
+##   this reports for a single coefficient are DEqMS's own to within floating point.
+##   That case is deliberately computed from fit$stdev.unscaled, which limma fits per
+##   gene, rather than from fit$cov.coefficients, which it takes from the complete
+##   design: the two agree only when every gene was fitted on every observation, and
+##   the single coefficient case has to keep working when they do not. Hence also the
+##   guard in test_deqms() for the joint case, which has no per-gene covariance matrix
+##   available; limma's own F carries the same caveat and does not refuse, but a
+##   reported statistic that is quietly wrong for the genes with missing values is
+##   worse than one that is not reported.
+##   cols indexes the columns of fit$coefficients carrying the test, which after
+##   f.limma_contrast_fit() is the single column of the contrast; the fit that comes
+##   back from limma::contrasts.fit() carries $cov.coefficients and $stdev.unscaled for
+##   that column, so a contrast needs no separate code here.
+##   Returns a data.frame with one row per gene, in the row order of fit$coefficients:
+##   $t is the signed moderated t when one column carries the test and NA otherwise,
+##   $F the moderated F in both cases, and $p.value the p-value of $F. A gene whose
+##   posterior variance could not be fitted, or that is missing one of the tested
+##   coefficients, comes back NA rather than dropping out of the table:
+
+f.deqms_moderated_f <- function(fit, cols, config, who="f.deqms_moderated_f") {
+
+  need <- c("coefficients", "stdev.unscaled", "df.residual", "sca.postvar",
+    "sca.dfprior")
+
+  if(!all(need %in% names(fit))) {
+    f.err(who, ": the fit is missing", paste(setdiff(need, names(fit)), collapse=", "),
+      ", so it did not come from DEqMS::spectraCounteBayes();", "\n",
+      "  names(fit):", names(fit), config=config)
+  }
+
+  nom <- colnames(fit$coefficients)[cols]
+  betas <- fit$coefficients[, cols, drop=F]
+  post_var <- as.numeric(fit$sca.postvar)
+  df_den <- as.numeric(fit$sca.dfprior) + as.numeric(fit$df.residual)
+
+  if(length(post_var) != nrow(betas) || length(df_den) != nrow(betas)) {
+    f.err(who, ": the moderated variance does not line up with the coefficients;",
+      "genes:", nrow(betas), "; posterior variances:", length(post_var),
+      "; denominator degrees of freedom:", length(df_den), config=config)
+  }
+
+  tval <- rep(as.numeric(NA), nrow(betas))
+
+  if(length(cols) %in% 1) {
+
+    ## DEqMS's own statistic, recomputed: coefficient over stdev.unscaled times the
+    ##   square root of the posterior variance, which is what it divides by:
+
+    se <- fit$stdev.unscaled[, cols] * sqrt(post_var)
+    tval <- betas[, 1] / se
+    fval <- tval^2
+    df_num <- 1L
+
+  } else {
+
+    ## the unscaled covariance of the tested coefficients, indexed by name because
+    ##   limma drops the columns of a rank deficient design from this matrix rather
+    ##   than keeping them as NA, so position and name need not agree:
+
+    V <- fit$cov.coefficients
+
+    if(is.null(V) || !all(nom %in% rownames(V))) {
+      f.err(who, ": the fit does not carry an unscaled covariance for the",
+        "coefficient(s)", paste(setdiff(nom, rownames(V)), collapse=", "),
+        "under test, so the joint test cannot be formed;", "\n",
+        "  coefficients under test:", nom, "; available:", rownames(V),
+        config=config)
+    }
+
+    V <- V[nom, nom, drop=F]
+    df_num <- qr(V)$rank
+
+    if(df_num < length(nom)) {
+      f.err(who, ": the", length(nom), "coefficient(s) under test (",
+        paste(nom, collapse=", "), ") span only", df_num, "dimension(s) of the",
+        "design, so the joint test is not estimable;", "\n",
+        "  filter_features_by_estimability() screens features against this same",
+        "rank, so a whole design that fails it is a property of config$frm",
+        config=config)
+    }
+
+    Vinv <- try(solve(V), silent=T)
+    if(inherits(Vinv, "try-error")) {
+      f.err(who, ": the unscaled covariance of the coefficients under test (",
+        paste(nom, collapse=", "), ") could not be inverted", config=config)
+    }
+
+    ## rowSums() rather than a loop over genes: the same quadratic form
+    ##   t(b) %*% Vinv %*% b for every row of betas, and the matrix is small:
+
+    quad <- rowSums((betas %*% Vinv) * betas)
+    fval <- (quad / df_num) / post_var
+  }
+
+  pval <- stats::pf(fval, df_num, df_den, lower.tail=F)
+
+  ## a gene whose posterior variance came back non-finite, which happens when the loess
+  ##   prior is fitted against feature counts with too little spread to bend to. Said
+  ##   out loud because the p-value is then missing for that gene and nothing else
+  ##   reports it:
+
+  lost <- !is.finite(fval)
+
+  if(any(lost)) {
+    f.msg("WARNING:", who, ":", sum(lost), "of", length(fval), "genes have no",
+      "moderated statistic, so their p-value is NA;", "\n",
+      "non-finite posterior variance:", sum(!is.finite(post_var)),
+      "; missing a coefficient under test:", sum(!stats::complete.cases(betas)),
+      "; feature counts DEqMS fitted its prior against:",
+      length(unique(fit$count)), "distinct value(s)", config=config)
+  }
+
+  out <- data.frame(t=tval, F=fval, df_num=df_num, df_den=df_den, p.value=pval)
+  rownames(out) <- rownames(fit$coefficients)
+
+  return(out)
+}
+
 #' Hypothesis testing using the \code{DEqMS} package
 #' @description
 #'   Tests for differential expression using the 
 #'     \code{DEqMS::spectraCounteBayes()} function.
 #' @details
 #'   The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm}
-#'     and a moderated t-test is performed for whether the effect of
+#'     and a moderated test is performed for whether the effect of
 #'     \code{config$test_term} on \code{state$expression} is zero.
-#'   \code{DEqMS} moderates the t-statistic of a single coefficient and has no
-#'     F-analogue, so \code{config$test_term} must resolve to a single design matrix
-#'     column; it is an
-#'     error if it does not. That rules out testing a factor with more than two
-#'     levels, and also testing a variable that appears in an interaction, since by
-#'     marginality the test then covers every term containing the variable: with
+#'   The coefficients carrying that test are the columns of the design matrix
+#'     assigned to \code{config$test_term} and to every term containing it, which is
+#'     the same selection used by \code{h0testr::test_lm()},
+#'     \code{h0testr::test_trend()} and
+#'     \code{h0testr::filter_features_by_estimability()}. So naming a variable that
+#'     also appears in an interaction tests the interaction too: with
 #'     \code{config$frm = ~sex * batch} and \code{config$test_term = "sex"}, the test
-#'     is a joint test of \code{sexM} and \code{sexM:batchb2}, which this engine
-#'     cannot perform. Use \code{h0testr::test_lm()},
-#'     \code{h0testr::test_trend()} or \code{h0testr::test_voom()} for those tests.
-#'   \code{config$contrast} is the other way through that restriction, and the only
-#'     one that keeps this engine: a contrast is one degree of freedom however many
-#'     coefficients it weights, and \code{limma::contrasts.fit()} leaves a fit with
-#'     the single coefficient \code{DEqMS} moderates. So a comparison between two
-#'     particular levels of a factor with more than two, or between two levels of a
-#'     factor that also appears in an interaction, runs here, while the
-#'     corresponding \code{config$test_term} does not. What is given up is the joint
-#'     hypothesis: a contrast compares the levels it names, holding the other
-#'     variables of any higher-order term at their reference level, which
+#'     is a joint 2 degree of freedom test of \code{sexM} and \code{sexM:batchb2}.
+#'     Testing a factor with more than two levels is likewise a joint test over its
+#'     contrasts.
+#'   A test of one coefficient is reported as \code{DEqMS}'s own moderated t, with a
+#'     \code{logFC} column; a test of several is reported as a moderated F, and no
+#'     \code{logFC}, since several coefficients have no single fold change.
+#'     \code{DEqMS} itself reports only the former: \code{DEqMS::spectraCounteBayes()}
+#'     moderates the t-statistic of one coefficient and the package has no F-analogue
+#'     anywhere. Its moderation does not have that limit. That function fits a variance
+#'     prior against the number of features behind each gene and returns a per-gene
+#'     posterior variance and a prior degrees of freedom, neither of which mentions a
+#'     coefficient, so the joint test is the ordinary F with the residual variance
+#'     replaced by the posterior one and the denominator degrees of freedom raised by
+#'     those of the prior. At one numerator degree of freedom that F is the square of
+#'     \code{DEqMS}'s own moderated t, so the single-coefficient case reports
+#'     \code{DEqMS}'s statistic unchanged. Earlier versions refused anything but that
+#'     case.
+#'   A joint test additionally requires that no value of the aggregated expression
+#'     matrix be missing, and it is an error if any is. \code{limma} fits each gene on
+#'     the observations that gene has, so \code{fit$stdev.unscaled} is per gene while
+#'     \code{fit$cov.coefficients}, which a joint test needs, comes from the complete
+#'     design; the joint statistic would then be wrong for exactly the genes with
+#'     missing values. Running \code{h0testr::impute()} first, which the documented
+#'     workflow does, satisfies this. A single coefficient, which
+#'     \code{config$contrast} also reduces to, is unaffected.
+#'   \code{config$contrast} tests a weighted sum of coefficients instead of a term, is
+#'     one degree of freedom however many coefficients it weights, and reaches this
+#'     engine as a single coefficient, \code{limma::contrasts.fit()} having made it
+#'     one. It is a different hypothesis rather than a way around a restriction: a
+#'     contrast compares the levels it names, holding the other variables of any
+#'     higher-order term at their reference level, which
 #'     \code{h0testr::new_config()} describes and which is warned about when it
 #'     applies.
 #'   Stops if every gene/protein-group has the same number of features. The whole
@@ -421,8 +573,15 @@ f.gene_counts <- function(state, config, caller="f.gene_counts") {
 #'       3. Calculate statistics using \code{limma::eBayes()} on fitted model. \cr
 #'       4. Append peptide counts to model returned by \code{limma::eBayes()}. \cr
 #'       5. Adjust statistics using \code{DEqMS::spectraCounteBayes()}. \cr
-#'       6. Generate hit table with \code{DEqMS::outputResult()}. \cr
+#'       6. Form the moderated test of the coefficients carrying the test from the
+#'            variance prior that fitted. \cr
+#'       7. Generate hit table with \code{limma::topTable()}, with the moderated
+#'            statistics appended. \cr
 #'     }
+#'   \code{DEqMS::outputResult()} built the hit table until the joint test was added,
+#'     and is no longer used: it takes a single \code{coef_col}, there being nothing
+#'     joint for it to report. Every column it produced is still in the table, with
+#'     the joint statistic and its degrees of freedom added.
 #'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
 #' @param state List with elements like those returned by \code{read_data()}:
@@ -439,14 +598,29 @@ f.gene_counts <- function(state, config, caller="f.gene_counts") {
 #'     \code{frm}            \cr \tab Formula (formula) to be fit. \cr
 #'     \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
 #'     \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
+#'     \code{test_trend}    \cr \tab Optional logical; answers the \code{trend} argument when that is not given. Defaults to \code{FALSE} when both are absent. Unrelated to \code{config$test_method="trend"}. \cr
 #'   }
-#' @param trend Logical scalar. Whether \code{limma::eBayes()} should use trended dispersion estimate.
+#' @param trend Logical scalar. Whether \code{limma::eBayes()} fits its variance prior
+#'   against mean gene intensity rather than shrinking every gene toward one number.
+#'   Defaults to \code{config$test_trend}, and to \code{FALSE} when that is absent, which
+#'   is the fit this function performed before the key reached it. \strong{This moves
+#'   less than it appears to}: \code{DEqMS::spectraCounteBayes()} fits its own prior from
+#'   \code{fit$sigma}, \code{fit$df.residual} and \code{fit$count}, which
+#'   \code{limma::eBayes()} does not alter, and the reported statistic comes from that
+#'   prior. So \code{trend} sets \code{P.Value}, \code{t}, \code{B}, \code{s2.prior} and
+#'   \code{s2.post} of \code{hits}, and leaves every \code{sca.} column, which is what
+#'   \code{h0testr::test()} reports, unchanged. For a trended prior that changes the
+#'   answer, use \code{config$test_method="trend"}.
 #' @return
 #'   A list with components:
 #'   \tabular{ll}{
-#'     \code{hits}  \cr \tab \code{data.frame} of results; columns: 
-#'       \code{c("logFC", "AveExpr", "t", "P.Value", "adj.P.Val", "B", "gene", "count", "sca.t", "sca.P.Value", "sca.adj.pval")}.
-#'       Initial statistics from \code{limma}. Columns beginning with \code{sca.} added by \code{DEqMS}. \cr
+#'     \code{hits}  \cr \tab \code{data.frame} of results; columns:
+#'       \code{c("logFC", "AveExpr", "t", "P.Value", "adj.P.Val", "B", "gene", "count", "sca.t", "sca.F", "sca.df.num", "sca.df.den", "sca.P.Value", "sca.adj.pval")}.
+#'       Initial statistics from \code{limma}. Columns beginning with \code{sca.} come from
+#'       \code{DEqMS}'s variance prior, and are the ones reported by \code{h0testr::test()}.
+#'       \code{sca.t} is \code{NA} when more than one coefficient carries the test, and the
+#'       per-coefficient \code{logFC} column is then replaced by one column per tested
+#'       coefficient, as \code{limma::topTable()} reports them. \cr
 #'     \code{fit}   \cr \tab Model returned by \code{DEqMS::spectraCounteBayes}. \cr
 #'   } 
 #' @examples
@@ -476,9 +650,10 @@ f.gene_counts <- function(state, config, caller="f.gene_counts") {
 #'   sample_id_col="obs",
 #'   feat_id_col="pep",
 #'   gene_id_col="gene",
-#'   ## no grp:sex term here: by marginality, testing "grp" in ~grp+sex+grp:sex is a
-#'   ##   joint test of grptrt and grptrt:sexM, and this method tests one
-#'   ##   coefficient at a time. Test "grp:sex" to test the interaction itself:
+#'   ## no grp:sex term here, so that this example shows the single-coefficient case,
+#'   ##   which reports DEqMS's own moderated t. By marginality, testing "grp" in
+#'   ##   ~grp+sex+grp:sex would be a joint test of grptrt and grptrt:sexM, reported as
+#'   ##   a moderated F; test "grp:sex" to test the interaction itself:
 #'   frm=~grp+sex,
 #'   test_term="grp",
 #'   reference_levels=c(grp="ctl", sex="F")
@@ -495,8 +670,25 @@ f.gene_counts <- function(state, config, caller="f.gene_counts") {
 #' ## actual test:
 #' result <- h0testr::test_deqms(out$state, out$config)
 #' head(result$hits)
+#'
+#' ## the same fit with limma's own prior fitted against mean gene intensity instead of
+#' ##   flat. Equivalently config$test_trend <- TRUE, which h0testr::test(method="deqms")
+#' ##   passes through. limma's P.Value moves and DEqMS's sca.P.Value does not, the
+#' ##   count-based prior the latter comes from being fitted from quantities
+#' ##   limma::eBayes() leaves alone; see the note on the trend argument:
+#' trended <- h0testr::test_deqms(out$state, out$config, trend=TRUE)
+#' i <- rownames(result$hits)
+#' c(limma=cor(result$hits$P.Value, trended$hits[i, "P.Value"]),
+#'   deqms=cor(result$hits$sca.P.Value, trended$hits[i, "sca.P.Value"]))
 
-test_deqms <- function(state, config, trend=FALSE) {
+test_deqms <- function(state, config, trend=NULL) {
+
+  ## NULL rather than FALSE, so that config$test_trend reaches this engine: the key
+  ##   describes the prior of a moderation and this fit has one to describe, and a
+  ##   caller who never touches config$test_trend still gets the untrended fit that
+  ##   was the previous default. See f.is_trend():
+
+  trend <- f.is_trend(trend, config, "test_deqms")
 
   check_config(config)
   f.check_state(state, config)
@@ -513,16 +705,18 @@ test_deqms <- function(state, config, trend=FALSE) {
   out <- combine_features(state, config, method="medianPolish", rescale=FALSE)
   config$save_state <- save_state
   
-  ## the design and the single column carrying the test. DEqMS::spectraCounteBayes()
-  ##   moderates the t-statistic of one coefficient and the package offers no
-  ##   F-analogue, so only a test that resolves to one coefficient can be run;
-  ##   f.design_test_cols_max() errors otherwise. Selecting by coefficient name
-  ##   instead used to hide the shortfall whenever the name match happened to yield
-  ##   exactly one column, which is the usual case for a two-level factor or a
-  ##   numeric covariate inside an interaction: testing 'sex' in ~sex*batch matched
-  ##   sexM alone and quietly dropped sexM:batchb2 from the test:
+  ## the design and the columns carrying the test, from the same helper test_lm() and
+  ##   filter_features_by_estimability() use, so that all three test the hypothesis
+  ##   config$test_term names. This was capped at a single column, because
+  ##   DEqMS::spectraCounteBayes() reports one coefficient's moderated t and the package
+  ##   has no F-analogue; the moderation itself has no such limit, and
+  ##   f.deqms_moderated_f() forms the joint test from what that function returns.
+  ##   Selecting by coefficient name instead of by design column would still be wrong,
+  ##   for the reason it always was: the name match happens to yield exactly one column
+  ##   for a two-level factor or a numeric covariate inside an interaction, so testing
+  ##   'sex' in ~sex*batch matched sexM alone and quietly dropped sexM:batchb2:
 
-  design <- f.design_test_cols_max(out$state, out$config, "test_deqms", max_cols=1)
+  design <- f.design_test_cols(out$state, out$config)
 
   ## DEqMS's whole contribution is a variance prior fitted against the number of
   ##   features behind each gene, so it has nothing to offer when that number is the
@@ -548,15 +742,60 @@ test_deqms <- function(state, config, trend=FALSE) {
       "; config$feat_col:", config$feat_col, config=config)
   }
 
-  ## config$contrast is the route to a test DEqMS otherwise cannot run: whatever it
-  ##   weights, limma::contrasts.fit() leaves one coefficient to moderate, which is
-  ##   all the cap above requires. So a contrast within a multi-level factor, or one
-  ##   between two levels of a factor that also appears in an interaction, reaches
-  ##   this engine while the corresponding config$test_term does not:
+  ## a joint test needs the covariance of the tested coefficients, and limma supplies
+  ##   only one such matrix for the whole fit, taken from the complete design: with a
+  ##   missing value it fits each gene on the observations that gene has, so
+  ##   fit$stdev.unscaled is per gene but fit$cov.coefficients is not, and the joint
+  ##   statistic would be wrong for exactly the genes with missing values. limma's own
+  ##   F has the same caveat and does not refuse; refused here rather than reported
+  ##   wrong, since h0testr::impute() runs before h0testr::test() in the documented
+  ##   workflow and so this is normally already satisfied. A single coefficient, which a
+  ##   contrast also reduces to, is unaffected: f.deqms_moderated_f() reads
+  ##   fit$stdev.unscaled there. Per-missingness-pattern recomputation is the way to
+  ##   lift this if it turns out to bite:
+
+  if(is.null(design$contrast) && length(design$cols_test) > 1 &&
+      anyNA(out$state$expression)) {
+
+    f.err("test_deqms: testing config$test_term '", config$test_term, "' in",
+      deparse(design$parsed$frm), "is a joint test of", length(design$cols_test),
+      "coefficients (",
+      paste(colnames(design$X)[design$cols_test], collapse=", "), "), and", "\n",
+      "  ", sum(is.na(out$state$expression)), "of",
+      length(out$state$expression), "values of the aggregated expression matrix",
+      "are missing, which leaves limma no per-gene covariance for the coefficients",
+      "under test;", "\n",
+      "  to fix, impute first (config$impute_method other than 'none'), or use",
+      "config$contrast, or config$test_method 'trend', 'voom', 'lm', 'msqrob',",
+      "'msqrob_agg', 'prolfqua', 'prolfqua_lmer' or 'proda'", config=config)
+  }
+
+  ## config$contrast reaches this engine by a shorter route: whatever it weights,
+  ##   limma::contrasts.fit() leaves one coefficient, and the fit it returns carries
+  ##   $cov.coefficients and $stdev.unscaled for that coefficient, so nothing below
+  ##   needs to know which of the two kinds of hypothesis is being tested:
 
   fit <- limma::lmFit(out$state$expression, design$X)
   lc <- f.limma_contrast_fit(fit, design, out$config)
   idx <- lc$coef
+
+  ## said out loud because the two fits differ only in the prior and the hit table does
+  ##   not record which was used. Worth being explicit about how little this reaches:
+  ##   DEqMS::spectraCounteBayes() fits its own prior from fit$sigma, fit$df.residual and
+  ##   fit$count, none of which limma::eBayes() alters, and f.deqms_moderated_f() forms
+  ##   the reported statistic from that prior (sca.postvar, sca.dfprior). So the trended
+  ##   prior moves limma's own columns of hits, P.Value, t, B, s2.prior and s2.post, and
+  ##   leaves every sca.* column, and therefore everything h0testr::test() reports for
+  ##   this method, exactly where it was. Passed through anyway, because the argument is
+  ##   limma's to take and the columns it moves are returned to the caller, but a caller
+  ##   after a trended prior that changes the answer wants test_method "trend":
+
+  f.msg("test_deqms: limma::eBayes prior fitted against", if(trend) {
+    "mean gene intensity (trend=TRUE)"
+  } else "one number for every gene (trend=FALSE)", "\n",
+    " this sets limma's own columns of the result; the reported sca.* statistics come",
+    "from the prior DEqMS fits against the feature counts, which is unaffected",
+    config=config)
 
   fit <- limma::eBayes(lc$fit, trend=trend)
   fit$count <- counts[rownames(fit$coefficients)]
@@ -572,8 +811,42 @@ test_deqms <- function(state, config, trend=FALSE) {
       config=config)
   }
 
-  fit  <- DEqMS::spectraCounteBayes(fit, fit.method="loess")
-  hits <- DEqMS::outputResult(fit, coef_col=idx)
+  fit <- DEqMS::spectraCounteBayes(fit, fit.method="loess")
+
+  ## the moderated test, and the table it is reported in. DEqMS::outputResult() built
+  ##   this table, and is not used: it takes a single coef_col, since there is nothing
+  ##   joint for it to report, and it reads fit$sca.t and fit$sca.p, which
+  ##   DEqMS::spectraCounteBayes() forms for one coefficient at a time. The columns it
+  ##   produced are all still here, with the joint statistic and its degrees of freedom
+  ##   added, so that a caller reading the original table sees what it saw before:
+
+  mod <- f.deqms_moderated_f(fit, idx, out$config, "test_deqms")
+
+  hits <- limma::topTable(fit, coef=idx, number=Inf, sort.by="none")
+  mod <- mod[rownames(hits), , drop=F]
+
+  hits$gene <- rownames(hits)
+  hits$count <- fit$count[rownames(hits)]
+  hits$sca.t <- mod$t
+  hits$sca.F <- mod$F
+  hits$sca.df.num <- mod$df_num
+  hits$sca.df.den <- mod$df_den
+  hits$sca.P.Value <- mod$p.value
+
+  ## stats::p.adjust() takes n from the number of p-values that are not NA, so a gene
+  ##   whose posterior variance could not be fitted is left out of the correction
+  ##   rather than counted in it:
+
+  hits$sca.adj.pval <- stats::p.adjust(hits$sca.P.Value, method="BH")
+
+  hits <- hits[order(hits$sca.P.Value, decreasing=F), , drop=F]
+
+  f.msg("test_deqms:", f.test_label(design, config), "; design columns:",
+    ncol(design$X), "; test columns:", length(design$cols_test), "; df:",
+    design$df_intend, config=config)
+  f.msg("tested", nrow(hits), "genes over", nrow(state$expression), "features",
+    config=config)
+  f.msg("found", sum(hits$sca.adj.pval < 0.05, na.rm=T), "hits", config=config)
 
   return(list(hits=hits, fit=fit))
 }
@@ -684,8 +957,10 @@ test_deqms <- function(state, config, trend=FALSE) {
 #'     \code{F = W / length(cols)} on \code{length(cols)} and \code{dfPosterior}
 #'     degrees of freedom.
 #'   \strong{That joint statistic is computed by \code{h0testr}, not returned by
-#'     \code{msqrob2}}, which is the one place in this package where the reported
-#'     statistic is not the engine's own. The single column case is untouched and is
+#'     \code{msqrob2}}, which is one of the two places in this package where the reported
+#'     statistic is not the engine's own; the other is the joint case of
+#'     \code{h0testr::test_deqms()}, for the same reason and by the same route. The
+#'     single column case is untouched and is
 #'     still exactly what \code{msqrob2::hypothesisTest()} returns; with one column the
 #'     statistic above reduces to the square of the moderated t that function reports,
 #'     which is why it is referred to an F rather than to a chi-square.
@@ -875,7 +1150,7 @@ test_msqrob <- function(state, config, maxit=100, aggregate=FALSE) {
   ## convert NA to 0:
   obj <- QFeatures::zeroIsNA(obj, i="features")
 
-  ## f.parse_frm()$frm, not config$frm: f.design_test_cols_max() below selects the
+  ## f.parse_frm()$frm, not config$frm: f.design_test_cols() below selects the
   ##   tested column from a design built on the parsed formula, whose interaction
   ##   labels have their variables sorted, and stats::model.matrix() names an
   ##   interaction column in the order the term is written, so ~sex*batch yields
@@ -1462,8 +1737,8 @@ test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit
         "config$frm:", deparse(design$parsed$frm), "; columns carrying the test:",
         paste0(paste(cols_pick, collapse=", "), ";"), "\n",
         "keep the intercept in config$frm for the usual comparison among levels, or",
-        "use test_method 'lm', 'trend', 'voom', 'msqrob', 'msqrob_agg', 'prolfqua'",
-        "or 'prolfqua_lmer' to test against zero",
+        "use test_method 'lm', 'trend', 'voom', 'deqms', 'msqrob', 'msqrob_agg',",
+        "'prolfqua' or 'prolfqua_lmer' to test against zero",
         config=config)
     }
 
@@ -1690,7 +1965,7 @@ f.prior_txt <- function(x) {
 
 ## Per-feature F-tests comparing prolfqua models of a full and a reduced design,
 ##   with the error variance moderated across features unless config$test_moderate is
-##   FALSE, against a flat prior unless config$test_trend is TRUE and a covariate to
+##   FALSE, against a flat prior unless trend is TRUE and a covariate to
 ##   fit the prior against is supplied, keyed by config$feat_id_col so that it can be
 ##   subset to the features that survive the drop below.
 ##   Features whose data do not support the requested test are dropped explicitly
@@ -1701,7 +1976,8 @@ f.prior_txt <- function(x) {
 ##   from the results unannounced, and the comparison below would otherwise report
 ##   it with a zero numerator degrees of freedom and an NaN F:
 
-f.prolfqua_nested_f <- function(fit_full, fit_red, design, config, covariate=NULL) {
+f.prolfqua_nested_f <- function(fit_full, fit_red, design, config, covariate=NULL,
+    trend=NULL) {
 
   idvars <- unique(c(config$gene_id_col, config$feat_id_col))
 
@@ -1763,7 +2039,11 @@ f.prolfqua_nested_f <- function(fit_full, fit_red, design, config, covariate=NUL
   ##   config$test_moderate=FALSE reports the unmoderated one instead:
 
   moderate <- is.null(config$test_moderate) || isTRUE(config$test_moderate)
-  trend <- isTRUE(config$test_trend)
+
+  ## the caller resolves this, config$test_trend answering when it passes nothing, so
+  ##   that a direct call behaves as before; see f.is_trend():
+
+  trend <- f.is_trend(trend, config, "f.prolfqua_nested_f")
 
   if(moderate) {
 
@@ -1775,8 +2055,8 @@ f.prolfqua_nested_f <- function(fit_full, fit_red, design, config, covariate=NUL
 
     if(trend) {
       if(is.null(covariate)) {
-        f.err("f.prolfqua_nested_f: config$test_trend is TRUE but no covariate was",
-          "supplied to fit the prior variance against", config=config)
+        f.err("f.prolfqua_nested_f: the trended prior was asked for but no covariate",
+          "was supplied to fit the prior variance against", config=config)
       }
       cov <- unname(covariate[as.character(tbl[[config$feat_id_col]])])
     }
@@ -1795,7 +2075,7 @@ f.prolfqua_nested_f <- function(fit_full, fit_red, design, config, covariate=NUL
       var_prior=as.numeric(NA), trend=FALSE)
     stat <- ord
     f.msg("f.prolfqua_nested_f: config$test_moderate is FALSE, so reporting the",
-      "unmoderated F-test", if(trend) paste("and ignoring config$test_trend, which",
+      "unmoderated F-test", if(trend) paste("and ignoring the trended prior, which",
       "sets the prior of a moderation that is not being done") else "", config=config)
   }
 
@@ -1884,7 +2164,7 @@ f.quiet_fits <- function(expr, what, config, who="test_prolfqua") {
 ##   specific responses, which is a different hypothesis, and it is rarely identifiable
 ##   at proteomics sample sizes:
 
-f.prolfqua_mixed <- function(obj, design, cols, config) {
+f.prolfqua_mixed <- function(obj, design, cols, config, trend=NULL) {
 
   dat <- obj$data
 
@@ -1914,8 +2194,13 @@ f.prolfqua_mixed <- function(obj, design, cols, config) {
   if("test_moderate" %in% names(config) && isTRUE(config$test_moderate)) {
     ignored <- c(ignored, "config$test_moderate")
   }
-  if("test_trend" %in% names(config) && isTRUE(config$test_trend)) {
-    ignored <- c(ignored, "config$test_trend")
+  ## named by what is actually set rather than by which of the two the caller used: the
+  ##   value arrives resolved, so a TRUE that came from config$test_trend is
+  ##   indistinguishable here from one passed to test_prolfqua(), and naming the key when
+  ##   the key is what says TRUE points at the thing to change either way:
+
+  if(f.is_trend(trend, config, "f.prolfqua_mixed")) {
+    ignored <- c(ignored, if(isTRUE(config$test_trend)) "config$test_trend" else "trend")
   }
 
   if(length(ignored)) {
@@ -2164,7 +2449,8 @@ f.prolfqua_mixed_f <- function(mods, design, config, caller="f.prolfqua_mixed_f"
 #'     be seen without refitting; with \code{config$test_moderate=FALSE} they are
 #'     equal to the reported ones.
 #'   The prior that variance is shrunk toward is one number shared by every feature
-#'     unless \code{config$test_trend} is \code{TRUE}, which fits it against the mean
+#'     unless the \code{trend} argument, or \code{config$test_trend} when it is not
+#'     given, is \code{TRUE}, which fits it against the mean
 #'     intensity of each feature as a natural spline of up to four degrees of freedom
 #'     on the log residual variances. That covariate is the one
 #'     \code{limma::eBayes(trend=TRUE)} uses, the row mean of the response over the
@@ -2241,7 +2527,7 @@ f.prolfqua_mixed_f <- function(mods, design, config, caller="f.prolfqua_mixed_f"
 #'     \code{hits$moderated} is \code{FALSE}, \code{df.prior}, \code{s2.prior},
 #'     \code{F.value.unmod} and \code{p.value.unmod} are \code{NA}, and
 #'     \code{s2.denom} reports the effective denominator variance the F did use.
-#'     \code{config$test_moderate} and \code{config$test_trend} are not consulted, and
+#'     \code{config$test_moderate} and the trended prior are not consulted, and
 #'     a note says so when either is present and \code{TRUE}. A note rather than a
 #'     warning because \code{h0testr::new_config()} sets \code{test_moderate=TRUE}, so
 #'     it applies to a default configuration and describes nothing wrong.
@@ -2272,7 +2558,7 @@ f.prolfqua_mixed_f <- function(mods, design, config, caller="f.prolfqua_mixed_f"
 #'       5. Build a \code{prolfqua} model from each. \cr
 #'       6. Moderate the per-feature error variance across features with
 #'            \code{prolfqua::squeezeVarRob()}, toward a flat prior or, with
-#'            \code{config$test_trend}, one fitted against mean feature intensity. \cr
+#'            \code{trend}, one fitted against mean feature intensity. \cr
 #'       7. Return the per-feature F-test comparing the two fits, dropping features
 #'            for which the test is not estimable. \cr
 #'     }
@@ -2296,7 +2582,7 @@ f.prolfqua_mixed_f <- function(mods, design, config, caller="f.prolfqua_mixed_f"
 #'     \code{covariate_types}       \cr \tab Optional; classification of variables in \code{config$frm}, as set by \code{initialize()}. \cr
 #'     \code{factor_levels}         \cr \tab Optional; resolved levels of each factor variable, as set by \code{initialize()}. \cr
 #'     \code{test_moderate}         \cr \tab Optional logical; whether to shrink the error variance across features. Defaults to \code{TRUE} when absent. \cr
-#'     \code{test_trend}            \cr \tab Optional logical; whether the prior of that shrinkage is fitted against mean feature intensity rather than flat. Defaults to \code{FALSE} when absent. Unrelated to \code{config$test_method="trend"}. \cr
+#'     \code{test_trend}            \cr \tab Optional logical; whether the prior of that shrinkage is fitted against mean feature intensity rather than flat. Answers when the \code{trend} argument is not given; defaults to \code{FALSE} when both are absent. Unrelated to \code{config$test_method="trend"}. \cr
 #'     \code{test_random_obs}       \cr \tab Optional logical; whether the \code{mixed=TRUE} fit includes a random observation effect alongside the random feature effect. Defaults to \code{TRUE} when absent, which is the calibrated model; see Details. Ignored when \code{mixed=FALSE}. \cr
 #'     \code{feat_id_col}           \cr \tab Name of column in \code{state$features} with unique feature ids; must differ from \code{config$gene_id_col} when \code{mixed=TRUE}. \cr
 #'     \code{normalization_method}  \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
@@ -2311,6 +2597,13 @@ f.prolfqua_mixed_f <- function(mods, design, config, caller="f.prolfqua_mixed_f"
 #'   \code{config$test_method="prolfqua_lmer"} selects, gives one result row per gene
 #'   from feature level input, and requires \code{config$feat_id_col} and
 #'   \code{config$gene_id_col} to name different columns. See Details.
+#' @param trend Logical scalar: whether the variance prior of the moderation is fitted
+#'   against mean feature intensity, which is \code{limma::eBayes(trend=TRUE)}'s
+#'   covariate, rather than being flat. Defaults to \code{config$test_trend}, and to
+#'   \code{FALSE} when that is absent; an argument that disagrees with the configuration
+#'   wins. Not consulted when \code{mixed=TRUE}, whose denominator is a combination of
+#'   variance components rather than one residual variance, and a \code{TRUE} there is
+#'   reported as a \code{NOTE}.
 #' @return
 #'   A list with components:
 #'   \tabular{ll}{
@@ -2450,10 +2743,17 @@ f.prolfqua_mixed_f <- function(mods, design, config, caller="f.prolfqua_mixed_f"
 #' range(mix$hits$df.denom)
 #' range(peponly$hits$df.denom)
 
-test_prolfqua <- function(state, config, is_log_transformed=NULL, mixed=FALSE) {
+test_prolfqua <- function(state, config, is_log_transformed=NULL, mixed=FALSE,
+    trend=NULL) {
 
   is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
     "test_prolfqua")
+
+  ## the argument overrides config$test_trend, which is what it answers from when not
+  ##   given; see f.is_trend(). Resolved here and threaded down rather than re-read
+  ##   further in, so that one value describes the whole call:
+
+  trend <- f.is_trend(trend, config, "test_prolfqua")
 
   parsed <- f.parse_frm(config$frm, config)
 
@@ -2613,7 +2913,7 @@ test_prolfqua <- function(state, config, is_log_transformed=NULL, mixed=FALSE) {
   ##   model per feature. Everything above is shared, the long table and the design
   ##   being the same either way:
 
-  if(mixed) return(f.prolfqua_mixed(obj, design, cols, config))
+  if(mixed) return(f.prolfqua_mixed(obj, design, cols, config, trend=trend))
 
   ## the test is the comparison of the full design against the design with the
   ##   columns carrying config$test_term removed, which is an exact F-test for a
@@ -2659,19 +2959,20 @@ test_prolfqua <- function(state, config, is_log_transformed=NULL, mixed=FALSE) {
 
   covariate <- NULL
 
-  if(isTRUE(config$test_trend)) {
+  if(trend) {
     covariate <- rowMeans(state$expression, na.rm=T)
     names(covariate) <- as.character(state$features[[config$feat_id_col]])
 
     if(!is_log_transformed) {
-      f.msg("WARNING: test_prolfqua: config$test_trend is TRUE but the response is",
-        "not log transformed, so the prior variance is being fitted against mean",
+      f.msg("WARNING: test_prolfqua: the trended prior was asked for but the response",
+        "is not log transformed, so the prior variance is being fitted against mean",
         "untransformed intensity;", "\n", "the mean-variance trend",
         "limma::eBayes(trend=TRUE) models is a trend in log intensity", config=config)
     }
   }
 
-  tbl <- f.prolfqua_nested_f(fit_full, fit_red, design, config, covariate=covariate)
+  tbl <- f.prolfqua_nested_f(fit_full, fit_red, design, config, covariate=covariate,
+    trend=trend)
 
   f.msg("tested", length(unique(tbl[[config$feat_col]])), "features; found",
     sum(tbl$FDR < 0.05, na.rm=T), "hits", config=config)
@@ -3272,12 +3573,82 @@ f.format_prolfqua <- function(tbl, id_col, config) {
   return(tbl)
 }
 
+## helper for test(). Separate from f.format_limma() because DEqMS's table carries two
+##   sets of statistics: the limma columns of the fit that was moderated, and the sca.*
+##   columns DEqMS's own count-based prior produced. It was formatted by
+##   f.format_limma(), whose first branch matches on the limma columns, all of which are
+##   present; so the standardized table received limma's t and P.Value and DEqMS's
+##   contribution reached only the original table. That made test_method "deqms" report
+##   limma::eBayes(trend=FALSE) on the aggregated matrix in every column anything
+##   downstream reads. The sca.* columns are the statistic the method name promises, so
+##   they are what is reported here; limma's own numbers remain available under
+##   test_method "trend" and in the original table.
+##   Two shapes, as f.format_proda() has: a signed moderated t and a fold change when
+##   one coefficient carries the test, a moderated F and no fold change when several do,
+##   which f.fill_standard() then fills with the total swing. Which one it is comes from
+##   the numerator degrees of freedom rather than from which columns are present, since
+##   both shapes carry the same columns.
+##   The lod column is left empty in both, as it is for every engine except the two that
+##   report limma's own statistics. limma's B is a posterior log-odds computed from
+##   limma's prior, and f.format_limma() reported it here; carrying it alongside a
+##   p-value from DEqMS's prior would mix the two moderations, which is the thing being
+##   fixed. It is still in the original table:
+
+f.format_deqms <- function(tbl, config) {
+
+  if(!is.data.frame(tbl)) {
+    f.err("f.format_deqms: !is.data.frame(tbl); class(tbl): ",
+      class(tbl), config=config)
+  }
+
+  nom <- c("gene", "AveExpr", "sca.t", "sca.F", "sca.df.num", "sca.P.Value",
+    "sca.adj.pval")
+
+  if(!all(nom %in% names(tbl))) {
+    f.err("f.format_deqms: expected names not %in% names(tbl); missing:",
+      paste(setdiff(nom, names(tbl)), collapse=", "), "; names(tbl):",
+      names(tbl), config=config)
+  }
+
+  df_num <- unique(tbl$sca.df.num)
+
+  if(length(df_num) != 1) {
+    f.err("f.format_deqms: the table reports", length(df_num), "different numerator",
+      "degrees of freedom (", paste(utils::head(df_num, 5), collapse=", "),
+      "), but the hypothesis is a property of config$frm and config$test_term and so",
+      "is the same for every gene", config=config)
+  }
+
+  if(df_num %in% 1) {
+
+    if(!("logFC" %in% names(tbl))) {
+      f.err("f.format_deqms: one coefficient carries the test but the table has no",
+        "logFC column; names(tbl):", names(tbl), config=config)
+    }
+
+    tbl <- data.frame(feature=tbl$gene, expr=tbl$AveExpr,
+      logfc=tbl$logFC, stat=tbl$sca.t, lod=as.numeric(NA),
+      pval=tbl$sca.P.Value, adj_pval=tbl$sca.adj.pval)
+
+  } else {
+
+    tbl <- data.frame(feature=tbl$gene, expr=tbl$AveExpr,
+      logfc=as.numeric(NA), stat=tbl$sca.F, lod=as.numeric(NA),
+      pval=tbl$sca.P.Value, adj_pval=tbl$sca.adj.pval)
+  }
+
+  tbl <- tbl[order(tbl$pval, decreasing=F), , drop=F]
+  rownames(tbl) <- NULL
+
+  return(tbl)
+}
+
 ## helper for test():
 
 f.format_limma <- function(tbl, config) {
-  
+
   if(!is.data.frame(tbl)) {
-    f.err("f.format_limma: !is.data.frame(tbl); class(tbl): ", 
+    f.err("f.format_limma: !is.data.frame(tbl); class(tbl): ",
       class(tbl), config=config)
   }
     
@@ -3346,6 +3717,94 @@ test_methods <- function() {
   )
 }
 
+## helper for test(): the settings only some engines read, so that one set on a run whose
+##   method does not consult it can be said to have had no effect. Reported rather than
+##   refused, and only when the value differs from the one new_config() ships: tune() sets
+##   one config and varies the method, so most combinations of a sweep carry a setting
+##   meant for one of the others and flagging those would be noise. Said from here rather
+##   than from check_config(), which every step of the workflow calls and which would
+##   repeat it once per step; this is the same place, and once per run, as the notes
+##   test_prolfqua() and test_msqrob() make about the settings they do read. Keyed on the
+##   method test() resolved rather than on config$test_method, test(method=) overriding
+##   it. Returns the settings noted, so that a caller can check without reading the log:
+
+f.note_ignored_settings <- function(method, config) {
+
+  knobs <- list(
+    test_random_obs=list(default=TRUE, methods=c("prolfqua_lmer", "msqrob_agg")),
+    test_ridge=list(default=FALSE, methods="msqrob_agg")
+  )
+
+  ignored <- character(0)
+
+  for(nom in names(knobs)) {
+    if(!(nom %in% names(config)) || !(length(config[[nom]]) %in% 1)) next
+    if(is.na(config[[nom]]) || config[[nom]] %in% knobs[[nom]]$default) next
+    if(method %in% knobs[[nom]]$methods) next
+    ignored <- c(ignored, paste0("config$", nom, "=", config[[nom]],
+      " (read by test_method ", paste(knobs[[nom]]$methods, collapse=", "), ")"))
+  }
+
+  if(length(ignored)) {
+    f.msg("NOTE: test: method", method, "does not consult",
+      paste(ignored, collapse="; "), "\n",
+      " so", if(length(ignored) > 1) "those settings have" else "that setting has",
+      "no effect on this run", config=config)
+  }
+
+  return(ignored)
+}
+
+## The test methods whose variance prior can be fitted against mean feature intensity,
+##   which is what limma::eBayes(trend=TRUE) does and what config$test_trend, or test()'s
+##   trend argument, asks for. test_method "trend" is not here although it always trends:
+##   these are the methods a TRUE can be handed to, and that one takes no such argument
+##   because trending is its definition. The rest cannot: lm and msqrob do not moderate
+##   against a covariate at all, proda fits its own prior, voom puts the mean-variance
+##   relationship into precision weights so a trended prior on top of it would count the
+##   same thing twice, and the mixed paths have a Satterthwaite denominator rather than
+##   one residual variance to shrink. See f.note_trend() for what is said instead:
+
+f.trend_methods <- function() {
+  return(c("deqms", "prolfqua"))
+}
+
+## helper for test(): a request to trend that the resolved method cannot honor. A warning
+##   rather than an error, per the same reasoning as f.note_ignored_settings(): tune() sets
+##   one config and varies the method, so a sweep would otherwise die on the first method
+##   that does not trend. Keyed on the resolved value rather than on config$test_trend, so
+##   that an explicit test(trend=TRUE) is caught too, and naming the source, since which of
+##   the two to change differs. test_method "trend" gets the opposite message: it always
+##   trends, so TRUE is already what it does and only an explicit FALSE is a request it
+##   cannot honor. Returns TRUE when something was said, so that a test need not read the
+##   log:
+
+f.note_trend <- function(method, trend, given, config) {
+
+  src <- if(given) "the trend argument" else "config$test_trend"
+
+  if(method %in% "trend") {
+    if(given && !trend) {
+      f.msg("WARNING: test: trend is FALSE but test_method 'trend' is",
+        "limma::eBayes(trend=TRUE), so the prior is fitted against mean gene",
+        "intensity regardless;", "\n",
+        " for a flat prior use test_method 'deqms', whose limma prior this argument",
+        "does set, or 'lm', which does not moderate at all", config=config)
+      return(TRUE)
+    }
+    return(FALSE)
+  }
+
+  if(!trend || method %in% f.trend_methods()) return(FALSE)
+
+  f.msg("WARNING: test:", src, "is TRUE, but test_method", method, "does not fit",
+    "its variance prior against mean feature intensity, so the run is unaffected;",
+    "\n", " the methods that do are", paste(f.trend_methods(), collapse=", "),
+    "and 'trend', which always does", config=config)
+
+  return(TRUE)
+}
+
 #' Hypothesis testing
 #' @description
 #'   Wrapper for various hypothesis testing methods.
@@ -3380,8 +3839,34 @@ test_methods <- function() {
 #'     reports \code{msqrob2}'s moderated t against \code{dfPosterior}, which is
 #'     generous, and is mildly anti-conservative as a result. See
 #'     \code{h0testr::test_msqrob()} for the simulated rejection rates.
-#'   See documentation for \code{h0testr::new_config()} 
-#'     for more detailed description of configuration parameters. 
+#'   Several settings are read by some engines and not by others, so one set on a run
+#'     whose method does not consult it does nothing at all:
+#'     \code{config$test_random_obs} is read by \code{"prolfqua_lmer"} and
+#'     \code{"msqrob_agg"}, and \code{config$test_ridge} by \code{"msqrob_agg"}. Such a
+#'     setting is reported as a \code{NOTE} in the log rather than refused, and only when
+#'     its value differs from the one \code{h0testr::new_config()} ships:
+#'     \code{h0testr::tune()} sets one configuration and varies the method, so most
+#'     combinations of a sweep carry a setting meant for one of the others. Said here,
+#'     once per run, rather than in \code{h0testr::check_config()}, which every step of
+#'     the workflow calls.
+#'   The trended variance prior is the same kind of setting, but is resolved here for
+#'     every method rather than read by each: the \code{trend} argument answers when
+#'     given and \code{config$test_trend} otherwise, and the resolved value is passed to
+#'     \code{"prolfqua"}, where it fits the prior against mean feature intensity, and to
+#'     \code{"deqms"}, where it sets \code{limma::eBayes(trend=)} but does not change what
+#'     is reported: \code{DEqMS} fits its own prior from quantities
+#'     \code{limma::eBayes()} leaves alone, so only the \code{limma} columns of
+#'     \code{original} move. \code{"trend"} always trends, that being its
+#'     definition, so \code{TRUE} is silent there and only an explicit \code{FALSE} draws
+#'     a remark. The remaining methods cannot trend: \code{"lm"} and \code{"msqrob"} do
+#'     not moderate against a covariate, \code{"proda"} fits its own prior, \code{"voom"}
+#'     carries the mean-variance relationship in its precision weights so a trended prior
+#'     would count it twice, and the mixed paths have a Satterthwaite denominator rather
+#'     than one residual variance to shrink. A \code{TRUE} reaching one of those is a
+#'     \code{WARNING} in the log, not a refusal, for the same \code{h0testr::tune()}
+#'     reason.
+#'   See documentation for \code{h0testr::new_config()}
+#'     for more detailed description of configuration parameters.
 #' @param state List with elements formatted like the list returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -3406,8 +3891,16 @@ test_methods <- function() {
 #'   "prolfqua", "prolfqua_lmer")}. Defaults to \code{config$is_log_transformed}, which
 #'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
 #'   passing both is an error unless they agree.
-#' @param prior_df Prior degrees of freedom for method \code{proda}; 
+#' @param prior_df Prior degrees of freedom for method \code{proda};
 #'   where \code{2 <= prior_df <= n_features}.
+#' @param trend Logical scalar: whether the variance prior of the moderation is fitted
+#'   against mean feature intensity rather than being flat. Honored by \code{method
+#'   \%in\% c("deqms", "prolfqua")}; \code{"trend"} always trends and the rest cannot,
+#'   which is a \code{WARNING} rather than an error. Defaults to
+#'   \code{config$test_trend}, and to \code{FALSE} when that is absent too; unlike
+#'   \code{is_log_transformed}, an argument that disagrees with the configuration simply
+#'   wins, this being a preference rather than a fact about the data. Unrelated to
+#'   \code{method="trend"}, which names a different limma fit.
 #' @return A list with the following elements: \cr
 #'   \tabular{ll}{
 #'     \code{original} \cr \tab A \code{data.frame} with results in native format returned by test. \cr
@@ -3468,16 +3961,21 @@ test_methods <- function() {
 #'     observations where the feature was seen; for the gene level methods, which
 #'     take feature level input and report gene level results, it
 #'     is also over the features of each gene.
-#'   \code{stat} is the statistic the engine itself reports, with one exception: a
-#'     joint test with \code{method \%in\% c("msqrob", "msqrob_agg")} reports an F
-#'     computed by \code{h0testr} from the fitted \code{msqrob2} models, since
-#'     \code{msqrob2::hypothesisTest()} answers one contrast at a time. See
-#'     \code{h0testr::test_msqrob()} for what that statistic is. A
-#'     \code{config$contrast} run has no such exception: every engine reports its
-#'     own statistic for a contrast, including those two, which
-#'     answer it with \code{msqrob2::hypothesisTest()}, and
-#'     \code{method="deqms"}, which cannot run the corresponding
-#'     \code{config$test_term} at all.
+#'   \code{stat} is the statistic the engine itself reports, with two exceptions, both
+#'     for a joint test and both for the same reason, that the engine's API answers one
+#'     coefficient at a time while its fit supports the joint test.
+#'     \code{method \%in\% c("msqrob", "msqrob_agg")} reports an F computed by
+#'     \code{h0testr} from the fitted \code{msqrob2} models, since
+#'     \code{msqrob2::hypothesisTest()} answers one contrast at a time; see
+#'     \code{h0testr::test_msqrob()}. \code{method="deqms"} reports an F computed from
+#'     the per-gene variance \code{DEqMS::spectraCounteBayes()} fits, since
+#'     \code{DEqMS} moderates one coefficient's t-statistic and has no F-analogue; see
+#'     \code{h0testr::test_deqms()}. Both reduce to the engine's own statistic at one
+#'     numerator degree of freedom.
+#'   A \code{config$contrast} run has no such exception: every engine reports its
+#'     own statistic for a contrast, the two \code{msqrob} methods with
+#'     \code{msqrob2::hypothesisTest()} and \code{"deqms"} with the single coefficient
+#'     \code{limma::contrasts.fit()} leaves it.
 #' @examples
 #' set.seed(101)
 #' ## no missing values: mnar_c0=-Inf, mnar_c1=0, mcar_p=0
@@ -3503,14 +4001,14 @@ test_methods <- function() {
 #' head(out$standard)
 #' summary(out$fit)
 
-test <- function(state, config, method=NULL, 
-    is_log_transformed=NULL, prior_df=NULL) {
-  
+test <- function(state, config, method=NULL,
+    is_log_transformed=NULL, prior_df=NULL, trend=NULL) {
+
   if(is.null(method) || method %in% "") method <- config$test_method
   if(is.null(method) || method %in% "") {
     f.err("test: method and config$test_method both unset", config=config)
   }
-  
+
   if(is.null(prior_df)) prior_df <- config$test_prior_df
   if(method %in% "proda" && is.null(prior_df)) {
     f.err("test: method %in% 'proda' && is.null(prior_df)", config=config)
@@ -3524,8 +4022,21 @@ test <- function(state, config, method=NULL,
       "test")
   }
   
+  ## resolved for every method rather than only the two that take it, so that the one
+  ##   place the value is settled is also the place a method that cannot honor it says
+  ##   so; the argument overrides config$test_trend. See f.is_trend():
+
+  trend_given <- !(is.null(trend) || (is.character(trend) && all(trend %in% "")))
+  trend <- f.is_trend(trend, config, "test")
+
   f.msg("test: method:", method, "; is_log_transformed:", is_log_transformed,
-    "; prior_df:", prior_df, config=config)
+    "; prior_df:", prior_df, "; trend:", trend, config=config)
+
+  ## a setting the resolved method does not read, said once here rather than once per
+  ##   step by check_config(); see f.note_ignored_settings() and f.note_trend():
+
+  f.note_ignored_settings(method, config)
+  f.note_trend(method, trend, trend_given, config)
 
   ## every method below tests config$test_term against a reduced model, whether
   ##   by dropping terms or by contrasting coefficients, so none of them has
@@ -3550,8 +4061,8 @@ test <- function(state, config, method=NULL,
     result <- test_trend(state, config)
     tbl2 <- f.format_limma(result$hits, config)
   } else if(method %in% "deqms") {
-    result <- test_deqms(state, config)
-    tbl2 <- f.format_limma(result$hits, config)
+    result <- test_deqms(state, config, trend=trend)
+    tbl2 <- f.format_deqms(result$hits, config)
   } else if(method %in% "msqrob") {
     result <- test_msqrob(state, config)
     tbl2 <- f.format_msqrob(result$hits, test_col, config)
@@ -3564,7 +4075,7 @@ test <- function(state, config, method=NULL,
     tbl2 <- f.format_proda(result$hits, config)
   } else if(method %in% "prolfqua") {
     result <- test_prolfqua(state, config,
-      is_log_transformed=is_log_transformed)
+      is_log_transformed=is_log_transformed, trend=trend)
     tbl2 <- f.format_prolfqua(result$hits, test_col, config)
   } else if(method %in% "prolfqua_lmer") {
     result <- test_prolfqua(state, config,

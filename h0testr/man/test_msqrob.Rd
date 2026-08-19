@@ -164,8 +164,10 @@ Returns gene-level hypothesis testing results based on
     \code{F = W / length(cols)} on \code{length(cols)} and \code{dfPosterior}
     degrees of freedom.
   \strong{That joint statistic is computed by \code{h0testr}, not returned by
-    \code{msqrob2}}, which is the one place in this package where the reported
-    statistic is not the engine's own. The single column case is untouched and is
+    \code{msqrob2}}, which is one of the two places in this package where the reported
+    statistic is not the engine's own; the other is the joint case of
+    \code{h0testr::test_deqms()}, for the same reason and by the same route. The
+    single column case is untouched and is
     still exactly what \code{msqrob2::hypothesisTest()} returns; with one column the
     statistic above reduces to the square of the moderated t that function reports,
     which is why it is referred to an F rather than to a chi-square.

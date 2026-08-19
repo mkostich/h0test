@@ -4,7 +4,7 @@
 \alias{test_deqms}
 \title{Hypothesis testing using the \code{DEqMS} package}
 \usage{
-test_deqms(state, config, trend = FALSE)
+test_deqms(state, config, trend = NULL)
 }
 \arguments{
 \item{state}{List with elements like those returned by \code{read_data()}:
@@ -22,16 +22,31 @@ test_deqms(state, config, trend = FALSE)
   \code{frm}            \cr \tab Formula (formula) to be fit. \cr
   \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
   \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
+  \code{test_trend}    \cr \tab Optional logical; answers the \code{trend} argument when that is not given. Defaults to \code{FALSE} when both are absent. Unrelated to \code{config$test_method="trend"}. \cr
 }}
 
-\item{trend}{Logical scalar. Whether \code{limma::eBayes()} should use trended dispersion estimate.}
+\item{trend}{Logical scalar. Whether \code{limma::eBayes()} fits its variance prior
+against mean gene intensity rather than shrinking every gene toward one number.
+Defaults to \code{config$test_trend}, and to \code{FALSE} when that is absent, which
+is the fit this function performed before the key reached it. \strong{This moves
+less than it appears to}: \code{DEqMS::spectraCounteBayes()} fits its own prior from
+\code{fit$sigma}, \code{fit$df.residual} and \code{fit$count}, which
+\code{limma::eBayes()} does not alter, and the reported statistic comes from that
+prior. So \code{trend} sets \code{P.Value}, \code{t}, \code{B}, \code{s2.prior} and
+\code{s2.post} of \code{hits}, and leaves every \code{sca.} column, which is what
+\code{h0testr::test()} reports, unchanged. For a trended prior that changes the
+answer, use \code{config$test_method="trend"}.}
 }
 \value{
 A list with components:
   \tabular{ll}{
-    \code{hits}  \cr \tab \code{data.frame} of results; columns: 
-      \code{c("logFC", "AveExpr", "t", "P.Value", "adj.P.Val", "B", "gene", "count", "sca.t", "sca.P.Value", "sca.adj.pval")}.
-      Initial statistics from \code{limma}. Columns beginning with \code{sca.} added by \code{DEqMS}. \cr
+    \code{hits}  \cr \tab \code{data.frame} of results; columns:
+      \code{c("logFC", "AveExpr", "t", "P.Value", "adj.P.Val", "B", "gene", "count", "sca.t", "sca.F", "sca.df.num", "sca.df.den", "sca.P.Value", "sca.adj.pval")}.
+      Initial statistics from \code{limma}. Columns beginning with \code{sca.} come from
+      \code{DEqMS}'s variance prior, and are the ones reported by \code{h0testr::test()}.
+      \code{sca.t} is \code{NA} when more than one coefficient carries the test, and the
+      per-coefficient \code{logFC} column is then replaced by one column per tested
+      coefficient, as \code{limma::topTable()} reports them. \cr
     \code{fit}   \cr \tab Model returned by \code{DEqMS::spectraCounteBayes}. \cr
   }
 }
@@ -41,27 +56,46 @@ Tests for differential expression using the
 }
 \details{
 The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm}
-    and a moderated t-test is performed for whether the effect of
+    and a moderated test is performed for whether the effect of
     \code{config$test_term} on \code{state$expression} is zero.
-  \code{DEqMS} moderates the t-statistic of a single coefficient and has no
-    F-analogue, so \code{config$test_term} must resolve to a single design matrix
-    column; it is an
-    error if it does not. That rules out testing a factor with more than two
-    levels, and also testing a variable that appears in an interaction, since by
-    marginality the test then covers every term containing the variable: with
+  The coefficients carrying that test are the columns of the design matrix
+    assigned to \code{config$test_term} and to every term containing it, which is
+    the same selection used by \code{h0testr::test_lm()},
+    \code{h0testr::test_trend()} and
+    \code{h0testr::filter_features_by_estimability()}. So naming a variable that
+    also appears in an interaction tests the interaction too: with
     \code{config$frm = ~sex * batch} and \code{config$test_term = "sex"}, the test
-    is a joint test of \code{sexM} and \code{sexM:batchb2}, which this engine
-    cannot perform. Use \code{h0testr::test_lm()},
-    \code{h0testr::test_trend()} or \code{h0testr::test_voom()} for those tests.
-  \code{config$contrast} is the other way through that restriction, and the only
-    one that keeps this engine: a contrast is one degree of freedom however many
-    coefficients it weights, and \code{limma::contrasts.fit()} leaves a fit with
-    the single coefficient \code{DEqMS} moderates. So a comparison between two
-    particular levels of a factor with more than two, or between two levels of a
-    factor that also appears in an interaction, runs here, while the
-    corresponding \code{config$test_term} does not. What is given up is the joint
-    hypothesis: a contrast compares the levels it names, holding the other
-    variables of any higher-order term at their reference level, which
+    is a joint 2 degree of freedom test of \code{sexM} and \code{sexM:batchb2}.
+    Testing a factor with more than two levels is likewise a joint test over its
+    contrasts.
+  A test of one coefficient is reported as \code{DEqMS}'s own moderated t, with a
+    \code{logFC} column; a test of several is reported as a moderated F, and no
+    \code{logFC}, since several coefficients have no single fold change.
+    \code{DEqMS} itself reports only the former: \code{DEqMS::spectraCounteBayes()}
+    moderates the t-statistic of one coefficient and the package has no F-analogue
+    anywhere. Its moderation does not have that limit. That function fits a variance
+    prior against the number of features behind each gene and returns a per-gene
+    posterior variance and a prior degrees of freedom, neither of which mentions a
+    coefficient, so the joint test is the ordinary F with the residual variance
+    replaced by the posterior one and the denominator degrees of freedom raised by
+    those of the prior. At one numerator degree of freedom that F is the square of
+    \code{DEqMS}'s own moderated t, so the single-coefficient case reports
+    \code{DEqMS}'s statistic unchanged. Earlier versions refused anything but that
+    case.
+  A joint test additionally requires that no value of the aggregated expression
+    matrix be missing, and it is an error if any is. \code{limma} fits each gene on
+    the observations that gene has, so \code{fit$stdev.unscaled} is per gene while
+    \code{fit$cov.coefficients}, which a joint test needs, comes from the complete
+    design; the joint statistic would then be wrong for exactly the genes with
+    missing values. Running \code{h0testr::impute()} first, which the documented
+    workflow does, satisfies this. A single coefficient, which
+    \code{config$contrast} also reduces to, is unaffected.
+  \code{config$contrast} tests a weighted sum of coefficients instead of a term, is
+    one degree of freedom however many coefficients it weights, and reaches this
+    engine as a single coefficient, \code{limma::contrasts.fit()} having made it
+    one. It is a different hypothesis rather than a way around a restriction: a
+    contrast compares the levels it names, holding the other variables of any
+    higher-order term at their reference level, which
     \code{h0testr::new_config()} describes and which is warned about when it
     applies.
   Stops if every gene/protein-group has the same number of features. The whole
@@ -92,8 +126,15 @@ The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm}
       3. Calculate statistics using \code{limma::eBayes()} on fitted model. \cr
       4. Append peptide counts to model returned by \code{limma::eBayes()}. \cr
       5. Adjust statistics using \code{DEqMS::spectraCounteBayes()}. \cr
-      6. Generate hit table with \code{DEqMS::outputResult()}. \cr
+      6. Form the moderated test of the coefficients carrying the test from the
+           variance prior that fitted. \cr
+      7. Generate hit table with \code{limma::topTable()}, with the moderated
+           statistics appended. \cr
     }
+  \code{DEqMS::outputResult()} built the hit table until the joint test was added,
+    and is no longer used: it takes a single \code{coef_col}, there being nothing
+    joint for it to report. Every column it produced is still in the table, with
+    the joint statistic and its degrees of freedom added.
   See documentation for \code{h0testr::new_config()} 
     for more detailed description of configuration parameters.
 }
@@ -124,9 +165,10 @@ config <- list(
   sample_id_col="obs",
   feat_id_col="pep",
   gene_id_col="gene",
-  ## no grp:sex term here: by marginality, testing "grp" in ~grp+sex+grp:sex is a
-  ##   joint test of grptrt and grptrt:sexM, and this method tests one
-  ##   coefficient at a time. Test "grp:sex" to test the interaction itself:
+  ## no grp:sex term here, so that this example shows the single-coefficient case,
+  ##   which reports DEqMS's own moderated t. By marginality, testing "grp" in
+  ##   ~grp+sex+grp:sex would be a joint test of grptrt and grptrt:sexM, reported as
+  ##   a moderated F; test "grp:sex" to test the interaction itself:
   frm=~grp+sex,
   test_term="grp",
   reference_levels=c(grp="ctl", sex="F")
@@ -143,4 +185,14 @@ out$config$is_log_transformed <- TRUE
 ## actual test:
 result <- h0testr::test_deqms(out$state, out$config)
 head(result$hits)
+
+## the same fit with limma's own prior fitted against mean gene intensity instead of
+##   flat. Equivalently config$test_trend <- TRUE, which h0testr::test(method="deqms")
+##   passes through. limma's P.Value moves and DEqMS's sca.P.Value does not, the
+##   count-based prior the latter comes from being fitted from quantities
+##   limma::eBayes() leaves alone; see the note on the trend argument:
+trended <- h0testr::test_deqms(out$state, out$config, trend=TRUE)
+i <- rownames(result$hits)
+c(limma=cor(result$hits$P.Value, trended$hits[i, "P.Value"]),
+  deqms=cor(result$hits$sca.P.Value, trended$hits[i, "sca.P.Value"]))
 }

@@ -486,7 +486,11 @@ Method used for hypothesis testing.
 
 **deqms**: Uses `DEqMS` package for peptide-based protein/gene-group analysis.
   Flow is: `limma::lmFit() -> limma::eBayes() -> DEqMS::spectraCounteBayes() 
-  -> DEqMS::outputResult()`.
+  -> limma::topTable()`. A `config$test_term` resolving to one coefficient is reported
+  as `DEqMS`'s own moderated t; one spanning several is reported as a moderated F
+  formed from the same per-gene variance prior, which `DEqMS` has no function of its
+  own for. `DEqMS::outputResult()` built the hit table until that was added, and takes
+  a single coefficient.
 
 **msqrob**: Uses `msqrob2` package for peptide-based protein/gene-group analysis.
   Flow is: `QFeatures::readQFeatures() -> SummarizedExperiment object -> 

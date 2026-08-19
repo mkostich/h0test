@@ -4,7 +4,13 @@
 \alias{test_prolfqua}
 \title{Hypothesis testing using the \code{prolfq} package}
 \usage{
-test_prolfqua(state, config, is_log_transformed = NULL, mixed = FALSE)
+test_prolfqua(
+  state,
+  config,
+  is_log_transformed = NULL,
+  mixed = FALSE,
+  trend = NULL
+)
 }
 \arguments{
 \item{state}{List with elements like those returned by \code{read_data()}:
@@ -26,7 +32,7 @@ test_prolfqua(state, config, is_log_transformed = NULL, mixed = FALSE)
   \code{covariate_types}       \cr \tab Optional; classification of variables in \code{config$frm}, as set by \code{initialize()}. \cr
   \code{factor_levels}         \cr \tab Optional; resolved levels of each factor variable, as set by \code{initialize()}. \cr
   \code{test_moderate}         \cr \tab Optional logical; whether to shrink the error variance across features. Defaults to \code{TRUE} when absent. \cr
-  \code{test_trend}            \cr \tab Optional logical; whether the prior of that shrinkage is fitted against mean feature intensity rather than flat. Defaults to \code{FALSE} when absent. Unrelated to \code{config$test_method="trend"}. \cr
+  \code{test_trend}            \cr \tab Optional logical; whether the prior of that shrinkage is fitted against mean feature intensity rather than flat. Answers when the \code{trend} argument is not given; defaults to \code{FALSE} when both are absent. Unrelated to \code{config$test_method="trend"}. \cr
   \code{test_random_obs}       \cr \tab Optional logical; whether the \code{mixed=TRUE} fit includes a random observation effect alongside the random feature effect. Defaults to \code{TRUE} when absent, which is the calibrated model; see Details. Ignored when \code{mixed=FALSE}. \cr
   \code{feat_id_col}           \cr \tab Name of column in \code{state$features} with unique feature ids; must differ from \code{config$gene_id_col} when \code{mixed=TRUE}. \cr
   \code{normalization_method}  \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
@@ -43,6 +49,14 @@ of one least squares model per feature. \code{TRUE} is what
 \code{config$test_method="prolfqua_lmer"} selects, gives one result row per gene
 from feature level input, and requires \code{config$feat_id_col} and
 \code{config$gene_id_col} to name different columns. See Details.}
+
+\item{trend}{Logical scalar: whether the variance prior of the moderation is fitted
+against mean feature intensity, which is \code{limma::eBayes(trend=TRUE)}'s
+covariate, rather than being flat. Defaults to \code{config$test_trend}, and to
+\code{FALSE} when that is absent; an argument that disagrees with the configuration
+wins. Not consulted when \code{mixed=TRUE}, whose denominator is a combination of
+variance components rather than one residual variance, and a \code{TRUE} there is
+reported as a \code{NOTE}.}
 }
 \value{
 A list with components:
@@ -135,7 +149,8 @@ Uses the \code{prolfqua::build_model()} function. Returned results sorted by
     be seen without refitting; with \code{config$test_moderate=FALSE} they are
     equal to the reported ones.
   The prior that variance is shrunk toward is one number shared by every feature
-    unless \code{config$test_trend} is \code{TRUE}, which fits it against the mean
+    unless the \code{trend} argument, or \code{config$test_trend} when it is not
+    given, is \code{TRUE}, which fits it against the mean
     intensity of each feature as a natural spline of up to four degrees of freedom
     on the log residual variances. That covariate is the one
     \code{limma::eBayes(trend=TRUE)} uses, the row mean of the response over the
@@ -212,7 +227,7 @@ Uses the \code{prolfqua::build_model()} function. Returned results sorted by
     \code{hits$moderated} is \code{FALSE}, \code{df.prior}, \code{s2.prior},
     \code{F.value.unmod} and \code{p.value.unmod} are \code{NA}, and
     \code{s2.denom} reports the effective denominator variance the F did use.
-    \code{config$test_moderate} and \code{config$test_trend} are not consulted, and
+    \code{config$test_moderate} and the trended prior are not consulted, and
     a note says so when either is present and \code{TRUE}. A note rather than a
     warning because \code{h0testr::new_config()} sets \code{test_moderate=TRUE}, so
     it applies to a default configuration and describes nothing wrong.
@@ -243,7 +258,7 @@ Uses the \code{prolfqua::build_model()} function. Returned results sorted by
       5. Build a \code{prolfqua} model from each. \cr
       6. Moderate the per-feature error variance across features with
            \code{prolfqua::squeezeVarRob()}, toward a flat prior or, with
-           \code{config$test_trend}, one fitted against mean feature intensity. \cr
+           \code{trend}, one fitted against mean feature intensity. \cr
       7. Return the per-feature F-test comparing the two fits, dropping features
            for which the test is not estimable. \cr
     }

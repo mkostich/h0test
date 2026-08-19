@@ -16,9 +16,26 @@ Logical scalar \code{TRUE} if configuration ok. Otherwise throws error.
 Check configuration list for recognizable names and proper value types.
 }
 \details{
-Only checks parameters in the configuration. Does not complain about 
-    missing settings. 
-  See documentation for \code{h0testr::new_config()} 
+Only checks parameters in the configuration. Does not complain about
+    missing settings.
+  Beyond the type of each value, the combinations that no other setting can rescue
+    are refused here rather than at the step that would meet them:
+    \code{config$test_method} outside \code{h0testr::test_methods()};
+    \code{config$contrast} and \code{config$test_term} both naming something to
+    test, one run testing one hypothesis; \code{config$test_ridge=TRUE} on a
+    mean model that cannot carry a penalty, which needs at least two non-intercept
+    columns; and a \code{config$run_order} naming a step that is not one of the
+    workflow steps \code{h0testr::run()} can walk, which would otherwise fail as an
+    "object not found" partway through the workflow, with the steps before it already
+    done. A step named twice is not refused, since running one again may be meant;
+    \code{h0testr::run()} warns about it once, its output files being named after the
+    first occurrence. The limits that depend on the data rather than on the configuration,
+    such as how many features a gene has, stay with the engine that meets them; see
+    \code{h0testr::test_msqrob()} and \code{h0testr::test_deqms()}.
+  A setting that the chosen method does not consult is not refused and is not
+    reported here: it is a \code{NOTE} from \code{h0testr::test()}, which every
+    workflow calls once, this function being called once per step.
+  See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.
 }
 \examples{
@@ -31,4 +48,42 @@ h0testr::check_config(config)
 ## invalid: value must be numeric, not character; throws an error:
 config$impute_quantile <- "0.01"
 try(h0testr::check_config(config))
+
+## invalid: not one of h0testr::test_methods(); throws an error:
+config <- h0testr::new_config()
+config$test_method <- "trrend"
+try(h0testr::check_config(config))
+
+## invalid: the penalty needs at least two non-intercept columns, and a two level
+##   factor with an intercept gives one; throws an error once initialize() has
+##   resolved the levels:
+config <- h0testr::new_config()
+config$test_method <- "msqrob_agg"
+config$test_ridge <- TRUE
+config$frm <- ~grp
+config$covariate_types <- c(grp="factor")
+config$factor_levels <- list(grp=c("ctl", "trt"))
+try(h0testr::check_config(config))
+
+## ok: the same penalty on a design without an intercept, two columns:
+config$frm <- ~0 + grp
+h0testr::check_config(config)
+
+## ok: a setting the chosen method does not consult is not this function's business;
+##   h0testr::test() notes it instead:
+config <- h0testr::new_config()
+config$test_method <- "trend"
+config$test_ridge <- TRUE
+h0testr::check_config(config)
+
+## invalid: a step h0testr::run() has no function for; throws an error before the
+##   workflow starts rather than after the steps before it have run:
+config <- h0testr::new_config()
+config$run_order <- c("normalize", "combine_featurez", "filter")
+try(h0testr::check_config(config))
+
+## ok: no steps at all, meaning load_data() and then test(), for data that arrives
+##   already normalized, aggregated and complete:
+config$run_order <- character(0)
+h0testr::check_config(config)
 }

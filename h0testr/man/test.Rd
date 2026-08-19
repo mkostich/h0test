@@ -4,7 +4,14 @@
 \alias{test}
 \title{Hypothesis testing}
 \usage{
-test(state, config, method = NULL, is_log_transformed = NULL, prior_df = NULL)
+test(
+  state,
+  config,
+  method = NULL,
+  is_log_transformed = NULL,
+  prior_df = NULL,
+  trend = NULL
+)
 }
 \arguments{
 \item{state}{List with elements formatted like the list returned by \code{read_data()}:
@@ -35,8 +42,17 @@ been log transformed. Only consulted for \code{method \%in\% c("proda",
 \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
 passing both is an error unless they agree.}
 
-\item{prior_df}{Prior degrees of freedom for method \code{proda}; 
+\item{prior_df}{Prior degrees of freedom for method \code{proda};
 where \code{2 <= prior_df <= n_features}.}
+
+\item{trend}{Logical scalar: whether the variance prior of the moderation is fitted
+against mean feature intensity rather than being flat. Honored by \code{method
+\%in\% c("deqms", "prolfqua")}; \code{"trend"} always trends and the rest cannot,
+which is a \code{WARNING} rather than an error. Defaults to
+\code{config$test_trend}, and to \code{FALSE} when that is absent too; unlike
+\code{is_log_transformed}, an argument that disagrees with the configuration simply
+wins, this being a preference rather than a fact about the data. Unrelated to
+\code{method="trend"}, which names a different limma fit.}
 }
 \value{
 A list with the following elements: \cr
@@ -99,16 +115,21 @@ A list with the following elements: \cr
     observations where the feature was seen; for the gene level methods, which
     take feature level input and report gene level results, it
     is also over the features of each gene.
-  \code{stat} is the statistic the engine itself reports, with one exception: a
-    joint test with \code{method \%in\% c("msqrob", "msqrob_agg")} reports an F
-    computed by \code{h0testr} from the fitted \code{msqrob2} models, since
-    \code{msqrob2::hypothesisTest()} answers one contrast at a time. See
-    \code{h0testr::test_msqrob()} for what that statistic is. A
-    \code{config$contrast} run has no such exception: every engine reports its
-    own statistic for a contrast, including those two, which
-    answer it with \code{msqrob2::hypothesisTest()}, and
-    \code{method="deqms"}, which cannot run the corresponding
-    \code{config$test_term} at all.
+  \code{stat} is the statistic the engine itself reports, with two exceptions, both
+    for a joint test and both for the same reason, that the engine's API answers one
+    coefficient at a time while its fit supports the joint test.
+    \code{method \%in\% c("msqrob", "msqrob_agg")} reports an F computed by
+    \code{h0testr} from the fitted \code{msqrob2} models, since
+    \code{msqrob2::hypothesisTest()} answers one contrast at a time; see
+    \code{h0testr::test_msqrob()}. \code{method="deqms"} reports an F computed from
+    the per-gene variance \code{DEqMS::spectraCounteBayes()} fits, since
+    \code{DEqMS} moderates one coefficient's t-statistic and has no F-analogue; see
+    \code{h0testr::test_deqms()}. Both reduce to the engine's own statistic at one
+    numerator degree of freedom.
+  A \code{config$contrast} run has no such exception: every engine reports its
+    own statistic for a contrast, the two \code{msqrob} methods with
+    \code{msqrob2::hypothesisTest()} and \code{"deqms"} with the single coefficient
+    \code{limma::contrasts.fit()} leaves it.
 }
 \description{
 Wrapper for various hypothesis testing methods.
@@ -144,7 +165,33 @@ Tests for differential expression using method specified in config.
     reports \code{msqrob2}'s moderated t against \code{dfPosterior}, which is
     generous, and is mildly anti-conservative as a result. See
     \code{h0testr::test_msqrob()} for the simulated rejection rates.
-  See documentation for \code{h0testr::new_config()} 
+  Several settings are read by some engines and not by others, so one set on a run
+    whose method does not consult it does nothing at all:
+    \code{config$test_random_obs} is read by \code{"prolfqua_lmer"} and
+    \code{"msqrob_agg"}, and \code{config$test_ridge} by \code{"msqrob_agg"}. Such a
+    setting is reported as a \code{NOTE} in the log rather than refused, and only when
+    its value differs from the one \code{h0testr::new_config()} ships:
+    \code{h0testr::tune()} sets one configuration and varies the method, so most
+    combinations of a sweep carry a setting meant for one of the others. Said here,
+    once per run, rather than in \code{h0testr::check_config()}, which every step of
+    the workflow calls.
+  The trended variance prior is the same kind of setting, but is resolved here for
+    every method rather than read by each: the \code{trend} argument answers when
+    given and \code{config$test_trend} otherwise, and the resolved value is passed to
+    \code{"prolfqua"}, where it fits the prior against mean feature intensity, and to
+    \code{"deqms"}, where it sets \code{limma::eBayes(trend=)} but does not change what
+    is reported: \code{DEqMS} fits its own prior from quantities
+    \code{limma::eBayes()} leaves alone, so only the \code{limma} columns of
+    \code{original} move. \code{"trend"} always trends, that being its
+    definition, so \code{TRUE} is silent there and only an explicit \code{FALSE} draws
+    a remark. The remaining methods cannot trend: \code{"lm"} and \code{"msqrob"} do
+    not moderate against a covariate, \code{"proda"} fits its own prior, \code{"voom"}
+    carries the mean-variance relationship in its precision weights so a trended prior
+    would count it twice, and the mixed paths have a Satterthwaite denominator rather
+    than one residual variance to shrink. A \code{TRUE} reaching one of those is a
+    \code{WARNING} in the log, not a refusal, for the same \code{h0testr::tune()}
+    reason.
+  See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.
 }
 \examples{

@@ -24,9 +24,22 @@ A list with the following elements:
 Run a basic workflow according to: \code{config$run_order}.
 }
 \details{
-Run a basic workflow: \code{load_data() -> config$run_order -> test()}, 
-    where \code{config$run_order} is vector of functions which are run in 
+Run a basic workflow: \code{load_data() -> config$run_order -> test()},
+    where \code{config$run_order} is vector of functions which are run in
     the specified order.
+  Each name in \code{config$run_order} must be one of \code{"normalize"},
+    \code{"combine_replicates"}, \code{"combine_features"}, \code{"filter"} and
+    \code{"impute"}; \code{h0testr::check_config()} refuses anything else before the
+    workflow starts. A zero length \code{config$run_order} runs
+    \code{h0testr::load_data()} and then \code{h0testr::test()}. Naming a step twice
+    runs it twice, which is allowed but warned about, since \code{f.save_state()} names
+    its output files after the first occurrence of a step and the later one overwrites
+    them.
+  Unlike \code{h0testr::tune()}, which skips \code{combine_features()} for the test
+    methods that take feature level input, this function walks
+    \code{config$run_order} as given: for \code{config$test_method} of
+    \code{"prolfqua_lmer"} or \code{"msqrob_agg"}, leave \code{"combine_features"} out
+    of it, or those methods will refuse the aggregated state at the last step.
   See documentation for \code{h0testr::new_config()} 
     for more detailed description of configuration parameters.
 }

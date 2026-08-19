@@ -1,10 +1,38 @@
+## The pipeline steps run() will walk, which is what config$run_order may name. run()
+##   fetches each by get(), so a name that is not one of these is an "object not found"
+##   at the point the step would have run, with the steps before it already done; kept in
+##   one place here so that check_config(), which refuses such a name up front, and the
+##   comment on config$run_order in new_config() cannot drift apart. Not the order they
+##   have to appear in: normalize() before combine_features() is required, aggregation
+##   needing log scale data, but that is combine_features()'s own refusal to make, and
+##   filter() and impute() are usable either way round:
+
+f.run_order_steps <- function() {
+  return(
+    c("normalize", "combine_replicates", "combine_features", "filter", "impute")
+  )
+}
+
 #' Run a basic workflow
 #' @description
 #'   Run a basic workflow according to: \code{config$run_order}.
 #' @details
-#'   Run a basic workflow: \code{load_data() -> config$run_order -> test()}, 
-#'     where \code{config$run_order} is vector of functions which are run in 
+#'   Run a basic workflow: \code{load_data() -> config$run_order -> test()},
+#'     where \code{config$run_order} is vector of functions which are run in
 #'     the specified order.
+#'   Each name in \code{config$run_order} must be one of \code{"normalize"},
+#'     \code{"combine_replicates"}, \code{"combine_features"}, \code{"filter"} and
+#'     \code{"impute"}; \code{h0testr::check_config()} refuses anything else before the
+#'     workflow starts. A zero length \code{config$run_order} runs
+#'     \code{h0testr::load_data()} and then \code{h0testr::test()}. Naming a step twice
+#'     runs it twice, which is allowed but warned about, since \code{f.save_state()} names
+#'     its output files after the first occurrence of a step and the later one overwrites
+#'     them.
+#'   Unlike \code{h0testr::tune()}, which skips \code{combine_features()} for the test
+#'     methods that take feature level input, this function walks
+#'     \code{config$run_order} as given: for \code{config$test_method} of
+#'     \code{"prolfqua_lmer"} or \code{"msqrob_agg"}, leave \code{"combine_features"} out
+#'     of it, or those methods will refuse the aggregated state at the last step.
 #'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
 #' @param config List with configuration values like those returned by 
@@ -46,6 +74,23 @@ run <- function(config) {
   
   f.log_block("starting load_data", config=config)
   out <- load_data(config)
+
+  ## a step named twice runs twice, which is not obviously wrong: normalizing again after
+  ##   aggregation, or filtering again after imputation, are things someone may mean. But
+  ##   f.save_state() names its output files after the first occurrence of a step in
+  ##   config$run_order, so a second occurrence overwrites the first one's files. Said
+  ##   here, once, rather than in check_config(), which every step calls; the names
+  ##   themselves are refused there, where a config error belongs:
+
+  dups <- unique(config$run_order[duplicated(config$run_order)])
+
+  if(length(dups)) {
+    f.msg("WARNING: run: config$run_order names", dups, "more than once, so",
+      if(length(dups) > 1) "those steps run" else "that step runs", "again;", "\n",
+      " f.save_state() names its files after the first occurrence of a step, so the",
+      "later one overwrites the files of the earlier;", "\n",
+      " config$run_order:", config$run_order, config=config)
+  }
 
   ## the scale of the data lives in out$config$is_log_transformed, put there by
   ##   initialize() and updated by normalize(), so each step below reads it from
@@ -110,35 +155,18 @@ f.tune2_na_row <- function(config) {
 
 f.tune2 <- function(state, config, is_log_transformed=NULL) {
 
-  ## some engines can only test one coefficient at a time, so they cannot run at all
-  ##   when config$test_term implies a joint test over several; skipped rather than
-  ##   allowed to stop the sweep, since the other methods in it are unaffected. Note
-  ##   this is a property of config$frm and config$test_term, not of the data, so it
-  ##   holds for every parameter combination using this test_method:
-
-  ## config$contrast is one degree of freedom whatever config$frm looks like, and
-  ##   every engine can express it, so neither guard below applies to a contrast run;
-  ##   the second would also have nothing to count, config$test_term being "" for
-  ##   one. See f.design_test_cols_max():
-
-  design <- f.design_test_cols(state, config)
-  n_cols <- length(design$cols_test)
-  capped <- is.null(design$contrast)
-
-  if(capped && n_cols > f.test_max_cols(config$test_method)) {
-    f.msg("WARNING: f.tune2: test_method", config$test_method, "can test at most",
-      f.test_max_cols(config$test_method), "coefficient at a time, but",
-      "config$test_term", config$test_term, "implies a joint test of", n_cols,
-      "; skipping and returning NA", config=config)
-    return(f.tune2_na_row(config))
-  }
-
-  ## there was a companion guard here for an engine bounded by terms rather than by
-  ##   coefficients. prolfqua was the only one, while it read the rows of a per-term
-  ##   anova table; test_prolfqua() now compares an explicit full and reduced design,
-  ##   so no engine is bounded that way and the guard could never fire. Removed with
-  ##   f.test_max_terms(), which returned Inf for every method; the coefficient bound
-  ##   above is the live one:
+  ## there were two guards here for engines that could not express the hypothesis
+  ##   config$test_term implied, which skipped the combination rather than letting it
+  ##   stop the sweep. Neither is left. The first was for an engine bounded by terms
+  ##   rather than by coefficients: prolfqua, while it read the rows of a per-term anova
+  ##   table; test_prolfqua() now compares an explicit full and reduced design, and the
+  ##   guard went with f.test_max_terms(), which by then returned Inf for every method.
+  ##   The second was for an engine that could report only one coefficient at a time.
+  ##   deqms was the last of those, and f.deqms_moderated_f() forms the joint test from
+  ##   the variance prior DEqMS::spectraCounteBayes() fits, so no engine is bounded that
+  ##   way either and f.test_max_cols() and f.design_test_cols_max() went with it. Every
+  ##   method now runs every formula and test_term that the filters accept, so a sweep
+  ##   has nothing to skip on these grounds:
 
   f.log_block("f.tune:2: filter", config=config)
   out <- filter(state, config)
@@ -285,14 +313,17 @@ f.tune2 <- function(state, config, is_log_transformed=NULL) {
 #'   A combination that could not be tested yields a row with \code{nhits} and
 #'     \code{ntests} set to \code{NA} rather than aborting the sweep, and the reason
 #'     is written to \code{config$log_file}. This happens when too few samples or
-#'     genes survive filtering, and when \code{test_method} cannot express the test
-#'     \code{config$test_term} implies. \code{"deqms"} tests one coefficient at a
-#'     time, so it is skipped when \code{config$test_term} names a factor with more
-#'     than two levels, or a variable that also appears in an interaction.
-#'     \code{"msqrob"} was bounded the same way, by
-#'     \code{msqrob2::hypothesisTest()} rather than by its fit, and is not any longer:
-#'     it reports a joint Wald test computed from the fitted models for those cases.
-#'     \code{"proda"} and \code{"prolfqua"} are bounded by neither,
+#'     genes survive filtering. It no longer happens because \code{test_method} cannot
+#'     express the test \code{config$test_term} implies: every method now tests as many
+#'     coefficients jointly as \code{config$test_term} carries. \code{"deqms"} and
+#'     \code{"msqrob"} were the two that could not, and both were bounded at their APIs
+#'     rather than by their fits: \code{msqrob2::hypothesisTest()} returns one table per
+#'     column of the contrast, and \code{DEqMS::spectraCounteBayes()} moderates one
+#'     coefficient's t-statistic, while a joint test needs only the fitted coefficients
+#'     and, for \code{"deqms"}, the per-gene variance that same function fits. Both now
+#'     report a joint test computed from those; see \code{h0testr::test_msqrob()} and
+#'     \code{h0testr::test_deqms()}.
+#'     \code{"proda"} and \code{"prolfqua"} were bounded by neither,
 #'     testing several coefficients jointly: \code{"proda"} by likelihood ratio and
 #'     \code{"prolfqua"} by an F-test comparing the full design against the design
 #'     with the tested columns removed, with the error variance moderated across

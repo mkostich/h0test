@@ -63,14 +63,17 @@ A data.frame with the following columns:
   A combination that could not be tested yields a row with \code{nhits} and
     \code{ntests} set to \code{NA} rather than aborting the sweep, and the reason
     is written to \code{config$log_file}. This happens when too few samples or
-    genes survive filtering, and when \code{test_method} cannot express the test
-    \code{config$test_term} implies. \code{"deqms"} tests one coefficient at a
-    time, so it is skipped when \code{config$test_term} names a factor with more
-    than two levels, or a variable that also appears in an interaction.
-    \code{"msqrob"} was bounded the same way, by
-    \code{msqrob2::hypothesisTest()} rather than by its fit, and is not any longer:
-    it reports a joint Wald test computed from the fitted models for those cases.
-    \code{"proda"} and \code{"prolfqua"} are bounded by neither,
+    genes survive filtering. It no longer happens because \code{test_method} cannot
+    express the test \code{config$test_term} implies: every method now tests as many
+    coefficients jointly as \code{config$test_term} carries. \code{"deqms"} and
+    \code{"msqrob"} were the two that could not, and both were bounded at their APIs
+    rather than by their fits: \code{msqrob2::hypothesisTest()} returns one table per
+    column of the contrast, and \code{DEqMS::spectraCounteBayes()} moderates one
+    coefficient's t-statistic, while a joint test needs only the fitted coefficients
+    and, for \code{"deqms"}, the per-gene variance that same function fits. Both now
+    report a joint test computed from those; see \code{h0testr::test_msqrob()} and
+    \code{h0testr::test_deqms()}.
+    \code{"proda"} and \code{"prolfqua"} were bounded by neither,
     testing several coefficients jointly: \code{"proda"} by likelihood ratio and
     \code{"prolfqua"} by an F-test comparing the full design against the design
     with the tested columns removed, with the error variance moderated across

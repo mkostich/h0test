@@ -153,11 +153,11 @@ new_config <- function() {
     test_method="trend",                 ## hypothesis test method; h0testr::test_methods() returns options.
     test_prior_df=3,                     ## prior df for test_proda()
     test_moderate=TRUE,                  ## whether to shrink the per-feature error variance across features before testing; used by test_prolfqua(), which is the only method here that can be told not to; the limma-based methods always moderate and proda always shrinks
-    test_trend=FALSE,                    ## whether the prior variance of that shrinkage is fitted against mean feature intensity instead of being flat; used by test_prolfqua(), where it makes the prior the one test_method="trend" uses; unrelated to test_method
+    test_trend=FALSE,                    ## whether the prior variance of that shrinkage is fitted against mean feature intensity instead of being flat; honored by test_method "prolfqua", where it makes the prior the one test_method="trend" uses, and by "deqms", where it sets the limma prior beneath DEqMS's count-based one; "trend" always trends and the remaining methods cannot, which test() warns about rather than refusing; overridden by test(trend=); unrelated to test_method
     test_random_obs=TRUE,                ## whether the feature level mixed model paths, test_method %in% c("prolfqua_lmer", "msqrob_agg"), add a random observation effect to the random feature effect; TRUE is the calibrated model; FALSE gives the feature-only structure both packages document, which is anti-conservative; see test_prolfqua() and test_msqrob()
     test_ridge=FALSE,                    ## whether test_method="msqrob_agg" penalizes the fixed effects, msqrob2::msqrobAggregate(ridge=TRUE); FALSE is msqrob2's own default throughout; TRUE shrinks the coefficients toward zero, so the reported logFC is not comparable to what the other methods report, renames the fitted parameters, and refuses a mean model with fewer than two non-intercept columns; see test_msqrob()
 
-    ## run_order character vector with elements from {"normalize", "combine_replicates", "combine_features", "filter", "impute"}:
+    ## run_order character vector with elements from f.run_order_steps(), which is {"normalize", "combine_replicates", "combine_features", "filter", "impute"}; check_config() refuses any other name, and run() warns about a repeat:
     run_order=c("normalize", "combine_replicates", "combine_features", "filter", "impute"),   ## order of workflow operations
     
     ## misc; 
@@ -170,14 +170,65 @@ new_config <- function() {
   return(config)
 }
 
+## helper for check_config(): a lower bound on the number of non-intercept columns
+##   stats::model.matrix() will build from config$frm, or NA when the config does not
+##   settle it. Every term contributes at least one column, so a formula with two or
+##   more terms already has at least two and the count need not be exact. A single term
+##   is counted only when it names one variable whose type initialize() has resolved: a
+##   numeric contributes one column, and a factor one per level, less one for a design
+##   that keeps its intercept. Anything else, an interaction or a variable not yet
+##   classified, is NA, since how many columns it becomes depends on the data:
+
+f.frm_min_noint_cols <- function(config) {
+
+  if(!f.is_formula(config$frm)) return(NA_integer_)
+
+  trms <- try(stats::terms(config$frm), silent=T)
+  if(inherits(trms, "try-error")) return(NA_integer_)
+
+  labs <- attr(trms, "term.labels")           ## excludes any dependent variable
+  if(length(labs) %in% 0) return(0L)
+  if(length(labs) > 1) return(length(labs))
+
+  nom <- labs[1]
+  if(!(nom %in% names(config$covariate_types))) return(NA_integer_)
+
+  typ <- config$covariate_types[[nom]]
+  if(is.na(typ)) return(NA_integer_)
+  if(typ %in% "numeric") return(1L)
+  if(!(nom %in% names(config$factor_levels))) return(NA_integer_)
+
+  n_lev <- length(config$factor_levels[[nom]])
+  if(n_lev %in% 0) return(NA_integer_)
+
+  return(as.integer(n_lev - (attr(trms, "intercept") %in% 1)))
+}
+
 #' Check configuration
 #' @description
 #'   Check configuration list for recognizable names and proper value types.
 #' @details
-#'   Only checks parameters in the configuration. Does not complain about 
-#'     missing settings. 
-#'   See documentation for \code{h0testr::new_config()} 
-#'     for more detailed description of configuration parameters. 
+#'   Only checks parameters in the configuration. Does not complain about
+#'     missing settings.
+#'   Beyond the type of each value, the combinations that no other setting can rescue
+#'     are refused here rather than at the step that would meet them:
+#'     \code{config$test_method} outside \code{h0testr::test_methods()};
+#'     \code{config$contrast} and \code{config$test_term} both naming something to
+#'     test, one run testing one hypothesis; \code{config$test_ridge=TRUE} on a
+#'     mean model that cannot carry a penalty, which needs at least two non-intercept
+#'     columns; and a \code{config$run_order} naming a step that is not one of the
+#'     workflow steps \code{h0testr::run()} can walk, which would otherwise fail as an
+#'     "object not found" partway through the workflow, with the steps before it already
+#'     done. A step named twice is not refused, since running one again may be meant;
+#'     \code{h0testr::run()} warns about it once, its output files being named after the
+#'     first occurrence. The limits that depend on the data rather than on the configuration,
+#'     such as how many features a gene has, stay with the engine that meets them; see
+#'     \code{h0testr::test_msqrob()} and \code{h0testr::test_deqms()}.
+#'   A setting that the chosen method does not consult is not refused and is not
+#'     reported here: it is a \code{NOTE} from \code{h0testr::test()}, which every
+#'     workflow calls once, this function being called once per step.
+#'   See documentation for \code{h0testr::new_config()}
+#'     for more detailed description of configuration parameters.
 #' @param config List with configuration values like those returned by \code{new_config()}.
 #' @return Logical scalar \code{TRUE} if configuration ok. Otherwise throws error.
 #' @examples
@@ -190,6 +241,44 @@ new_config <- function() {
 #' ## invalid: value must be numeric, not character; throws an error:
 #' config$impute_quantile <- "0.01"
 #' try(h0testr::check_config(config))
+#'
+#' ## invalid: not one of h0testr::test_methods(); throws an error:
+#' config <- h0testr::new_config()
+#' config$test_method <- "trrend"
+#' try(h0testr::check_config(config))
+#'
+#' ## invalid: the penalty needs at least two non-intercept columns, and a two level
+#' ##   factor with an intercept gives one; throws an error once initialize() has
+#' ##   resolved the levels:
+#' config <- h0testr::new_config()
+#' config$test_method <- "msqrob_agg"
+#' config$test_ridge <- TRUE
+#' config$frm <- ~grp
+#' config$covariate_types <- c(grp="factor")
+#' config$factor_levels <- list(grp=c("ctl", "trt"))
+#' try(h0testr::check_config(config))
+#'
+#' ## ok: the same penalty on a design without an intercept, two columns:
+#' config$frm <- ~0 + grp
+#' h0testr::check_config(config)
+#'
+#' ## ok: a setting the chosen method does not consult is not this function's business;
+#' ##   h0testr::test() notes it instead:
+#' config <- h0testr::new_config()
+#' config$test_method <- "trend"
+#' config$test_ridge <- TRUE
+#' h0testr::check_config(config)
+#'
+#' ## invalid: a step h0testr::run() has no function for; throws an error before the
+#' ##   workflow starts rather than after the steps before it have run:
+#' config <- h0testr::new_config()
+#' config$run_order <- c("normalize", "combine_featurez", "filter")
+#' try(h0testr::check_config(config))
+#'
+#' ## ok: no steps at all, meaning load_data() and then test(), for data that arrives
+#' ##   already normalized, aggregated and complete:
+#' config$run_order <- character(0)
+#' h0testr::check_config(config)
 
 check_config <- function(config) {
 
@@ -407,6 +496,48 @@ check_config <- function(config) {
     }
   }
 
+  ## config$test_method names the engine test() will dispatch to, and a name that is
+  ##   not one of them is a configuration error that no other setting can fix, so it is
+  ##   caught here rather than at the end of the dispatch chain in test(). Empty is
+  ##   allowed and means unset: test(method=) overrides config$test_method, and test()
+  ##   refuses only when both are unset. NA is not, a missing setting being expressed
+  ##   by its absence:
+
+  if("test_method" %in% names(config)) {
+    if(is.na(config$test_method) ||
+        !(config$test_method %in% c(test_methods(), ""))) {
+      f.err("check_config: unexpected test_method:", config$test_method, "\n",
+        "allowed:", test_methods(), "\n",
+        "or \"\", meaning unset, with test(method=) naming the engine instead",
+        config=config)
+    }
+  }
+
+  ## config$run_order names the pipeline steps run() walks, fetching each with get(), so
+  ##   a name that is not one of them fails as "object not found" at the point that step
+  ##   would have run, with every step before it already done and its output already
+  ##   written. The set is small and fixed, so a misspelling is settled by the
+  ##   configuration alone and belongs here. A zero length run_order is allowed and means
+  ##   load_data() then test(), which is a real workflow for data that arrives prepared.
+  ##   A repeated step is not refused, normalizing again after aggregation being something
+  ##   someone may mean; run() warns about it once, f.save_state() naming its files after
+  ##   the first occurrence:
+
+  if("run_order" %in% names(config) && length(config$run_order)) {
+
+    steps <- f.run_order_steps()
+    bad <- config$run_order[is.na(config$run_order) |
+      !(config$run_order %in% steps)]
+
+    if(length(bad)) {
+      f.err("check_config: unexpected step in config$run_order:", bad, "\n",
+        "allowed:", steps, "\n",
+        "  run() fetches each step by name, so this would otherwise fail partway",
+        "through the workflow rather than before it starts;", "\n",
+        "  config$run_order:", config$run_order, config=config)
+    }
+  }
+
   ## config$test_term and config$contrast are two different hypotheses about the
   ##   same model, and one run tests one hypothesis: the results file carries one
   ##   row per feature, and run.R's permutation aggregation reads it back that way.
@@ -424,6 +555,38 @@ check_config <- function(config) {
       config$test_term, "\n",
       "set config$test_term to \"\" to test the contrast, or config$contrast to",
       "\"\" to test the term", config=config)
+  }
+
+  ## config$test_ridge=TRUE is msqrob2::msqrobAggregate(ridge=TRUE), which refits every
+  ##   non-intercept column of the mean model as a level of a random effect and refuses
+  ##   a mean model with fewer than two of them, so ~grp for a two level factor has to
+  ##   be written ~0+grp; see test_msqrob(). How many columns a factor contributes
+  ##   depends on how many levels it has, which is data and not configuration, so only
+  ##   what the config settles is refused here: a formula with no non-intercept term at
+  ##   all, and a single term whose type and levels initialize() has already resolved
+  ##   into config$covariate_types and config$factor_levels. Anything less definite is
+  ##   left to msqrob2. Only for the one method that reads the setting; on any other it
+  ##   is an ignored setting, which the note below covers:
+
+  if(isTRUE(config$test_ridge) && "test_method" %in% names(config) &&
+      config$test_method %in% "msqrob_agg") {
+
+    n_cols <- f.frm_min_noint_cols(config)
+
+    if(!is.na(n_cols) && n_cols < 2) {
+      f.err("check_config: config$test_ridge is TRUE, which penalizes the fixed",
+        "effects and so needs a mean model with at least two non-intercept columns,",
+        "and config$frm", config$frm, "has", n_cols, ";", "\n",
+        if(n_cols %in% 0) {
+          paste("  to fix, give config$frm a covariate for the penalty to apply to,",
+            "or set config$test_ridge FALSE")
+        } else {
+          paste("  to fix, suppress the intercept, config$frm = ~0 + ..., which makes",
+            "a two level factor two columns rather than one, or add a covariate, or",
+            "set config$test_ridge FALSE")
+        },
+        config=config)
+    }
   }
 
   ## reference_levels holds one reference level per factor variable in
