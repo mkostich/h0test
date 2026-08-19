@@ -18,44 +18,55 @@ sim1(
 )
 }
 \arguments{
-\item{n_obs}{Scalar number of observations to simulate, where \code{n_obs >= 1}.}
+\item{n_obs}{Scalar whole number of observations to simulate, with \code{n_obs >= 1}.}
 
-\item{n_feats}{Scalar number of features to simulate, where \code{n_feats >= 1}.}
+\item{n_feats}{Scalar whole number of features to simulate, with \code{n_feats >= 1}.}
 
-\item{log_m_mean}{Mean of feature means. Scalar numeric, with \code{log_m_mean > 0}.}
+\item{log_m_mean}{Mean of \code{log(feature means)}. Scalar numeric,
+with \code{log_m_mean >= 0}.}
 
-\item{log_m_sd}{Standard deviation of feature means around \code{log_m_mean}. 
-Scalar numeric, with \code{log_m_sd > 0}.}
+\item{log_m_sd}{Standard deviation of \code{log(feature means)} around
+\code{log_m_mean}. Scalar numeric, with \code{log_m_sd >= 0}.}
 
-\item{log_cv_mean}{Mean coefficient of variation of features around respective 
-feature means. Scalar numeric, with \code{log_cv_mean > 0}.}
+\item{log_cv_mean}{Mean of \code{log(feature CVs)}, the CVs being of features around
+their respective feature means. Scalar numeric.}
 
-\item{log_cv_sd}{Standard deviation of coefficient of variation of features 
-around respective feature means. Scalar numeric, with \code{log_cv_sd > 0}.}
+\item{log_cv_sd}{Standard deviation of \code{log(feature CVs)} around
+\code{log_cv_mean}. Scalar numeric, with \code{log_cv_sd >= 0}.}
 
-\item{mnar_c0}{Intercept of logistic fit of \code{p(mnar|log(intensity))}. Scalar numeric.}
+\item{mnar_c0}{Intercept of logistic fit of \code{p(mnar|log(intensity))}. Scalar
+numeric; \code{-Inf} turns MNAR off.}
 
 \item{mnar_c1}{Slope of logistic fit of \code{p(mnar|log(intensity))}. Scalar numeric.}
 
-\item{mnar_off}{Offset for taking logit of \code{p(mnar|log(intensity))}. 
+\item{mnar_off}{Offset for taking logit of \code{p(mnar|log(intensity))}.
 Scalar numeric, with \code{0 < mnar_off < 1}.}
 
-\item{mcar_p}{Probability of missing completely at random. 
-Numeric, with \code{0 <= mcar_p <= 1};}
+\item{mcar_p}{Probability of missing completely at random.
+Scalar numeric, with \code{0 <= mcar_p <= 1}.}
 }
 \value{
 List with elements:
   \tabular{ll}{
-    \code{mat}       \cr \tab Non-negative numeric matrix with \code{n_feats} rows and \code{n_obs} columns. \cr
-    \code{feat_mean} \cr \tab Numeric vector of non-negative parameter means for each feature in \code{mat}. \cr
-    \code{feat_cv}   \cr \tab Numeric vector of non-negative parameter CVs for each feature in \code{mat}. \cr
+    \code{mat}       \cr \tab Non-negative numeric matrix with \code{n_feats} rows
+      and \code{n_obs} columns. \cr
+    \code{feat_mean} \cr \tab Numeric vector of non-negative parameter means for each
+      feature in \code{mat}. \cr
+    \code{feat_cv}   \cr \tab Numeric vector of non-negative parameter CVs for each
+      feature in \code{mat}. \cr
   }
 }
 \description{
 Simulates non-negative data matrix with \code{n_feats} rows and
+  \code{n_obs} columns.
 }
 \details{
 Feature means: \code{log(feature_mean) ~ rnorm(mean=log_m_mean, sd=log_m_sd)}.
+  That draw is redrawn until it is strictly positive, so it is really a normal truncated
+    below at 0 and \code{feat_mean} is never below 1. With the default
+    \code{log_m_mean=11, log_m_sd=2.7} the truncation is 4 SDs out and so takes almost no
+    draws, but a smaller \code{log_m_mean} or a larger \code{log_m_sd} will pull the realized
+    mean of \code{log(feat_mean)} above \code{log_m_mean}.
   Dispersion of feature CVs: \code{log(feature_cv) ~ rnorm(mean=log_cv_mean, sd=log_cv_sd)}.
   MNAR: \code{logit(p(mnar|log(m))) ~ mnar_c0 + mnar_c1 * log(m + mnar_off)}.
   For no MNAR, set \code{mnar_c0=-Inf, mnar_c1=0}.
@@ -73,4 +84,8 @@ rslt <- h0testr::sim1(n_obs=6, n_feats=8, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
 print(rslt$mat)
 print(rslt$feat_mean)
 print(rslt$feat_cv)
+}
+\seealso{
+\code{\link{sim_design}}, for a matrix with a design imposed on it, of any number of
+  groups, together with the annotation and configuration needed to run it.
 }

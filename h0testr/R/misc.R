@@ -501,20 +501,33 @@ f.design_test_cols <- function(state, config) {
   rank_red <- f.design_rank(X[, -cols_test, drop=F])
   df_intend <- rank_all - rank_red
 
-  ## nothing left in the reduced model, which happens when config$frm suppresses
-  ##   the intercept and config$test_term names every remaining term. The test is
-  ##   then against zero rather than against a common mean: well defined, but on
-  ##   log-scale abundances every feature rejects it, which is rarely the
-  ##   question. Warn rather than stop, since the test asked for is the one
-  ##   performed, and it is also what filter_features_by_estimability() screens:
+  ## nothing left in the reduced model. Two quite different causes, told apart here
+  ##   because the advice differs and the wrong advice sends the reader to config$frm
+  ##   when the formula is fine. If the full model has no rank either, there is nothing
+  ##   to fit at all, which is what an upstream step that removed every observation looks
+  ##   like from here. Otherwise config$frm suppresses the intercept and config$test_term
+  ##   names every remaining term, so the test is against zero rather than against a
+  ##   common mean: well defined, but on log-scale abundances every feature rejects it,
+  ##   which is rarely the question. Warn rather than stop, since the test asked for is
+  ##   the one performed, and it is also what filter_features_by_estimability() screens:
 
   if(rank_red %in% 0) {
-    f.msg("WARNING: f.design_test_cols: dropping config$test_term '",
-      config$test_term, "' leaves a reduced model with no parameters, so the",
-      "test is of whether the", config$test_term, "means are all zero, not of",
-      "whether they differ from each other;", "\n",
-      "config$frm:", deparse(parsed$frm), "; for the usual comparison among",
-      "levels, keep the intercept in config$frm", config=config)
+    if(rank_all %in% 0) {
+      f.msg("WARNING: f.design_test_cols: the design matrix has rank 0, so there is",
+        "nothing to fit with or without config$test_term '", config$test_term, "';",
+        "\n", "observations:", nrow(X), "; design columns:", ncol(X), "; config$frm:",
+        deparse(parsed$frm), "; config$frm is not the likely problem here: an empty",
+        "design is what dropping every observation looks like, so check the",
+        "filtering steps and their thresholds", config=config)
+    } else {
+      f.msg("WARNING: f.design_test_cols: dropping config$test_term '",
+        config$test_term, "' leaves a reduced model with no parameters, so the",
+        "test is of whether the", config$test_term, "means are all zero, not of",
+        "whether they differ from each other;", "\n",
+        "config$frm:", deparse(parsed$frm), "; rank of the full model:", rank_all,
+        "; for the usual comparison among levels, keep the intercept in config$frm",
+        config=config)
+    }
   }
 
   ## the intercept is the fitted value where every covariate is zero. For a factor

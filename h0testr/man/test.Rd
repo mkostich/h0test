@@ -197,19 +197,17 @@ Tests for differential expression using method specified in config.
 \examples{
 set.seed(101)
 ## no missing values: mnar_c0=-Inf, mnar_c1=0, mcar_p=0
-exprs <- h0testr::sim2(n_samps1=6, n_samps2=6, n_genes=25, 
-  n_genes_signif=5, fold_change=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)$mat
-exprs <- log2(exprs + 1)
-feats <- data.frame(feature_id=rownames(exprs))
-samps <- data.frame(observation_id=colnames(exprs), 
-  condition=c(rep("placebo", 6), rep("drug", 6)))
-state <- list(expression=exprs, features=feats, samples=samps)
+samps <- h0testr::sim_samples(factors=list(condition=c("placebo", "drug")),
+  n_per_cell=6)
+sim <- h0testr::sim_design(samps, frm=~condition, test_term="condition", n_genes=25,
+  n_genes_signif=5, effects=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+state <- sim$state
+state$expression <- log2(state$expression + 1)
 
-config <- list(feat_id_col="feature_id", gene_id_col="feature_id", 
-  obs_id_col="observation_id", sample_id_col="observation_id", 
-  frm=~condition, test_term="condition",
-  reference_levels=c(condition="placebo")
-)
+config <- sim$config   ## frm, test_term, the id columns and reference_levels, set
+                       ##   to match what was simulated; save_state is FALSE
+config$is_log_transformed <- TRUE   ## normalize() would; logged just above
+rm(samps, sim)
 
 ## set up and check covariates and parameters:
 out <- h0testr::initialize(state, config, minimal=TRUE)

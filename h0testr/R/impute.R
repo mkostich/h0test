@@ -1097,24 +1097,17 @@ impute_glmnet <- function(state, config, is_log_transformed=NULL,
 #'       corresponding to columns of \code{expression}. \cr
 #'   } 
 #' @examples
-#' ## setup state and config, including prefiltering:
+#' ## setup state and config, including prefiltering. No effects are planted, these
+#' ##   examples being about missing values rather than about testing:
 #' set.seed(101)
-#' nsamps <- 6
-#' sim <- h0testr::sim2(n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
-#'   fold_change=1, peps_per_gene=1, reps_per_sample=1)
-#' exprs <- sim$mat
-#' feats <- data.frame(gene=rownames(exprs))
-#' samps <- data.frame(
-#'   obs=colnames(exprs), 
-#'   grp=factor(c(rep("ctl", nsamps), rep("trt", nsamps))),
-#'   sex=factor(rep(c("M", "F"), nsamps))
-#' )
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' rm(nsamps, sim, exprs, feats, samps)
-#' config <- list(frm=~grp+sex)    ## need frm for filter_features with filter_by_formula=TRUE
+#' samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+#'   n_per_cell=3)
+#' sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
+#' state <- sim$state
+#' config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
+#' rm(samps, sim)
 #' state <- h0testr::filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::filter_observations(state, config, n_features_min=30)
-#' config$is_log_transformed <- FALSE   ## sim2() returns untransformed values
 #'
 #' ## impute:
 #' state2 <- h0testr::impute_knn(state, config)
@@ -1180,24 +1173,17 @@ impute_knn <- function(state, config, k=NULL, rowmax=0.5, colmax=0.8, maxp=1500)
 #'       corresponding to columns of \code{expression}. \cr
 #'   } 
 #' @examples
-#' ## setup state and config, including prefiltering:
+#' ## setup state and config, including prefiltering. No effects are planted, these
+#' ##   examples being about missing values rather than about testing:
 #' set.seed(101)
-#' nsamps <- 6
-#' sim <- h0testr::sim2(n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
-#'   fold_change=1, peps_per_gene=1, reps_per_sample=1)
-#' exprs <- sim$mat
-#' feats <- data.frame(gene=rownames(exprs))
-#' samps <- data.frame(
-#'   obs=colnames(exprs), 
-#'   grp=factor(c(rep("ctl", nsamps), rep("trt", nsamps))),
-#'   sex=factor(rep(c("M", "F"), nsamps))
-#' )
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' rm(nsamps, sim, exprs, feats, samps)
-#' config <- list(frm=~grp+sex)    ## need frm for filter_features with filter_by_formula=TRUE
+#' samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+#'   n_per_cell=3)
+#' sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
+#' state <- sim$state
+#' config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
+#' rm(samps, sim)
 #' state <- h0testr::filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::filter_observations(state, config, n_features_min=30)
-#' config$is_log_transformed <- FALSE   ## sim2() returns untransformed values
 #'
 #' ## impute:
 #' state2 <- h0testr::impute_min_det(state, config)
@@ -1259,21 +1245,15 @@ impute_min_det <- function(state, config, impute_quantile=NULL) {
 #'       corresponding to columns of \code{expression}. \cr
 #'   } 
 #' @examples
-#' ## setup state and config, including prefiltering:
+#' ## setup state and config, including prefiltering. No effects are planted, these
+#' ##   examples being about missing values rather than about testing:
 #' set.seed(101)
-#' nsamps <- 6
-#' sim <- h0testr::sim2(n_samps1=nsamps, n_samps2=nsamps, n_genes=100, 
-#'   n_genes_signif=20, fold_change=1, peps_per_gene=1, reps_per_sample=1)
-#' exprs <- sim$mat
-#' feats <- data.frame(gene=rownames(exprs))
-#' samps <- data.frame(
-#'   obs=colnames(exprs), 
-#'   grp=factor(c(rep("ctl", nsamps), rep("trt", nsamps))),
-#'   sex=factor(rep(c("M", "F"), nsamps))
-#' )
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' rm(nsamps, sim, exprs, feats, samps)
-#' config <- list(frm=~grp+sex)    ## need frm for filter_features with filter_by_formula=TRUE
+#' samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+#'   n_per_cell=3)
+#' sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
+#' state <- sim$state
+#' config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
+#' rm(samps, sim)
 #' state <- h0testr::filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::filter_observations(state, config, n_features_min=30)
 #'
@@ -1286,6 +1266,7 @@ impute_min_det <- function(state, config, impute_quantile=NULL) {
 #' 
 #' ## log-transformed example:
 #' state$expression <- log2(state$expression + 1)
+#' config$is_log_transformed <- TRUE   ## normalize() would; argument and config must agree
 #' state2 <- h0testr::impute_min_prob(state, config, is_log_transformed=TRUE)
 #' summary(c(state$expression))    ## Note number of NAs
 #' summary(c(state2$expression))   ## Note number of NAs
@@ -1355,21 +1336,15 @@ impute_min_prob <- function(state, config, is_log_transformed=NULL,
 #'       corresponding to columns of \code{expression}. \cr
 #'   } 
 #' @examples
-#' ## setup state and config, including prefiltering:
+#' ## setup state and config, including prefiltering. No effects are planted, these
+#' ##   examples being about missing values rather than about testing:
 #' set.seed(101)
-#' nsamps <- 6
-#' sim <- h0testr::sim2(n_samps1=nsamps, n_samps2=nsamps, n_genes=100, 
-#'   n_genes_signif=20, fold_change=1, peps_per_gene=1, reps_per_sample=1)
-#' exprs <- sim$mat
-#' feats <- data.frame(gene=rownames(exprs))
-#' samps <- data.frame(
-#'   obs=colnames(exprs), 
-#'   grp=factor(c(rep("ctl", nsamps), rep("trt", nsamps))),
-#'   sex=factor(rep(c("M", "F"), nsamps))
-#' )
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' rm(nsamps, sim, exprs, feats, samps)
-#' config <- list(frm=~grp+sex)    ## need frm for filter_features with filter_by_formula=TRUE
+#' samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+#'   n_per_cell=3)
+#' sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
+#' state <- sim$state
+#' config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
+#' rm(samps, sim)
 #' state <- h0testr::filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::filter_observations(state, config, n_features_min=30)
 #' 
@@ -1384,6 +1359,7 @@ impute_min_prob <- function(state, config, is_log_transformed=NULL,
 #' 
 #' ## log-transformed example:
 #' state$expression <- log2(state$expression + 1)
+#' config$is_log_transformed <- TRUE   ## normalize() would; argument and config must agree
 #' state2 <- h0testr::impute_qrilc(state, config, is_log_transformed=TRUE)
 #' summary(c(state$expression))    ## Note number of NAs
 #' summary(c(state2$expression))   ## Note number of NAs
@@ -1456,21 +1432,15 @@ impute_qrilc <- function(state, config, is_log_transformed=NULL, scale.=NULL) {
 #'       corresponding to columns of \code{expression}. \cr
 #'   } 
 #' @examples
-#' ## setup state and config, including prefiltering:
+#' ## setup state and config, including prefiltering. No effects are planted, these
+#' ##   examples being about missing values rather than about testing:
 #' set.seed(101)
-#' nsamps <- 6
-#' sim <- h0testr::sim2(n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
-#'   fold_change=1, peps_per_gene=1, reps_per_sample=1)
-#' exprs <- sim$mat
-#' feats <- data.frame(gene=rownames(exprs))
-#' samps <- data.frame(
-#'   obs=colnames(exprs), 
-#'   grp=factor(c(rep("ctl", nsamps), rep("trt", nsamps))),
-#'   sex=factor(rep(c("M", "F"), nsamps))
-#' )
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' rm(nsamps, sim, exprs, feats, samps)
-#' config <- list(frm=~grp+sex)    ## need frm for filter_features with filter_by_formula=TRUE
+#' samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+#'   n_per_cell=3)
+#' sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
+#' state <- sim$state
+#' config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
+#' rm(samps, sim)
 #' state <- h0testr::filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::filter_observations(state, config, n_features_min=30)
 #'
@@ -1500,6 +1470,7 @@ impute_qrilc <- function(state, config, is_log_transformed=NULL, scale.=NULL) {
 #' ##   fall below and every imputed value is an ordinary log intensity:
 #' state_log <- state
 #' state_log$expression <- log2(state_log$expression + 1)
+#' config$is_log_transformed <- TRUE   ## normalize() would; argument and config must agree
 #' state2 <- h0testr::impute_pca(state_log, config, method="svdImpute",
 #'   is_log_transformed=TRUE)
 #' summary(c(state2$expression))   ## Note number of NAs
@@ -1584,33 +1555,30 @@ impute_pca <- function(state, config, is_log_transformed=NULL,
 #'       corresponding to columns of \code{expression}. \cr
 #'   } 
 #' @examples
-#' ## setup state and config, including prefiltering:
+#' ## setup state and config, including prefiltering. No effects are planted, these
+#' ##   examples being about missing values rather than about testing:
 #' set.seed(101)
-#' nsamps <- 6
-#' sim <- h0testr::sim2(n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
-#'   fold_change=1, peps_per_gene=1, reps_per_sample=1)
-#' exprs <- sim$mat
-#' feats <- data.frame(gene=rownames(exprs))
-#' samps <- data.frame(
-#'   obs=colnames(exprs), 
-#'   grp=factor(c(rep("ctl", nsamps), rep("trt", nsamps))),
-#'   sex=factor(rep(c("M", "F"), nsamps))
-#' )
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' rm(nsamps, sim, exprs, feats, samps)
-#' config <- list(frm=~grp+sex)    ## need frm for filter_features with filter_by_formula=TRUE
+#' samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+#'   n_per_cell=3)
+#' sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
+#' state <- sim$state
+#' config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
+#' rm(samps, sim)
 #' state <- h0testr::filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::filter_observations(state, config, n_features_min=30)
 #'
-#' ## example with untransformed data:
-#' state2 <- h0testr::impute_lls(state, config, is_log_transformed=FALSE)
+#' ## example with untransformed data. LLS regresses a feature on its correlated
+#' ##   neighbors, and a reconstruction can land below the raw scale's floor of
+#' ##   zero, which cannot be a measurement, so this is wrapped: on the raw scale
+#' ##   the method can stop for reasons the data alone do not decide.
 #' summary(c(state$expression))    ## Note number of NAs
-#' summary(c(state2$expression))   ## Note number of NAs
-#' head(state$expression)
-#' round(head(state2$expression))
-#' 
-#' ## example with log-transformed data:
+#' state2 <- try(h0testr::impute_lls(state, config, is_log_transformed=FALSE))
+#' if(!inherits(state2, "try-error")) summary(c(state2$expression))
+#'
+#' ## example with log-transformed data, where the reconstruction has no floor to
+#' ##   fall below and every imputed value is an ordinary log intensity:
 #' state$expression <- log2(state$expression + 1)
+#' config$is_log_transformed <- TRUE   ## normalize() would; argument and config must agree
 #' state2 <- h0testr::impute_lls(state, config, is_log_transformed=TRUE)
 #' summary(c(state$expression))    ## Note number of NAs
 #' summary(c(state2$expression))   ## Note number of NAs
@@ -1683,24 +1651,17 @@ impute_lls <- function(state, config, is_log_transformed=NULL,
 #'       corresponding to columns of \code{expression}. \cr
 #'   } 
 #' @examples
-#' ## setup state and config, including prefiltering:
+#' ## setup state and config, including prefiltering. No effects are planted, these
+#' ##   examples being about missing values rather than about testing:
 #' set.seed(101)
-#' nsamps <- 6
-#' sim <- h0testr::sim2(n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
-#'   fold_change=1, peps_per_gene=1, reps_per_sample=1)
-#' exprs <- sim$mat
-#' feats <- data.frame(gene=rownames(exprs))
-#' samps <- data.frame(
-#'   obs=colnames(exprs), 
-#'   grp=factor(c(rep("ctl", nsamps), rep("trt", nsamps))),
-#'   sex=factor(rep(c("M", "F"), nsamps))
-#' )
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' rm(nsamps, sim, exprs, feats, samps)
-#' config <- list(frm=~grp+sex)  ## need frm for filter_features with filter_by_formula=TRUE
+#' samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+#'   n_per_cell=3)
+#' sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
+#' state <- sim$state
+#' config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
+#' rm(samps, sim)
 #' state <- h0testr::filter_features(state, config, n_samples_min=3)
 #' state <- h0testr::filter_observations(state, config, n_features_min=30)
-#' config$is_log_transformed <- FALSE   ## sim2() returns untransformed values
 #'
 #' ## impute:
 #' state2 <- h0testr::impute_missforest(state, config)

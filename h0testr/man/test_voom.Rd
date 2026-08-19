@@ -32,7 +32,14 @@ A list with components:
   \tabular{ll}{
     \code{hits}  \cr \tab \code{data.frame} of results from \code{limma::topTable()}. \cr
     \code{fit}   \cr \tab Model returned by \code{limma::eBayes()}. \cr
-  }
+  } 
+  \code{logFC} is an effect size on the scale of \code{state$expression}: for a two level
+    factor, the difference between its levels, so a log fold change when the input is log
+    transformed; for a \strong{continuous} covariate, the change \strong{per unit} of it,
+    whose size depends on the units the covariate is recorded in. This is what
+    \code{h0testr::test()} reports as \code{logfc}. A joint test has no \code{logFC}
+    column at all, having no single fold change to report, and \code{h0testr::test()}
+    reports the total swing instead. See \code{h0testr::test()}.
 }
 \description{
 Tests for differential expression using the \code{limma::voom()} function.
@@ -56,21 +63,17 @@ The \code{limma::voom()} model is fit to \code{config$frm} and a test
 \examples{
 set.seed(101)
 ## no missing values: mnar_c0=-Inf, mnar_c1=0, mcar_p=0
-exprs <- h0testr::sim2(n_samps1=6, n_samps2=6, n_genes=25, 
-  n_genes_signif=5, fold_change=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)$mat
-exprs <- log2(exprs + 1)
-feats <- data.frame(feature_id=rownames(exprs))
-samps <- data.frame(observation_id=colnames(exprs), 
-  condition=c(rep("placebo", 6), rep("drug", 6)))
-state <- list(expression=exprs, features=feats, samples=samps)
+samps <- h0testr::sim_samples(factors=list(condition=c("placebo", "drug")),
+  n_per_cell=6)
+sim <- h0testr::sim_design(samps, frm=~condition, test_term="condition", n_genes=25,
+  n_genes_signif=5, effects=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+state <- sim$state
+state$expression <- log2(state$expression + 1)
 
-config <- h0testr::new_config()    ## defaults
-config$save_state <- FALSE           ## default is TRUE
-config$feat_col <- config$feat_id_col <- config$gene_id_col <- "feature_id"
-config$obs_col <- config$obs_id_col <- config$sample_id_col <- "observation_id"
-config$frm <- ~condition
-config$test_term <- "condition"
-config$reference_levels <- c(condition="placebo")
+config <- sim$config   ## frm, test_term, the id columns and reference_levels, set
+                       ##   to match what was simulated; save_state is FALSE
+config$is_log_transformed <- TRUE   ## normalize() would; logged just above
+rm(samps, sim)
 
 ## set up and check configuration, including covariates:
 out <- h0testr::initialize(state, config, minimal=TRUE)

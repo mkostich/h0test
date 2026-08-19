@@ -267,23 +267,25 @@ f.test_lm_feat <- function(y, X, X_red, cols_report) {
 #'     columns from \code{state$features}. Coefficient columns that are
 #'     \code{NA} for every feature are dropped, and \code{:} in an interaction
 #'     coefficient name becomes \code{.}.
+#'   The coefficient columns are effect sizes on the scale of \code{state$expression}: for a
+#'     two level factor, the difference between its levels, so a log fold change when the input
+#'     is log transformed; for a \strong{continuous} covariate, the change \strong{per unit} of
+#'     it, whose size depends on the units the covariate is recorded in. This is what
+#'     \code{h0testr::test()} reports as \code{logfc} when one design matrix column carries the
+#'     test; see \code{h0testr::test()} for what it reports for a joint test or a contrast.
 #' @examples
 #' set.seed(101)
-#' exprs <- h0testr::sim2(n_samps1=6, n_samps2=6, n_genes=25, 
-#'   n_genes_signif=5, fold_change=2)$mat
-#' exprs <- log2(exprs + 1)
-#' feats <- data.frame(feature_id=rownames(exprs))
-#' samps <- data.frame(observation_id=colnames(exprs), 
-#'   condition=c(rep("placebo", 6), rep("drug", 6)))
-#' state <- list(expression=exprs, features=feats, samples=samps)
+#' samps <- h0testr::sim_samples(factors=list(condition=c("placebo", "drug")),
+#'   n_per_cell=6)
+#' sim <- h0testr::sim_design(samps, frm=~condition, test_term="condition", n_genes=25,
+#'   n_genes_signif=5, effects=2)
+#' state <- sim$state
+#' state$expression <- log2(state$expression + 1)
 #' 
-#' config <- h0testr::new_config()    ## defaults
-#' config$save_state <- FALSE           ## default is TRUE
-#' config$feat_col <- config$feat_id_col <- config$gene_id_col <- "feature_id"
-#' config$obs_col <- config$obs_id_col <- config$sample_id_col <- "observation_id"
-#' config$frm <- ~condition
-#' config$test_term <- "condition"
-#' config$reference_levels <- c(condition="placebo")
+#' config <- sim$config   ## frm, test_term, the id columns and reference_levels, set
+#'                        ##   to match what was simulated; save_state is FALSE
+#' config$is_log_transformed <- TRUE   ## normalize() would; logged just above
+#' rm(samps, sim)
 #'
 #' ## set up and check covariates and parameters:
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
@@ -362,6 +364,179 @@ f.gene_counts <- function(state, config, caller="f.gene_counts") {
   names(out) <- names(n)
 
   return(out)
+}
+
+## The variance prior DEqMS::spectraCounteBayes() fits, fitted on the genes that can
+##   carry one. Its own row handling is silently wrong otherwise: it fits
+##   loess(log(fit$sigma^2) ~ log2(fit$count)), and stats::loess() defaults to
+##   na.action=na.omit, so a gene whose residual variance is not finite is dropped from
+##   the fit. A gene fitted on as many observations as the design has columns has
+##   df.residual 0 and sigma NA, which is what unimputed missing values leave behind, so
+##   that is reachable from a documented workflow rather than hypothetical.
+##   stats::fitted() then comes back shorter than the fit and DEqMS recycles it against
+##   fit$df.residual, which hands every gene at or after the first dropped row another
+##   gene's prior variance. The recycling restores the length, so
+##   f.deqms_moderated_f()'s length check cannot see it, and nothing else says anything:
+##   with one ineligible gene among 200, a gene's sca.postvar came back 1.122234 with
+##   the ineligible one in row 1 and 1.126142 with it in row 100, the same gene with the
+##   same feature count and the same data both times.
+##   So the prior is fitted here on the eligible genes alone and the per-gene results
+##   are put back where they belong, which leaves the rest without a moderated statistic
+##   rather than with a wrong one. That subset fit is DEqMS's own: fitting it this way
+##   agrees to all.equal() with DEqMS on an expression matrix that never held the other
+##   genes. limma's `[.MArrayLM`() subsets the components it knows about and leaves
+##   fit$count alone, which is the same misalignment in miniature, hence setting that by
+##   hand below.
+##   Genes with no residual degrees of freedom are the ones limma itself cannot test
+##   either: their P.Value comes back NA from limma::topTable() for the same reason.
+##   Returns fit with the components DEqMS::spectraCounteBayes() adds, each per-gene one
+##   filled in for the eligible genes and NA elsewhere, in the row order of
+##   fit$coefficients:
+
+f.deqms_prior <- function(fit, config, who="f.deqms_prior") {
+
+  nom <- rownames(fit$coefficients)
+  n <- length(nom)
+
+  ## log2(0) is -Inf and would be dropped by na.omit the same way, so the count is
+  ##   checked for being usable rather than merely present; test_deqms() has already
+  ##   refused an NA count by here:
+
+  ok <- is.finite(fit$sigma) & is.finite(fit$df.residual) & fit$df.residual > 0 &
+    is.finite(fit$count) & fit$count > 0
+
+  if(sum(ok) < 2) {
+    f.err(who, ": only", sum(ok), "of", n, "genes have a finite residual variance and",
+      "a usable feature count, so there is nothing for",
+      "DEqMS::spectraCounteBayes() to fit its variance prior from;", "\n",
+      "  genes with no residual degrees of freedom:",
+      sum(!is.finite(fit$df.residual) | fit$df.residual < 1), "\n",
+      "  to fix, impute first (config$impute_method other than 'none'), screen the",
+      "features with h0testr::filter_features_by_estimability() and a",
+      "config$df_resid_min of at least 1, or use config$test_method 'trend', which is",
+      "the same limma fit without the count based prior", config=config)
+  }
+
+  ## the up-front guard in test_deqms() counts every gene, and excluding the ineligible
+  ##   ones can leave the survivors with a single count between them, which DEqMS itself
+  ##   fails on with an error about a missing value in an if() condition:
+
+  if(length(unique(fit$count[ok])) < 2) {
+    f.err(who, ": the", sum(ok), "genes with a finite residual variance all have the",
+      "same number of features (", unique(fit$count[ok]), "), so there is no spread",
+      "for DEqMS::spectraCounteBayes() to fit its variance prior against;", "\n",
+      "  the", n - sum(ok), "gene(s) left out of the prior carried the rest of the",
+      "spread;", "\n",
+      "  to fix, impute first (config$impute_method other than 'none'), or use",
+      "config$test_method 'trend', which is the same limma fit without the count",
+      "based prior", config=config)
+  }
+
+  if(any(!ok)) {
+    f.msg("WARNING:", who, ":", sum(!ok), "of", n, "genes are left out of DEqMS's",
+      "variance prior and reported without a moderated statistic;", "\n",
+      "  no residual degrees of freedom:",
+      sum(!is.finite(fit$df.residual) | fit$df.residual < 1),
+      "; unusable feature count:", sum(!is.finite(fit$count) | fit$count < 1), "\n",
+      "  limma's own columns of those rows are not NA, limma::eBayes() shrinking such a",
+      "gene toward a prior of its own that needs no residual variance from the gene;",
+      "\n", "  h0testr::impute(), or h0testr::filter_features_by_estimability() with a",
+      "config$df_resid_min of at least 1, leaves every gene with residual degrees of",
+      "freedom", config=config)
+  }
+
+  sub <- fit[ok, ]
+  sub$count <- fit$count[ok]
+
+  ## the whole point of this function, so said rather than assumed:
+
+  if(!identical(rownames(sub$coefficients), nom[ok])) {
+    f.err(who, ": subsetting the fit did not preserve the gene order, so the prior",
+      "cannot be mapped back;", "\n", "  first few expected:",
+      utils::head(nom[ok], 5), "; first few found:",
+      utils::head(rownames(sub$coefficients), 5), config=config)
+  }
+
+  ## the loess needs those counts spread rather than merely varied, and answers two ways
+  ##   when almost every gene sits at one of them: its fitted values come back NaN for
+  ##   the genes at the crowded count, and when they come back NaN for all of them the
+  ##   mean DEqMS matches its prior degrees of freedom against is NaN too and the search
+  ##   for them walks off the end of a vector, which surfaces as an error about a missing
+  ##   value in an if() condition. Two of sixty genes at one count and the rest at another
+  ##   gave the first, twenty genes of two peptides with two single-peptide genes among
+  ##   them lost 18 of 20 the same way, and one to three genes of 19, 24 or 60 away from a
+  ##   single count gave the second, while an even split fits either way.
+  ##   A gene whose posterior variance came back NaN is reported without a moderated
+  ##   statistic, like a gene the prior could not be fitted from, and the count of them is
+  ##   said in the log; only DEqMS erroring outright is refused, there being no prior at
+  ##   all then, and its own message mentions neither the counts nor what to do:
+
+  tb <- table(fit$count[ok])
+  tb <- paste(names(tb), as.integer(tb), sep="x", collapse=" ")
+
+  sub <- try(DEqMS::spectraCounteBayes(sub, fit.method="loess"), silent=TRUE)
+
+  if(inherits(sub, "try-error")) {
+    f.err(who, ": DEqMS::spectraCounteBayes() could not fit a variance prior from the",
+      sum(ok), "genes with residual degrees of freedom;", "\n",
+      "  features per gene (count x genes):", tb, "\n",
+      "  its loess needs those counts spread rather than merely varied, and fails this",
+      "way when nearly every gene sits at one of them;", "\n",
+      "  DEqMS said:", trimws(as.character(sub)), "\n",
+      "  to fix, use config$test_method 'trend', which is the same limma fit without",
+      "the count based prior, or supply feature level data whose numbers of features",
+      "per gene are less lopsided", config=config)
+  }
+
+  bad <- !is.finite(as.numeric(sub$sca.postvar))
+
+  if(any(bad)) {
+    f.msg("WARNING:", who, ":", sum(bad), "of the", sum(ok), "genes the variance prior",
+      "was fitted from came back with a non-finite posterior variance, and are reported",
+      "without a moderated statistic;", "\n",
+      "  features per gene (count x genes):", tb, "\n",
+      "  DEqMS's loess needs those counts spread rather than merely varied, and comes",
+      "back NaN for the genes at a crowded count when nearly every gene sits at one",
+      "of them;", "\n",
+      "  config$test_method 'trend' is the same limma fit without the count based prior",
+      config=config)
+  }
+
+  f.msg(who, ": DEqMS variance prior fitted from", sum(ok), "of", n, "genes over",
+    length(unique(fit$count[ok])), "distinct feature counts; prior df:",
+    format(sub$sca.dfprior), config=config)
+
+  fit$fit.method <- sub$fit.method
+  fit$model <- sub$model
+  fit$sca.dfprior <- sub$sca.dfprior          ## one number for the whole fit
+
+  ## a per-gene quantity of the subset fit, back in the row order of the whole fit:
+
+  f.fill <- function(x) {
+    out <- rep(as.numeric(NA), n)
+    names(out) <- nom
+    out[ok] <- as.numeric(x)
+    return(out)
+  }
+
+  fit$sca.postvar <- f.fill(sub$sca.postvar)
+  fit$sca.priorvar <- f.fill(sub$sca.priorvar)
+
+  ## and the same for the gene by coefficient matrices DEqMS forms from them.
+  ##   spectraCounteBayes() takes its coef_col missing here, and a missing argument
+  ##   passed to `[` is an empty index, so these carry every coefficient rather than one:
+
+  f.fill_mat <- function(x) {
+    out <- matrix(as.numeric(NA), nrow=n, ncol=ncol(x),
+      dimnames=list(nom, colnames(x)))
+    out[ok, ] <- x
+    return(out)
+  }
+
+  fit$sca.t <- f.fill_mat(sub$sca.t)
+  fit$sca.p <- f.fill_mat(sub$sca.p)
+
+  return(fit)
 }
 
 ## The moderated test of the design matrix columns carrying the test, from a fit
@@ -475,10 +650,12 @@ f.deqms_moderated_f <- function(fit, cols, config, who="f.deqms_moderated_f") {
 
   pval <- stats::pf(fval, df_num, df_den, lower.tail=F)
 
-  ## a gene whose posterior variance came back non-finite, which happens when the loess
-  ##   prior is fitted against feature counts with too little spread to bend to. Said
-  ##   out loud because the p-value is then missing for that gene and nothing else
-  ##   reports it:
+  ## a gene whose posterior variance came back non-finite, which is a gene f.deqms_prior()
+  ##   left out of the prior because it has no residual degrees of freedom for one to be
+  ##   fitted from. Said out loud because the p-value is then missing for that gene and
+  ##   nothing else reports it. Feature counts with too little spread are a different
+  ##   failure, refused up front by test_deqms() and f.deqms_prior() rather than reaching
+  ##   here, DEqMS::spectraCounteBayes() erroring rather than returning NA on them:
 
   lost <- !is.finite(fval)
 
@@ -486,9 +663,10 @@ f.deqms_moderated_f <- function(fit, cols, config, who="f.deqms_moderated_f") {
     f.msg("WARNING:", who, ":", sum(lost), "of", length(fval), "genes have no",
       "moderated statistic, so their p-value is NA;", "\n",
       "non-finite posterior variance:", sum(!is.finite(post_var)),
+      "; no residual degrees of freedom:",
+      sum(!is.finite(fit$df.residual) | fit$df.residual < 1),
       "; missing a coefficient under test:", sum(!stats::complete.cases(betas)),
-      "; feature counts DEqMS fitted its prior against:",
-      length(unique(fit$count)), "distinct value(s)", config=config)
+      config=config)
   }
 
   out <- data.frame(t=tval, F=fval, df_num=df_num, df_den=df_den, p.value=pval)
@@ -555,6 +733,35 @@ f.deqms_moderated_f <- function(fit, cols, config, who="f.deqms_moderated_f") {
 #'     is the same \code{limma} fit without the count based prior, or supply feature
 #'     level data. \code{h0testr::tune()} checks the same condition before testing
 #'     and records the combination as untested rather than stopping the sweep.
+#'   Counts that vary but are lopsided are the same shortage in weaker form, and
+#'     \code{DEqMS::spectraCounteBayes()} answers it two ways. Its loess comes back
+#'     \code{NaN} for the genes at a crowded count, which are then reported without a
+#'     moderated statistic and counted in the log; twenty genes of two peptides with two
+#'     single-peptide genes among them lost 18 of 20 that way. When it comes back
+#'     \code{NaN} for every gene the function fails outright, with an error about a missing
+#'     value in an \code{if()} condition, and that is refused with the counts named, one to
+#'     three genes of 19, 24 or 60 away from a single count being enough. An even split
+#'     fits either way. The same fixes apply.
+#'   A gene with no residual degrees of freedom, which is a gene the aggregated matrix
+#'     has as many observations of as \code{config$frm} has design columns, is left out
+#'     of that prior and reported with \code{NA} in every \code{sca.} column, which
+#'     is said in the log. \code{limma}'s own columns of that row are not \code{NA}:
+#'     \code{limma::eBayes()} shrinks such a gene toward its own prior, which needs no
+#'     residual variance of the gene's own, and reports a moderated \code{P.Value} on the
+#'     prior's degrees of freedom alone. \code{DEqMS}'s prior is a loess against the
+#'     feature counts and has no value to contribute at a gene it was not fitted from.
+#'     This is not a restriction so much as
+#'     avoidance of a silent error: \code{DEqMS::spectraCounteBayes()} fits its prior
+#'     with \code{stats::loess()}, whose default \code{na.action} drops such a gene, and
+#'     then recycles the shortened predictions against every gene, so the prior reaching
+#'     each gene depends on where the untestable ones sit in
+#'     \code{state$expression}. Running \code{h0testr::impute()} first, which the
+#'     documented workflow does, or screening features with
+#'     \code{h0testr::filter_features_by_estimability()} and a \code{config$df_resid_min}
+#'     of at least 1, leaves every gene with residual degrees of freedom.
+#'     \code{stats::p.adjust()} takes its \code{n} from the p-values that are not
+#'     \code{NA}, so the excluded genes are left out of the multiplicity correction
+#'     rather than counted in it.
 #'   The counts come from \code{config$n_feats_col} when \code{state$features}
 #'     carries it, which \code{h0testr::combine_features()} writes, and are counted
 #'     from \code{config$gene_id_col} otherwise. So this method runs on an already
@@ -572,7 +779,8 @@ f.deqms_moderated_f <- function(fit, cols, config, who="f.deqms_moderated_f") {
 #'       2. Fit linear model to \code{config$frm} using \code{limma::lmFit()}. \cr
 #'       3. Calculate statistics using \code{limma::eBayes()} on fitted model. \cr
 #'       4. Append peptide counts to model returned by \code{limma::eBayes()}. \cr
-#'       5. Adjust statistics using \code{DEqMS::spectraCounteBayes()}. \cr
+#'       5. Adjust statistics using \code{DEqMS::spectraCounteBayes()}, fitted on the
+#'            genes that have residual degrees of freedom. \cr
 #'       6. Form the moderated test of the coefficients carrying the test from the
 #'            variance prior that fitted. \cr
 #'       7. Generate hit table with \code{limma::topTable()}, with the moderated
@@ -620,44 +828,37 @@ f.deqms_moderated_f <- function(fit, cols, config, who="f.deqms_moderated_f") {
 #'       \code{DEqMS}'s variance prior, and are the ones reported by \code{h0testr::test()}.
 #'       \code{sca.t} is \code{NA} when more than one coefficient carries the test, and the
 #'       per-coefficient \code{logFC} column is then replaced by one column per tested
-#'       coefficient, as \code{limma::topTable()} reports them. \cr
-#'     \code{fit}   \cr \tab Model returned by \code{DEqMS::spectraCounteBayes}. \cr
-#'   } 
+#'       coefficient, as \code{limma::topTable()} reports them. They are also \code{NA}
+#'       for a gene with no residual degrees of freedom, which has no prior fitted for
+#'       it. \cr
+#'     \code{fit}   \cr \tab Model returned by \code{DEqMS::spectraCounteBayes}, whose
+#'       \code{sca.} components were fitted from the genes with residual degrees of
+#'       freedom and are \code{NA} for the rest; \code{fit$model} is the
+#'       \code{stats::loess()} of those genes. \cr
+#'   }
+#'   \code{logFC} is an effect size on the scale of \code{state$expression}: for a two level
+#'     factor, the difference between its levels, so a log fold change when the input is log
+#'     transformed; for a \strong{continuous} covariate, the change \strong{per unit} of it,
+#'     whose size depends on the units the covariate is recorded in. This is what
+#'     \code{h0testr::test()} reports as \code{logfc} when one design matrix column carries the
+#'     test; for a joint test there is no single contrast, and \code{h0testr::test()} reports the
+#'     total swing instead. See \code{h0testr::test()}.
 #' @examples
-#' ## lengthy setup of expression data:
+#' ## setup of expression data: ten peptides per gene, a third of them dropped, and no
+#' ##   missing values, so that the example is about the test rather than about missingness:
 #' set.seed(101)
-#' nsamps <- 6
-#' sim <- h0testr::sim2(
-#'   n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
-#'   fold_change=1, peps_per_gene=10, reps_per_sample=1, 
-#'   p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0
-#' )
-#' exprs <- sim$mat
-#' gene <- strsplit(rownames(exprs), "_")
-#' gene <- sapply(gene, function(v) unlist(v)[1])
-#' feats <- data.frame(pep=rownames(exprs), gene=gene)
-#' samps <- data.frame(
-#'   obs=colnames(exprs), 
-#'   grp=c(rep("ctl", nsamps), rep("trt", nsamps)),
-#'   sex=rep(c("M", "F"), round(ncol(exprs) / 2))
-#' )
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' rm(sim, exprs, gene, feats, samps)
+#' samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+#'   n_per_cell=3)
+#' sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100,
+#'   peps_per_gene=10, p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+#' state <- sim$state
+#' config <- sim$config
+#' rm(samps, sim)
 #'
-#' ## setup config and prep variables of interest for testing:
-#' config <- list(
-#'   obs_id_col="obs",
-#'   sample_id_col="obs",
-#'   feat_id_col="pep",
-#'   gene_id_col="gene",
-#'   ## no grp:sex term here, so that this example shows the single-coefficient case,
-#'   ##   which reports DEqMS's own moderated t. By marginality, testing "grp" in
-#'   ##   ~grp+sex+grp:sex would be a joint test of grptrt and grptrt:sexM, reported as
-#'   ##   a moderated F; test "grp:sex" to test the interaction itself:
-#'   frm=~grp+sex,
-#'   test_term="grp",
-#'   reference_levels=c(grp="ctl", sex="F")
-#' )
+#' ## no grp:sex term here, so that this example shows the single-coefficient case,
+#' ##   which reports DEqMS's own moderated t. By marginality, testing "grp" in
+#' ##   ~grp+sex+grp:sex would be a joint test of grptrt and grptrt:sexM, reported as
+#' ##   a moderated F; test "grp:sex" to test the interaction itself:
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
 #'
 #' ## test_deqms() aggregates peptides internally with combine_features(), which
@@ -776,6 +977,24 @@ test_deqms <- function(state, config, trend=NULL) {
   ##   needs to know which of the two kinds of hypothesis is being tested:
 
   fit <- limma::lmFit(out$state$expression, design$X)
+
+  ## limma::eBayes() refuses a fit in which no gene has a residual degree of freedom, and
+  ##   f.deqms_prior() cannot fit a variance prior from fewer than two such genes. Checked
+  ##   here so that what to do about it is said: limma's own message for this is "No
+  ##   residual degrees of freedom in linear model fits", which does not mention that
+  ##   imputing or filtering first is what this engine needs:
+
+  if(sum(fit$df.residual > 0, na.rm=T) < 2) {
+    f.err("test_deqms: only", sum(fit$df.residual > 0, na.rm=T), "of",
+      length(fit$df.residual), "genes of the aggregated expression matrix have a",
+      "residual degree of freedom, so there is nothing to fit a variance prior from;",
+      "\n", "  design columns:", ncol(design$X), "; observations:",
+      ncol(out$state$expression), "\n",
+      "  to fix, impute first (config$impute_method other than 'none'), screen the",
+      "features with h0testr::filter_features_by_estimability() and a",
+      "config$df_resid_min of at least 1, or drop terms from config$frm", config=config)
+  }
+
   lc <- f.limma_contrast_fit(fit, design, out$config)
   idx <- lc$coef
 
@@ -811,7 +1030,12 @@ test_deqms <- function(state, config, trend=NULL) {
       config=config)
   }
 
-  fit <- DEqMS::spectraCounteBayes(fit, fit.method="loess")
+  ## rather than DEqMS::spectraCounteBayes() directly: a gene with no residual degrees
+  ##   of freedom is dropped from the loess that fits the prior and the predictions are
+  ##   then recycled against every gene, which misaligns the prior silently. See
+  ##   f.deqms_prior(), which fits it on the genes that can carry one:
+
+  fit <- f.deqms_prior(fit, out$config, "test_deqms")
 
   ## the moderated test, and the table it is reported in. DEqMS::outputResult() built
   ##   this table, and is not used: it takes a single coef_col, since there is nothing
@@ -1021,40 +1245,28 @@ test_deqms <- function(state, config, trend=NULL) {
 #'       top of it; the fitted models are in
 #'       \code{rowData(fit[["genes"]])$msqrobModels} either way. \cr
 #'   }
+#'   \code{logFC} is an effect size on the scale of \code{state$expression}: for a two level
+#'     factor, the difference between its levels, so a log fold change when the input is log
+#'     transformed; for a \strong{continuous} covariate, the change \strong{per unit} of it,
+#'     whose size depends on the units the covariate is recorded in. This is what
+#'     \code{h0testr::test()} reports as \code{logfc}. The joint test reports no effect size at
+#'     all, having no single contrast to report, and \code{h0testr::test()} reports the total
+#'     swing instead. See \code{h0testr::test()}.
 #' @examples
-#' ## lengthy setup of expression data:
+#' ## setup of expression data: ten peptides per gene, a third of them dropped, and no
+#' ##   missing values, so that the example is about the test rather than about missingness:
 #' set.seed(101)
-#' nsamps <- 6
-#' sim <- h0testr::sim2(
-#'   n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
-#'   fold_change=1, peps_per_gene=10, reps_per_sample=1, 
-#'   p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0
-#' )
-#' exprs <- sim$mat
-#' gene <- strsplit(rownames(exprs), "_")
-#' gene <- sapply(gene, function(v) unlist(v)[1])
-#' feats <- data.frame(pep=rownames(exprs), gene=gene)
-#' samps <- data.frame(
-#'   obs=colnames(exprs), 
-#'   grp=c(rep("ctl", nsamps), rep("trt", nsamps)),
-#'   sex=rep(c("M", "F"), round(ncol(exprs) / 2))
-#' )
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' rm(sim, exprs, gene, feats, samps)
+#' samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+#'   n_per_cell=3)
+#' sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100,
+#'   peps_per_gene=10, p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+#' state <- sim$state
+#' config <- sim$config
+#' rm(samps, sim)
 #'
-#' ## setup config and prep variables of interest for testing:
-#' config <- list(
-#'   obs_id_col="obs",
-#'   sample_id_col="obs",
-#'   feat_id_col="pep",
-#'   gene_id_col="gene",
-#'   ## no grp:sex term here, so testing "grp" is the single coefficient grptrt, which
-#'   ##   msqrob2::hypothesisTest() reports as a moderated t. Adding grp:sex would make
-#'   ##   it a joint test of grptrt and grptrt:sexM, reported as an F computed here:
-#'   frm=~grp+sex,
-#'   test_term="grp",
-#'   reference_levels=c(grp="ctl", sex="F")
-#' )
+#' ## no grp:sex term here, so testing "grp" is the single coefficient grptrt, which
+#' ##   msqrob2::hypothesisTest() reports as a moderated t. Adding grp:sex would make
+#' ##   it a joint test of grptrt and grptrt:sexM, reported as an F computed here:
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
 #'
 #' ## actual test:
@@ -1063,11 +1275,11 @@ test_deqms <- function(state, config, trend=NULL) {
 #'
 #' ## the same genes tested from their peptides instead, one mixed model each, which
 #' ##   test_method="msqrob_agg" selects. A few genes are enough to show the shape:
-#' keep <- out$state$features$gene %in% unique(out$state$features$gene)[1:8]
+#' keep <- out$state$features$gene_id %in% unique(out$state$features$gene_id)[1:8]
 #' small <- list(expression=out$state$expression[keep, , drop=FALSE],
 #'   features=out$state$features[keep, , drop=FALSE], samples=out$state$samples)
 #' mixed <- h0testr::test_msqrob(small, out$config, aggregate=TRUE)
-#' head(mixed$hits[, c("gene", "nNonZero", ".n", "fit_type", "logFC", "df", "pval")])
+#' head(mixed$hits[, c("gene_id", "nNonZero", ".n", "fit_type", "logFC", "df", "pval")])
 #'
 #' ## fit_type says which genes could not carry a random feature effect and were fitted
 #' ##   at the gene level instead, and the formula used is in the log:
@@ -1597,41 +1809,29 @@ f.msqrob_agg <- function(obj, state, config, frm, maxit) {
 #'       "n_approx", "n_obs")} for the likelihood ratio test. \cr
 #'     \code{fit}   \cr \tab Model returned by \code{proDA::proDA()}. \cr
 #'   }
+#'   \code{diff} is an effect size on the scale of \code{state$expression}: for a two level
+#'     factor, the difference between its levels, so a log fold change when the input is log
+#'     transformed; for a \strong{continuous} covariate, the change \strong{per unit} of it,
+#'     whose size depends on the units the covariate is recorded in. This is what
+#'     \code{h0testr::test()} reports as \code{logfc}. The likelihood ratio test reports no
+#'     effect size at all, having no single contrast to report, and \code{h0testr::test()}
+#'     reports the total swing instead. See \code{h0testr::test()}.
 #' @examples
-#' ## lengthy setup of expression data:
+#' ## setup of expression data: ten peptides per gene, a third of them dropped, and no
+#' ##   missing values, so that the example is about the test rather than about missingness:
 #' set.seed(101)
-#' nsamps <- 6
-#' sim <- h0testr::sim2(
-#'   n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
-#'   fold_change=1, peps_per_gene=10, reps_per_sample=1, 
-#'   p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0
-#' )
-#' exprs <- sim$mat
-#' gene <- strsplit(rownames(exprs), "_")
-#' gene <- sapply(gene, function(v) unlist(v)[1])
-#' feats <- data.frame(pep=rownames(exprs), gene=gene)
-#' samps <- data.frame(
-#'   obs=colnames(exprs), 
-#'   grp=c(rep("ctl", nsamps), rep("trt", nsamps)),
-#'   sex=rep(c("M", "F"), round(ncol(exprs) / 2))
-#' )
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' rm(sim, exprs, gene, feats, samps)
+#' samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+#'   n_per_cell=3)
+#' sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100,
+#'   peps_per_gene=10, p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+#' state <- sim$state
+#' config <- sim$config
+#' rm(samps, sim)
 #'
-#' ## setup config and prep variables of interest for testing:
-#' config <- list(
-#'   obs_id_col="obs",
-#'   sample_id_col="obs",
-#'   feat_id_col="pep",
-#'   gene_id_col="gene",
-#'   ## no grp:sex term here, so testing "grp" is the single coefficient grptrt, and a
-#'   ##   fold change is reported. Adding one would, by marginality, make it a joint
-#'   ##   test of grptrt and grptrt:sexM, run as a likelihood ratio test reporting an F
-#'   ##   statistic and no fold change:
-#'   frm=~grp+sex,
-#'   test_term="grp",
-#'   reference_levels=c(grp="ctl", sex="F")
-#' )
+#' ## no grp:sex term here, so testing "grp" is the single coefficient grptrt, and a
+#' ##   fold change is reported. Adding one would, by marginality, make it a joint
+#' ##   test of grptrt and grptrt:sexM, run as a likelihood ratio test reporting an F
+#' ##   statistic and no fold change:
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
 #'
 #' ## actual test:
@@ -2651,37 +2851,25 @@ f.prolfqua_mixed_f <- function(mods, design, config, caller="f.prolfqua_mixed_f"
 #'     pipelines \code{combine_features()} has already run, so it gives one row per
 #'     gene/protein group, like every other test method. With \code{mixed=TRUE} it is
 #'     gene level whatever the input, that being the point of the mixed model.
+#'   No effect size is reported here: the test is an F test of the columns carrying
+#'     \code{config$test_term}, whatever their number, so there is no coefficient to report
+#'     alongside it. \code{h0testr::test()} fills its \code{logfc} column from the fitted
+#'     coefficients instead, taken from \code{fit$modelDF} or, with \code{mixed=TRUE}, from
+#'     \code{coefs}: the signed coefficient when one column carries the test, which for a
+#'     \strong{continuous} covariate is a change \strong{per unit} of it rather than a fold
+#'     change between groups, and the total swing when several do. See \code{h0testr::test()}.
 #' @examples
-#' ## lengthy setup of expression data:
+#' ## setup of expression data: ten peptides per gene, a third of them dropped, and no
+#' ##   missing values, so that the example is about the test rather than about missingness:
 #' set.seed(101)
-#' nsamps <- 6
-#' sim <- h0testr::sim2(
-#'   n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
-#'   fold_change=1, peps_per_gene=10, reps_per_sample=1, 
-#'   p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0
-#' )
-#' exprs <- sim$mat
-#' gene <- strsplit(rownames(exprs), "_")
-#' gene <- sapply(gene, function(v) unlist(v)[1])
-#' feats <- data.frame(pep=rownames(exprs), gene=gene)
-#' samps <- data.frame(
-#'   obs=colnames(exprs), 
-#'   grp=c(rep("ctl", nsamps), rep("trt", nsamps)),
-#'   sex=rep(c("M", "F"), nsamps)
-#' )
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' rm(sim, exprs, gene, feats, samps)
+#' samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+#'   n_per_cell=3)
+#' sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100,
+#'   peps_per_gene=10, p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+#' state <- sim$state
+#' config <- sim$config
+#' rm(samps, sim)
 #'
-#' ## setup config and prep variables of interest for testing:
-#' config <- list(
-#'   obs_id_col="obs",
-#'   sample_id_col="obs",
-#'   feat_id_col="pep",
-#'   gene_id_col="gene",
-#'   frm=~grp+sex,
-#'   test_term="grp",
-#'   reference_levels=c(grp="ctl", sex="F")
-#' )
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
 #'
 #' ## actual test:
@@ -2724,14 +2912,14 @@ f.prolfqua_mixed_f <- function(mods, design, config, caller="f.prolfqua_mixed_f"
 #' ##   is not. A few genes are enough to show the shape:
 #' config$test_moderate <- NULL
 #' config$test_trend <- NULL
-#' keep <- state$features$gene %in% unique(state$features$gene)[1:8]
+#' keep <- state$features$gene_id %in% unique(state$features$gene_id)[1:8]
 #' small <- list(expression=state$expression[keep, , drop=FALSE],
 #'   features=state$features[keep, , drop=FALSE], samples=state$samples)
 #' out <- h0testr::initialize(small, config, minimal=TRUE)
 #' mix <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE,
 #'   mixed=TRUE)
 #' nrow(mix$hits)                                  ## one row per gene, not per peptide
-#' head(mix$hits[, c("gene", "Df", "F.value", "p.value", "df.denom", "fit_type")])
+#' head(mix$hits[, c("gene_id", "Df", "F.value", "p.value", "df.denom", "fit_type")])
 #'
 #' ## df.denom is the Satterthwaite denominator, which the random observation effect
 #' ##   pulls down toward the number of observations; dropping that effect gives
@@ -3021,24 +3209,27 @@ test_prolfqua <- function(state, config, is_log_transformed=NULL, mixed=FALSE,
 #'     \code{hits}  \cr \tab \code{data.frame} of results from \code{limma::topTable()}. \cr
 #'     \code{fit}   \cr \tab Model returned by \code{limma::eBayes()}. \cr
 #'   } 
+#'   \code{logFC} is an effect size on the scale of \code{state$expression}: for a two level
+#'     factor, the difference between its levels, so a log fold change when the input is log
+#'     transformed; for a \strong{continuous} covariate, the change \strong{per unit} of it,
+#'     whose size depends on the units the covariate is recorded in. This is what
+#'     \code{h0testr::test()} reports as \code{logfc}. A joint test has no \code{logFC}
+#'     column at all, having no single fold change to report, and \code{h0testr::test()}
+#'     reports the total swing instead. See \code{h0testr::test()}.
 #' @examples
 #' set.seed(101)
 #' ## no missing values: mnar_c0=-Inf, mnar_c1=0, mcar_p=0
-#' exprs <- h0testr::sim2(n_samps1=6, n_samps2=6, n_genes=25, 
-#'   n_genes_signif=5, fold_change=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)$mat
-#' exprs <- log2(exprs + 1)
-#' feats <- data.frame(feature_id=rownames(exprs))
-#' samps <- data.frame(observation_id=colnames(exprs), 
-#'   condition=c(rep("placebo", 6), rep("drug", 6)))
-#' state <- list(expression=exprs, features=feats, samples=samps)
+#' samps <- h0testr::sim_samples(factors=list(condition=c("placebo", "drug")),
+#'   n_per_cell=6)
+#' sim <- h0testr::sim_design(samps, frm=~condition, test_term="condition", n_genes=25,
+#'   n_genes_signif=5, effects=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+#' state <- sim$state
+#' state$expression <- log2(state$expression + 1)
 #' 
-#' config <- h0testr::new_config()    ## defaults
-#' config$save_state <- FALSE           ## default is TRUE
-#' config$feat_col <- config$feat_id_col <- config$gene_id_col <- "feature_id"
-#' config$obs_col <- config$obs_id_col <- config$sample_id_col <- "observation_id"
-#' config$frm <- ~condition
-#' config$test_term <- "condition"
-#' config$reference_levels <- c(condition="placebo")
+#' config <- sim$config   ## frm, test_term, the id columns and reference_levels, set
+#'                        ##   to match what was simulated; save_state is FALSE
+#' config$is_log_transformed <- TRUE   ## normalize() would; logged just above
+#' rm(samps, sim)
 #'
 #' ## set up and check configuration, including covariates:
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
@@ -3130,24 +3321,27 @@ test_voom <- function(state, config, normalize.method="none") {
 #'     \code{hits}  \cr \tab \code{data.frame} of results from \code{limma::topTable()}. \cr
 #'     \code{fit}   \cr \tab Model returned by \code{limma::eBayes()}. \cr
 #'   } 
+#'   \code{logFC} is an effect size on the scale of \code{state$expression}: for a two level
+#'     factor, the difference between its levels, so a log fold change when the input is log
+#'     transformed; for a \strong{continuous} covariate, the change \strong{per unit} of it,
+#'     whose size depends on the units the covariate is recorded in. This is what
+#'     \code{h0testr::test()} reports as \code{logfc}. A joint test has no \code{logFC}
+#'     column at all, having no single fold change to report, and \code{h0testr::test()}
+#'     reports the total swing instead. See \code{h0testr::test()}.
 #' @examples
 #' set.seed(101)
 #' ## no missing values: mnar_c0=-Inf, mnar_c1=0, mcar_p=0
-#' exprs <- h0testr::sim2(n_samps1=6, n_samps2=6, n_genes=25, 
-#'   n_genes_signif=5, fold_change=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)$mat
-#' exprs <- log2(exprs + 1)
-#' feats <- data.frame(feature_id=rownames(exprs))
-#' samps <- data.frame(observation_id=colnames(exprs), 
-#'   condition=c(rep("placebo", 6), rep("drug", 6)))
-#' state <- list(expression=exprs, features=feats, samples=samps)
+#' samps <- h0testr::sim_samples(factors=list(condition=c("placebo", "drug")),
+#'   n_per_cell=6)
+#' sim <- h0testr::sim_design(samps, frm=~condition, test_term="condition", n_genes=25,
+#'   n_genes_signif=5, effects=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+#' state <- sim$state
+#' state$expression <- log2(state$expression + 1)
 #' 
-#' config <- h0testr::new_config()    ## defaults
-#' config$save_state <- FALSE           ## default is TRUE
-#' config$feat_col <- config$feat_id_col <- config$gene_id_col <- "feature_id"
-#' config$obs_col <- config$obs_id_col <- config$sample_id_col <- "observation_id"
-#' config$frm <- ~condition
-#' config$test_term <- "condition"
-#' config$reference_levels <- c(condition="placebo")
+#' config <- sim$config   ## frm, test_term, the id columns and reference_levels, set
+#'                        ##   to match what was simulated; save_state is FALSE
+#' config$is_log_transformed <- TRUE   ## normalize() would; logged just above
+#' rm(samps, sim)
 #'
 #' ## set up and check covariates and parameters:
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
@@ -3979,19 +4173,17 @@ f.note_trend <- function(method, trend, given, config) {
 #' @examples
 #' set.seed(101)
 #' ## no missing values: mnar_c0=-Inf, mnar_c1=0, mcar_p=0
-#' exprs <- h0testr::sim2(n_samps1=6, n_samps2=6, n_genes=25, 
-#'   n_genes_signif=5, fold_change=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)$mat
-#' exprs <- log2(exprs + 1)
-#' feats <- data.frame(feature_id=rownames(exprs))
-#' samps <- data.frame(observation_id=colnames(exprs), 
-#'   condition=c(rep("placebo", 6), rep("drug", 6)))
-#' state <- list(expression=exprs, features=feats, samples=samps)
+#' samps <- h0testr::sim_samples(factors=list(condition=c("placebo", "drug")),
+#'   n_per_cell=6)
+#' sim <- h0testr::sim_design(samps, frm=~condition, test_term="condition", n_genes=25,
+#'   n_genes_signif=5, effects=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+#' state <- sim$state
+#' state$expression <- log2(state$expression + 1)
 #' 
-#' config <- list(feat_id_col="feature_id", gene_id_col="feature_id", 
-#'   obs_id_col="observation_id", sample_id_col="observation_id", 
-#'   frm=~condition, test_term="condition",
-#'   reference_levels=c(condition="placebo")
-#' )
+#' config <- sim$config   ## frm, test_term, the id columns and reference_levels, set
+#'                        ##   to match what was simulated; save_state is FALSE
+#' config$is_log_transformed <- TRUE   ## normalize() would; logged just above
+#' rm(samps, sim)
 #' 
 #' ## set up and check covariates and parameters:
 #' out <- h0testr::initialize(state, config, minimal=TRUE)

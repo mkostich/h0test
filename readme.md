@@ -179,9 +179,11 @@ sample_id_col="sample_id"           ## column (scalar character) in sample_file_
 obs_col=""                          ## for internal use; leave ""; samps[, obs_col] == colnames(exprs) throughout script
 feat_col=""                         ## for internal use; leave ""; feats[, feat_col] == rownames(exprs) throughout script
 
-## formula for testing: actual formula can have '+' and ':'; not tested w/ e.g. '*' yet.
+## formula for testing: '+', ':' and '*' are all fine, as is '~0 +' to drop the intercept;
+##   I(), poly(), splines and random effect terms '(1|x)' are out of scope.
 frm=~age+gender+age:gender          ## formula with variable of interest and covariates
 test_term="age:gender"              ## term (scalar character) in $frm on which test is to be performed
+contrast=""                         ## weighted sum (scalar character) of coefficients of $frm to test instead of $test_term, e.g. "grpb - grpc"; "" for none
 permute_var=""                      ## name (scalar character) of variable to permute; "" for no permutation (normal execution)
 reference_levels=c(                  ## reference level of each factor variable in $frm
   age="young",                       ## numeric variable treated as continuous unless named here
@@ -207,6 +209,10 @@ filtering and testing options can be set further down in the list:
 n_samples_expr_col="n_samps_expr"   ## new col (scalar character) for feature metadata; n samples expressing feature
 median_raw_col="median_raw"         ## new col (scalar character) for feature metadata; median feature expression in expressing samples
 n_features_expr_col="n_feats_expr"  ## new col (scalar character) for sample metadata; n features expressed
+n_feats_col="n_feats"               ## new col (scalar character) for gene-level feature metadata; n features aggregated into each gene
+combine_method_col="combine_method" ## new col (scalar character) for gene-level feature metadata; which aggregator summarized each gene
+df_test_col="df_test"               ## new col (scalar character) for feature metadata; estimable df for $test_term
+df_resid_col="df_resid"             ## new col (scalar character) for feature metadata; residual df of model fitted to feature
 
 ## output file naming:
 log_file=""                         ## log file path (character); or "" for log to console                 
@@ -222,11 +228,15 @@ suffix_out=".tsv"                   ## suffix for output files
 normalization_method="RLE"          ## normalization method; h0testr::normalize_methods() to see available choices.
 normalization_quantile=0.75         ## for quantile normalization; 0.5 is median; 0.75 is upper quartile
 normalization_span=0.7              ## span for normalization_method %in% "loess"
+is_log_transformed=FALSE            ## whether $expression is already on a log-like scale; FALSE means raw, so initialize() converts zeros to NA and rejects negatives; set TRUE by normalize()
 n_samples_min=2                     ## min(samples/feature w/ feature expression > 0) to keep feature
 n_features_min=1000                 ## min(features/sample w/ expression > 0) to keep sample
+estimability="test"                 ## estimability required of $test_term; in c("test", "term", "full")
+df_resid_min=2                      ## min residual degrees of freedom per feature to keep feature
 feature_aggregation="medianPolish"  ## in c("medianPolish", "robustSummary", "none")
 impute_method="sample_lod"          ## imputation method; h0testr::impute_methods() to see available choices.
 impute_quantile=0.01                ## quantile for unif_* imputation methods
+impute_floor_offset=-1              ## offset (non-positive; log2 units) from the global observed minimum giving the lower bound of the unif_ interval, when is_log_transformed is TRUE
 impute_scale=1                      ## for rnorm_feature, adjustment on sd of distribution [1: no change];
 impute_span=0.5                     ## loess span for impute_method %in% "loess_logit"
 impute_k=7                          ## k for impute_method %in% c("knn", "lls")
@@ -236,6 +246,10 @@ impute_n_pts=1e7                    ## granularity of imputed values for impute_
 impute_aug_steps=3                  ## data augmentation iterations for impute_rf() and impute_glmnet()
 test_method="trend"                 ## hypothesis test; h0testr::test_methods() to see available choices.
 test_prior_df=3                     ## prior df for test_method %in% "proda"
+test_moderate=TRUE                  ## whether to shrink the per-feature error variance across features before testing; only test_method "prolfqua" can be told not to
+test_trend=FALSE                    ## whether that shrinkage prior is fitted against mean feature intensity rather than being flat; honored by test_method %in% c("prolfqua", "deqms"); unrelated to test_method="trend", which always trends
+test_random_obs=TRUE                ## whether test_method %in% c("prolfqua_lmer", "msqrob_agg") add a random observation effect to the random feature effect; TRUE is the calibrated model
+test_ridge=FALSE                    ## whether test_method="msqrob_agg" penalizes the fixed effects; TRUE shrinks coefficients toward zero, so its logFC is not comparable with the other methods'
 ## run_order character vector with elements from {"normalize", "combine_replicates", "combine_features", "filter", "impute"}:
 run_order=c("normalize", "combine_replicates", "combine_features", "filter", "impute")   ## order of workflow operations
 
@@ -253,8 +267,8 @@ verbose=T                           ## controls how much gets printed out during
 The workflow always begins with loading data and ends with testing of 
 hypotheses. Intermediate steps can be configured using `config$run_order`. 
 The default `config$run_order` of 
-`c("normalize", "combine_replicates", "filter", "impute")` yields the following
-workflow:
+`c("normalize", "combine_replicates", "combine_features", "filter", "impute")` 
+yields the following workflow:
 
 1) Load data: read files `config$feature_file_in`, `config$sample_file_in`, 
    and `config$data_file_in` from the filesystem directory `config$dir_in`, 
@@ -264,14 +278,19 @@ workflow:
    `log2(x+1)` transform or equivalent (e.g. for `vsn`), unless 
    `config$normalization_method %in% "none"`.
 3) Combine technical replicates: using median.
-4) Unless `test_method %in% c("deqms", "msqrob")`, combine peptide signals 
-   using method specified by `config$feature_aggregation`.
-4) Filter features and samples: based on expression levels and cutoffs 
-   specified by `config$n_samples_min` and `config$n_features_min`.
-5) Impute missing values using method `config$impute_method`. Values `0` and 
+4) Unless `test_method %in% c("deqms", "msqrob", "msqrob_agg", 
+   "prolfqua_lmer")`, which report one row per gene whatever level the input is 
+   at, combine peptide signals using the method specified by 
+   `config$feature_aggregation`.
+5) Filter features and samples: based on expression levels and cutoffs 
+   specified by `config$n_samples_min`, `config$n_features_min` and 
+   `config$df_resid_min`.
+6) Impute missing values using method `config$impute_method`. Values `0` and 
    `NA` are treated as missing. 
-6) Test null hypotheses that the effect of the term `config$test_term` in the 
-   formula `config$frm` is `0` using the method `config$test_method`.
+7) Test null hypotheses that the effect of the term `config$test_term` in the 
+   formula `config$frm` is `0` using the method `config$test_method`; or, when 
+   `config$contrast` is not `""`, that the weighted sum of coefficients it names 
+   is `0`.
 
 ---
 
@@ -492,16 +511,37 @@ Method used for hypothesis testing.
   own for. `DEqMS::outputResult()` built the hit table until that was added, and takes
   a single coefficient.
 
+**lm**: One `stats::lm()` per feature, with no shrinkage of the error variance 
+  across features: a full and a reduced model are fitted from columns of the 
+  same design matrix and compared by `lmtest::lrtest()`. The unmoderated 
+  reference point the other methods are worth comparing against; it returns no 
+  fitted model, a separate one being fitted to every feature.
+
 **msqrob**: Uses `msqrob2` package for peptide-based protein/gene-group analysis.
   Flow is: `QFeatures::readQFeatures() -> SummarizedExperiment object -> 
   QFeatures::zeroIsNA() -> QFeatures::aggregateFeatures() -> 
   msqrob2::msqrob() -> msqrob2::makeContrast() -> msqrob2::hypothesisTest()`.
 
+**msqrob_agg**: The same `msqrob2` flow, but with the peptide-level fit of 
+  `msqrob2::msqrobAggregate()` in place of the aggregate-then-fit of `msqrob`, 
+  so the peptides of a gene are modelled together with a random feature effect. 
+  `config$test_random_obs` adds a random observation effect to that, and 
+  `config$test_ridge` penalizes the fixed effects. Like `deqms`, `msqrob` and 
+  `prolfqua_lmer`, it reports one row per gene whatever level the input is at, 
+  so `combine_features()` should not be run before it.
+
 **proda**: Uses `proDA::proDA()` for hypothesis testing.
 
 **prolfqua**: Flow: `prolfqua::AnalysisTableAnnotation$new() -> 
   prolfqua::LFQData$new() -> prolfqua::strategy_lm() -> prolfqua::build_model() 
-  -> model$get_anova()`.
+  -> model$get_anova()`. Moderation of the error variance is controlled by 
+  `config$test_moderate` and `config$test_trend`.
+
+**prolfqua_lmer**: The peptide-level counterpart of `prolfqua`: 
+  `prolfqua::strategy_lmer()` fits one mixed model per gene over the rows of its 
+  features, with a random feature effect and, when `config$test_random_obs` is 
+  `TRUE`, a random observation effect, falling back to `stats::lm()` for a gene 
+  with a single feature. Denominator degrees of freedom are Satterthwaite.
 
 **trend**: Flow: `limma::lmFit() -> limma::eBayes(trend=T) -> limma::topTable()`
 

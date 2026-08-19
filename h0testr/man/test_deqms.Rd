@@ -46,9 +46,21 @@ A list with components:
       \code{DEqMS}'s variance prior, and are the ones reported by \code{h0testr::test()}.
       \code{sca.t} is \code{NA} when more than one coefficient carries the test, and the
       per-coefficient \code{logFC} column is then replaced by one column per tested
-      coefficient, as \code{limma::topTable()} reports them. \cr
-    \code{fit}   \cr \tab Model returned by \code{DEqMS::spectraCounteBayes}. \cr
+      coefficient, as \code{limma::topTable()} reports them. They are also \code{NA}
+      for a gene with no residual degrees of freedom, which has no prior fitted for
+      it. \cr
+    \code{fit}   \cr \tab Model returned by \code{DEqMS::spectraCounteBayes}, whose
+      \code{sca.} components were fitted from the genes with residual degrees of
+      freedom and are \code{NA} for the rest; \code{fit$model} is the
+      \code{stats::loess()} of those genes. \cr
   }
+  \code{logFC} is an effect size on the scale of \code{state$expression}: for a two level
+    factor, the difference between its levels, so a log fold change when the input is log
+    transformed; for a \strong{continuous} covariate, the change \strong{per unit} of it,
+    whose size depends on the units the covariate is recorded in. This is what
+    \code{h0testr::test()} reports as \code{logfc} when one design matrix column carries the
+    test; for a joint test there is no single contrast, and \code{h0testr::test()} reports the
+    total swing instead. See \code{h0testr::test()}.
 }
 \description{
 Tests for differential expression using the 
@@ -108,6 +120,35 @@ The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm}
     is the same \code{limma} fit without the count based prior, or supply feature
     level data. \code{h0testr::tune()} checks the same condition before testing
     and records the combination as untested rather than stopping the sweep.
+  Counts that vary but are lopsided are the same shortage in weaker form, and
+    \code{DEqMS::spectraCounteBayes()} answers it two ways. Its loess comes back
+    \code{NaN} for the genes at a crowded count, which are then reported without a
+    moderated statistic and counted in the log; twenty genes of two peptides with two
+    single-peptide genes among them lost 18 of 20 that way. When it comes back
+    \code{NaN} for every gene the function fails outright, with an error about a missing
+    value in an \code{if()} condition, and that is refused with the counts named, one to
+    three genes of 19, 24 or 60 away from a single count being enough. An even split
+    fits either way. The same fixes apply.
+  A gene with no residual degrees of freedom, which is a gene the aggregated matrix
+    has as many observations of as \code{config$frm} has design columns, is left out
+    of that prior and reported with \code{NA} in every \code{sca.} column, which
+    is said in the log. \code{limma}'s own columns of that row are not \code{NA}:
+    \code{limma::eBayes()} shrinks such a gene toward its own prior, which needs no
+    residual variance of the gene's own, and reports a moderated \code{P.Value} on the
+    prior's degrees of freedom alone. \code{DEqMS}'s prior is a loess against the
+    feature counts and has no value to contribute at a gene it was not fitted from.
+    This is not a restriction so much as
+    avoidance of a silent error: \code{DEqMS::spectraCounteBayes()} fits its prior
+    with \code{stats::loess()}, whose default \code{na.action} drops such a gene, and
+    then recycles the shortened predictions against every gene, so the prior reaching
+    each gene depends on where the untestable ones sit in
+    \code{state$expression}. Running \code{h0testr::impute()} first, which the
+    documented workflow does, or screening features with
+    \code{h0testr::filter_features_by_estimability()} and a \code{config$df_resid_min}
+    of at least 1, leaves every gene with residual degrees of freedom.
+    \code{stats::p.adjust()} takes its \code{n} from the p-values that are not
+    \code{NA}, so the excluded genes are left out of the multiplicity correction
+    rather than counted in it.
   The counts come from \code{config$n_feats_col} when \code{state$features}
     carries it, which \code{h0testr::combine_features()} writes, and are counted
     from \code{config$gene_id_col} otherwise. So this method runs on an already
@@ -125,7 +166,8 @@ The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm}
       2. Fit linear model to \code{config$frm} using \code{limma::lmFit()}. \cr
       3. Calculate statistics using \code{limma::eBayes()} on fitted model. \cr
       4. Append peptide counts to model returned by \code{limma::eBayes()}. \cr
-      5. Adjust statistics using \code{DEqMS::spectraCounteBayes()}. \cr
+      5. Adjust statistics using \code{DEqMS::spectraCounteBayes()}, fitted on the
+           genes that have residual degrees of freedom. \cr
       6. Form the moderated test of the coefficients carrying the test from the
            variance prior that fitted. \cr
       7. Generate hit table with \code{limma::topTable()}, with the moderated
@@ -139,40 +181,21 @@ The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm}
     for more detailed description of configuration parameters.
 }
 \examples{
-## lengthy setup of expression data:
+## setup of expression data: ten peptides per gene, a third of them dropped, and no
+##   missing values, so that the example is about the test rather than about missingness:
 set.seed(101)
-nsamps <- 6
-sim <- h0testr::sim2(
-  n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
-  fold_change=1, peps_per_gene=10, reps_per_sample=1, 
-  p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0
-)
-exprs <- sim$mat
-gene <- strsplit(rownames(exprs), "_")
-gene <- sapply(gene, function(v) unlist(v)[1])
-feats <- data.frame(pep=rownames(exprs), gene=gene)
-samps <- data.frame(
-  obs=colnames(exprs), 
-  grp=c(rep("ctl", nsamps), rep("trt", nsamps)),
-  sex=rep(c("M", "F"), round(ncol(exprs) / 2))
-)
-state <- list(expression=exprs, features=feats, samples=samps)
-rm(sim, exprs, gene, feats, samps)
+samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+  n_per_cell=3)
+sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100,
+  peps_per_gene=10, p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+state <- sim$state
+config <- sim$config
+rm(samps, sim)
 
-## setup config and prep variables of interest for testing:
-config <- list(
-  obs_id_col="obs",
-  sample_id_col="obs",
-  feat_id_col="pep",
-  gene_id_col="gene",
-  ## no grp:sex term here, so that this example shows the single-coefficient case,
-  ##   which reports DEqMS's own moderated t. By marginality, testing "grp" in
-  ##   ~grp+sex+grp:sex would be a joint test of grptrt and grptrt:sexM, reported as
-  ##   a moderated F; test "grp:sex" to test the interaction itself:
-  frm=~grp+sex,
-  test_term="grp",
-  reference_levels=c(grp="ctl", sex="F")
-)
+## no grp:sex term here, so that this example shows the single-coefficient case,
+##   which reports DEqMS's own moderated t. By marginality, testing "grp" in
+##   ~grp+sex+grp:sex would be a joint test of grptrt and grptrt:sexM, reported as
+##   a moderated F; test "grp:sex" to test the interaction itself:
 out <- h0testr::initialize(state, config, minimal=TRUE)
 
 ## test_deqms() aggregates peptides internally with combine_features(), which

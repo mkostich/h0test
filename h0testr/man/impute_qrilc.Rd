@@ -45,21 +45,15 @@ Only \code{NAs} considered missing. If you want \code{0} to be considered
     imputing.
 }
 \examples{
-## setup state and config, including prefiltering:
+## setup state and config, including prefiltering. No effects are planted, these
+##   examples being about missing values rather than about testing:
 set.seed(101)
-nsamps <- 6
-sim <- h0testr::sim2(n_samps1=nsamps, n_samps2=nsamps, n_genes=100, 
-  n_genes_signif=20, fold_change=1, peps_per_gene=1, reps_per_sample=1)
-exprs <- sim$mat
-feats <- data.frame(gene=rownames(exprs))
-samps <- data.frame(
-  obs=colnames(exprs), 
-  grp=factor(c(rep("ctl", nsamps), rep("trt", nsamps))),
-  sex=factor(rep(c("M", "F"), nsamps))
-)
-state <- list(expression=exprs, features=feats, samples=samps)
-rm(nsamps, sim, exprs, feats, samps)
-config <- list(frm=~grp+sex)    ## need frm for filter_features with filter_by_formula=TRUE
+samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+  n_per_cell=3)
+sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
+state <- sim$state
+config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
+rm(samps, sim)
 state <- h0testr::filter_features(state, config, n_samples_min=3)
 state <- h0testr::filter_observations(state, config, n_features_min=30)
 
@@ -74,6 +68,7 @@ if(!inherits(state2, "try-error")) summary(c(state2$expression))
 
 ## log-transformed example:
 state$expression <- log2(state$expression + 1)
+config$is_log_transformed <- TRUE   ## normalize() would; argument and config must agree
 state2 <- h0testr::impute_qrilc(state, config, is_log_transformed=TRUE)
 summary(c(state$expression))    ## Note number of NAs
 summary(c(state2$expression))   ## Note number of NAs

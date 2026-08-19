@@ -57,6 +57,13 @@ A list with components:
       top of it; the fitted models are in
       \code{rowData(fit[["genes"]])$msqrobModels} either way. \cr
   }
+  \code{logFC} is an effect size on the scale of \code{state$expression}: for a two level
+    factor, the difference between its levels, so a log fold change when the input is log
+    transformed; for a \strong{continuous} covariate, the change \strong{per unit} of it,
+    whose size depends on the units the covariate is recorded in. This is what
+    \code{h0testr::test()} reports as \code{logfc}. The joint test reports no effect size at
+    all, having no single contrast to report, and \code{h0testr::test()} reports the total
+    swing instead. See \code{h0testr::test()}.
 }
 \description{
 Tests for differential expression using the \code{msqrob2::msqrob()} function, or
@@ -184,39 +191,20 @@ Returns gene-level hypothesis testing results based on
     for more detailed description of configuration parameters.
 }
 \examples{
-## lengthy setup of expression data:
+## setup of expression data: ten peptides per gene, a third of them dropped, and no
+##   missing values, so that the example is about the test rather than about missingness:
 set.seed(101)
-nsamps <- 6
-sim <- h0testr::sim2(
-  n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
-  fold_change=1, peps_per_gene=10, reps_per_sample=1, 
-  p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0
-)
-exprs <- sim$mat
-gene <- strsplit(rownames(exprs), "_")
-gene <- sapply(gene, function(v) unlist(v)[1])
-feats <- data.frame(pep=rownames(exprs), gene=gene)
-samps <- data.frame(
-  obs=colnames(exprs), 
-  grp=c(rep("ctl", nsamps), rep("trt", nsamps)),
-  sex=rep(c("M", "F"), round(ncol(exprs) / 2))
-)
-state <- list(expression=exprs, features=feats, samples=samps)
-rm(sim, exprs, gene, feats, samps)
+samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+  n_per_cell=3)
+sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100,
+  peps_per_gene=10, p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+state <- sim$state
+config <- sim$config
+rm(samps, sim)
 
-## setup config and prep variables of interest for testing:
-config <- list(
-  obs_id_col="obs",
-  sample_id_col="obs",
-  feat_id_col="pep",
-  gene_id_col="gene",
-  ## no grp:sex term here, so testing "grp" is the single coefficient grptrt, which
-  ##   msqrob2::hypothesisTest() reports as a moderated t. Adding grp:sex would make
-  ##   it a joint test of grptrt and grptrt:sexM, reported as an F computed here:
-  frm=~grp+sex,
-  test_term="grp",
-  reference_levels=c(grp="ctl", sex="F")
-)
+## no grp:sex term here, so testing "grp" is the single coefficient grptrt, which
+##   msqrob2::hypothesisTest() reports as a moderated t. Adding grp:sex would make
+##   it a joint test of grptrt and grptrt:sexM, reported as an F computed here:
 out <- h0testr::initialize(state, config, minimal=TRUE)
 
 ## actual test:
@@ -225,11 +213,11 @@ head(result$hits)
 
 ## the same genes tested from their peptides instead, one mixed model each, which
 ##   test_method="msqrob_agg" selects. A few genes are enough to show the shape:
-keep <- out$state$features$gene \%in\% unique(out$state$features$gene)[1:8]
+keep <- out$state$features$gene_id \%in\% unique(out$state$features$gene_id)[1:8]
 small <- list(expression=out$state$expression[keep, , drop=FALSE],
   features=out$state$features[keep, , drop=FALSE], samples=out$state$samples)
 mixed <- h0testr::test_msqrob(small, out$config, aggregate=TRUE)
-head(mixed$hits[, c("gene", "nNonZero", ".n", "fit_type", "logFC", "df", "pval")])
+head(mixed$hits[, c("gene_id", "nNonZero", ".n", "fit_type", "logFC", "df", "pval")])
 
 ## fit_type says which genes could not carry a random feature effect and were fitted
 ##   at the gene level instead, and the formula used is in the log:

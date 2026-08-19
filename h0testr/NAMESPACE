@@ -64,4 +64,5 @@ export(tune)
 export(tune_check)
 
 export(sim1)
-export(sim2)
+export(sim_design)
+export(sim_samples)

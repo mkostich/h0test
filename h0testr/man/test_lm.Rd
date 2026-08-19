@@ -36,6 +36,12 @@ A list with a \code{$hits} data.frame of results and a \code{$fit} that is
     columns from \code{state$features}. Coefficient columns that are
     \code{NA} for every feature are dropped, and \code{:} in an interaction
     coefficient name becomes \code{.}.
+  The coefficient columns are effect sizes on the scale of \code{state$expression}: for a
+    two level factor, the difference between its levels, so a log fold change when the input
+    is log transformed; for a \strong{continuous} covariate, the change \strong{per unit} of
+    it, whose size depends on the units the covariate is recorded in. This is what
+    \code{h0testr::test()} reports as \code{logfc} when one design matrix column carries the
+    test; see \code{h0testr::test()} for what it reports for a joint test or a contrast.
 }
 \description{
 Tests for differential expression by fitting full and reduced linear 
@@ -70,21 +76,17 @@ This test is suitable for use with missing values without imputation. The
 }
 \examples{
 set.seed(101)
-exprs <- h0testr::sim2(n_samps1=6, n_samps2=6, n_genes=25, 
-  n_genes_signif=5, fold_change=2)$mat
-exprs <- log2(exprs + 1)
-feats <- data.frame(feature_id=rownames(exprs))
-samps <- data.frame(observation_id=colnames(exprs), 
-  condition=c(rep("placebo", 6), rep("drug", 6)))
-state <- list(expression=exprs, features=feats, samples=samps)
+samps <- h0testr::sim_samples(factors=list(condition=c("placebo", "drug")),
+  n_per_cell=6)
+sim <- h0testr::sim_design(samps, frm=~condition, test_term="condition", n_genes=25,
+  n_genes_signif=5, effects=2)
+state <- sim$state
+state$expression <- log2(state$expression + 1)
 
-config <- h0testr::new_config()    ## defaults
-config$save_state <- FALSE           ## default is TRUE
-config$feat_col <- config$feat_id_col <- config$gene_id_col <- "feature_id"
-config$obs_col <- config$obs_id_col <- config$sample_id_col <- "observation_id"
-config$frm <- ~condition
-config$test_term <- "condition"
-config$reference_levels <- c(condition="placebo")
+config <- sim$config   ## frm, test_term, the id columns and reference_levels, set
+                       ##   to match what was simulated; save_state is FALSE
+config$is_log_transformed <- TRUE   ## normalize() would; logged just above
+rm(samps, sim)
 
 ## set up and check covariates and parameters:
 out <- h0testr::initialize(state, config, minimal=TRUE)

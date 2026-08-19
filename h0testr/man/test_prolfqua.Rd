@@ -105,6 +105,13 @@ A list with components:
     pipelines \code{combine_features()} has already run, so it gives one row per
     gene/protein group, like every other test method. With \code{mixed=TRUE} it is
     gene level whatever the input, that being the point of the mixed model.
+  No effect size is reported here: the test is an F test of the columns carrying
+    \code{config$test_term}, whatever their number, so there is no coefficient to report
+    alongside it. \code{h0testr::test()} fills its \code{logfc} column from the fitted
+    coefficients instead, taken from \code{fit$modelDF} or, with \code{mixed=TRUE}, from
+    \code{coefs}: the signed coefficient when one column carries the test, which for a
+    \strong{continuous} covariate is a change \strong{per unit} of it rather than a fold
+    change between groups, and the total swing when several do. See \code{h0testr::test()}.
 }
 \description{
 Tests for differential expression using the \code{prolfq::build_model()} function.
@@ -266,36 +273,17 @@ Uses the \code{prolfqua::build_model()} function. Returned results sorted by
     for more detailed description of configuration parameters.
 }
 \examples{
-## lengthy setup of expression data:
+## setup of expression data: ten peptides per gene, a third of them dropped, and no
+##   missing values, so that the example is about the test rather than about missingness:
 set.seed(101)
-nsamps <- 6
-sim <- h0testr::sim2(
-  n_samps1=nsamps, n_samps2=nsamps, n_genes=100, n_genes_signif=20, 
-  fold_change=1, peps_per_gene=10, reps_per_sample=1, 
-  p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0
-)
-exprs <- sim$mat
-gene <- strsplit(rownames(exprs), "_")
-gene <- sapply(gene, function(v) unlist(v)[1])
-feats <- data.frame(pep=rownames(exprs), gene=gene)
-samps <- data.frame(
-  obs=colnames(exprs), 
-  grp=c(rep("ctl", nsamps), rep("trt", nsamps)),
-  sex=rep(c("M", "F"), nsamps)
-)
-state <- list(expression=exprs, features=feats, samples=samps)
-rm(sim, exprs, gene, feats, samps)
+samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+  n_per_cell=3)
+sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100,
+  peps_per_gene=10, p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+state <- sim$state
+config <- sim$config
+rm(samps, sim)
 
-## setup config and prep variables of interest for testing:
-config <- list(
-  obs_id_col="obs",
-  sample_id_col="obs",
-  feat_id_col="pep",
-  gene_id_col="gene",
-  frm=~grp+sex,
-  test_term="grp",
-  reference_levels=c(grp="ctl", sex="F")
-)
 out <- h0testr::initialize(state, config, minimal=TRUE)
 
 ## actual test:
@@ -338,14 +326,14 @@ range(result$hits$s2.prior)                     ## one value, the flat prior
 ##   is not. A few genes are enough to show the shape:
 config$test_moderate <- NULL
 config$test_trend <- NULL
-keep <- state$features$gene \%in\% unique(state$features$gene)[1:8]
+keep <- state$features$gene_id \%in\% unique(state$features$gene_id)[1:8]
 small <- list(expression=state$expression[keep, , drop=FALSE],
   features=state$features[keep, , drop=FALSE], samples=state$samples)
 out <- h0testr::initialize(small, config, minimal=TRUE)
 mix <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE,
   mixed=TRUE)
 nrow(mix$hits)                                  ## one row per gene, not per peptide
-head(mix$hits[, c("gene", "Df", "F.value", "p.value", "df.denom", "fit_type")])
+head(mix$hits[, c("gene_id", "Df", "F.value", "p.value", "df.denom", "fit_type")])
 
 ## df.denom is the Satterthwaite denominator, which the random observation effect
 ##   pulls down toward the number of observations; dropping that effect gives

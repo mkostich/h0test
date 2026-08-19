@@ -606,20 +606,23 @@ f.combine_features_robust_summary <- function(state, config, maxit=30) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   }
 #' @examples
-#' ## set up data for examples:
+#' ## set up data for examples; p_drop=0 so that every gene keeps all three of its
+#' ##   peptides and so has something to aggregate:
 #' set.seed(101)
-#' exprs <- h0testr::sim2(n_samps1=3, n_samps2=3, n_genes=5, n_genes_signif=1, peps_per_gene=3, reps_per_sample=1)$mat
-#' tmp <- strsplit(rownames(exprs), "_")
-#' feats <- data.frame(pep=rownames(exprs), gene=sapply(tmp, "[", 1))
-#' tmp <- strsplit(colnames(exprs), "_")
-#' samps <- data.frame(obs=colnames(exprs), grp=sapply(tmp, "[", 1))
+#' samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt")), n_per_cell=3)
+#' sim <- h0testr::sim_design(samps, frm=~grp, test_term="grp", n_genes=5, n_genes_signif=1,
+#'   peps_per_gene=3, p_drop=0)
 #'
 #' ## both aggregators fit an additive model, so they need log scale data;
 #' ##   normalize() would do this and set the flag in a full workflow:
-#' state <- list(expression=log2(exprs + 1), features=feats, samples=samps)
-#' config <- list(feat_id_col="pep", gene_id_col="gene", obs_col="obs", feat_col="pep",
-#'   feature_aggregation="medianPolish", is_log_transformed=TRUE, save_state=FALSE)
-#' rm(tmp, exprs, feats, samps)
+#' state <- sim$state
+#' state$expression <- log2(state$expression + 1)
+#' config <- sim$config
+#' config$is_log_transformed <- TRUE
+#' config$feature_aggregation <- "medianPolish"
+#' config$feat_col <- config$feat_id_col   ## initialize() sets these two
+#' config$obs_col <- config$obs_id_col
+#' rm(samps, sim)
 #' print(state)
 #' str(config)
 #'
@@ -638,8 +641,8 @@ f.combine_features_robust_summary <- function(state, config, maxit=30) {
 #' ##   summarized with medianPolish() instead, robustSummary() reporting such a
 #' ##   sample as NA; the route is recorded per gene:
 #' state2 <- state
-#' gene1 <- state2$features$gene[1]
-#' state2$expression[state2$features$gene %in% gene1, 1] <- 0
+#' gene1 <- state2$features$gene_id[1]
+#' state2$expression[state2$features$gene_id %in% gene1, 1] <- 0
 #' out <- h0testr::combine_features(state2, config, method="robustSummary")
 #' print(out$state$features)
 #' print(out$state$expression[, 1])
