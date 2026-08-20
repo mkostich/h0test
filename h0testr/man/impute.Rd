@@ -38,7 +38,7 @@ impute(
   \code{impute_scale}      \cr \tab Used if parameter \code{scale.} is unset. \cr
   \code{impute_span}       \cr \tab Used if parameter \code{span} is unset. \cr
   \code{impute_k}          \cr \tab Used if parameter \code{k} is unset. \cr
-  \code{impute_n_pcs}      \cr \tab Used if parameter \code{n_pcs} is unset. \cr
+  \code{impute_npcs}       \cr \tab Used if parameter \code{n_pcs} is unset. \cr
   \code{impute_aug_steps}  \cr \tab Used if parameter \code{aug_steps} is unset. \cr
   \code{impute_n_pts}      \cr \tab Used if parameter \code{n_pts} is unset. \cr
 }}
@@ -90,12 +90,22 @@ Impute missing values in \code{state$expression} according to settings
     in \code{config}.
 }
 \details{
-Imputes missing values using a method and parameters specified in 
-    \code{config}. Assumes expression data have been previously
-    \code{log(x+1)} transformed. If you want \code{0} to be considered missing, 
-    and have \code{0} in the data, do something like 
-    \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. See invidual 
-    \code{impute_*} methods for more details.
+Imputes missing values using a method and parameters specified in
+    \code{config}. The scale of the data is not assumed: it comes from the
+    \code{is_log_transformed} argument or from
+    \code{config$is_log_transformed}, which \code{h0testr::initialize()} sets
+    and \code{h0testr::normalize()} updates, and whichever answers is recorded
+    in the returned \code{config} and passed to the method, so that methods
+    without an \code{is_log_transformed} argument of their own still see it.
+    Methods that need log scale data transform and back-transform around
+    their own fit; see the individual \code{impute_*} methods.
+  Only \code{NA} is missing. If you want \code{0} to be considered missing,
+    and have \code{0} in the data, do something like
+    \code{exprs[exprs \%in\% 0] <- NA} prior to imputing;
+    \code{h0testr::initialize()} does this for raw input.
+  An imputed value that cannot be a measurement is an error rather than a
+    value nudged into range: at or below zero on the raw scale, or infinite on
+    either scale, the latter meaning the method had no signal to work from.
   See documentation for \code{h0testr::new_config()} 
     for more detailed description of configuration parameters.
 }

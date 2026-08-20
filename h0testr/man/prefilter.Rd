@@ -4,7 +4,7 @@
 \alias{prefilter}
 \title{Prefilter data}
 \usage{
-prefilter(state, config, n_samples_min = 2, n_features_min = 2)
+prefilter(state, config, n_features_min = 2)
 }
 \arguments{
 \item{state}{List with elements formatted like the list returned by \code{read_data()}:
@@ -16,13 +16,14 @@ prefilter(state, config, n_samples_min = 2, n_features_min = 2)
 
 \item{config}{List with configuration values. Requires the following keys:
 \tabular{ll}{
-  \code{feat_id_col}  \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
-  \code{obs_id_col}   \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{expression}. \cr
+  \code{feat_col}  \cr \tab Name of column (character) in \code{state$features} matching \code{rownames(state$expression)}. \cr
+  \code{obs_col}   \cr \tab Name of column (character) in \code{state$samples} matching \code{colnames(state$expression)}. \cr
 }}
 
-\item{n_samples_min}{minimum number of samples per feature; numeric >= 2.}
-
-\item{n_features_min}{minimum number of features per sample; numeric >= 2.}
+\item{n_features_min}{Minimum number of features with a non-NA value per observation;
+numeric >= 2. This function's own threshold; \code{config$n_features_min} is not
+consulted, being the threshold of \code{h0testr::filter()}. There is no
+corresponding argument for the feature screen, whose thresholds are fixed.}
 }
 \value{
 A list (the filtered state) with the following elements:
@@ -33,13 +34,28 @@ A list (the filtered state) with the following elements:
   }
 }
 \description{
-Adds filtering-related statistics to \code{state$features}, 
-    and \code{state$samples}.
+Remove features and observations too sparse to be worth carrying through
+    normalization and aggregation.
 }
 \details{
-Wrapper for \code{samples_per_feature()}, \code{feature_median_expression()}, 
-    \code{features_per_sample()}. Also reports quantiles of distributions. 
-  See documentation for \code{h0testr::new_config()} 
+A cheap first pass, meant to run before anything has been normalized. It removes
+    features with fewer than 3 distinct non-\code{NA} values or fewer than 4
+    non-\code{NA} values, which leaves the possibility, though not the guarantee, of
+    two distinct values in one group and two values in another, and then removes
+    observations with fewer than \code{n_features_min} non-\code{NA} values. Neither
+    screen is a statement about \code{config$frm}: the filtering that knows the design
+    is \code{h0testr::filter()}, which runs after normalization and aggregation.
+  \code{config$n_samples_min} and \code{config$n_features_min} are deliberately not
+    consulted here. They are the thresholds of \code{h0testr::filter()}, and they are
+    meant to be applied to the aggregated data that step sees, not to the precursor
+    level table this one gets: \code{config$n_features_min} in particular defaults to
+    1000, which is a sensible count of protein groups per observation and would
+    discard nearly every observation if applied here. The feature thresholds above are
+    therefore fixed, and \code{n_features_min} is this function's own argument.
+  A value is missing if and only if it is \code{NA}; raw zeros are converted to
+    \code{NA} by \code{h0testr::initialize()}, which runs first.
+  Reports the state before and after each of the two screens.
+  See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.
 }
 \examples{

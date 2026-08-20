@@ -59,7 +59,7 @@ read_data <- function(config) {
   
   if(!(typeof(exprs) %in% c("double", "integer"))) {
     f.err("read_data: !(typeof(exprs) %in% c('double', 'integer'))", 
-      "typof(exprs):", typeof(exprs), config=config)
+      "typeof(exprs):", typeof(exprs), config=config)
   }
   
   state <- list(expression=exprs, features=feats, samples=samps)
@@ -141,11 +141,27 @@ f.check_parameters <- function(state, config, initialized=F, minimal=F) {
   
   if(any(duplicated(state$samples[[config$obs_id_col]]))) {
     f.err("f.check_parameters: any(duplicated(state$samples[[config$obs_id_col]]))",
-      "duplicated:", 
+      "duplicated:",
       state$samples[[config$obs_id_col]][duplicated(state$samples[[config$obs_id_col]])],
       config=config)
   }
-      
+
+  ## the metadata and state$expression are matched by position everywhere
+  ##   downstream, so the columns checked above cannot be checked in isolation
+  ##   from the matrix: initialize() attaches the covariates to the columns as
+  ##   they stand, and a samples table in a different order, or with a different
+  ##   number of rows, quietly attaches them to the wrong observations. Nothing
+  ##   in initialize() looked, and f.check_state() is not reachable from here:
+  ##   it needs config$feat_col and config$obs_col, which initialize() only sets
+  ##   further down, after this function returns. The _id_col pair is what is
+  ##   available this early, and the checks just above are what make it usable.
+  ##   Before either check reads the dimnames:
+
+  f.check_expr_matrix(state, config, "f.check_parameters")
+
+  f.check_dimnames(state, config, "feat_id_col", fn_name="f.check_parameters")
+  f.check_dimnames(state, config, "obs_id_col", fn_name="f.check_parameters")
+
   return(TRUE)
 }
 
@@ -240,8 +256,15 @@ f.subset_covariates <- function(state, config) {
   }
   
   f.msg("subsetting sample metadata", config=config)
-  state$samples <- state$samples[, unique(c(config$obs_id_col, config$sample_id_col, vars))]
-  
+
+  ## drop=FALSE because the names below can come to one: config$obs_id_col and
+  ##   config$sample_id_col are the same column whenever there are no replicates,
+  ##   and a single covariate named by that same column leaves one name, at which
+  ##   point state$samples would come back a vector rather than a data.frame:
+
+  noms <- unique(c(config$obs_id_col, config$sample_id_col, vars))
+  state$samples <- state$samples[, noms, drop=FALSE]
+
   return(state)
 }
 
@@ -272,44 +295,19 @@ f.set_covariate_factor_levels <- function(state, config, types=NULL) {
       next
     }
 
-    ## NOTE: config$reference_levels is an atomic vector, so [[ throws on a
-    ##   name that is not present, rather than returning NULL:
+    ## the ordering rule itself is f.covariate_levels(): the declared reference
+    ##   level first and the remaining values sorted, or, for a covariate that is
+    ##   declared in neither config$reference_levels nor config$factor_levels, the
+    ##   ordering it already carries, which for a logical is FALSE, TRUE and for a
+    ##   factor is its own and is in neither case locale dependent. Shared with
+    ##   f.relevel_covariate() so that a run that reaches a design without coming
+    ##   through here resolves the levels the same way; initialize() discards
+    ##   config$factor_levels before calling this, so what is resolved here comes
+    ##   from config$reference_levels rather than from a previous initialize():
 
-    ref1 <- NULL
-    if(nom %in% names(config$reference_levels)) {
-      ref1 <- config$reference_levels[[nom]]
-    }
-
-    if(is.null(ref1)) {
-
-      ## logical covariates are ordered FALSE, TRUE, and a covariate that is
-      ##   already a factor carries its own level ordering; neither of these is
-      ##   locale dependent, so neither needs to be declared:
-
-      state$samples[[nom]] <- factor(state$samples[[nom]])
-
-    } else {
-
-      if(!(length(ref1) %in% 1 && is.character(ref1))) {
-        f.err("f.set_covariate_factor_levels: config$reference_levels[[nom]]",
-          "not scalar character, for nom:", nom, "\n", "value:", ref1,
-          "; class:", class(ref1), config=config)
-      }
-
-      ## only the reference level is declared, so the remaining levels are
-      ##   sorted; their order does not affect the reference level, but it does
-      ##   affect the order in which coefficients are reported:
-
-      lvls2 <- sort(unique(as.character(state$samples[[nom]])))
-      if(!(ref1 %in% lvls2)) {
-        f.err("f.set_covariate_factor_levels: reference level", ref1,
-          "declared in config$reference_levels is not among the values of",
-          "covariate", nom, ";", "\n", "its values:", lvls2, config=config)
-      }
-      state$samples[[nom]] <- as.character(state$samples[[nom]])
-      state$samples[[nom]] <- factor(state$samples[[nom]],
-        levels=c(ref1, setdiff(lvls2, ref1)))
-    }
+    state$samples[[nom]] <- factor(as.character(state$samples[[nom]]),
+      levels=f.covariate_levels(state$samples[[nom]], nom, config,
+        caller="f.set_covariate_factor_levels"))
 
     lvls <- levels(state$samples[[nom]])
     f.msg("covariate", nom, ": factor; levels:", lvls, "; reference:", lvls[1],
@@ -358,20 +356,33 @@ f.set_covariate_factor_levels <- function(state, config, types=NULL) {
 #'     \code{NA}. When \code{config$is_log_transformed} is \code{TRUE} the input
 #'     is already on a log-like scale, in which case zeros and negative values
 #'     are legitimate and no conversion is done; the caller is then responsible
-#'     for having marked non-detections as \code{NA}. Either way,
-#'     \code{config$is_log_transformed} is filled in if it was unset, so that
-#'     every downstream step finds the scale recorded there. Skipped when
-#'     \code{initialized=TRUE}, since an already initialized state may
-#'     legitimately hold negative (transformed) values.
+#'     for having marked non-detections as \code{NA}. The conversion is skipped
+#'     when \code{initialized=TRUE}, since an already initialized state may
+#'     legitimately hold negative (transformed) values, but
+#'     \code{config$is_log_transformed} is filled in either way if it was unset,
+#'     so that every downstream step finds the scale recorded there. Unset means
+#'     raw, and what was assumed is logged; the scale is never read out of the
+#'     values themselves.
+#'   Checks that the metadata lines up with \code{state$expression}, which
+#'     nothing else does this early: \code{state$features} must have one row per
+#'     row of the matrix and \code{state$samples} one row per column, and
+#'     \code{config$feat_id_col} and \code{config$obs_id_col} must agree with
+#'     \code{rownames(state$expression)} and
+#'     \code{colnames(state$expression)}. The two are matched by position
+#'     everywhere downstream, a column of the matrix being the observation
+#'     described by the corresponding row of \code{state$samples}, so a samples
+#'     table in a different order would otherwise have its covariates attached
+#'     to the wrong observations without complaint.
 #'   Flow is:
 #'     \tabular{l}{
 #'       1. \code{check_config()}. \cr
-#'       2. Settle missingness: raw zeros to \code{NA}; negative raw value is an error. \cr
-#'       3. Subset covariates in \code{config$frm}. \cr
-#'       4. Check feat_col and obs_col. \cr
-#'       5. Subset covariates of interest. \cr
-#'       6. Classify covariates and check their values. \cr
-#'       7. Set covariate factor levels. \cr
+#'       2. Check parameters and ids, and that the metadata lines up with the matrix. \cr
+#'       3. Settle missingness: raw zeros to \code{NA}; negative raw value is an error. \cr
+#'       4. Drop any dependent variable given on the left-hand side of \code{config$frm}. \cr
+#'       5. Set \code{config$feat_col} and \code{config$obs_col}, if unset. \cr
+#'       6. Subset covariates of interest. \cr
+#'       7. Classify covariates and check their values. \cr
+#'       8. Set covariate factor levels. \cr
 #'     }
 #'   If \code{initialized=FALSE}, then checks if \code{state$features} has 
 #'     columns with names in 
@@ -404,8 +415,13 @@ f.set_covariate_factor_levels <- function(state, config, types=NULL) {
 #'     \code{median_raw_col}       \cr \tab Column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
 #'     \code{n_features_expr_col}  \cr \tab Column in \code{state$samples} that corresponds to columns of \code{data_file_in}. \cr
 #'   }
-#' @param initialized Logical scalar indicating if \code{state} has already 
-#'   has filter statistics initialized. 
+#' @param initialized Logical scalar indicating if \code{state} has already
+#'   had filter statistics initialized. \code{TRUE} only relaxes checking: the
+#'   three statistic columns are no longer required to be absent, and the
+#'   missingness conversion is skipped, since the values may by then legitimately
+#'   be negative. \code{config$is_log_transformed} is still filled in if unset,
+#'   and the alignment of the metadata with \code{state$expression} is checked
+#'   either way.
 #' @param minimal Logical scalar indicating whether only minimal set of 
 #'   parameters needed for formula processing should be required.
 #' @return A list with the following two elements:
@@ -467,9 +483,33 @@ initialize <- function(state, config, initialized=F, minimal=F) {
   ##   be negative (transformed):
 
   if(!initialized) {
+
     out <- f.zeros_to_na(state, config)
     state <- out$state
     config <- out$config
+
+  } else if(!isTRUE(config$is_log_transformed)) {
+
+    ## f.zeros_to_na() is where config$is_log_transformed gets filled in, so
+    ##   skipping it left the key unset whenever the caller had not set it, and
+    ##   then nothing downstream could answer what scale the values are on: the
+    ##   imputers stop rather than guess. Unset means raw, the same rule
+    ##   f.zeros_to_na() applies and the h0testr::new_config() default; the
+    ##   scale is deliberately not read out of the values themselves, for the
+    ##   reason recorded at f.zeros_to_na(). Only the conversion is skipped
+    ##   here, not the record of what was assumed:
+
+    if(is.null(config$is_log_transformed)) {
+      f.msg("initialize: initialized=TRUE, so state$expression is left as it",
+        "is: no zeros converted to NA and no check for negative values;", "\n",
+        "config$is_log_transformed was unset, and is recorded as FALSE (raw),",
+        "matching the h0testr::new_config() default;", "\n",
+        "set it to TRUE before calling if the values are already on a log-like",
+        "scale, as they are once h0testr::normalize() has run",
+        config=config)
+    }
+
+    config$is_log_transformed <- FALSE
   }
 
   ## the dependent variable is always the expression values of one feature, so
@@ -525,6 +565,14 @@ initialize <- function(state, config, initialized=F, minimal=F) {
   types <- f.covariate_types(state, config)
   f.check_covariate_values(state, config, types=types)
   config$covariate_types <- types
+
+  ## any cached level ordering is discarded for the same reason as the cached
+  ##   classification above: initialize() is authoritative, so the levels it sets
+  ##   have to come from config$reference_levels as it stands now rather than from
+  ##   what a previous initialize() left in config$factor_levels, which
+  ##   f.covariate_levels() would otherwise prefer:
+
+  config$factor_levels <- NULL
 
   state <- f.set_covariate_factor_levels(state, config, types=types)
 

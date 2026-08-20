@@ -1338,7 +1338,7 @@ test_msqrob <- function(state, config, maxit=100, aggregate=FALSE) {
 
   ## msqrob2::msqrob() builds its own design, as model.matrix(config$frm,
   ##   colData(obj)), so the factor covariates of config$frm have to reach colData()
-  ##   with the level ordering initialize() resolved: a character column there is
+  ##   with the level ordering config resolves: a character column there is
   ##   re-leveled by sorting, and the coefficient this function then asks for by name
   ##   no longer exists, which msqrob2::hypothesisTest() reports as a table of NAs
   ##   rather than as an error. Covariates outside config$frm play no part in the fit,
@@ -1853,6 +1853,15 @@ test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit
   ##   two sided config$frm, whose response model.matrix() would have to find in
   ##   col_data, nor for a formula writing an interaction ahead of its variables,
   ##   which changes the order stats::model.matrix() names the interaction column in:
+
+  ## proDA::proDA() builds its own design from col_data and the formula, so the
+  ##   covariates have to reach it with the level ordering config resolves, exactly
+  ##   as they reach f.design_test_cols() below; otherwise the two designs differ in
+  ##   which level is the reference, which the column name check further down
+  ##   reports rather than letting it through. A no-op for a run that came through
+  ##   test(); this function is exported, so it does not rely on that:
+
+  state <- f.relevel_state_covariates(state, config, caller="test_proda")
 
   design <- f.design_test_cols(state, config)
   cols_pick <- colnames(design$X)[design$cols_test]
@@ -3013,10 +3022,11 @@ test_prolfqua <- function(state, config, is_log_transformed=NULL, mixed=FALSE,
   ##   instead lets stats::model.matrix() re-code the remaining factors to full rank
   ##   and restore the span that was meant to be removed, leaving nothing to test;
   ##   see f.design_test_cols(), which every other engine here uses for the same
-  ##   reason. initialize() has already ordered the levels of each factor covariate
-  ##   with the declared reference level first, and they are ordered again here so
-  ##   that a direct caller who has not run initialize() also gets the declared
-  ##   reference level rather than one re-derived by sorting:
+  ##   reason. The levels of each factor covariate are ordered with the declared
+  ##   reference level first before the design is built. test() and
+  ##   f.relevel_state_covariates() have already done that for a run that came
+  ##   through them, and redoing it is a no-op; it is kept because this function is
+  ##   exported and a direct caller of it reaches no other place that does:
 
   types <- f.covariate_types(state, config)
   st_fit <- state
@@ -4229,6 +4239,20 @@ test <- function(state, config, method=NULL,
 
   f.note_ignored_settings(method, config)
   f.note_trend(method, trend, trend_given, config)
+
+  ## the factor covariates of config$frm are rebuilt with the level ordering
+  ##   config declares, before any design is derived and before the state reaches
+  ##   an engine, so that every method reports the declared reference level rather
+  ##   than one re-derived by sorting. initialize() has already done this, and
+  ##   redoing it is a no-op there; what it is for is a direct caller of test(),
+  ##   for whom config$reference_levels used to be silently ignored. It also drops
+  ##   the factor levels no remaining observation is at, which is not a no-op after
+  ##   initialize(): a filtering step can empty a level that was there when
+  ##   initialize() recorded config$factor_levels, and model.matrix() codes such a
+  ##   level as a column of zeros, which f.design_check_rank() refuses. See
+  ##   f.relevel_state_covariates():
+
+  state <- f.relevel_state_covariates(state, config, caller="test")
 
   ## every method below tests config$test_term against a reduced model, whether
   ##   by dropping terms or by contrasting coefficients, so none of them has

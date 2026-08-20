@@ -16,7 +16,11 @@ impute_knn(state, config, k = NULL, rowmax = 0.5, colmax = 0.8, maxp = 1500)
 
 \item{config}{List with configuration values. Does not use any keys so can pass empty list.}
 
-\item{k}{Number of nearest neighbors (features) to use, with \code{1 <= k < n_features}. Default: \code{10}.}
+\item{k}{Number of nearest neighbor features to average, \code{k >= 1}.
+Defaults to \code{config$impute_k}, and to \code{round(sqrt(n_features))}
+when that is unset. \code{round(sqrt(n_features))} is also a cap: a larger
+value, from either source, is reduced to it and reported, rather than being
+refused or passed through.}
 
 \item{rowmax}{Maximum proportion missing per row, else use row means; \code{0 < rowmax <= 1}.}
 

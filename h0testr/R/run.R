@@ -273,16 +273,34 @@ f.tune2 <- function(state, config, is_log_transformed=NULL) {
 #'     \code{N} runs (we recommend \code{N >= 20}) with 
 #'     \code{config$permute_var} set to the name of a variable in 
 #'     \code{config$test_term}.
-#'   Currently tunes the following \code{config} values: \code{normalization_method}, 
-#'     \code{normalization_quantile}, \code{impute_method}, \code{impute_quantile}, 
-#'     \code{impute_scale}, \code{impute_span}, \code{impute_k}, 
-#'     \code{impute_npcs}, and \code{test_method}. Notably, does not currently 
-#'     tune \code{impute_alpha}, \code{impute_aug_steps}, or \code{run_order}. 
-#'   See documentation for \code{h0testr::new_config()} 
-#'     for more detailed description of configuration parameters. 
+#'   Tunes the following \code{config} values: \code{normalization_method},
+#'     \code{normalization_quantile}, \code{impute_method}, \code{impute_quantile},
+#'     \code{impute_scale}, \code{impute_span}, \code{impute_k}, \code{impute_npcs}, and
+#'     \code{test_method}. Every other setting is taken from \code{config} as given and held
+#'     fixed for the whole sweep, so a sweep says nothing about it:
+#'     \code{normalization_span}, \code{impute_floor_offset}, \code{impute_alpha},
+#'     \code{impute_n_pts}, \code{impute_aug_steps}, \code{feature_aggregation},
+#'     \code{n_samples_min}, \code{n_features_min}, \code{estimability},
+#'     \code{df_resid_min}, \code{test_prior_df}, \code{test_moderate}, \code{test_trend},
+#'     \code{test_random_obs} and \code{test_ridge}. To compare two values of one of those,
+#'     run one sweep per value.
+#'   \code{config$run_order} is not read at all: the step sequence above is fixed. A
+#'     \code{config$run_order} that reorders or omits steps, which \code{h0testr::run()}
+#'     honors, therefore sweeps a different pipeline than the one it names. The one
+#'     departure from the sequence is \code{combine_features()}, which is skipped for the
+#'     test methods that take feature level input; see \code{h0testr::run()}.
+#'   See documentation for \code{h0testr::new_config()}
+#'     for more detailed description of configuration parameters.
 #' @param config List with configuration values like those returned by \code{new_config()}.
-#' @param normalization_methods Character vector of methods to try. One or more of:
-#'   \code{c("RLE", "upperquartile", "q50", "q75", "quantiles.robust", "cpm", "max", "div.mean", "TMMwsp", "vsn", "qquantile", "log2", "none")}.
+#' @param normalization_methods Character vector of methods to try. One or more element of
+#'   \code{h0testr::normalize_methods()}, or \code{"q50"} or \code{"q75"}, which are
+#'   \code{"quantile"} at a \code{normalization_quantile} of \code{0.5} and \code{0.75}.
+#'   Defaults to every method \code{h0testr::normalize_methods()} names except
+#'   \code{"loess"}, with \code{"quantile"} entered as those two. \code{"loess"} is left
+#'   out because \code{h0testr::normalize()} runs it on raw intensities and then
+#'   \code{log2(x + 1)}, which turns the negative fitted values
+#'   \code{limma::normalizeCyclicLoess()} returns for log scale input into \code{NaN};
+#'   name it explicitly to sweep it anyway.
 #' @param impute_methods Character vector of methods to try. One or more of:
 #'   \code{c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", "knn", "min_det", "min_prob", "qrilc", "bpca", "ppca", "svdImpute", "lls", "missforest", "none")}.
 #' @param impute_quantiles Numeric vector of quantiles to try for \code{impute_unif_*} methods. 
@@ -386,9 +404,18 @@ f.tune2 <- function(state, config, is_log_transformed=NULL) {
 
 tune <- function(
     config,  
-    normalization_methods=c("RLE", "upperquartile", "q50", "q75", 
-      "quantiles.robust", "cpm", "max", "div.mean", "TMMwsp", "vsn", 
-      "qquantile", "log2", "none"),
+    ## every method normalize_methods() names but one, with "quantile" entered as the
+    ##   "q50" and "q75" that f.tune1() turns back into it, since a quantile is a second
+    ##   parameter and the sweep varies one name at a time. The exception is "loess":
+    ##   normalize() hands raw intensities to limma::normalizeCyclicLoess(), which expects
+    ##   log scale input and returns fitted values below -1 for some of them, and the
+    ##   log2(x + 1) normalize() then applies turns those into NaN. On the rdtc_seer2
+    ##   protein groups that is 21330 new NaN and 41350 finite values left of 195680, so a
+    ##   sweep cell for it would be scored on a mostly destroyed matrix rather than
+    ##   skipped. Name it explicitly to sweep it anyway:
+    normalization_methods=c("RLE", "upperquartile", "q50", "q75",
+      "quantiles.robust", "cpm", "max", "sum", "div.mean", "div.median",
+      "TMM", "TMMwsp", "vsn", "qquantile", "log2", "none"),
     impute_methods=c("sample_lod", "unif_sample_lod", "unif_global_lod", 
       "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", 
       "knn", "min_det", "min_prob", "qrilc", "bpca", "ppca", "svdImpute", 

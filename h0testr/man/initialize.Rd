@@ -33,8 +33,13 @@ initialize(state, config, initialized = F, minimal = F)
   \code{n_features_expr_col}  \cr \tab Column in \code{state$samples} that corresponds to columns of \code{data_file_in}. \cr
 }}
 
-\item{initialized}{Logical scalar indicating if \code{state} has already 
-has filter statistics initialized.}
+\item{initialized}{Logical scalar indicating if \code{state} has already
+had filter statistics initialized. \code{TRUE} only relaxes checking: the
+three statistic columns are no longer required to be absent, and the
+missingness conversion is skipped, since the values may by then legitimately
+be negative. \code{config$is_log_transformed} is still filled in if unset,
+and the alignment of the metadata with \code{state$expression} is checked
+either way.}
 
 \item{minimal}{Logical scalar indicating whether only minimal set of 
 parameters needed for formula processing should be required.}
@@ -91,20 +96,33 @@ Checks to make sure columns specified in \code{config} parameters are
     \code{NA}. When \code{config$is_log_transformed} is \code{TRUE} the input
     is already on a log-like scale, in which case zeros and negative values
     are legitimate and no conversion is done; the caller is then responsible
-    for having marked non-detections as \code{NA}. Either way,
-    \code{config$is_log_transformed} is filled in if it was unset, so that
-    every downstream step finds the scale recorded there. Skipped when
-    \code{initialized=TRUE}, since an already initialized state may
-    legitimately hold negative (transformed) values.
+    for having marked non-detections as \code{NA}. The conversion is skipped
+    when \code{initialized=TRUE}, since an already initialized state may
+    legitimately hold negative (transformed) values, but
+    \code{config$is_log_transformed} is filled in either way if it was unset,
+    so that every downstream step finds the scale recorded there. Unset means
+    raw, and what was assumed is logged; the scale is never read out of the
+    values themselves.
+  Checks that the metadata lines up with \code{state$expression}, which
+    nothing else does this early: \code{state$features} must have one row per
+    row of the matrix and \code{state$samples} one row per column, and
+    \code{config$feat_id_col} and \code{config$obs_id_col} must agree with
+    \code{rownames(state$expression)} and
+    \code{colnames(state$expression)}. The two are matched by position
+    everywhere downstream, a column of the matrix being the observation
+    described by the corresponding row of \code{state$samples}, so a samples
+    table in a different order would otherwise have its covariates attached
+    to the wrong observations without complaint.
   Flow is:
     \tabular{l}{
       1. \code{check_config()}. \cr
-      2. Settle missingness: raw zeros to \code{NA}; negative raw value is an error. \cr
-      3. Subset covariates in \code{config$frm}. \cr
-      4. Check feat_col and obs_col. \cr
-      5. Subset covariates of interest. \cr
-      6. Classify covariates and check their values. \cr
-      7. Set covariate factor levels. \cr
+      2. Check parameters and ids, and that the metadata lines up with the matrix. \cr
+      3. Settle missingness: raw zeros to \code{NA}; negative raw value is an error. \cr
+      4. Drop any dependent variable given on the left-hand side of \code{config$frm}. \cr
+      5. Set \code{config$feat_col} and \code{config$obs_col}, if unset. \cr
+      6. Subset covariates of interest. \cr
+      7. Classify covariates and check their values. \cr
+      8. Set covariate factor levels. \cr
     }
   If \code{initialized=FALSE}, then checks if \code{state$features} has 
     columns with names in 

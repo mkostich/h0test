@@ -212,7 +212,14 @@ f.frm_min_noint_cols <- function(config) {
 #'     missing settings.
 #'   Beyond the type of each value, the combinations that no other setting can rescue
 #'     are refused here rather than at the step that would meet them:
-#'     \code{config$test_method} outside \code{h0testr::test_methods()};
+#'     \code{config$test_method} outside \code{h0testr::test_methods()},
+#'     \code{config$normalization_method} outside \code{h0testr::normalize_methods()},
+#'     \code{config$impute_method} outside \code{h0testr::impute_methods()}, and
+#'     \code{config$feature_aggregation} outside \code{"medianPolish"},
+#'     \code{"robustSummary"} and \code{"none"}, each of which would otherwise be found
+#'     only when that step ran, which for \code{config$impute_method} is after the whole
+#'     rest of the workflow; \code{""} is allowed for all four and means unset, the step's
+#'     own \code{method} argument naming the method instead;
 #'     \code{config$contrast} and \code{config$test_term} both naming something to
 #'     test, one run testing one hypothesis; \code{config$test_ridge=TRUE} on a
 #'     mean model that cannot carry a penalty, which needs at least two non-intercept
@@ -245,6 +252,18 @@ f.frm_min_noint_cols <- function(config) {
 #' ## invalid: not one of h0testr::test_methods(); throws an error:
 #' config <- h0testr::new_config()
 #' config$test_method <- "trrend"
+#' try(h0testr::check_config(config))
+#'
+#' ## invalid: not one of h0testr::impute_methods(); throws an error here rather than
+#' ##   after the rest of the workflow has already run:
+#' config <- h0testr::new_config()
+#' config$impute_method <- "unif_sample_lodd"
+#' try(h0testr::check_config(config))
+#'
+#' ## invalid: a config written against a version that had the key; says what happened
+#' ##   to it rather than only naming it:
+#' config <- h0testr::new_config()
+#' config$feature_aggregation_scaled <- TRUE
 #' try(h0testr::check_config(config))
 #'
 #' ## invalid: the penalty needs at least two non-intercept columns, and a two level
@@ -336,7 +355,11 @@ check_config <- function(config) {
   retired <- c(
     zeros_to_na=paste("use is_log_transformed instead, with the opposite sense:",
       "is_log_transformed=FALSE means the input is raw, so zeros become NA and",
-      "negative values are an error")
+      "negative values are an error"),
+    feature_aggregation_scaled=paste("rescaling before aggregation is no longer",
+      "supported, having only ever been refused: it divided each feature by its",
+      "own mean, which is a raw scale operation, but aggregation requires log",
+      "scale data; drop the key. See h0testr::combine_features()")
   )
   for(nom in names(retired)) {
     if(nom %in% noms) {
@@ -513,6 +536,32 @@ check_config <- function(config) {
     }
   }
 
+  ## config$normalization_method, config$impute_method and config$feature_aggregation name
+  ##   the methods normalize(), impute() and combine_features() dispatch to, and a name that
+  ##   is not one of them is settled by the configuration alone, so it is refused here
+  ##   rather than at the step that would meet it. That matters most for a misspelled
+  ##   impute_method: impute() is the last step of the default config$run_order, so the whole
+  ##   pipeline runs before the typo is found. Empty is allowed and means unset, the step's
+  ##   own method= argument naming the method instead; NA is not, a missing setting being
+  ##   expressed by its absence. Only the name is checked: whether the method suits the data
+  ##   it is given stays with the step, which is the one that has the data:
+
+  method_params <- list(
+    normalization_method=normalize_methods(),
+    impute_method=impute_methods(),
+    feature_aggregation=c("medianPolish", "robustSummary", "none")
+  )
+
+  for(nom in names(method_params)) {
+    if(!(nom %in% names(config))) next
+    if(is.na(config[[nom]]) || !(config[[nom]] %in% c(method_params[[nom]], ""))) {
+      f.err("check_config: unexpected", paste0(nom, ":"), config[[nom]], "\n",
+        "allowed:", method_params[[nom]], "\n",
+        "or \"\", meaning unset, with the step's method= argument naming the method",
+        "instead", config=config)
+    }
+  }
+
   ## config$run_order names the pipeline steps run() walks, fetching each with get(), so
   ##   a name that is not one of them fails as "object not found" at the point that step
   ##   would have run, with every step before it already done and its output already
@@ -656,12 +705,16 @@ report_config <- function(config) {
     v1 <- config[[k1]]
     if(is.list(v1)) {
       for(k2 in names(v1)) {
-        f.msg(k1, ":", k2, ":", paste(as.character(v1[[k2]]), sep=", "), config=config)
+        f.msg(k1, ":", k2, ":", paste(as.character(v1[[k2]]), collapse=", "), config=config)
       }
     } else if(!is.null(names(v1))) {
       ## named vectors (e.g. config$covariate_types) reported as name=value:
       f.msg(k1, ":", paste(names(v1), as.character(v1), sep="="), config=config)
-    } else f.msg(k1, ":", paste(as.character(v1), sep=", "), config=config)
+    } else if(f.is_formula(v1)) {
+      ## as.character() of a formula splits it at the tilde, which comma-joining
+      ##   would then report as "~, age + sex"; deparse() keeps it one expression:
+      f.msg(k1, ":", paste(deparse(v1), collapse=" "), config=config)
+    } else f.msg(k1, ":", paste(as.character(v1), collapse=", "), config=config)
   }
   
   ## check config$test_term compatible with config$frm; throws error if not,

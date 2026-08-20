@@ -14,7 +14,15 @@ impute_sample_lod(state, config)
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration values. No keys used, so can send empty list.}
+\item{config}{List with configuration values. Uses the following key:
+\tabular{ll}{
+  \code{is_log_transformed} \cr \tab Whether the data are on a log-like scale; decides whether an imputed value at or below zero is an error. \cr
+}
+This function has no \code{is_log_transformed} argument of its own, the
+  minimum of an observation being its minimum on either scale, so the key
+  is the only place the scale can come from and must be set.
+  \code{h0testr::initialize()} sets it and \code{h0testr::normalize()}
+  updates it.}
 }
 \value{
 An updated \code{state} list with the following elements:
@@ -29,10 +37,14 @@ Impute missing values as the minimum observed value in the corresponding
     observation.
 }
 \details{
-Missing values are set to an estimate observation limit of 
-  detection (LOD). Only \code{NA} values are considered as missing, so if you 
-  want \code{0} to be considered missing, and have \code{0} in the data, do 
+Missing values are set to an estimate observation limit of
+  detection (LOD). Only \code{NA} values are considered as missing, so if you
+  want \code{0} to be considered missing, and have \code{0} in the data, do
   something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing.
+  An observation with no measured value has no minimum to stand in, so it
+    cannot be imputed and is an error rather than a column of \code{Inf}.
+    \code{h0testr::filter()} removes such observations, so this normally only
+    arises when the imputer is called on its own.
 }
 \examples{
 set.seed(101)
@@ -41,7 +53,9 @@ exprs <- log2(exprs + 1)
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list()
+## the data were log transformed above, so say so; there is no
+##   is_log_transformed argument here, so the config is what says it:
+config <- list(is_log_transformed=TRUE)
 state2 <- h0testr::impute_sample_lod(state, config)
 summary(c(state$expression))   ## note number of NAs
 summary(c(state2$expression))  ## note number of NAs

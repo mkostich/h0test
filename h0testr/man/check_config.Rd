@@ -20,7 +20,14 @@ Only checks parameters in the configuration. Does not complain about
     missing settings.
   Beyond the type of each value, the combinations that no other setting can rescue
     are refused here rather than at the step that would meet them:
-    \code{config$test_method} outside \code{h0testr::test_methods()};
+    \code{config$test_method} outside \code{h0testr::test_methods()},
+    \code{config$normalization_method} outside \code{h0testr::normalize_methods()},
+    \code{config$impute_method} outside \code{h0testr::impute_methods()}, and
+    \code{config$feature_aggregation} outside \code{"medianPolish"},
+    \code{"robustSummary"} and \code{"none"}, each of which would otherwise be found
+    only when that step ran, which for \code{config$impute_method} is after the whole
+    rest of the workflow; \code{""} is allowed for all four and means unset, the step's
+    own \code{method} argument naming the method instead;
     \code{config$contrast} and \code{config$test_term} both naming something to
     test, one run testing one hypothesis; \code{config$test_ridge=TRUE} on a
     mean model that cannot carry a penalty, which needs at least two non-intercept
@@ -52,6 +59,18 @@ try(h0testr::check_config(config))
 ## invalid: not one of h0testr::test_methods(); throws an error:
 config <- h0testr::new_config()
 config$test_method <- "trrend"
+try(h0testr::check_config(config))
+
+## invalid: not one of h0testr::impute_methods(); throws an error here rather than
+##   after the rest of the workflow has already run:
+config <- h0testr::new_config()
+config$impute_method <- "unif_sample_lodd"
+try(h0testr::check_config(config))
+
+## invalid: a config written against a version that had the key; says what happened
+##   to it rather than only naming it:
+config <- h0testr::new_config()
+config$feature_aggregation_scaled <- TRUE
 try(h0testr::check_config(config))
 
 ## invalid: the penalty needs at least two non-intercept columns, and a two level

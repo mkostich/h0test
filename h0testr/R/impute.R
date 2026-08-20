@@ -5,9 +5,23 @@
 ##   non-positive imputed value used to be nudged upward by repeated
 ##   log2(2^x + 1), which invents a measurement out of one the imputer could not
 ##   produce, so it is now reported instead: the value is wrong, and which
-##   imputer produced it is the useful thing to know. is_log_transformed follows
-##   the usual resolution, so an imputer that has the argument passes it and one
-##   that does not falls back to config$is_log_transformed:
+##   imputer produced it is the useful thing to know. An infinite value is now
+##   reported for the same reason, having previously been replaced by a draw
+##   between the largest finite value and twice it. That replacement was wrong
+##   three ways. It sent -Inf to the top of the scale rather than the bottom.
+##   Being multiplicative, it moved a value downward instead of upward whenever
+##   the largest finite value was negative, which it can be on a log scale. And
+##   the case that actually arises is a feature or observation with nothing
+##   measured, where the imputer had no signal to work from: a missing value is
+##   a below-detection value, so the top of the scale is the opposite of where a
+##   substitute belongs. An imputer that cannot produce a usable value should
+##   say so, as impute_unif_sample_lod() does for an unmeasured observation,
+##   rather than supply a bright one that no later check can tell from a
+##   measurement. is_log_transformed follows the usual resolution, so an imputer
+##   that has the argument passes it and one that does not falls back to
+##   config$is_log_transformed. Note that on the raw scale a -Inf is reported by
+##   the positivity check below, being at or below zero, and never reaches the
+##   finiteness check:
 
 f.pos_mat <- function(mat, config, is_log_transformed=NULL, fn_name="f.pos_mat") {
 
@@ -31,13 +45,41 @@ f.pos_mat <- function(mat, config, is_log_transformed=NULL, fn_name="f.pos_mat")
     }
   }
 
-  ## infinite values are unusable on either scale; assigned at random between
-  ##   the largest finite value and twice it:
+  ## infinite values are unusable on either scale, and are reported rather than
+  ##   replaced; see above:
 
   i <- is.infinite(mat)
   i[is.na(i)] <- F
-  maxval <- max(mat[!i], na.rm=T)
-  mat[i] <- maxval * (1 + stats::runif(sum(i)))
+
+  if(any(c(i))) {
+
+    if(is.matrix(mat)) {
+      pos <- which(i, arr.ind=T)
+      rows <- rownames(mat)[pos[, 1]]
+      if(is.null(rownames(mat))) rows <- as.character(pos[, 1])
+      cols <- colnames(mat)[pos[, 2]]
+      if(is.null(colnames(mat))) cols <- as.character(pos[, 2])
+      where <- paste0("  features: ", length(unique(rows)), " affected, first: ",
+        paste(utils::head(unique(rows), 3), collapse=", "),
+        "; observations: ", length(unique(cols)), " affected, first: ",
+        paste(utils::head(unique(cols), 3), collapse=", "))
+    } else {
+      where <- paste("  positions:",
+        paste(utils::head(which(i), 5), collapse=", "))
+    }
+
+    f.err(fn_name, ":", sum(i), "of", length(mat), "imputed values are",
+      "infinite, so the imputer had nothing to work from where they came;",
+      "\n",
+      "  an infinite value is not a measurement and is not substituted for:",
+      "a missing value is a below-detection value, so a usable substitute",
+      "would sit at the bottom of the scale, which is what the imputer could",
+      "not supply;", "\n",
+      where, "\n",
+      "  the usual cause is a feature or observation with no measured value at",
+      "all; drop those with h0testr::filter(), or try a different",
+      "config$impute_method", config=config)
+  }
 
   return(mat)
 }
@@ -303,17 +345,29 @@ impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
 #' @description
 #'   Impute missing values as the minimum observed value in the corresponding 
 #'     observation.
-#' @details Missing values are set to an estimate observation limit of 
-#'   detection (LOD). Only \code{NA} values are considered as missing, so if you 
-#'   want \code{0} to be considered missing, and have \code{0} in the data, do 
+#' @details Missing values are set to an estimate observation limit of
+#'   detection (LOD). Only \code{NA} values are considered as missing, so if you
+#'   want \code{0} to be considered missing, and have \code{0} in the data, do
 #'   something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing.
+#'   An observation with no measured value has no minimum to stand in, so it
+#'     cannot be imputed and is an error rather than a column of \code{Inf}.
+#'     \code{h0testr::filter()} removes such observations, so this normally only
+#'     arises when the imputer is called on its own.
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
-#'   } 
-#' @param config List with configuration values. No keys used, so can send empty list.
+#'   }
+#' @param config List with configuration values. Uses the following key:
+#'   \tabular{ll}{
+#'     \code{is_log_transformed} \cr \tab Whether the data are on a log-like scale; decides whether an imputed value at or below zero is an error. \cr
+#'   }
+#'   This function has no \code{is_log_transformed} argument of its own, the
+#'     minimum of an observation being its minimum on either scale, so the key
+#'     is the only place the scale can come from and must be set.
+#'     \code{h0testr::initialize()} sets it and \code{h0testr::normalize()}
+#'     updates it.
 #' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -327,7 +381,9 @@ impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
 #' feats <- data.frame(feature_id=rownames(exprs))
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list()
+#' ## the data were log transformed above, so say so; there is no
+#' ##   is_log_transformed argument here, so the config is what says it:
+#' config <- list(is_log_transformed=TRUE)
 #' state2 <- h0testr::impute_sample_lod(state, config)
 #' summary(c(state$expression))   ## note number of NAs
 #' summary(c(state2$expression))  ## note number of NAs
@@ -336,17 +392,33 @@ impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
 
 impute_sample_lod <- function(state, config) {
 
+  check_config(config)
+
   if(!is.matrix(state$expression)) {
     f.err("impute_sample_lod: !is.matrix(state$expression)", "\n",
       "class(state$expression):", class(state$expression), config=config)
   }
-  
-  f <- function(v) {
-    v[is.na(v)] <- min(v, na.rm=T)
-    v
+
+  ## written a column at a time rather than through apply(., 2, ...), which
+  ##   returns a plain vector when the matrix has a single feature: the
+  ##   per-column function gives one value per column then, so apply() has no
+  ##   second dimension to keep, and the dim and dimnames every caller expects
+  ##   were lost. impute_unif_sample_lod() writes in place for the same reason.
+  ##   An observation with no measured value has no minimum to stand in, and
+  ##   min(numeric(0)) is Inf, so this used to return a column of Inf that
+  ##   nothing looked at: f.pos_mat() is the check that catches it, and this was
+  ##   the one imputer that did not call it:
+
+  mat <- state$expression
+
+  for(k in seq_len(ncol(mat))) {
+    i <- is.na(mat[, k])
+    if(any(i)) mat[i, k] <- min(mat[!i, k])
   }
-  
-  state$expression <- apply(state$expression, 2, f)
+
+  mat <- f.pos_mat(mat, config, fn_name="impute_sample_lod")
+  state$expression <- mat
+
   return(state)
 }
 
@@ -1082,7 +1154,11 @@ impute_glmnet <- function(state, config, is_log_transformed=NULL,
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Does not use any keys so can pass empty list.
-#' @param k Number of nearest neighbors (features) to use, with \code{1 <= k < n_features}. Default: \code{10}.
+#' @param k Number of nearest neighbor features to average, \code{k >= 1}.
+#'   Defaults to \code{config$impute_k}, and to \code{round(sqrt(n_features))}
+#'   when that is unset. \code{round(sqrt(n_features))} is also a cap: a larger
+#'   value, from either source, is reduced to it and reported, rather than being
+#'   refused or passed through.
 #' @param rowmax Maximum proportion missing per row, else use row means; \code{0 < rowmax <= 1}.
 #' @param colmax Maximum proportion missing per column, else use column means; \code{0 < colmax <= 1}.
 #' @param maxp Scalar max number of genes per imputation block; \code{0 < maxp <= n_features}.
@@ -1713,13 +1789,23 @@ impute_methods <- function() {
 #' @description
 #'   Impute missing values in \code{state$expression} according to settings
 #'     in \code{config}.
-#' @details 
-#'   Imputes missing values using a method and parameters specified in 
-#'     \code{config}. Assumes expression data have been previously
-#'     \code{log(x+1)} transformed. If you want \code{0} to be considered missing, 
-#'     and have \code{0} in the data, do something like 
-#'     \code{exprs[exprs \%in\% 0] <- NA} prior to imputing. See invidual 
-#'     \code{impute_*} methods for more details.
+#' @details
+#'   Imputes missing values using a method and parameters specified in
+#'     \code{config}. The scale of the data is not assumed: it comes from the
+#'     \code{is_log_transformed} argument or from
+#'     \code{config$is_log_transformed}, which \code{h0testr::initialize()} sets
+#'     and \code{h0testr::normalize()} updates, and whichever answers is recorded
+#'     in the returned \code{config} and passed to the method, so that methods
+#'     without an \code{is_log_transformed} argument of their own still see it.
+#'     Methods that need log scale data transform and back-transform around
+#'     their own fit; see the individual \code{impute_*} methods.
+#'   Only \code{NA} is missing. If you want \code{0} to be considered missing,
+#'     and have \code{0} in the data, do something like
+#'     \code{exprs[exprs \%in\% 0] <- NA} prior to imputing;
+#'     \code{h0testr::initialize()} does this for raw input.
+#'   An imputed value that cannot be a measurement is an error rather than a
+#'     value nudged into range: at or below zero on the raw scale, or infinite on
+#'     either scale, the latter meaning the method had no signal to work from.
 #'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{read_data()}:
@@ -1738,7 +1824,7 @@ impute_methods <- function() {
 #'     \code{impute_scale}      \cr \tab Used if parameter \code{scale.} is unset. \cr
 #'     \code{impute_span}       \cr \tab Used if parameter \code{span} is unset. \cr
 #'     \code{impute_k}          \cr \tab Used if parameter \code{k} is unset. \cr
-#'     \code{impute_n_pcs}      \cr \tab Used if parameter \code{n_pcs} is unset. \cr
+#'     \code{impute_npcs}       \cr \tab Used if parameter \code{n_pcs} is unset. \cr
 #'     \code{impute_aug_steps}  \cr \tab Used if parameter \code{aug_steps} is unset. \cr
 #'     \code{impute_n_pts}      \cr \tab Used if parameter \code{n_pts} is unset. \cr
 #'   }

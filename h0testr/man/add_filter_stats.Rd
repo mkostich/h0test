@@ -33,9 +33,16 @@ Adds filtering-related statistics to \code{state$features},
     and \code{state$samples}.
 }
 \details{
-Wrapper for \code{samples_per_feature()}, \code{feature_median_expression()}, 
-    \code{features_per_sample()}. Also reports quantiles of distributions. 
-  See documentation for \code{h0testr::new_config()} 
+Wrapper for \code{samples_per_feature()}, \code{feature_median_expression()},
+    \code{features_per_sample()}. Also reports quantiles of distributions.
+  Each statistic is written into a metadata column by position, so
+    \code{config$feat_col} and \code{config$obs_col} have to name the columns holding
+    the ids that \code{rownames(state$expression)} and
+    \code{colnames(state$expression)} carry, and the two have to agree. A key that
+    names no column, which includes the \code{""} that \code{h0testr::new_config()}
+    ships, a \code{state$expression} without dimnames, and a genuine mismatch are all
+    errors. \code{h0testr::initialize()} sets both keys.
+  See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.
 }
 \examples{

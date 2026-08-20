@@ -312,9 +312,16 @@ filter_features_by_estimability <- function(state, config, estimability=NULL,
   ##   asked for, measured over all observations; derived by the same helper the
   ##   hypothesis tests use, so the reduced model screened here is the one that
   ##   will actually be tested. Throws an informative error if config$test_term
-  ##   does not fit config$frm, or if the test it names is vacuous:
+  ##   does not fit config$frm, or if the test it names is vacuous. The covariates
+  ##   are releveled first, for the same reason test() relevels them, and into a
+  ##   state of their own: which features are estimable has to be decided on the
+  ##   design that will be fitted, but this function returns a filtered state
+  ##   rather than a refitted one, so the classes of the columns it was given are
+  ##   left alone. See f.relevel_state_covariates():
 
-  design <- f.design_test_cols(state, config)
+  st_fit <- f.relevel_state_covariates(state, config,
+    caller="filter_features_by_estimability")
+  design <- f.design_test_cols(st_fit, config)
   X <- design$X
   X_red <- design$X_red
   cols_test <- design$cols_test
@@ -763,13 +770,28 @@ f.prefilter_features <- function(state, min1=3, min2=4) {
 
 #' Prefilter data
 #' @description
-#'   Adds filtering-related statistics to \code{state$features}, 
-#'     and \code{state$samples}.
-#' @details 
-#'   Wrapper for \code{samples_per_feature()}, \code{feature_median_expression()}, 
-#'     \code{features_per_sample()}. Also reports quantiles of distributions. 
-#'   See documentation for \code{h0testr::new_config()} 
-#'     for more detailed description of configuration parameters. 
+#'   Remove features and observations too sparse to be worth carrying through
+#'     normalization and aggregation.
+#' @details
+#'   A cheap first pass, meant to run before anything has been normalized. It removes
+#'     features with fewer than 3 distinct non-\code{NA} values or fewer than 4
+#'     non-\code{NA} values, which leaves the possibility, though not the guarantee, of
+#'     two distinct values in one group and two values in another, and then removes
+#'     observations with fewer than \code{n_features_min} non-\code{NA} values. Neither
+#'     screen is a statement about \code{config$frm}: the filtering that knows the design
+#'     is \code{h0testr::filter()}, which runs after normalization and aggregation.
+#'   \code{config$n_samples_min} and \code{config$n_features_min} are deliberately not
+#'     consulted here. They are the thresholds of \code{h0testr::filter()}, and they are
+#'     meant to be applied to the aggregated data that step sees, not to the precursor
+#'     level table this one gets: \code{config$n_features_min} in particular defaults to
+#'     1000, which is a sensible count of protein groups per observation and would
+#'     discard nearly every observation if applied here. The feature thresholds above are
+#'     therefore fixed, and \code{n_features_min} is this function's own argument.
+#'   A value is missing if and only if it is \code{NA}; raw zeros are converted to
+#'     \code{NA} by \code{h0testr::initialize()}, which runs first.
+#'   Reports the state before and after each of the two screens.
+#'   See documentation for \code{h0testr::new_config()}
+#'     for more detailed description of configuration parameters.
 #' @param state List with elements formatted like the list returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -778,11 +800,13 @@ f.prefilter_features <- function(state, min1=3, min2=4) {
 #'   } 
 #' @param config List with configuration values. Requires the following keys:
 #'   \tabular{ll}{
-#'     \code{feat_id_col}  \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
-#'     \code{obs_id_col}   \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{expression}. \cr
+#'     \code{feat_col}  \cr \tab Name of column (character) in \code{state$features} matching \code{rownames(state$expression)}. \cr
+#'     \code{obs_col}   \cr \tab Name of column (character) in \code{state$samples} matching \code{colnames(state$expression)}. \cr
 #'   }
-#' @param n_samples_min minimum number of samples per feature; numeric >= 2.
-#' @param n_features_min minimum number of features per sample; numeric >= 2.
+#' @param n_features_min Minimum number of features with a non-NA value per observation;
+#'   numeric >= 2. This function's own threshold; \code{config$n_features_min} is not
+#'   consulted, being the threshold of \code{h0testr::filter()}. There is no
+#'   corresponding argument for the feature screen, whose thresholds are fixed.
 #' @return A list (the filtered state) with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -799,15 +823,18 @@ f.prefilter_features <- function(state, min1=3, min2=4) {
 #' state2 <- h0testr::prefilter(state, config)
 #' print(state2)
 
-prefilter <- function(state, config, n_samples_min=2, n_features_min=2) {
-  
+prefilter <- function(state, config, n_features_min=2) {
+
   check_config(config)
-  
+
   f.log_block("prefilter features and samples", config=config)
   f.msg("before filtering features:", config=config)
   f.report_state(state, config)
-  
-  ## state <- filter_features(state, config, n_samples_min=n_samples_min)
+
+  ## f.prefilter_features() rather than filter_features(): the thresholds here are its
+  ##   own fixed ones and not config$n_samples_min, which belongs to filter(), and there
+  ##   is no design to screen against before normalization and aggregation:
+
   state <- f.prefilter_features(state)
   f.msg("after filtering features", config=config)
   f.report_state(state, config)
@@ -821,15 +848,61 @@ prefilter <- function(state, config, n_samples_min=2, n_features_min=2) {
   return(state)
 }
 
+## helper for add_filter_stats(): each statistic there is written into a metadata column
+##   whose rows are identified by position, so the names the statistic carries have to
+##   match the ids the metadata carries. `==` returns logical(0) when either side is NULL,
+##   and all(logical(0)) is TRUE, so comparing the two directly passed vacuously in
+##   exactly the cases where the alignment could not be verified: a config$feat_col or
+##   config$obs_col that names no column, which includes the "" that new_config() ships,
+##   and a state$expression with no dimnames. Refused rather than assumed:
+
+f.check_stat_ids <- function(nms, ids, stat, key, config) {
+
+  if(is.null(ids)) {
+    f.err("add_filter_stats:", paste0("config$", key), "names no column of the",
+      "metadata, so the alignment of", stat, "with it cannot be checked;", "\n",
+      " ", paste0("config$", key, ":"), config[[key]], "\n",
+      "  to fix, run h0testr::initialize(), which sets it, or set it yourself",
+      config=config)
+  }
+
+  if(is.null(nms)) {
+    f.err("add_filter_stats:", stat, "has no names, state$expression having no",
+      "dimnames, so its alignment with", paste0("config$", key), "cannot be checked",
+      config=config)
+  }
+
+  if(length(nms) != length(ids)) {
+    f.err("add_filter_stats: length of", stat, ":", length(nms), "!= length of the",
+      paste0("config$", key), "column:", length(ids), config=config)
+  }
+
+  if(!all(nms == ids)) {
+    i <- which(nms != ids)
+    f.err("add_filter_stats:", stat, "is not aligned with the column",
+      paste0("config$", key), "names;", length(i), "of", length(nms), "differ,",
+      "first at index", i[1], ":", nms[i[1]], "vs", ids[i[1]], config=config)
+  }
+
+  return(invisible(TRUE))
+}
+
 #' Add filter statistics
 #' @description
 #'   Adds filtering-related statistics to \code{state$features}, 
 #'     and \code{state$samples}.
-#' @details 
-#'   Wrapper for \code{samples_per_feature()}, \code{feature_median_expression()}, 
-#'     \code{features_per_sample()}. Also reports quantiles of distributions. 
-#'   See documentation for \code{h0testr::new_config()} 
-#'     for more detailed description of configuration parameters. 
+#' @details
+#'   Wrapper for \code{samples_per_feature()}, \code{feature_median_expression()},
+#'     \code{features_per_sample()}. Also reports quantiles of distributions.
+#'   Each statistic is written into a metadata column by position, so
+#'     \code{config$feat_col} and \code{config$obs_col} have to name the columns holding
+#'     the ids that \code{rownames(state$expression)} and
+#'     \code{colnames(state$expression)} carry, and the two have to agree. A key that
+#'     names no column, which includes the \code{""} that \code{h0testr::new_config()}
+#'     ships, a \code{state$expression} without dimnames, and a genuine mismatch are all
+#'     errors. \code{h0testr::initialize()} sets both keys.
+#'   See documentation for \code{h0testr::new_config()}
+#'     for more detailed description of configuration parameters.
 #' @param state List with elements formatted like the list returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -864,24 +937,18 @@ add_filter_stats <- function(state, config) {
   check_config(config)
   
   n <- samples_per_feature(state, config)
-  if(!all(names(n) == state$features[[config$feat_col]])) {
-    f.err("add_filter_stats: !all(names(n) == state$features[[config$feat_col]])", 
-      config=config)
-  }
+  f.check_stat_ids(names(n), state$features[[config$feat_col]],
+    "samples_per_feature()", "feat_col", config)
   state$features[[config$n_samples_expr_col]] <- n
-  
+
   m <- feature_median_expression(state, config)
-  if(!all(names(m) == state$features[[config$feat_col]])) {
-    f.err("add_filter_stats: !all(names(m) == state$features[[config$feat_col]])", 
-      config=config)
-  }
+  f.check_stat_ids(names(m), state$features[[config$feat_col]],
+    "feature_median_expression()", "feat_col", config)
   state$features[[config$median_raw_col]] <- m
-  
+
   n <- features_per_sample(state, config)
-  if(!all(names(n) == state$samples[[config$obs_col]])) {
-    f.err("add_filter_stats: !all(names(n) == state$samples[[config$obs_col]])", 
-      config=config)
-  } 
+  f.check_stat_ids(names(n), state$samples[[config$obs_col]],
+    "features_per_sample()", "obs_col", config)
   state$samples[[config$n_features_expr_col]] <- n
   
   n <- apply(state$expression, 1, function(v) sum(!is.na(v)))
