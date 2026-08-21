@@ -8,7 +8,7 @@ tune(
   config,
   normalization_methods = c("RLE", "upperquartile", "q50", "q75", "quantiles.robust",
     "cpm", "max", "sum", "div.mean", "div.median", "TMM", "TMMwsp", "vsn", "qquantile",
-    "log2", "none"),
+    "loess", "log2", "none"),
   impute_methods = c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature",
     "glm_binom", "loess_logit", "glmnet", "rf", "knn", "min_det", "min_prob", "qrilc",
     "bpca", "ppca", "svdImpute", "lls", "missforest", "none"),
@@ -26,12 +26,9 @@ tune(
 \item{normalization_methods}{Character vector of methods to try. One or more element of
 \code{h0testr::normalize_methods()}, or \code{"q50"} or \code{"q75"}, which are
 \code{"quantile"} at a \code{normalization_quantile} of \code{0.5} and \code{0.75}.
-Defaults to every method \code{h0testr::normalize_methods()} names except
-\code{"loess"}, with \code{"quantile"} entered as those two. \code{"loess"} is left
-out because \code{h0testr::normalize()} runs it on raw intensities and then
-\code{log2(x + 1)}, which turns the negative fitted values
-\code{limma::normalizeCyclicLoess()} returns for log scale input into \code{NaN};
-name it explicitly to sweep it anyway.}
+Defaults to every method \code{h0testr::normalize_methods()} names, with
+\code{"quantile"} entered as those two. \code{"loess"} is the slowest of them, so
+drop it from the list if the sweep takes too long.}
 
 \item{impute_methods}{Character vector of methods to try. One or more of:
 \code{c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", "knn", "min_det", "min_prob", "qrilc", "bpca", "ppca", "svdImpute", "lls", "missforest", "none")}.}

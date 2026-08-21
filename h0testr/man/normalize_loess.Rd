@@ -4,7 +4,7 @@
 \alias{normalize_loess}
 \title{Cyclic loess normalization}
 \usage{
-normalize_loess(state, config, span = NULL, method = "affy")
+normalize_loess(state, config, span = NULL, method = "fast")
 }
 \arguments{
 \item{state}{List with elements formatted like the list returned by `read_data()`:
@@ -14,12 +14,17 @@ normalize_loess(state, config, span = NULL, method = "affy")
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration values. Does not use any keys, so can pass empty list.}
+\item{config}{List with configuration values. Uses the following key:
+\tabular{ll}{
+  \code{normalization_span} \cr \tab Span (numeric between 0 and 1) for the loess fit; read when \code{span} is \code{NULL}. \cr
+}}
 
 \item{span}{Numeric between 0 and 1 specifying span for loess fit.
-Higher numbers result in smoother (less localized) fit.}
+Higher numbers result in smoother (less localized) fit. Defaults to
+\code{config$normalization_span}, or to \code{0.7} when that is unset as well.}
 
-\item{method}{Character in \code{c("fast", "affy", "pairs")}.}
+\item{method}{Character in \code{c("fast", "affy", "pairs")}. Default:
+\code{"fast"}, the only one usable on data with missing values; see details.}
 }
 \value{
 A list (the processed state) with the following elements:
@@ -34,10 +39,24 @@ Normalize expression using the cyclic-loess algorithm.
 }
 \details{
 Inter-observation normalization using cyclic-loess results
-    in similar signal distributions across all samples, similar to 
+    in similar signal distributions across all samples, similar to
     \code{normalize_qquantile()}. This is a slow method, especially if
     \code{method \%in\% c("affy", "pairs")}, which scale quadratically. Calls
     \code{limma::normalizeCyclicLoess()} under the hood.
+  Only \code{method="fast"} can be used on data with missing values, so it is
+    the default here, as it is in \code{limma}. The other two normalize each
+    pair of observations on their difference, which is missing for any feature
+    the pair does not both measure; since the adjustments of all pairs are
+    summed, one missing value removes that feature from every observation
+    rather than from the one it was missing from. Rather than return that
+    quietly, \code{method \%in\% c("affy", "pairs")} is an error when
+    \code{state$expression} has any missing value.
+  Cyclic loess is an \emph{additive} correction, so \code{state$expression} is
+    expected on a log scale, which is also the input \code{limma} documents.
+    \code{h0testr::normalize(method="loess")} transforms before calling this.
+    Raw intensities are not refused, since the fitted values are meaningful
+    either way, but the smallest of them come back negative and so cannot be
+    log transformed afterwards.
 }
 \examples{
 set.seed(101)

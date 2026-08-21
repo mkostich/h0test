@@ -124,15 +124,77 @@ f.log_obj <- function(obj, config) {
   invisible(NULL)
 }
 
+## Write one table to file_out as a tab delimited file. The write goes to a
+##   temporary file beside the destination and is moved into place only once it
+##   has finished, so that a write that fails leaves whatever was already at
+##   file_out as it was: write.table() streams its output, so a failure part way
+##   through - a full disk, a volume that goes away - used to leave a truncated
+##   file that looks like a complete one, under the name every later step reads.
+##   Both error and warning stay fatal: an open that fails arrives as a warning
+##   rather than an error (a read-only destination gives "cannot open file ...
+##   Permission denied" that way), so demoting warnings would report a write
+##   that never happened as a success. What they get instead is a message that
+##   says which of the two it was and that the destination is untouched:
+
 f.save_tsv <- function(dat, file_out, config, row.names=T, col.names=T) {
-  tryCatch(
-    utils::write.table(dat, file=file_out, quote=F, sep="\t", 
-      row.names=row.names, col.names=col.names),
-      error=function(msg) f.err("write.table() error: writing to ", 
-        file_out, ": ", msg$message, config=config),
-      warning=function(msg) f.err("write.table() warning: writing to ", 
-        file_out, ": ", msg$message, config=config)
+
+  if(!(length(file_out) %in% 1 && is.character(file_out) && !is.na(file_out) &&
+      nzchar(file_out))) {
+    f.err("f.save_tsv: file_out has to be a single non-empty file name;", "\n",
+      " file_out:", file_out, "; class:", class(file_out), "; length:",
+      length(file_out), config=config)
+  }
+
+  file_tmp <- paste0(file_out, ".tmp", Sys.getpid())
+
+  ## the condition is returned rather than acted on inside the handler, so that
+  ##   write.table()'s on.exit() has closed the connection before the temporary
+  ##   file is removed; an open file cannot be removed on every platform:
+
+  cond <- tryCatch({
+      utils::write.table(dat, file=file_tmp, quote=F, sep="\t",
+        row.names=row.names, col.names=col.names)
+      NULL
+    },
+    error=function(msg) list(kind="error", msg=conditionMessage(msg)),
+    warning=function(msg) list(kind="warning", msg=conditionMessage(msg))
   )
+
+  if(is.null(cond) && !file.exists(file_tmp)) {
+    cond <- list(kind="silent failure", msg="no file was written")
+  }
+
+  if(!is.null(cond)) {
+    left <- file.exists(file_tmp) && !(unlink(file_tmp) %in% 0)
+    f.err("f.save_tsv: write.table()", paste0(cond$kind, ":"), "writing to",
+      paste0(file_out, ":"), cond$msg, "\n",
+      " nothing was written to", paste0(file_out, ";"), "the table was being",
+      "written to", paste0(file_tmp, ","), "which is moved into place only once",
+      "it is complete, so any file already at", file_out, "is as it was",
+      if(left) {
+        paste("\n  the temporary file could not be removed and is still there:",
+          file_tmp)
+      } else "", config=config)
+  }
+
+  ## file.rename() replaces an existing destination on the platforms this runs
+  ##   on, but not on all of them, and it cannot cross a file system; the copy
+  ##   is the fallback for both, and the finished table is named if even that
+  ##   fails, so that a completed write is never lost silently:
+
+  if(!file.rename(file_tmp, file_out)) {
+
+    if(!file.copy(file_tmp, file_out, overwrite=TRUE)) {
+      f.err("f.save_tsv: the table was written but could not be moved into",
+        "place;", "\n", " from:", file_tmp, "\n", " to:", file_out, "\n",
+        "the finished table is at the first of those; move it there by hand,",
+        "or correct the destination and run the step again", config=config)
+    }
+
+    unlink(file_tmp)
+  }
+
+  return(invisible(file_out))
 }
 
 ## TRUE iff x is a single formula, e.g. ~age+gender+age:gender or y~age.
@@ -1076,9 +1138,9 @@ f.test_id_col <- function(method, config) {
 ##          the meaning of the reported coefficients, so the reference level has
 ##          to be declared in config$reference_levels.
 ##   Returns a named character vector with one element per variable in
-##   config$frm. config$covariate_types is reused when it covers exactly the
-##   variables in config$frm; since the caller controls the calling order, a
-##   cached value that does not match is ignored and recomputed:
+##   config$frm. config$covariate_types records what this function decided, and
+##   is checked against the columns rather than returned in place of them; see
+##   below:
 
 f.covariate_types <- function(state, config) {
 
@@ -1087,12 +1149,6 @@ f.covariate_types <- function(state, config) {
   if(!all(vars %in% names(state$samples))) {
     f.err("f.covariate_types: !all(vars %in% names(state$samples)); vars:",
       vars, "; names(state$samples):", names(state$samples), config=config)
-  }
-
-  cached <- config$covariate_types
-  if(!is.null(cached) && is.character(cached) && !is.null(names(cached)) &&
-      setequal(names(cached), vars) && all(cached %in% c("factor", "numeric"))) {
-    return(cached[vars])
   }
 
   out <- character(0)
@@ -1113,6 +1169,45 @@ f.covariate_types <- function(state, config) {
         "add", nom, "to config$reference_levels to set its reference level;",
         "\n", "distinct values:",
         utils::head(sort(unique(as.character(v))), 10), config=config)
+    }
+  }
+
+  ## the cache as a cross-check, not as an override. It used to be returned
+  ##   whenever its names covered config$frm and its values were spelled right,
+  ##   which let it name a type the column cannot have: a character or factor
+  ##   covariate was then fit as continuous, or a numeric one split into levels,
+  ##   and rule 5 above stopped refusing an undeclared character covariate, so
+  ##   its reference level went back to being set by sorting. The type of a
+  ##   column does not depend on which observations are left, so what the cache
+  ##   says has to agree with the rules above; where it does not, the config was
+  ##   built against other data or edited by hand, and neither answer can be
+  ##   assumed to be the intended one. Deriving the types is cheap - one class()
+  ##   per variable - so the cache saves nothing worth this. Variables the cache
+  ##   covers and config$frm does not are ignored, config$frm being free to
+  ##   change between calls:
+
+  cached <- config$covariate_types
+
+  if(!is.null(cached) && is.character(cached) && !is.null(names(cached))) {
+
+    shared <- intersect(names(cached), vars)
+    ok <- !is.na(cached[shared]) & cached[shared] %in% c("factor", "numeric") &
+      cached[shared] == out[shared]
+    bad <- shared[!ok]
+
+    if(length(bad)) {
+      f.err("f.covariate_types: config$covariate_types disagrees with",
+        "state$samples about the type of", paste(bad, collapse=" "), ":", "\n",
+        " config$covariate_types:",
+        paste(bad, cached[bad], sep="=", collapse=" "), "\n",
+        " from state$samples and config$reference_levels:",
+        paste(bad, out[bad], sep="=", collapse=" "), "\n",
+        "config$covariate_types is set by initialize() for the state it was",
+        "run on, so a disagreement means this config is being used with other",
+        "data, or was edited by hand;", "\n",
+        "set config$covariate_types to NULL to have it derived from",
+        "state$samples, or, if the covariate is meant to be categorical, name",
+        "it in config$reference_levels instead", config=config)
     }
   }
 
@@ -1271,6 +1366,23 @@ f.check_covariate_values <- function(state, config, types=NULL,
 
   if(is.null(types)) types <- f.covariate_types(state, config)
 
+  ## every check below is over the values of a covariate, and a table of no rows
+  ##   has none: is.na() of nothing is logical(0), unique() of nothing has length
+  ##   0, so the missing, non-finite, blank, and constant checks all passed and
+  ##   the covariates were reported as checked. The run then stopped at the first
+  ##   design matrix, in stats::model.matrix(), with "contrasts can be applied
+  ##   only to factors with 2 or more levels", which names neither the empty
+  ##   table nor the step that emptied it:
+
+  if(nrow(state$samples) %in% 0) {
+    f.err(caller, ": state$samples has no rows, so there are no covariate",
+      "values to check and nothing to fit;", "\n",
+      " covariates in config$frm:", names(types), "\n",
+      "an earlier step kept no observations: check the prefilter and filter",
+      "thresholds, and config$frm's covariates in the samples file",
+      config=config)
+  }
+
   ## observation labels, for reporting which observations are offending:
 
   obs <- NULL
@@ -1281,7 +1393,9 @@ f.check_covariate_values <- function(state, config, types=NULL,
     }
   }
   if(is.null(obs)) obs <- colnames(state$expression)
-  if(length(obs) != nrow(state$samples)) obs <- as.character(1:nrow(state$samples))
+  if(length(obs) != nrow(state$samples)) {
+    obs <- as.character(seq_len(nrow(state$samples)))
+  }
 
   cutoff <- config$n_distinct_numeric_warn
   if(is.null(cutoff)) cutoff <- 5
@@ -1676,7 +1790,31 @@ f.drop_unfittable <- function(dat, config, fn_name, min_fit_pts) {
       min_fit_pts, config=config)
   }
 
-  i_drop <- is.na(dat$m)
+  ## dat$m used to be read on trust, and `$` partial matches on a data.frame:
+  ##   a frame whose only m-like column was something else entirely (mean_int,
+  ##   say) had that column fit as the intensity summary and was returned
+  ##   unchanged, and a frame with no such column at all reached the degeneracy
+  ##   check below as zero distinct intensities, which reported a caller's
+  ##   mistake as too little data and advised changing config$impute_method.
+  ##   Read by name from here on, and the shape stated before it is used:
+
+  if(!(is.data.frame(dat) && "m" %in% names(dat) && is.numeric(dat[["m"]]))) {
+    f.err(fn_name, ": the missingness fit needs a data.frame with a numeric",
+      "column m, holding the intensity summary of each feature;", "\n",
+      " class(dat):", class(dat), "; columns:",
+      if(is.null(names(dat))) "none" else names(dat), "\n",
+      " class(dat$m):", if("m" %in% names(dat)) class(dat[["m"]]) else "absent",
+      config=config)
+  }
+
+  if(nrow(dat) %in% 0) {
+    f.err(fn_name, ": the missingness fit was given no features at all;", "\n",
+      " a frame of no rows is not too little data to fit, it is a step upstream",
+      "that kept nothing: check the filtering steps rather than",
+      "config$impute_method", config=config)
+  }
+
+  i_drop <- is.na(dat[["m"]])
 
   if(any(i_drop)) {
 
@@ -1692,7 +1830,7 @@ f.drop_unfittable <- function(dat, config, fn_name, min_fit_pts) {
     dat <- dat[!i_drop, , drop=F]
   }
 
-  n_distinct <- length(unique(dat$m))
+  n_distinct <- length(unique(dat[["m"]]))
 
   if(n_distinct < min_fit_pts) {
     f.err(fn_name, ": too few distinct intensities to fit missingness against;",
@@ -1748,19 +1886,35 @@ f.report_state <- function(state, config) {
 
   f.msg("class(state$expression):", class(state$expression), config=config)
 
-  f.msg("N features: ", nrow(state$expression), 
+  f.msg("N features: ", nrow(state$expression),
     "; N observations: ", ncol(state$expression), config=config)
-    
-  f.msg("signal distribution:", config=config)
-  
-  f.quantile(c(state$expression), config, digits=0) 
-  
-  f.msg("min(state$expression):", min(c(state$expression), na.rm=T), 
-    "; mean(state$expression):", mean(c(state$expression), na.rm=T), 
-    config=config)
-    
-  f.msg("num NAs: ", sum(is.na(c(state$expression))), config=config)
-  f.msg("num non-NAs: ", sum(!is.na(c(state$expression))), config=config)
+
+  v <- c(state$expression)
+  n_ok <- sum(!is.na(v))
+
+  ## min() of nothing is Inf and mean() of nothing is NaN, both after a warning
+  ##   that this function's own message then hid: an all-NA matrix, and a matrix
+  ##   with no features at all, were reported as a signal distribution with a
+  ##   minimum of Inf rather than as the absence of one. Both are states a
+  ##   filtering step can produce, and this is where they are meant to be seen:
+
+  if(n_ok %in% 0) {
+
+    f.msg("signal distribution: none to report:", length(v), "value(s), none",
+      "of them measured", config=config)
+
+  } else {
+
+    f.msg("signal distribution:", config=config)
+
+    f.quantile(v, config, digits=0)
+
+    f.msg("min(state$expression):", min(v, na.rm=T),
+      "; mean(state$expression):", mean(v, na.rm=T), config=config)
+  }
+
+  f.msg("num NAs: ", sum(is.na(v)), config=config)
+  f.msg("num non-NAs: ", n_ok, config=config)
 }
 
 f.save_state <- function(state, config, prefix) {

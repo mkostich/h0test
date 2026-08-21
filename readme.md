@@ -376,7 +376,11 @@ results <- read.table("7.results.tsv", header=T, sep="\t", quote="", as.is=T)
 ## NORMALIZATION_METHOD
 
 Itersample normalization method. Values returned by each `config$normalization_method` 
-are `log2(x+1)` transformed unless `config$normalization_method %in% "none"`:
+are `log2(x+1)` transformed, with three exceptions: `"none"`, which returns the input 
+untouched and on whatever scale it arrived; `"vsn"`, whose own output is arsinh-scaled 
+and so is not transformed again; and `"loess"`, whose input is transformed before it is 
+normalized rather than after (see below). Either way, every method other than `"none"` 
+leaves the data on a log-like scale:
 
 **cpm**: Counts per million; for each sample: 
   `multiplier * (intensities / sum(intensities, na.rm=T))`
@@ -389,7 +393,10 @@ are `log2(x+1)` transformed unless `config$normalization_method %in% "none"`:
   from each feature intensity for that observation. Uses 
   `MsCoreUtils::normalize_matrix(..., method="div.median")`.
 
-**loess**: Cyclic loess normalization. Uses `limma::normalizeCyclicLoess()`.
+**loess**: Cyclic loess normalization. Uses `limma::normalizeCyclicLoess()`. The one 
+  method whose input is transformed *before* it is normalized rather than after: cyclic 
+  loess is an additive correction, so on raw intensities it returns negative fitted 
+  values for the smallest measurements, and `log2(x+1)` of those would be `NaN`.
 
 **log2**: Values are simply `log(x+1)` transformed.
 
@@ -410,6 +417,9 @@ are `log2(x+1)` transformed unless `config$normalization_method %in% "none"`:
 
 **RLE**: Relative log expression, using `edgeR::calcNormFactors()` then `edgeR::cpm()`. 
   See [https://doi.org/10.1038/npre.2010.4282.1](https://doi.org/10.1038/npre.2010.4282.1 "Anders and Huber, 2010")
+  Needs at least one feature measured in every observation, since that is where it 
+  takes its reference from; that is not always the case in data with high 
+  missingness, and `TMM`, `TMMwsp` and `upperquartile` do not need one.
   
 **sum**: Divide each feature's intensities by the sum of intensities for that 
   feature. Uses `MsCoreUtils::normalize_matrix(..., method="sum")`.

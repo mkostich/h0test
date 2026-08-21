@@ -16,7 +16,9 @@ normalize_vsn(state, config, n_pts = 42L)
 
 \item{config}{List with configuration values. Does not use any keys, so can pass empty list.}
 
-\item{n_pts}{Scalar minimum number of data points per stratum. See \code{vsn::vsn2}. Default: 42L.}
+\item{n_pts}{Scalar minimum number of data points per stratum, as a whole number of 1 or more.
+Reduced to \code{round(sqrt(nrow(state$expression)))} with a message if it exceeds that.
+See \code{vsn::vsn2}. Default: 42L.}
 }
 \value{
 A list (the processed state) with the following elements:
@@ -34,6 +36,12 @@ Inter-observation normalization. Uses \code{limma::normalizeVSN()}, which
     wraps \code{vsn::vsn2}. 
     Unlike most other normalization methods, results are returned on a 
     log2-like scale.
+  A single feature is refused: \code{vsn::vsn2} fits a transformation per
+    stratum, and one feature is not enough to fit one to. Whether it fails
+    on one depends on the values: of 20 single-feature matrices from one
+    simulation it returned 12, each with the same value for every
+    observation, and failed on the other 8 with \code{"L-BFGS-B needs
+    finite values of 'fn'"}. Refused here either way.
 }
 \examples{
 set.seed(101)

@@ -295,12 +295,9 @@ f.tune2 <- function(state, config, is_log_transformed=NULL) {
 #' @param normalization_methods Character vector of methods to try. One or more element of
 #'   \code{h0testr::normalize_methods()}, or \code{"q50"} or \code{"q75"}, which are
 #'   \code{"quantile"} at a \code{normalization_quantile} of \code{0.5} and \code{0.75}.
-#'   Defaults to every method \code{h0testr::normalize_methods()} names except
-#'   \code{"loess"}, with \code{"quantile"} entered as those two. \code{"loess"} is left
-#'   out because \code{h0testr::normalize()} runs it on raw intensities and then
-#'   \code{log2(x + 1)}, which turns the negative fitted values
-#'   \code{limma::normalizeCyclicLoess()} returns for log scale input into \code{NaN};
-#'   name it explicitly to sweep it anyway.
+#'   Defaults to every method \code{h0testr::normalize_methods()} names, with
+#'   \code{"quantile"} entered as those two. \code{"loess"} is the slowest of them, so
+#'   drop it from the list if the sweep takes too long.
 #' @param impute_methods Character vector of methods to try. One or more of:
 #'   \code{c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", "knn", "min_det", "min_prob", "qrilc", "bpca", "ppca", "svdImpute", "lls", "missforest", "none")}.
 #' @param impute_quantiles Numeric vector of quantiles to try for \code{impute_unif_*} methods. 
@@ -404,18 +401,18 @@ f.tune2 <- function(state, config, is_log_transformed=NULL) {
 
 tune <- function(
     config,  
-    ## every method normalize_methods() names but one, with "quantile" entered as the
-    ##   "q50" and "q75" that f.tune1() turns back into it, since a quantile is a second
-    ##   parameter and the sweep varies one name at a time. The exception is "loess":
-    ##   normalize() hands raw intensities to limma::normalizeCyclicLoess(), which expects
-    ##   log scale input and returns fitted values below -1 for some of them, and the
-    ##   log2(x + 1) normalize() then applies turns those into NaN. On the rdtc_seer2
-    ##   protein groups that is 21330 new NaN and 41350 finite values left of 195680, so a
-    ##   sweep cell for it would be scored on a mostly destroyed matrix rather than
-    ##   skipped. Name it explicitly to sweep it anyway:
+    ## every method normalize_methods() names, with "quantile" entered as the "q50"
+    ##   and "q75" that f.tune1() turns back into it, since a quantile is a second
+    ##   parameter and the sweep varies one name at a time. "loess" was left out while
+    ##   normalize() handed raw intensities to limma::normalizeCyclicLoess() and then
+    ##   log2(x + 1)'d the negative fitted values it returns for the smallest of them
+    ##   into NaN: 5707 of the 146841 measured values on the rdtc_seer2 protein
+    ##   groups, so the cell was scored on a matrix the sweep had damaged. normalize()
+    ##   now transforms before that fit instead, so nothing is lost, but it is still
+    ##   the slowest method here; drop it from this list if the sweep takes too long:
     normalization_methods=c("RLE", "upperquartile", "q50", "q75",
       "quantiles.robust", "cpm", "max", "sum", "div.mean", "div.median",
-      "TMM", "TMMwsp", "vsn", "qquantile", "log2", "none"),
+      "TMM", "TMMwsp", "vsn", "qquantile", "loess", "log2", "none"),
     impute_methods=c("sample_lod", "unif_sample_lod", "unif_global_lod", 
       "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", 
       "knn", "min_det", "min_prob", "qrilc", "bpca", "ppca", "svdImpute", 

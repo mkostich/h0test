@@ -39,9 +39,18 @@ A list (the processed state) with the following elements:
 Normalize expression using functionality from \code{edgeR} package.
 }
 \details{
-Inter-observation normalization. Uses \code{edgeR::calcNormFactors()}. 
+Inter-observation normalization. Uses \code{edgeR::calcNormFactors()}.
   Returned values on a counts-per-million scale.
-  See documentation for \code{h0testr::new_config()} 
+  Two matrices are refused here rather than in \code{edgeR}, which reports
+    both of them as a problem with library sizes: one where an observation has
+    no measured value, since there is nothing in it to normalize, and, for
+    \code{method="RLE"} only, one where no feature is measured in every
+    observation, since that is where \code{RLE} takes its reference from
+    (it excludes any feature carrying a zero, and the missing values here
+    become zeros). The latter is ordinary in data with high missingness;
+    \code{"TMM"}, \code{"TMMwsp"} and \code{"upperquartile"} do not need such
+    a feature.
+  See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.
 }
 \examples{
@@ -64,7 +73,7 @@ state2 <- h0testr::normalize_edger(state, config)
 print(state$expression)
 print(state2$expression)
 
-## normalizaiton_quantile not needed for e.g. method="RLE":
+## normalization_quantile not needed for e.g. method="RLE":
 state2 <- h0testr::normalize_edger(state, config, method="RLE")
 print(state$expression)
 print(state2$expression)

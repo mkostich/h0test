@@ -22,14 +22,14 @@ normalize(
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{normalization_method}   \cr \tab Character scalar in \code{c("vsn","cpm","quantile","qquantile","TMM","TMMwsp","RLE","upperquartile")}. \cr
+  \code{normalization_method}   \cr \tab Character scalar naming one of the methods \code{h0testr::normalize_methods()} returns. \cr
   \code{normalization_quantile} \cr \tab Quantile (numeric between 0 and 1) for \code{normalization_method \%in\% c("quantile", "upperquartile")}. \cr
   \code{is_log_transformed} \cr \tab Optional logical; if \code{TRUE}, any method other than \code{"none"} is an error, since it would transform the data a second time. \cr
   \code{feat_col}      \cr \tab Column of \code{state$features} matching \code{rownames(state$expression)}. \cr
   \code{obs_col}       \cr \tab Column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
 }}
 
-\item{method}{Name of method to use, where scalar \code{method \%in\% h0testr::normalization_methods()}.}
+\item{method}{Name of method to use, where scalar \code{method \%in\% h0testr::normalize_methods()}.}
 
 \item{normalization_quantile}{Quantile for methods \code{c("quantile", "upperquartile")}, where \code{0 <= normalization_quantile <= 1}.}
 
@@ -57,13 +57,35 @@ Inter-observation normalization using any of the methods available in
     the \code{h0testr} package. See individual methods for more details. 
     Normalizes \code{state$expression}. Does not affect 
     \code{state$features} or \code{state$samples}.
-  Every method other than \code{"none"} ends by log transforming the data, so
+  Every method other than \code{"none"} leaves the data log transformed, so
     \code{config$is_log_transformed} is set to \code{TRUE} on return and the
     rest of the workflow reads the scale from there rather than tracking it.
     For that reason a method other than \code{"none"} is an error when
     \code{config$is_log_transformed} is already \code{TRUE}. \code{"vsn"}
     counts as transforming: its output is arsinh-scaled rather than log2, but
     is not to be transformed again either.
+  \code{"loess"} is transformed before normalizing rather than after it, since
+    cyclic loess is an additive correction: on raw intensities it returns
+    negative fitted values for the smallest measurements, and \code{log2(x +
+    1)} of anything at or below \code{-1} is \code{NaN}, so the old order
+    deleted those measurements. See \code{h0testr::normalize_loess()}.
+  An observation with no measured value is reported whatever the method, since
+    there is nothing in it for an inter-observation method to work with. Most
+    methods carry it through as the all-NA column it already was, so it is a
+    warning; the \code{edgeR} methods and \code{"qquantile"} cannot proceed on
+    one and refuse it, in \code{h0testr::normalize_edger()} and
+    \code{h0testr::normalize_qquantile()} respectively. Either way,
+    \code{h0testr::filter_observations()} is where such an observation is
+    meant to be dropped.
+  A single feature is normalized by whichever method can do it, but note
+    that inter-observation normalization of one feature is degenerate:
+    \code{"quantiles.robust"}, \code{"div.mean"} and
+    \code{"div.median"} return the same value for every observation, so
+    every difference between observations is erased. \code{"qquantile"}
+    needs two features to interpolate between and \code{"vsn"} needs two
+    to fit a transformation to; both refuse one, in
+    \code{h0testr::normalize_qquantile()} and
+    \code{h0testr::normalize_vsn()} respectively.
   See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.
 }
