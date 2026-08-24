@@ -24,6 +24,22 @@ f.chk_num <- function(x, nom, lo=-Inf, hi=Inf, int=F, ninf_ok=F, open=F) {
   return(invisible(NULL))
 }
 
+## helper; log_m_mean and log_m_sd may each be 0, but not both: log(feature mean) is redrawn
+##   until it is strictly positive, and a mean of 0 with an sd of 0 has no positive value to
+##   reach. Refused here, naming both arguments, since f.sim_rnorm_pos() would otherwise report
+##   it as a list of feature positions, which names neither:
+
+f.chk_log_m <- function(log_m_mean, log_m_sd, nom) {
+
+  if(log_m_mean <= 0 && log_m_sd <= 0) {
+    stop(nom, ": log_m_mean and log_m_sd cannot both be 0, log(feature means) being drawn until ",
+      "it is strictly positive, so a mean of 0 with an sd of 0 leaves no draw to make; ",
+      "log_m_mean: ", log_m_mean, "; log_m_sd: ", log_m_sd)
+  }
+
+  return(invisible(NULL))
+}
+
 ## helper; n normally distributed positive values with means m and sds s:
 
 f.sim_rnorm_pos <- function(n, m, s) {
@@ -158,20 +174,20 @@ f.sim0 <- function(n_obs, feat_means, feat_sds) {
   return(mat)
 }
 
-## technical replication:
+## technical replication; each replicate is drawn around its sample's value with CV cv_reps and
+##   redrawn until strictly positive, exactly as the feature means are, so a cv_reps near or
+##   above 1 pulls a sample's replicates above that sample's own value.
+##   The values arriving here are strictly positive and non-missing: sim_design() is the only
+##   caller and calls this before f.mnar() and f.mcar(), then checks the result. There used to be
+##   an is.na(val) branch returning a column of NAs, which nothing could reach; an NA arriving
+##   here now is named and refused by f.sim_rnorm_pos() instead of quietly widened:
 
 f.sim_tech_reps <- function(mat, reps_per_sample, cv_reps) {
 
   if(reps_per_sample < 2) return(mat)
 
   f <- function(v) {
-    f0 <- function(val) {
-      if(is.na(val)) {
-        return(rep(NA, reps_per_sample))
-      } else {
-        return(f.sim_rnorm_pos(n=reps_per_sample, m=val, s=cv_reps * val))
-      }
-    }
+    f0 <- function(val) f.sim_rnorm_pos(n=reps_per_sample, m=val, s=cv_reps * val)
     return(list(t(sapply(v, f0))))
   }
   tmp_list <- apply(mat, 2, f)
@@ -193,7 +209,14 @@ f.mnar <- function(mat, mnar_c0, mnar_c1, mnar_off=0.0001) {
   f <- function(v) {
 
     resp <- mnar_c0 + mnar_c1 * log(v + mnar_off)   ## logit(p_mnar) ~ c0 + c1 * log(intensity)
-    p_mnar = exp(resp) / (1 + exp(resp))            ## inverse logit
+
+    ## stats::plogis() rather than exp(resp) / (1 + exp(resp)): that overflows to NaN once resp
+    ##   is above about 710, stats::rbinom() then returns NA, and an all NA logical index assigns
+    ##   nothing, so a cell that was certain to be missing was silently left in place, the only
+    ##   sign being an "NAs produced" warning. plogis() saturates at 1 instead, and takes the
+    ##   -Inf that mnar_c0=-Inf gives as 0 the same way the ratio did:
+
+    p_mnar <- stats::plogis(resp)                   ## inverse logit
 
     i_mnar <- as.logical(stats::rbinom(length(v), 1, p_mnar))
     v[i_mnar] <- NA
@@ -234,14 +257,17 @@ f.mcar <- function(mat, mcar_p) {
 ##   p_drop=1 over six genes of two peptides returned a single feature of a single gene. Keeping
 ##   every gene also spreads the feature counts by construction, which is what
 ##   DEqMS::spectraCounteBayes()'s variance prior needs of a fixture; see h0testr::test_deqms().
-##   genes names the gene of each row of mat. The fallback reads it off the feature labels, which
-##   both callers build as <gene>_pep<n>:
+##   genes names the gene of each row of mat, which is how the one caller in the package,
+##   sim_design(), always calls this: a feature id is not the gene id with a suffix in general.
+##   The fallback is for a direct call, and reads the gene off feature labels of the
+##   <gene>_pep<n> form sim_design() builds. It is anchored on that suffix rather than cutting at
+##   the first underscore, which would have made one gene of every gene id containing one:
 
 f.pep_drop <- function(mat, peps_per_gene, p_drop, genes=NULL) {
 
   if(!(p_drop > 0 && peps_per_gene >= 2)) return(mat)
 
-  if(is.null(genes)) genes <- sub("_.*", "", rownames(mat))
+  if(is.null(genes)) genes <- sub("_pep[0-9]+$", "", rownames(mat))
   genes <- as.character(genes)
 
   if(length(genes) != nrow(mat)) {
@@ -286,7 +312,9 @@ f.pep_drop <- function(mat, peps_per_gene, p_drop, genes=NULL) {
 #' @param log_m_mean Mean of \code{log(feature means)}. Scalar numeric,
 #'   with \code{log_m_mean >= 0}.
 #' @param log_m_sd Standard deviation of \code{log(feature means)} around
-#'   \code{log_m_mean}. Scalar numeric, with \code{log_m_sd >= 0}.
+#'   \code{log_m_mean}. Scalar numeric, with \code{log_m_sd >= 0}. Either of
+#'   \code{log_m_mean} and \code{log_m_sd} may be 0, but not both: the draw is redrawn until it
+#'   is strictly positive, which a mean of 0 with an SD of 0 never is.
 #' @param log_cv_mean Mean of \code{log(feature CVs)}, the CVs being of features around
 #'   their respective feature means. Scalar numeric.
 #' @param log_cv_sd Standard deviation of \code{log(feature CVs)} around
@@ -300,11 +328,12 @@ f.pep_drop <- function(mat, peps_per_gene, p_drop, genes=NULL) {
 #'   Scalar numeric, with \code{0 <= mcar_p <= 1}.
 #' @return List with elements:
 #'   \tabular{ll}{
-#'     \code{mat}       \cr \tab Non-negative numeric matrix with \code{n_feats} rows
-#'       and \code{n_obs} columns. \cr
-#'     \code{feat_mean} \cr \tab Numeric vector of non-negative parameter means for each
+#'     \code{mat}       \cr \tab Numeric matrix with \code{n_feats} rows and \code{n_obs} columns,
+#'       of positive whole numbers, with \code{NA} wherever MNAR or MCAR made a value
+#'       missing. \cr
+#'     \code{feat_mean} \cr \tab Numeric vector of strictly positive parameter means for each
 #'       feature in \code{mat}. \cr
-#'     \code{feat_cv}   \cr \tab Numeric vector of non-negative parameter CVs for each
+#'     \code{feat_cv}   \cr \tab Numeric vector of strictly positive parameter CVs for each
 #'       feature in \code{mat}. \cr
 #'   }
 #' @seealso \code{\link{sim_design}}, for a matrix with a design imposed on it, of any number of
@@ -336,6 +365,7 @@ sim1 <- function(n_obs, n_feats, log_m_mean=11, log_m_sd=2.7,
   f.chk_num(mnar_c1, "sim1: mnar_c1")
   f.chk_num(mnar_off, "sim1: mnar_off", lo=0, hi=1, open=T)
   f.chk_num(mcar_p, "sim1: mcar_p", lo=0, hi=1)
+  f.chk_log_m(log_m_mean, log_m_sd, "sim1")
 
   ## feature mean, cv, and sd:
   m <- exp(f.sim_rnorm_pos(n=n_feats, m=log_m_mean, s=log_m_sd))
@@ -586,7 +616,11 @@ sim_samples <- function(factors=NULL, covariates=NULL, n_per_cell=3, n=NULL) {
 #'   every variable named in \code{frm}; see \code{\link{sim_samples}}, which builds one. A
 #'   \code{sample_id} column is used if present and generated otherwise. Factor variables should
 #'   be factors, their first level being taken as the reference; character and logical variables
-#'   are levelled in sorted order.
+#'   are levelled in sorted order. Treatment contrasts are what make a factor coefficient a fold
+#'   change against that reference level, so an ordered factor, a variable carrying a
+#'   \code{contrasts} attribute, and an \code{options("contrasts")} whose unordered entry is not
+#'   \code{contr.treatment} are all refused rather than silently changing what \code{truth} and
+#'   \code{config$reference_levels} mean.
 #' @param frm Formula giving the design, e.g. \code{~sex + age} or \code{~geno * treatment}. Its
 #'   variables must all be columns of \code{samps}, and it must have at least one term.
 #' @param test_term Term (scalar character) of \code{frm} to be tested, e.g. \code{"sex"}, passed
@@ -600,17 +634,22 @@ sim_samples <- function(factors=NULL, covariates=NULL, n_per_cell=3, n=NULL) {
 #' @param effects Effect size, as a log2 fold change: between levels for a factor term, and per
 #'   SD of the variable for a continuous one; see Details. Either a scalar
 #'   numeric, applied to every term of \code{frm}, or a numeric vector named for the terms it
-#'   applies to, a term not named getting 0.
+#'   applies to, a term not named getting 0. A term that \code{n_genes_signif} gives genes to and
+#'   this gives 0 to gets no effect and a warning, since naming one term here zeroes the others.
 #' @param peps_per_gene Scalar whole number of features (peptides or precursors) per gene before
 #'   dropout, with \code{peps_per_gene >= 1}.
 #' @param reps_per_sample Scalar whole number of technical replicate observations per sample,
 #'   with \code{reps_per_sample >= 1}.
 #' @param cv_reps CV of technical replicates around their sample value. Scalar numeric, with
-#'   \code{cv_reps >= 0}.
+#'   \code{cv_reps >= 0}. Replicate draws are redrawn until strictly positive, as the feature
+#'   means are, so a \code{cv_reps} near or above 1 pulls a sample's replicates above that
+#'   sample's own value.
 #' @param log_m_mean Mean of \code{log(feature means)}. Scalar numeric, with
 #'   \code{log_m_mean >= 0}.
 #' @param log_m_sd Standard deviation of \code{log(feature means)} around \code{log_m_mean}.
-#'   Scalar numeric, with \code{log_m_sd >= 0}.
+#'   Scalar numeric, with \code{log_m_sd >= 0}. Either of \code{log_m_mean} and \code{log_m_sd}
+#'   may be 0, but not both: the draw is redrawn until it is strictly positive, which a mean of 0
+#'   with an SD of 0 never is.
 #' @param log_cv_mean Mean of \code{log(feature CVs)}, the CVs being of features around their
 #'   respective feature means. Scalar numeric.
 #' @param log_cv_sd Standard deviation of \code{log(feature CVs)} around \code{log_cv_mean}.
@@ -628,9 +667,9 @@ sim_samples <- function(factors=NULL, covariates=NULL, n_per_cell=3, n=NULL) {
 #'   \code{0 <= mcar_p <= 1}.
 #' @return List with elements:
 #'   \tabular{ll}{
-#'     \code{state} \cr \tab List of \code{expression} (non-negative numeric matrix, features by
-#'       observations), \code{features} and \code{samples}, ready for
-#'       \code{\link{initialize}}. \cr
+#'     \code{state} \cr \tab List of \code{expression} (numeric matrix of positive whole numbers,
+#'       features by observations, with \code{NA} wherever MNAR or MCAR made a value missing),
+#'       \code{features} and \code{samples}, ready for \code{\link{initialize}}. \cr
 #'     \code{config} \cr \tab \code{\link{new_config}} with \code{frm}, \code{test_term}, the
 #'       four id columns and \code{reference_levels} set to match; \code{save_state} set
 #'       \code{FALSE}, so that a simulation writes no files; and \code{n_features_min} set to 1,
@@ -727,6 +766,7 @@ sim_design <- function(samps, frm, test_term, n_genes, n_genes_signif=0, effects
   f.chk_num(mnar_c1, "sim_design: mnar_c1")
   f.chk_num(mnar_off, "sim_design: mnar_off", lo=0, hi=1, open=T)
   f.chk_num(mcar_p, "sim_design: mcar_p", lo=0, hi=1)
+  f.chk_log_m(log_m_mean, log_m_sd, "sim_design")
 
   ## variable types, reference levels, and the scaling of continuous variables. The scaling is
   ##   done here rather than on the model matrix so that a term built from a continuous variable
@@ -751,6 +791,28 @@ sim_design <- function(samps, frm, test_term, n_genes, n_genes_signif=0, effects
         stop("sim_design: factor variable ", nom, " needs at least 2 levels; got: ",
           paste0(levels(v), collapse=", "))
       }
+
+      ## a factor coefficient is a log2 fold change against the reference level only under
+      ##   treatment contrasts. stats::model.matrix() gives an ordered factor polynomial
+      ##   contrasts whatever options("contrasts") says, turning geno into geno.L and geno.Q with
+      ##   no reference level at all, and honors a contrasts attribute on the variable the same
+      ##   way; either would leave truth, its column names, and config$reference_levels claiming
+      ##   something the data does not carry, so both are refused rather than quietly relabelled:
+
+      if(is.ordered(v)) {
+        stop("sim_design: variable ", nom, " is an ordered factor, which stats::model.matrix() ",
+          "gives polynomial contrasts, so its coefficients would be polynomial trends rather ",
+          "than log2 fold changes against the reference level named in ",
+          "config$reference_levels; declare it unordered, with factor(levels=c(",
+          paste0("\"", levels(v), "\"", collapse=", "), "))")
+      }
+      if(!is.null(attr(v, "contrasts"))) {
+        stop("sim_design: variable ", nom, " carries a contrasts attribute, which ",
+          "stats::model.matrix() honors in place of treatment contrasts, so its coefficients ",
+          "would not be log2 fold changes against the reference level named in ",
+          "config$reference_levels; drop it with attr(samps$", nom, ", \"contrasts\") <- NULL")
+      }
+
       samps[[nom]] <- samps_z[[nom]] <- v
       ref_levels[nom] <- levels(v)[1]
 
@@ -771,6 +833,28 @@ sim_design <- function(samps, frm, test_term, n_genes, n_genes_signif=0, effects
 
       stop("sim_design: variable ", nom, " must be numeric, logical, character or factor; ",
         "got class: ", paste0(class(v), collapse=", "))
+    }
+  }
+
+  ## the same question for the session-wide setting, which is the other way a factor gets
+  ##   contrasts that are not treatment contrasts. Only asked when there is a factor to ask it
+  ##   of, so an all-continuous design is unaffected by it.
+  ##   Passing contrasts.arg to stats::model.matrix() below would be worse than refusing:
+  ##   test(), which the simulation is scored by, reads this same option and nothing in the
+  ##   package sets it, so pinning it here only would put truth in one parameterization and the
+  ##   fit in another. Refused instead, so that the two cannot disagree:
+
+  if(length(ref_levels)) {
+
+    contr <- getOption("contrasts")
+    contr_1 <- if(is.character(contr) && length(contr)) contr[[1]] else
+      paste0("a ", paste0(class(contr), collapse="/"), " of length ", length(contr))
+
+    if(!identical(contr_1, "contr.treatment")) {
+      stop("sim_design: options(\"contrasts\") gives ", contr_1, " for unordered factors rather ",
+        "than contr.treatment, so a factor coefficient would not be a log2 fold change against ",
+        "the reference level named in config$reference_levels; restore the default with ",
+        "options(contrasts=c(\"contr.treatment\", \"contr.poly\"))")
     }
   }
 
@@ -823,6 +907,19 @@ sim_design <- function(samps, frm, test_term, n_genes, n_genes_signif=0, effects
 
     nom <- term_labs[i_term]
     i_cols <- which(assign == i_term & !i_const)
+
+    ## a term given genes but no effect size gets nothing, which is worth saying out loud:
+    ##   effects either names terms or applies to all of them, and f.chk_term_vec() fills a term
+    ##   it does not name with 0, so naming one term in effects zeroes every other one. The
+    ##   reverse, an effect size with no genes to spend it on, is how a term is deliberately left
+    ##   alone, n_genes_signif being read the same way, and stays quiet:
+
+    if(n_genes_signif[nom] && !effects[nom]) {
+      warning("sim_design: no effect planted on term ", nom, ", because effects is 0 there ",
+        "while n_genes_signif asks for ", n_genes_signif[nom], " gene(s); a term effects does ",
+        "not name gets 0. effects: ", paste0(names(effects), "=", effects, collapse=", "))
+    }
+
     if(!n_genes_signif[nom] || !effects[nom]) next
 
     if(!length(i_cols)) {
@@ -870,7 +967,13 @@ sim_design <- function(samps, frm, test_term, n_genes, n_genes_signif=0, effects
 
   mat <- f.sim_tech_reps(mat, reps_per_sample=reps_per_sample, cv_reps=cv_reps)
   if(any(is.na(c(mat)) | c(mat) <= 0, na.rm=T)) {
-    stop("sim_design: any(is.na(c(mat)) | c(mat) <= 0); min(c(mat)):", min(c(mat)))
+
+    ## min() without na.rm=T reports NA, which is one of the two things being reported, so the
+    ##   count of NAs is given separately and the minimum is of what is left:
+
+    n_na <- sum(is.na(c(mat)))
+    stop("sim_design: any(is.na(c(mat)) | c(mat) <= 0); NA: ", n_na, " of ", length(c(mat)),
+      "; min of the rest: ", if(n_na < length(c(mat))) min(c(mat), na.rm=T) else "none left")
   }
 
   obs <- samps[rep(1:nrow(samps), each=reps_per_sample), , drop=F]

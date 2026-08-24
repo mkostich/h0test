@@ -14,9 +14,9 @@ normalize_cpm(state, config, multiplier = 1e+06)
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration values. Does not use any keys, so can pass empty list.}
+\item{config}{List with configuration values. Does not use any keys, so can pass an empty list; checked with \code{h0testr::check_config()}.}
 
-\item{multiplier}{Numeric greater than zero used to scale returned values 
+\item{multiplier}{Single finite number greater than zero, used to scale returned values 
 after dividing by total counts in observation. For example, the default 
 \code{multiplier=1e6} yields normalized expression as CPM (counts per million).}
 }

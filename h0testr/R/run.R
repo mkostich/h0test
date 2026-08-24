@@ -409,10 +409,16 @@ tune <- function(
     ##   into NaN: 5707 of the 146841 measured values on the rdtc_seer2 protein
     ##   groups, so the cell was scored on a matrix the sweep had damaged. normalize()
     ##   now transforms before that fit instead, so nothing is lost, but it is still
-    ##   the slowest method here; drop it from this list if the sweep takes too long:
-    normalization_methods=c("RLE", "upperquartile", "q50", "q75",
-      "quantiles.robust", "cpm", "max", "sum", "div.mean", "div.median",
-      "TMM", "TMMwsp", "vsn", "qquantile", "loess", "log2", "none"),
+    ##   the slowest method here; drop it from this list if the sweep takes too long.
+    ##   "quantiles.robust" is left out for a different reason: normalize_mscoreutils()
+    ##   refuses it on data with any missing value: it assigns values by rank within each
+    ##   observation, so a gap comes back at that rank in every observation rather than in
+    ##   the one it was missing from (see normalize_mscoreutils()), and
+    ##   normalization comes here before imputation, so the sweep would stop at that
+    ##   cell on any real matrix. Pass it explicitly to sweep it on a complete one:
+    normalization_methods=c("RLE", "upperquartile", "q50", "q75", "cpm", "max",
+      "sum", "div.mean", "div.median", "TMM", "TMMwsp", "vsn", "qquantile",
+      "loess", "log2", "none"),
     impute_methods=c("sample_lod", "unif_sample_lod", "unif_global_lod", 
       "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", 
       "knn", "min_det", "min_prob", "qrilc", "bpca", "ppca", "svdImpute", 

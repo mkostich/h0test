@@ -20,11 +20,11 @@ normalize_edger(state, config, method = NULL, normalization_quantile = NULL)
   \code{normalization_quantile}   \cr \tab Used if \code{is.null(normalization_quantile)}. \cr
 }}
 
-\item{method}{Character in set
+\item{method}{Character scalar in set
 \code{c("RLE", "upperquartile", "TMM", "TMMwsp", "none")}. Can be set with
 \code{config$normalization_method}.}
 
-\item{normalization_quantile}{Numeric where \code{0 <= normalization_quantile <= 1.0}; quantile for method 
+\item{normalization_quantile}{Single number where \code{0 <= normalization_quantile <= 1.0}; quantile for method 
 \code{upperquartile}. Can set with \code{config$normalization_quantile}.}
 }
 \value{

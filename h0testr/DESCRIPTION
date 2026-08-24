@@ -7,7 +7,7 @@ Maintainer: Mitch Kostich <mitch.kostich@jax.org>
 Depends: R (>= 3.1)
 Imports: utils, stats, glmnet, randomForest, limma, edgeR,
   MsCoreUtils, DEqMS, QFeatures, SummarizedExperiment, msqrob2,
-  proDA, prolfqua, impute, pcaMethods, missForest, imputeLCMD, lmtest,
+  proDA, prolfqua, impute, pcaMethods, missForest, imputeLCMD,
   lme4, lmerTest
 Description: Toolkit providing R-based functionality for analyzing 
   non-negative numeric expression matrices. Provides functions to normalize, 

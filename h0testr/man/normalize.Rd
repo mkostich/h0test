@@ -29,7 +29,9 @@ normalize(
   \code{obs_col}       \cr \tab Column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
 }}
 
-\item{method}{Name of method to use, where scalar \code{method \%in\% h0testr::normalize_methods()}.}
+\item{method}{Name of method to use, where scalar \code{method \%in\% h0testr::normalize_methods()}.
+Checked before anything else happens, so a name no method goes by is
+refused without the data having been touched.}
 
 \item{normalization_quantile}{Quantile for methods \code{c("quantile", "upperquartile")}, where \code{0 <= normalization_quantile <= 1}.}
 
@@ -69,6 +71,13 @@ Inter-observation normalization using any of the methods available in
     negative fitted values for the smallest measurements, and \code{log2(x +
     1)} of anything at or below \code{-1} is \code{NaN}, so the old order
     deleted those measurements. See \code{h0testr::normalize_loess()}.
+  \code{"quantiles.robust"} is an error when \code{state$expression} has
+    any missing value, since it assigns values by rank within each
+    observation and so returns a missing value at that rank in every
+    observation, on whichever feature sorts there rather than on the one it
+    was missing from. Normalization comes before imputation, so that is most
+    matrices; \code{"qquantile"} matches quantiles across observations
+    without moving anything. See \code{h0testr::normalize_mscoreutils()}.
   An observation with no measured value is reported whatever the method, since
     there is nothing in it for an inter-observation method to work with. Most
     methods carry it through as the all-NA column it already was, so it is a
@@ -77,14 +86,22 @@ Inter-observation normalization using any of the methods available in
     \code{h0testr::normalize_qquantile()} respectively. Either way,
     \code{h0testr::filter_observations()} is where such an observation is
     meant to be dropped.
-  A single feature is normalized by whichever method can do it, but note
-    that inter-observation normalization of one feature is degenerate:
-    \code{"quantiles.robust"}, \code{"div.mean"} and
-    \code{"div.median"} return the same value for every observation, so
-    every difference between observations is erased. \code{"qquantile"}
-    needs two features to interpolate between and \code{"vsn"} needs two
-    to fit a transformation to; both refuse one, in
-    \code{h0testr::normalize_qquantile()} and
+  A single feature is normalized by whichever method can do it, with a
+    \code{WARNING} from here: ten of the sixteen methods return the same
+    value for every observation, so every difference between observations is
+    erased. Each of the ten divides an observation by a statistic of that
+    observation, and with one feature that statistic is the value itself.
+    Measured on a 1 x 6 matrix: \code{"quantile"}, \code{"cpm"},
+    \code{"loess"}, \code{"RLE"}, \code{"upperquartile"}, \code{"TMM"},
+    \code{"TMMwsp"}, \code{"div.mean"}, \code{"div.median"} and
+    \code{"quantiles.robust"}. \code{"sum"} and \code{"max"} come through
+    instead, \code{MsCoreUtils} normalizing those per feature rather than
+    per observation, which is also the exception to the description of these
+    methods as inter-observation:
+    \code{MsCoreUtils::normalize_matrix(m, "sum")} is
+    \code{m / rowSums(m)}. \code{"qquantile"} needs two features to
+    interpolate between and \code{"vsn"} needs two to fit a transformation
+    to; both refuse one, in \code{h0testr::normalize_qquantile()} and
     \code{h0testr::normalize_vsn()} respectively.
   See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.

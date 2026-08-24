@@ -18,6 +18,12 @@ Check configuration list for recognizable names and proper value types.
 \details{
 Only checks parameters in the configuration. Does not complain about
     missing settings.
+  A numeric parameter has to be a single finite value. \code{NA} and
+    \code{NaN} are refused by name, having reached a comparison as R's own
+    "missing value where TRUE/FALSE needed" before, and so is an infinite
+    count, which used to pass every check since \code{Inf == round(Inf)}. An
+    infinite proportion is refused as out of range rather than as not finite,
+    which says more about a proportion.
   Beyond the type of each value, the combinations that no other setting can rescue
     are refused here rather than at the step that would meet them:
     \code{config$test_method} outside \code{h0testr::test_methods()},

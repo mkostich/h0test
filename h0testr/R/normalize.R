@@ -35,6 +35,48 @@ f.obs_measured <- function(state, config, method, fn, refuse=FALSE) {
   return(invisible(NULL))
 }
 
+## the methods that come back with the same value for every observation when
+##   state$expression has a single feature. Each divides an observation by a
+##   statistic of that observation, and with one feature that statistic is the
+##   value itself, so the quotient is the same everywhere and every difference
+##   between observations is erased. Measured on a 1 x 6 matrix, one distinct
+##   value out of each of these ten and six out of the rest:
+##   "sum" and "max" are not among them because MsCoreUtils normalizes those
+##   per feature rather than per observation (normalize_matrix(m, "sum") is
+##   m / rowSums(m), checked with all.equal against both forms), "log2" and
+##   "none" do not normalize, and "vsn" and "qquantile" refuse a single
+##   feature in their own functions:
+
+f.one_feature_methods <- function() {
+  return(
+    c("quantile", "cpm", "loess", "RLE", "upperquartile", "TMM", "TMMwsp",
+      "div.mean", "div.median", "quantiles.robust")
+  )
+}
+
+## reported rather than refused: a one-feature matrix is a strange thing to
+##   hand a workflow but not an error, and the methods that cannot proceed on
+##   one refuse it themselves. Same division of labour as f.obs_measured():
+
+f.one_feature <- function(state, config, method, fn) {
+
+  if(nrow(state$expression) > 1) return(invisible(NULL))
+  if(!(method %in% f.one_feature_methods())) return(invisible(NULL))
+
+  f.msg(paste0(fn, ": WARNING:"), "state$expression has",
+    nrow(state$expression), "feature, and normalization method", method,
+    "divides each observation by a statistic of that observation, which with",
+    "one feature is the value itself;", "\n",
+    "  every observation will come back with the same value, so every",
+    "difference between observations is erased;", "\n",
+    "  of the other methods, sum and max come through, MsCoreUtils",
+    "normalizing those per feature rather than per observation, log2 and none",
+    "do not normalize, and vsn and qquantile refuse a single feature",
+    config=config)
+
+  return(invisible(NULL))
+}
+
 #' Normalize expression using \code{edgeR}
 #' @description
 #'   Normalize expression using functionality from \code{edgeR} package.
@@ -62,10 +104,10 @@ f.obs_measured <- function(state, config, method, fn, refuse=FALSE) {
 #'     \code{normalization_method}     \cr \tab Used if \code{is.null(method)}. \cr
 #'     \code{normalization_quantile}   \cr \tab Used if \code{is.null(normalization_quantile)}. \cr
 #'   }
-#' @param method Character in set
+#' @param method Character scalar in set
 #'   \code{c("RLE", "upperquartile", "TMM", "TMMwsp", "none")}. Can be set with
 #'   \code{config$normalization_method}.
-#' @param normalization_quantile Numeric where \code{0 <= normalization_quantile <= 1.0}; quantile for method 
+#' @param normalization_quantile Single number where \code{0 <= normalization_quantile <= 1.0}; quantile for method 
 #'   \code{upperquartile}. Can set with \code{config$normalization_quantile}.
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
@@ -106,19 +148,39 @@ normalize_edger <- function(state, config, method=NULL, normalization_quantile=N
     f.err("normalize_edger: !is.matrix(state$expression)", "\n",
       "class(state$expression):", class(state$expression), config=config)
   }
-  if(is.null(method)) method <- config$normalization_method
-  if(is.null(method)) method <- "RLE"
+  if(length(method) %in% 0) method <- config$normalization_method
+  if(length(method) %in% 0) method <- "RLE"
   allowed <- c("RLE", "upperquartile", "TMM", "TMMwsp", "none")
-  if(!(method %in% allowed)) {
-    f.err("normalize_edger: !(method %in% allowed); method:", method, "\n",
-      "allowed:", allowed, config=config)
+
+  ## the same shape of check as normalize_loess() and normalize_vsn() make of
+  ##   their own arguments: "method %in% allowed" on its own left a method of
+  ##   length 2 to R's "the condition has length > 1", and said nothing about
+  ##   the length or the class of what it had been handed (measured). A
+  ##   zero-length method is taken as unset, the same as NULL:
+
+  if(!(length(method) %in% 1 && is.character(method) && !is.na(method) &&
+      method %in% allowed)) {
+    f.err("normalize_edger: method has to be one of",
+      paste(allowed, collapse=" "), ";", "\n", " method:", method,
+      "; class:", class(method), "; length:", length(method), config=config)
   }
   
-  if(is.null(normalization_quantile)) normalization_quantile <- config$normalization_quantile
-  if(is.null(normalization_quantile)) normalization_quantile <- 0.75
-  if(!is.numeric(normalization_quantile)) {
-      f.err("normalize_edger: !is.numeric(normalization_quantile); normalization_quantile:", 
-        normalization_quantile, config=config)
+  if(length(normalization_quantile) %in% 0) {
+    normalization_quantile <- config$normalization_quantile
+  }
+  if(length(normalization_quantile) %in% 0) normalization_quantile <- 0.75
+
+  ## !is.numeric() on its own passed a vector and an NA through to the range
+  ##   check below, which reported them as R's own "'length = 2' in coercion
+  ##   to 'logical(1)'" and "missing value where TRUE/FALSE needed"
+  ##   (measured):
+
+  if(!(length(normalization_quantile) %in% 1 &&
+      is.numeric(normalization_quantile) && !is.na(normalization_quantile))) {
+    f.err("normalize_edger: normalization_quantile has to be a single number;",
+      "\n", " normalization_quantile:", normalization_quantile, "; class:",
+      class(normalization_quantile), "; length:",
+      length(normalization_quantile), config=config)
   }
   if(normalization_quantile < 0 || normalization_quantile > 1) {
     f.err(
@@ -200,8 +262,8 @@ normalize_edger <- function(state, config, method=NULL, normalization_quantile=N
 #'   \tabular{ll}{
 #'     \code{normalization_quantile}   \cr \tab Quantile to use where \code{normalization_method \%in\% c("quantile", "upperquartile")}. \cr
 #'   }
-#' @param normalization_quantile Numeric in closed interval \code{[0, 1]} specifying quantile to use.
-#' @param multiplier Numeric used to scale returned values after 
+#' @param normalization_quantile Single number in closed interval \code{[0, 1]} specifying quantile to use.
+#' @param multiplier Single finite number greater than zero, used to scale returned values after 
 #'   dividing by selected quantile. 
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
@@ -230,15 +292,21 @@ normalize_quantile <- function(state, config, normalization_quantile=NULL, multi
     f.err("normalize_quantile: !is.matrix(state$expression)", "\n",
       "class(state$expression):", class(state$expression), config=config)
   }
-  if(is.null(normalization_quantile)) normalization_quantile <- config$normalization_quantile
-  if(is.null(normalization_quantile)) normalization_quantile <- 0.75
-  if(!is.numeric(normalization_quantile)) {
-    f.err(
-      "normalize_quantile: !is.numeric(normalization_quantile);", 
-      "normalization_quantile:", normalization_quantile, ";", 
-      "typeof(normalization_quantile):", typeof(normalization_quantile), 
-      config=config
-    )
+  if(length(normalization_quantile) %in% 0) {
+    normalization_quantile <- config$normalization_quantile
+  }
+  if(length(normalization_quantile) %in% 0) normalization_quantile <- 0.75
+
+  ## as in normalize_edger(): !is.numeric() let a vector and an NA reach the
+  ##   range check, which is where R, rather than this function, reported
+  ##   them:
+
+  if(!(length(normalization_quantile) %in% 1 &&
+      is.numeric(normalization_quantile) && !is.na(normalization_quantile))) {
+    f.err("normalize_quantile: normalization_quantile has to be a single",
+      "number;", "\n", " normalization_quantile:", normalization_quantile,
+      "; class:", class(normalization_quantile), "; length:",
+      length(normalization_quantile), config=config)
   }
   if(normalization_quantile < 0 || normalization_quantile > 1) {
     f.err(
@@ -248,6 +316,22 @@ normalize_quantile <- function(state, config, normalization_quantile=NULL, multi
     )
   }
   
+
+  ## multiplier was not checked at all, and it is the one argument here whose
+  ##   bad values nothing downstream refuses either: a multiplier of length 2
+  ##   is recycled down each column, so the result is wrong rather than
+  ##   refused (measured on a 60 x 6 matrix: total 231459 at multiplier 1e3,
+  ##   70465400 at c(1e3, 1e6)), NA_real_ empties the matrix, a negative
+  ##   multiplier makes every value negative and log2(x + 1) of that is NaN,
+  ##   and 0 leaves nothing but zeros. Only a character multiplier said
+  ##   anything at all, as R's "non-numeric argument to binary operator":
+
+  if(!(length(multiplier) %in% 1 && is.numeric(multiplier) &&
+      is.finite(multiplier) && multiplier > 0)) {
+    f.err("normalize_quantile: multiplier has to be a single finite number greater than zero;",
+      "\n", " multiplier:", multiplier, "; class:", class(multiplier),
+      "; length:", length(multiplier), config=config)
+  }
   f <- function(v) {
     multiplier * v / stats::quantile(v, probs=normalization_quantile, na.rm=T)
   }
@@ -277,8 +361,8 @@ normalize_quantile <- function(state, config, normalization_quantile=NULL, multi
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values. Does not use any keys, so can pass empty list.
-#' @param multiplier Numeric greater than zero used to scale returned values 
+#' @param config List with configuration values. Does not use any keys, so can pass an empty list; checked with \code{h0testr::check_config()}.
+#' @param multiplier Single finite number greater than zero, used to scale returned values 
 #'   after dividing by total counts in observation. For example, the default 
 #'   \code{multiplier=1e6} yields normalized expression as CPM (counts per million). 
 #' @return A list (the processed state) with the following elements:
@@ -302,11 +386,29 @@ normalize_quantile <- function(state, config, normalization_quantile=NULL, multi
 
 normalize_cpm <- function(state, config, multiplier=1e6) {
 
+  check_config(config)
+
   if(!is.matrix(state$expression)) {
     f.err("normalize_cpm: !is.matrix(state$expression)", "\n",
       "class(state$expression):", class(state$expression), config=config)
   }
   
+
+  ## multiplier was not checked at all, and it is the one argument here whose
+  ##   bad values nothing downstream refuses either: a multiplier of length 2
+  ##   is recycled down each column, so the result is wrong rather than
+  ##   refused (measured on a 60 x 6 matrix: total 231459 at multiplier 1e3,
+  ##   70465400 at c(1e3, 1e6)), NA_real_ empties the matrix, a negative
+  ##   multiplier makes every value negative and log2(x + 1) of that is NaN,
+  ##   and 0 leaves nothing but zeros. Only a character multiplier said
+  ##   anything at all, as R's "non-numeric argument to binary operator":
+
+  if(!(length(multiplier) %in% 1 && is.numeric(multiplier) &&
+      is.finite(multiplier) && multiplier > 0)) {
+    f.err("normalize_cpm: multiplier has to be a single finite number greater than zero;",
+      "\n", " multiplier:", multiplier, "; class:", class(multiplier),
+      "; length:", length(multiplier), config=config)
+  }
   f <- function(v) multiplier * (v / sum(v, na.rm=T))
   ## column by column: apply(state$expression, 2, f) drops the dim attribute
   ##   of a single-row matrix and returns a named vector. See
@@ -339,7 +441,7 @@ normalize_cpm <- function(state, config, multiplier=1e6) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values. Does not use any keys, so can pass empty list.
+#' @param config List with configuration values. Does not use any keys, so can pass an empty list; checked with \code{h0testr::check_config()}.
 #' @param n_pts Scalar minimum number of data points per stratum, as a whole number of 1 or more.
 #'   Reduced to \code{round(sqrt(nrow(state$expression)))} with a message if it exceeds that.
 #'   See \code{vsn::vsn2}. Default: 42L.
@@ -367,6 +469,8 @@ normalize_cpm <- function(state, config, multiplier=1e6) {
 #' summary(apply(state2$expression, 1, sd, na.rm=TRUE))
 
 normalize_vsn <- function(state, config, n_pts=42L) {
+
+  check_config(config)
   
   if(!is.matrix(state$expression)) {
     f.err("normalize_vsn: !is.matrix(state$expression)", "\n",
@@ -454,11 +558,11 @@ normalize_vsn <- function(state, config, n_pts=42L) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values. Uses the following key:
+#' @param config List with configuration values, checked with \code{h0testr::check_config()}. Uses the following key:
 #'   \tabular{ll}{
 #'     \code{normalization_span} \cr \tab Span (numeric between 0 and 1) for the loess fit; read when \code{span} is \code{NULL}. \cr
 #'   }
-#' @param span Numeric between 0 and 1 specifying span for loess fit.
+#' @param span Single number between 0 and 1 specifying span for loess fit.
 #'   Higher numbers result in smoother (less localized) fit. Defaults to
 #'   \code{config$normalization_span}, or to \code{0.7} when that is unset as well.
 #' @param method Character in \code{c("fast", "affy", "pairs")}. Default:
@@ -485,6 +589,8 @@ normalize_vsn <- function(state, config, n_pts=42L) {
 #' summary(apply(state2$expression, 1, sd, na.rm=TRUE))
 
 normalize_loess <- function(state, config, span=NULL, method="fast") {
+
+  check_config(config)
 
   if(!is.matrix(state$expression)) {
     f.err("normalize_loess: !is.matrix(state$expression)", "\n",
@@ -524,12 +630,18 @@ normalize_loess <- function(state, config, span=NULL, method="fast") {
       "mean of the values each feature does have", config=config)
   }
 
-  if(is.null(span)) span <- config$normalization_span
-  if(is.null(span)) span <- 0.7
-  
-  if(!is.numeric(span)) {
-    f.err("normalize_loess: !is.numeric(span);", "span:", span, ";", 
-      "typeof(span):", typeof(span), config=config)
+  if(length(span) %in% 0) span <- config$normalization_span
+  if(length(span) %in% 0) span <- 0.7
+
+  ## as with method above: !is.numeric() let a span of length 2 and an NA
+  ##   through to the range check, which is where R reported them. A span read
+  ##   from config has been through check_config() by then, so this is the
+  ##   argument's check:
+
+  if(!(length(span) %in% 1 && is.numeric(span) && !is.na(span))) {
+    f.err("normalize_loess: span has to be a single number;", "\n",
+      " span:", span, "; class:", class(span), "; length:", length(span),
+      config=config)
   }
   if(span < 0 || span > 1) {
     f.err("normalize_loess: span < 0 || span > 1; span:", span, config=config)
@@ -563,7 +675,7 @@ normalize_loess <- function(state, config, span=NULL, method="fast") {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values. Does not use any keys, so can pass empty list.
+#' @param config List with configuration values. Does not use any keys, so can pass an empty list; checked with \code{h0testr::check_config()}.
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -589,6 +701,8 @@ normalize_loess <- function(state, config, span=NULL, method="fast") {
 #' apply(state2$expression, 2, quantile, probs=c(0.1, 0.25, 0.5, 0.75, 0.9), na.rm=TRUE)
 
 normalize_qquantile <- function(state, config) {
+
+  check_config(config)
 
   if(!is.matrix(state$expression)) {
     f.err("normalize_qquantile: !is.matrix(state$expression)", "\n",
@@ -631,6 +745,28 @@ normalize_qquantile <- function(state, config) {
 #'     \code{h0testr::normalize_qquantile()}). 
 #'     Acceptable \code{method} values include:
 #'       \code{c("sum", "max", "div.mean", "div.median", "quantiles.robust")}.
+#'   \code{"div.mean"}, \code{"div.median"} and \code{"quantiles.robust"}
+#'     work across observations, while \code{"sum"} and \code{"max"} work
+#'     across features:
+#'     \code{MsCoreUtils::normalize_matrix(m, method="sum")} is
+#'     \code{m / rowSums(m)} and \code{method="max"} is
+#'     \code{m / apply(m, 1, max)}, checked with \code{all.equal()} against
+#'     both the per-row and the per-observation forms on a 60 x 6 matrix. So
+#'     those two rescale each feature by its own total or maximum rather than
+#'     equalizing anything between observations.
+#'   \code{"quantiles.robust"} is an error when \code{state$expression} has
+#'     any missing value. \code{preprocessCore} assigns values by rank within
+#'     each observation, and a missing value takes a rank of its own, so it
+#'     comes back at that rank in every observation, on whichever feature sorts
+#'     there rather than on the one it was missing from. Measured on a 30 x 6
+#'     matrix: one gap became six missing cells in five different features, 15
+#'     scattered gaps became 60, and an observation measuring nothing turned all
+#'     180 values missing. Values are relocated rather than only lost, and
+#'     nothing downstream can tell a feature emptied that way from one never
+#'     measured. The other four methods here return the missing values they were
+#'     given, in the cells they were given them in;
+#'     \code{h0testr::normalize_qquantile()} matches quantiles across
+#'     observations without the robust trimming and without moving anything.
 #'   See documentation for \code{MsCoreUtils::normalize_matrix()} for details of each method.
 #'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
@@ -640,9 +776,11 @@ normalize_qquantile <- function(state, config) {
 #'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
-#' @param config List with configuration values. The only optional setting used is
+#' @param config List with configuration values, checked with \code{h0testr::check_config()}. The only optional setting used is
 #'   \code{normalization_method}, which is used to set \code{method} if \code{is.null(method)}.
-#' @param method Name (character scalar) of method to use for normalization. See details.
+#' @param method Name (character scalar) of method to use for normalization.
+#'   \code{"quantiles.robust"} cannot be used on data with any missing value.
+#'   See details.
 #' @return A list with elements: 
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with normalized expression values. \cr
@@ -665,11 +803,19 @@ normalize_qquantile <- function(state, config) {
 #' apply(state2$expression, 2, quantile, probs=c(0.1, 0.25, 0.5, 0.75, 0.9), na.rm=TRUE)
 
 normalize_mscoreutils <- function(state, config, method=NULL) {
+
+  check_config(config)
   
-  if(is.null(method) || method %in% "") {
-    if(is.null(config$normalization_method) || config$normalization_method %in% "") {
-      f.err("normalize_mscoreutils: method and config$normalization_method both unset", 
-        config=config)
+  ## length() and isTRUE() rather than is.null() and a bare %in%: a method (or
+  ##   a config$normalization_method) of length 0 reached "||" as logical(0),
+  ##   which R reported as "missing value where TRUE/FALSE needed", and one of
+  ##   length 2 as "'length = 2' in coercion to 'logical(1)'" (measured):
+
+  if(length(method) %in% 0 || isTRUE(method %in% "")) {
+    if(length(config$normalization_method) %in% 0 ||
+        isTRUE(config$normalization_method %in% "")) {
+      f.err("normalize_mscoreutils: method and config$normalization_method",
+        "both unset", config=config)
     }
     method <- config$normalization_method
   }
@@ -677,16 +823,50 @@ normalize_mscoreutils <- function(state, config, method=NULL) {
   ## restricted to subset which yield non-negative if fed non-negative:
   allowed <- c("sum", "max", "div.mean", "div.median", "quantiles.robust")
   
-  if(!(method %in% allowed)) {
-    f.err("normalize_mscoreutils: unrecognized method:", method, "\n", 
-      "allowed values:", allowed, config=config)
+  ## the method can arrive from config as well as from the argument; a config
+  ##   one has been through check_config() by then, which checks its class and
+  ##   its length but not this list of names:
+
+  if(!(length(method) %in% 1 && is.character(method) && !is.na(method) &&
+      method %in% allowed)) {
+    f.err("normalize_mscoreutils: method has to be one of",
+      paste(allowed, collapse=" "), ";", "\n", " method:", method,
+      "; class:", class(method), "; length:", length(method), config=config)
   }
   
   if(!is.matrix(state$expression)) {
     f.err("normalize_mscoreutils: !is.matrix(state$expression)", "\n",
       "class(state$expression):", class(state$expression), config=config)
   }
-  
+
+  ## preprocessCore assigns values by rank within each observation, and a
+  ##   missing value takes a rank of its own, so the NA comes back at that
+  ##   rank in every observation, on whichever feature sorts there rather than
+  ##   on the one it was missing from. Measured on a 30 x 6 matrix: one gap, at
+  ##   feat_7/obs_3, came back as six missing cells in five different features,
+  ##   one per observation; 15 scattered gaps became 60; and an observation
+  ##   measuring nothing turned all 180 values missing. So values are relocated
+  ##   rather than only lost, and nothing downstream can tell a feature emptied
+  ##   that way from one never measured. The other four methods here return the
+  ##   missing values they were given, in the cells they were given them in.
+  ##   Same reasoning as normalize_loess() and its "affy" and "pairs":
+
+  n_na <- sum(is.na(state$expression))
+
+  if(method %in% "quantiles.robust" && n_na > 0) {
+    f.err("normalize_mscoreutils: method", method, "cannot be used on data",
+      "with missing values;", "\n",
+      " missing values in state$expression:", n_na, "of",
+      length(state$expression), "\n",
+      "it assigns values by rank within each observation, so a missing value",
+      "comes back at that rank in every observation, in whatever feature sorts",
+      "there rather than in the one it was missing from;", "\n",
+      "the other methods here (sum, max, div.mean, div.median) leave missing",
+      "values where they are, as does h0testr::normalize_qquantile(), which",
+      "matches quantiles across observations without the robust trimming",
+      config=config)
+  }
+
   ## MsCoreUtils::normalize_matrix() does not work with integer input, and
   ##   apply(state$expression, 2, as.numeric) was how it was handed doubles.
   ##   That drops the dim attribute of a single-row matrix, so a one-feature
@@ -748,6 +928,13 @@ normalize_methods <- function() {
 #'     negative fitted values for the smallest measurements, and \code{log2(x +
 #'     1)} of anything at or below \code{-1} is \code{NaN}, so the old order
 #'     deleted those measurements. See \code{h0testr::normalize_loess()}.
+#'   \code{"quantiles.robust"} is an error when \code{state$expression} has
+#'     any missing value, since it assigns values by rank within each
+#'     observation and so returns a missing value at that rank in every
+#'     observation, on whichever feature sorts there rather than on the one it
+#'     was missing from. Normalization comes before imputation, so that is most
+#'     matrices; \code{"qquantile"} matches quantiles across observations
+#'     without moving anything. See \code{h0testr::normalize_mscoreutils()}.
 #'   An observation with no measured value is reported whatever the method, since
 #'     there is nothing in it for an inter-observation method to work with. Most
 #'     methods carry it through as the all-NA column it already was, so it is a
@@ -756,14 +943,22 @@ normalize_methods <- function() {
 #'     \code{h0testr::normalize_qquantile()} respectively. Either way,
 #'     \code{h0testr::filter_observations()} is where such an observation is
 #'     meant to be dropped.
-#'   A single feature is normalized by whichever method can do it, but note
-#'     that inter-observation normalization of one feature is degenerate:
-#'     \code{"quantiles.robust"}, \code{"div.mean"} and
-#'     \code{"div.median"} return the same value for every observation, so
-#'     every difference between observations is erased. \code{"qquantile"}
-#'     needs two features to interpolate between and \code{"vsn"} needs two
-#'     to fit a transformation to; both refuse one, in
-#'     \code{h0testr::normalize_qquantile()} and
+#'   A single feature is normalized by whichever method can do it, with a
+#'     \code{WARNING} from here: ten of the sixteen methods return the same
+#'     value for every observation, so every difference between observations is
+#'     erased. Each of the ten divides an observation by a statistic of that
+#'     observation, and with one feature that statistic is the value itself.
+#'     Measured on a 1 x 6 matrix: \code{"quantile"}, \code{"cpm"},
+#'     \code{"loess"}, \code{"RLE"}, \code{"upperquartile"}, \code{"TMM"},
+#'     \code{"TMMwsp"}, \code{"div.mean"}, \code{"div.median"} and
+#'     \code{"quantiles.robust"}. \code{"sum"} and \code{"max"} come through
+#'     instead, \code{MsCoreUtils} normalizing those per feature rather than
+#'     per observation, which is also the exception to the description of these
+#'     methods as inter-observation:
+#'     \code{MsCoreUtils::normalize_matrix(m, "sum")} is
+#'     \code{m / rowSums(m)}. \code{"qquantile"} needs two features to
+#'     interpolate between and \code{"vsn"} needs two to fit a transformation
+#'     to; both refuse one, in \code{h0testr::normalize_qquantile()} and
 #'     \code{h0testr::normalize_vsn()} respectively.
 #'   See documentation for \code{h0testr::new_config()}
 #'     for more detailed description of configuration parameters.
@@ -782,6 +977,8 @@ normalize_methods <- function() {
 #'     \code{obs_col}       \cr \tab Column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
 #'   }
 #' @param method Name of method to use, where scalar \code{method \%in\% h0testr::normalize_methods()}.
+#'   Checked before anything else happens, so a name no method goes by is
+#'   refused without the data having been touched.
 #' @param normalization_quantile Quantile for methods \code{c("quantile", "upperquartile")}, where \code{0 <= normalization_quantile <= 1}.
 #' @param span Span for method \code{"loess"}, where \code{0 < span < 1}.
 #' @return A list with the following two elements:
@@ -833,11 +1030,43 @@ normalize <- function(state, config, method=NULL,
   check_config(config)
   f.check_state(state, config)
   
-  if(is.null(method) || method %in% "") method <- config$normalization_method
-  if(is.null(method) || method %in% "") {
-    f.err("normalize: method and config$normalization_method both unset", 
+  ## the length test and isTRUE() rather than "is.null(method) || method %in%
+  ##   ''": with method=character(0) the %in% gives logical(0), which "||"
+  ##   then reported as R's own "missing value where TRUE/FALSE needed", and
+  ##   with a method of length 2 as "'length = 2' in coercion to
+  ##   'logical(1)'" (measured). A zero-length method is taken as unset, the
+  ##   same as NULL:
+
+  if(length(method) %in% 0 || isTRUE(method %in% "")) {
+    method <- config$normalization_method
+  }
+  if(length(method) %in% 0 || isTRUE(method %in% "")) {
+    f.err("normalize: method and config$normalization_method both unset",
       config=config)
   }
+
+  ## the method is named here rather than at the end of the if/else chain
+  ##   below, which is where an unhandled name used to be caught:
+  ##   f.obs_measured() and the log2() before the loess fit both run first, so
+  ##   by then the data had been transformed, and with config$is_log_transformed
+  ##   TRUE what came back was the log-scale error naming the unknown method
+  ##   instead. The old message also named config$normalization_method rather
+  ##   than the value it had rejected: method="bogus" with
+  ##   config$normalization_method="RLE" said "unexpected
+  ##   config$normalization_method: RLE" and then listed RLE among the allowed
+  ##   values, and with that key unset it said "NULL" (both measured). Only the
+  ##   argument can be wrong here in any case: check_config() checks
+  ##   config$normalization_method against this same list:
+
+  allowed <- normalize_methods()
+
+  if(!(length(method) %in% 1 && is.character(method) && !is.na(method) &&
+      method %in% allowed)) {
+    f.err("normalize: method has to be one of", paste(allowed, collapse=" "),
+      ";", "\n", " method:", method, "; class:", class(method),
+      "; length:", length(method), config=config)
+  }
+
   if(is.null(normalization_quantile)) normalization_quantile <- config$normalization_quantile
   if(is.null(span)) span <- config$normalization_span
   
@@ -870,6 +1099,12 @@ normalize <- function(state, config, method=NULL,
       "none"))) {
     f.obs_measured(state, config, method, "normalize")
   }
+
+  ## a single feature is the other thing there is nothing to work with, and it
+  ##   is the quiet one: the methods return a value, the same one for every
+  ##   observation. See f.one_feature() above:
+
+  f.one_feature(state, config, method, "normalize")
 
   ## cyclic loess is an *additive* correction, and limma documents log-expression
   ##   input for it, so the transformation belongs before the fit rather than
@@ -909,11 +1144,12 @@ normalize <- function(state, config, method=NULL,
     f.msg("skipping normalization: config$normalization_method %in% 'none'", 
       config=config)
   } else {
-    allowed <- normalize_methods()
-    f.err("normalize: unexpected config$normalization_method:", 
-      config$normalization_method, "\n",
-      "allowed:", allowed, config=config
-    )
+    ## not reachable from outside: method was checked against
+    ##   normalize_methods() above. Kept as a guard against a name being added
+    ##   there without a branch for it here:
+    f.err("normalize: no branch for method:", method, ";", "\n",
+      "it is one of the names h0testr::normalize_methods() returns, but",
+      "nothing in h0testr::normalize() handles it", config=config)
   }
     
   if(!log_first && !(method %in% c("vsn", "none"))) {

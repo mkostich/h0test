@@ -30,7 +30,11 @@ sim_design(
 every variable named in \code{frm}; see \code{\link{sim_samples}}, which builds one. A
 \code{sample_id} column is used if present and generated otherwise. Factor variables should
 be factors, their first level being taken as the reference; character and logical variables
-are levelled in sorted order.}
+are levelled in sorted order. Treatment contrasts are what make a factor coefficient a fold
+change against that reference level, so an ordered factor, a variable carrying a
+\code{contrasts} attribute, and an \code{options("contrasts")} whose unordered entry is not
+\code{contr.treatment} are all refused rather than silently changing what \code{truth} and
+\code{config$reference_levels} mean.}
 
 \item{frm}{Formula giving the design, e.g. \code{~sex + age} or \code{~geno * treatment}. Its
 variables must all be columns of \code{samps}, and it must have at least one term.}
@@ -49,7 +53,8 @@ can carry effects of several terms.}
 \item{effects}{Effect size, as a log2 fold change: between levels for a factor term, and per
 SD of the variable for a continuous one; see Details. Either a scalar
 numeric, applied to every term of \code{frm}, or a numeric vector named for the terms it
-applies to, a term not named getting 0.}
+applies to, a term not named getting 0. A term that \code{n_genes_signif} gives genes to and
+this gives 0 to gets no effect and a warning, since naming one term here zeroes the others.}
 
 \item{peps_per_gene}{Scalar whole number of features (peptides or precursors) per gene before
 dropout, with \code{peps_per_gene >= 1}.}
@@ -58,13 +63,17 @@ dropout, with \code{peps_per_gene >= 1}.}
 with \code{reps_per_sample >= 1}.}
 
 \item{cv_reps}{CV of technical replicates around their sample value. Scalar numeric, with
-\code{cv_reps >= 0}.}
+\code{cv_reps >= 0}. Replicate draws are redrawn until strictly positive, as the feature
+means are, so a \code{cv_reps} near or above 1 pulls a sample's replicates above that
+sample's own value.}
 
 \item{log_m_mean}{Mean of \code{log(feature means)}. Scalar numeric, with
 \code{log_m_mean >= 0}.}
 
 \item{log_m_sd}{Standard deviation of \code{log(feature means)} around \code{log_m_mean}.
-Scalar numeric, with \code{log_m_sd >= 0}.}
+Scalar numeric, with \code{log_m_sd >= 0}. Either of \code{log_m_mean} and \code{log_m_sd}
+may be 0, but not both: the draw is redrawn until it is strictly positive, which a mean of 0
+with an SD of 0 never is.}
 
 \item{log_cv_mean}{Mean of \code{log(feature CVs)}, the CVs being of features around their
 respective feature means. Scalar numeric.}
@@ -91,9 +100,9 @@ one feature per gene and \code{truth} keeps every gene whatever \code{p_drop} sa
 \value{
 List with elements:
   \tabular{ll}{
-    \code{state} \cr \tab List of \code{expression} (non-negative numeric matrix, features by
-      observations), \code{features} and \code{samples}, ready for
-      \code{\link{initialize}}. \cr
+    \code{state} \cr \tab List of \code{expression} (numeric matrix of positive whole numbers,
+      features by observations, with \code{NA} wherever MNAR or MCAR made a value missing),
+      \code{features} and \code{samples}, ready for \code{\link{initialize}}. \cr
     \code{config} \cr \tab \code{\link{new_config}} with \code{frm}, \code{test_term}, the
       four id columns and \code{reference_levels} set to match; \code{save_state} set
       \code{FALSE}, so that a simulation writes no files; and \code{n_features_min} set to 1,

@@ -161,8 +161,8 @@ f.limma_contrast_fit <- function(fit, design, config) {
 ##   observations, integer vector cols_test indexing the columns of X that carry
 ##   the test of config$test_term, integer vector cols_report indexing the
 ##   columns whose coefficients are to be returned; returns a named numeric
-##   vector with the $pval of a likelihood ratio test followed by the
-##   coefficient estimates of the full model for cols_report.
+##   vector with the $pval and the $stat of an F test of the two models, followed
+##   by the coefficient estimates of the full model for cols_report.
 ##   Both models are fitted from columns of one design matrix rather than from
 ##   formula text. Re-deriving the reduced model as a formula lets
 ##   stats::model.matrix() re-code the remaining factors to full rank, restoring
@@ -175,8 +175,8 @@ f.limma_contrast_fit <- function(fit, design, config) {
 ##   X_red is the reduced design f.design_test_cols() derived, taken as a matrix
 ##   rather than as columns to drop, so that a config$contrast run needs no separate
 ##   code here: the model constrained so that the contrast is zero is nested in the
-##   full model in exactly the same way, and the same likelihood ratio test of the
-##   two is the test of the contrast:
+##   full model in exactly the same way, and the same F test of the two is the test
+##   of the contrast:
 
 f.test_lm_feat <- function(y, X, X_red, cols_report) {
 
@@ -184,6 +184,27 @@ f.test_lm_feat <- function(y, X, X_red, cols_report) {
   yy <- y[i]
   xf <- X[i, , drop=F]
   xr <- X_red[i, , drop=F]
+
+  noms <- colnames(X)[cols_report]
+  out <- c(pval=as.numeric(NA), stat=as.numeric(NA),
+    stats::setNames(rep(as.numeric(NA), length(noms)), noms))
+
+  ## the two ranks filter_features_by_estimability() screens on, from the same helper
+  ##   and restricted the same way to the observations where this feature was measured:
+  ##   its df_test is rank_full - rank_red and its df_resid is n - rank_full, and both
+  ##   have to be at least 1 for there to be a test. Neither is guaranteed here, since
+  ##   that filter is optional and this function is reached without it. Checked ahead of
+  ##   the fits rather than after them because the failures are not all recoverable: for
+  ##   a feature measured in no observation at all stats::lm() does not return a fit, it
+  ##   errors with "0 (non-NA) cases", and that error propagates out of the apply() in
+  ##   test_lm() and takes every other feature's result with it. A saturated full model
+  ##   does return, but with no residual variance to test against, so stats::anova()
+  ##   reports the F and its p-value as NaN. Returning NA for such a feature says what
+  ##   happened instead; see test_lm() for what becomes of it:
+
+  rank_full <- f.design_rank(xf)
+
+  if(rank_full - f.design_rank(xr) < 1 || length(yy) - rank_full < 1) return(out)
 
   fit_full <- stats::lm(yy ~ xf + 0)
 
@@ -196,25 +217,37 @@ f.test_lm_feat <- function(y, X, X_red, cols_report) {
     fit_reduced <- stats::lm(yy ~ xr + 0)
   }
 
-  tbl <- lmtest::lrtest(fit_full, fit_reduced)
-  pval <- tbl[["Pr(>Chisq)"]][2]
+  ## the exact F test of the two nested least squares fits, rather than the likelihood
+  ##   ratio chi-square lmtest::lrtest() reported. The chi-square is the large-sample
+  ##   limit of this test, and it reaches that limit by treating the residual variance
+  ##   as known rather than estimated; with the handful of observations per condition
+  ##   that a proteomics design usually has, that makes it markedly anti-conservative.
+  ##   On a 12 observation two-group fixture the two disagreed by an order of magnitude
+  ##   on the same data, p = 7.8e-04 by F against p = 6.9e-05 by chi-square, and in
+  ##   that direction for every feature. This F is also the zero prior degrees of freedom
+  ##   limit of the moderated F the limma family here reports, so it makes "lm" the
+  ##   unmoderated member of the same family rather than a different test.
+  ##   stats::anova() takes the models smaller first, so the comparison is in row 2:
+
+  tbl <- stats::anova(fit_reduced, fit_full)
+
+  out[["pval"]] <- tbl[["Pr(>F)"]][2]
+  out[["stat"]] <- tbl[["F"]][2]
 
   ## lm() prefixes coefficient names with the name of the matrix it was given:
 
   coefs <- stats::coef(fit_full)
   names(coefs) <- sub("^xf", "", names(coefs))
 
-  noms <- colnames(X)[cols_report]
-  out <- coefs[noms]                ## missing (aliased) coefficients give NA
-  names(out) <- noms
+  out[noms] <- coefs[noms]          ## missing (aliased) coefficients give NA
 
-  return(c(pval=pval, out))
+  return(out)
 }
 
 #' Hypothesis testing using the \code{stats::lm()} function
 #' @description
-#'   Tests for differential expression by fitting full and reduced linear 
-#'     models, then statistically compare them using a likelihood ratio test.
+#'   Tests for differential expression by fitting full and reduced linear
+#'     models, then comparing them with an F test.
 #' @details
 #'   This test is suitable for use with missing values without imputation. The
 #'     test does not use moderated standard error estimates, so should only be 
@@ -231,13 +264,25 @@ f.test_lm_feat <- function(y, X, X_red, cols_report) {
 #'     nothing to test. The columns removed are those of \code{config$test_term}
 #'     together with those of every higher-order term containing it, so testing
 #'     a variable involved in an interaction tests the interaction too.
-#'   The two models are compared using a likelihood ratio test, implemented with
-#'     the \code{lmtest::lrtest()} function. Raw p-values are adjusted for
-#'     multiple testing using \code{stats::p.adjust()}. A feature measured in too
-#'     few observations to support the full model yields an \code{NA} p-value,
-#'     which is reported as 1; use
-#'     \code{h0testr::filter_features_by_estimability()} beforehand to drop such
-#'     features instead, which screens the ranks of these same two matrices.
+#'   The two models are compared with the exact F test of \code{stats::anova()},
+#'     rather than with the likelihood ratio chi-square of
+#'     \code{lmtest::lrtest()} that earlier versions used. The chi-square is the
+#'     large-sample limit of the same test, reached by treating the residual
+#'     variance as known rather than estimated, and is anti-conservative at the
+#'     replication these designs usually have. Raw p-values are adjusted for
+#'     multiple testing using \code{stats::p.adjust()}.
+#'   A feature measured in too few observations to support the test yields
+#'     \code{NA} for its p-value, its adjusted p-value and its statistic, which
+#'     earlier versions reported as a p-value of 1. Too few means either that the
+#'     term under test has no estimable degrees of freedom left once the
+#'     unmeasured observations are dropped, or that the full model is left with
+#'     no residual degrees of freedom; these are the \code{df_test} and
+#'     \code{df_resid} of \code{h0testr::filter_features_by_estimability()},
+#'     computed here from the same two matrices by the same helper. Use that
+#'     function beforehand to drop such features instead. Since
+#'     \code{stats::p.adjust()} takes its \code{n} from the p-values that are not
+#'     \code{NA}, an untested feature does not count against the features that
+#'     were tested.
 #'   Any covariate type that \code{stats::model.matrix()} accepts is supported,
 #'     categorical or continuous, in any combination, as are interactions and
 #'     formulas without an intercept.
@@ -254,14 +299,21 @@ f.test_lm_feat <- function(y, X, X_red, cols_report) {
 #'     \code{test_term}      \cr \tab Term (character scalar) to be tested for non-zero coefficient. \cr
 #'     \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
 #'   }
-#' @param fdr.method Character scalar specifying method to use for multiple 
-#'   testing adjustment of p-values. See \code{stats::p.adjust.methods()} for 
+#' @param fdr.method Character scalar specifying method to use for multiple
+#'   testing adjustment of p-values. See \code{stats::p.adjust.methods()} for
 #'   latest list of valid choices. Currently one of:
 #'   \code{c("holm", "hochberg", "hommel", "bonferroni", "BH", "BY")}.
+#'   Defaults to \code{"BH"}, which is what every other test method here uses;
+#'   earlier versions defaulted this one method to the considerably more
+#'   conservative \code{"BY"}, so the same data gave \code{"lm"} a larger adjusted
+#'   p-value than the other methods for reasons that had nothing to do with the
+#'   test. Pass \code{"BY"} to control the false discovery rate under arbitrary
+#'   dependence between features.
 #' @return
 #'   A list with a \code{$hits} data.frame of results and a \code{$fit} that is
 #'     always \code{NULL}, since a separate model is fitted to every feature.
-#'     Columns of \code{$hits} are \code{c("feature", "p.adj", "pval")}, then the
+#'     Columns of \code{$hits} are \code{c("feature", "p.adj", "pval", "stat")},
+#'     where \code{stat} is the F statistic of the model comparison, then the
 #'     full-model coefficient estimates for the columns under test, preceded by
 #'     \code{Intercept} when \code{config$frm} has one, then the feature metadata
 #'     columns from \code{state$features}. Coefficient columns that are
@@ -294,7 +346,22 @@ f.test_lm_feat <- function(y, X, X_red, cols_report) {
 #' tbl <- h0testr::test_lm(out$state, out$config)
 #' print(tbl)
 
-test_lm <- function(state, config, fdr.method="BY") {
+test_lm <- function(state, config, fdr.method="BH") {
+
+  check_config(config)
+  f.check_state(state, config)
+
+  ## the levels of each factor covariate ordered with the declared reference level
+  ##   first, before any design is built: f.design_X() hands state$samples to
+  ##   stats::model.matrix() as they are, and a character column there is levelled by
+  ##   sorting, so without this a direct caller gets coefficients named for a
+  ##   reference level it did not ask for, and the sign of the effect flipped, with
+  ##   nothing said about it. A no-op for a run that came through test(), which has
+  ##   already done exactly this; kept because this function is exported and a direct
+  ##   caller of it reaches no other place that does. Same call, and for the same
+  ##   reason, as in test_proda() and test_prolfqua():
+
+  state <- f.relevel_state_covariates(state, config, caller="test_lm")
 
   ## the full design and the columns of it that carry the test; shared with
   ##   filter_features_by_estimability(), so the models compared here are the
@@ -318,17 +385,32 @@ test_lm <- function(state, config, fdr.method="BY") {
   hits <- t(apply(state$expression, 1, f.test_lm_feat, X, design$X_red,
     cols_report))
 
+  ## f.test_lm_feat() returns the p-value and the statistic first, in that order, and
+  ##   the coefficients after them; taken by position rather than by name so that a
+  ##   covariate whose design column happens to be called pval or stat cannot be
+  ##   mistaken for one of them:
+
   pvals <- hits[, 1, drop=T]
-  coefs <- hits[, -1, drop=F]
+  stats_f <- hits[, 2, drop=T]
+  coefs <- hits[, -(1:2), drop=F]
   n <- apply(coefs, 2, function(v) sum(!is.na(v)))
   coefs <- coefs[, n > 0, drop=F]
-  
-  i <- is.na(pvals)
-  if(any(i)) pvals[i] <- 1.0    ## or maybe runif(sum(i)) or 0.5?
-  
+
+  ## a feature the design could not support keeps its NA p-value, where it used to be
+  ##   reported as 1.0. Of all the values that could stand in for a test that was never
+  ##   run, 1.0 is the one that is certainly wrong: it is a claim about the data, and it
+  ##   is indistinguishable in the result table from a feature that really was tested
+  ##   and really showed nothing. It also inflated the count that stats::p.adjust()
+  ##   divides by, which takes n from the p-values that are not NA, so every other
+  ##   feature's adjusted p-value was penalized for tests that never happened. The NA
+  ##   stays in place instead, and carries through p.adjust() to p.adj and into the
+  ##   standardized table, where it reads as "not tested". Use
+  ##   h0testr::filter_features_by_estimability() beforehand to drop such features:
+
   fdrs <- stats::p.adjust(pvals, method=fdr.method)
-  
-  hits <- data.frame(feature=rownames(hits), p.adj=fdrs, pval=pvals, coefs)
+
+  hits <- data.frame(feature=rownames(hits), p.adj=fdrs, pval=pvals, stat=stats_f,
+    coefs)
   rownames(hits) <- NULL
   i <- names(hits) %in% "X.Intercept."
   if(any(i)) names(hits)[i] <- "Intercept"
@@ -894,6 +976,13 @@ test_deqms <- function(state, config, trend=NULL) {
   check_config(config)
   f.check_state(state, config)
 
+  ## before combine_features(), so that the design f.design_test_cols() builds below
+  ##   from the aggregated state carries the reference level config declares rather
+  ##   than the alphabetically first one; see test_lm() for what this prevents. A
+  ##   no-op for a run that came through test():
+
+  state <- f.relevel_state_covariates(state, config, caller="test_deqms")
+
   save_state <- config$save_state
   config$save_state <- FALSE
   ## unqualified, like every other internal call in the package, so that test_deqms()
@@ -1287,14 +1376,13 @@ test_deqms <- function(state, config, trend=NULL) {
 
 test_msqrob <- function(state, config, maxit=100, aggregate=FALSE) {
 
-  check_config(config)
-  f.check_state(state, config)
-
   ## the aggregate path models the feature level, so there has to be one. With one
   ##   feature per gene the random feature effect is a single unknown confounded with
   ##   the intercept, its variance is not identified, and the model reduces to the one
-  ##   aggregate=FALSE fits, so that is what to use. Same refusal, and for the same
-  ##   reason, as test_prolfqua(mixed=TRUE):
+  ##   aggregate=FALSE fits, so that is what to use. Ahead of the checks below for the
+  ##   reason given in test_prolfqua(), whose mixed path refuses the same thing in the
+  ##   same words: this reads config alone, and it is the refusal that names the
+  ##   method to use instead:
 
   if(aggregate && config$feat_id_col %in% config$gene_id_col) {
     f.err("test_msqrob: the aggregate path needs feature level input, so",
@@ -1304,6 +1392,19 @@ test_msqrob <- function(state, config, maxit=100, aggregate=FALSE) {
       "model reduces to the one test_method 'msqrob' fits, so use that instead, or",
       "supply un-aggregated data carrying a gene id column", config=config)
   }
+
+  check_config(config)
+  f.check_state(state, config)
+
+  ## the colData() loop below already relevels the covariates msqrob2::msqrob() fits
+  ##   from, but the state handed to f.design_test_cols() further down was not, so on
+  ##   a direct call the two designs disagreed about which level is the reference and
+  ##   the cols_pick %in% parms check turned that into an error: a call that should
+  ##   have worked failed instead of returning the wrong sign, which is the better of
+  ##   the two failures but still not the right one. Both designs are built from a
+  ##   releveled state now. A no-op for a run that came through test(); see test_lm():
+
+  state <- f.relevel_state_covariates(state, config, caller="test_msqrob")
 
   exprs <- as.data.frame(state$expression)
   ## msqrob2 reads this as the number of observations a feature was measured in,
@@ -1839,7 +1940,10 @@ f.msqrob_agg <- function(obj, state, config, frm, maxit) {
 #' head(result$hits)
 
 test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit=20) {
-  
+
+  check_config(config)
+  f.check_state(state, config)
+
   is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
     "test_proda")
   
@@ -2943,6 +3047,27 @@ f.prolfqua_mixed_f <- function(mods, design, config, caller="f.prolfqua_mixed_f"
 test_prolfqua <- function(state, config, is_log_transformed=NULL, mixed=FALSE,
     trend=NULL) {
 
+  ## the mixed path models the features of a gene instead of aggregating them, so it
+  ##   needs both levels present and distinct. With one feature per gene the random
+  ##   feature effect is a single unknown confounded with the intercept, so its variance
+  ##   is not identified and lme4 refuses the fit; what remains is the model the least
+  ##   squares path already fits. Ahead of the checks below because it reads config
+  ##   alone: an already aggregated config names one column as both ids, which
+  ##   f.check_state() also refuses when the state is still at the feature level, and
+  ##   of the two refusals this is the one that says which method to use instead:
+
+  if(mixed && config$feat_id_col %in% config$gene_id_col) {
+    f.err("test_prolfqua: the mixed path needs feature level input, so",
+      "config$feat_id_col and config$gene_id_col must name different columns of",
+      "state$features, and both are '", config$feat_id_col, "';", "\n",
+      "with one feature per gene the random feature effect is not identified and the",
+      "model reduces to the one test_method 'prolfqua' fits, so use that instead, or",
+      "supply un-aggregated data carrying a gene id column", config=config)
+  }
+
+  check_config(config)
+  f.check_state(state, config)
+
   is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
     "test_prolfqua")
 
@@ -2953,21 +3078,6 @@ test_prolfqua <- function(state, config, is_log_transformed=NULL, mixed=FALSE,
   trend <- f.is_trend(trend, config, "test_prolfqua")
 
   parsed <- f.parse_frm(config$frm, config)
-
-  ## the mixed path models the features of a gene instead of aggregating them, so it
-  ##   needs both levels present and distinct. With one feature per gene the random
-  ##   feature effect is a single unknown confounded with the intercept, so its variance
-  ##   is not identified and lme4 refuses the fit; what remains is the model the least
-  ##   squares path already fits:
-
-  if(mixed && config$feat_id_col %in% config$gene_id_col) {
-    f.err("test_prolfqua: the mixed path needs feature level input, so",
-      "config$feat_id_col and config$gene_id_col must name different columns of",
-      "state$features, and both are '", config$feat_id_col, "';", "\n",
-      "with one feature per gene the random feature effect is not identified and the",
-      "model reduces to the one test_method 'prolfqua' fits, so use that instead, or",
-      "supply un-aggregated data carrying a gene id column", config=config)
-  }
 
   idvars <- unique(c(config$gene_id_col, config$feat_id_col))
 
@@ -3172,7 +3282,12 @@ test_prolfqua <- function(state, config, is_log_transformed=NULL, mixed=FALSE,
   tbl <- f.prolfqua_nested_f(fit_full, fit_red, design, config, covariate=covariate,
     trend=trend)
 
-  f.msg("tested", length(unique(tbl[[config$feat_col]])), "features; found",
+  ## nrow(), not length(unique(tbl[[config$feat_col]])): f.prolfqua_nested_f() keys
+  ##   its table by unique(c(config$gene_id_col, config$feat_id_col)) and need not
+  ##   carry config$feat_col at all, in which case the count silently read zero. One
+  ##   row per fitted feature is what every other engine reports here:
+
+  f.msg("tested", nrow(tbl), "features; found",
     sum(tbl$FDR < 0.05, na.rm=T), "hits", config=config)
 
   return(list(hits=tbl, fit=fit_full, fit_reduced=fit_red, design=design))
@@ -3194,6 +3309,15 @@ test_prolfqua <- function(state, config, is_log_transformed=NULL, mixed=FALSE,
 #'   Note \code{limma::voom()} models a count mean-variance relationship, so it is
 #'     appropriate for count-like input rather than for already log-transformed
 #'     abundances.
+#'   \code{limma::voom()} fits one mean-variance trend across the whole matrix and
+#'     has no handling for a missing value, so a feature carrying any is held out of
+#'     the fit and does not appear in the result, which therefore has one row per
+#'     tested feature rather than one per feature of \code{state}. How many were held
+#'     out, and the first few of them, are logged. If fewer than two features are
+#'     left, which is the smallest number \code{limma::voom()} can fit a
+#'     mean-variance trend to, the call is refused here rather than failing inside
+#'     \code{limma::voom()}: impute first, see \code{h0testr::impute()}, or use a
+#'     method that does not need complete features, such as \code{h0testr::test_lm()}.
 #'   See documentation for \code{h0testr::new_config()}
 #'     for more detailed description of configuration parameters.
 #' @param state List with elements like those returned by \code{read_data()}:
@@ -3252,10 +3376,46 @@ test_voom <- function(state, config, normalize.method="none") {
   check_config(config)
   f.check_state(state, config)
   
+  ## the declared reference level first in each factor covariate, before the design
+  ##   is built; see test_lm() for what this prevents on a direct call. A no-op for a
+  ##   run that came through test():
+
+  state <- f.relevel_state_covariates(state, config, caller="test_voom")
+
   exprs <- state$expression
   i <- apply(exprs, 1, function(v) any(is.na(v)))
+
+  ## limma::voom() fits one mean-variance trend across the whole matrix and has no
+  ##   handling for a missing value, so a feature carrying any is held out. Said rather
+  ##   than done silently, which is what happened before: the count below reported the
+  ##   features that were tested and nothing anywhere reported the ones that were not,
+  ##   so a result table shorter than the state it came from looked like the whole
+  ##   answer. Same shape, and for the same reason, as f.prolfqua_nested_f() and
+  ##   test_prolfqua() use where they drop features:
+
+  if(any(i)) {
+    f.msg("WARNING: test_voom: dropping", sum(i), "of", nrow(exprs), "features with",
+      "at least one missing value, which limma::voom() cannot fit;", "\n",
+      "first few:", paste(utils::head(rownames(exprs)[i], 5), collapse=", "),
+      config=config)
+  }
+
+  ## and with too few features left limma::voom() was reached with a matrix it cannot
+  ##   fit and failed from inside it, saying "Need at least two genes to fit a
+  ##   mean-variance trend": a statement about the input to a variance fit, with nothing
+  ##   about the missing values that emptied it or what to do about them. Two is
+  ##   limma::voom()'s own bound, not a round number chosen here, so a state with one
+  ##   complete feature is refused for the same reason as a state with none:
+
+  if(sum(!i) < 2) {
+    f.err("test_voom: only", sum(!i), "of", nrow(exprs), "features have no missing",
+      "value, and limma::voom() needs at least two to fit a mean-variance trend;",
+      "impute first, see h0testr::impute(), or use a method that does not need",
+      "complete features, such as h0testr::test_lm()", config=config)
+  }
+
   exprs <- exprs[!i, , drop=F]
-  
+
   ## the design and the columns of it carrying the test; see test_trend() for why
   ##   these come from f.design_test_cols() rather than from coefficient names:
 
@@ -3273,7 +3433,8 @@ test_voom <- function(state, config, normalize.method="none") {
   f.msg("test_voom:", f.test_label(design, config), "; design columns:",
     ncol(design$X), "; test columns:", length(design$cols_test), "; df:",
     design$df_intend, config=config)
-  f.msg("tested", nrow(exprs), "features", config=config)
+  f.msg("tested", nrow(exprs), "of", nrow(state$expression), "features",
+    config=config)
   f.msg("found", sum(tbl$adj.P.Val < 0.05, na.rm=T), "hits", config=config)
   
   return(list(hits=tbl, fit=fit))
@@ -3367,6 +3528,12 @@ test_trend <- function(state, config) {
   if(!is.matrix(state$expression)) {
     f.err("test_trend: !is.matrix(state$expression)", config=config)
   }
+
+  ## the declared reference level first in each factor covariate, before the design
+  ##   is built; see test_lm() for what this prevents on a direct call. A no-op for a
+  ##   run that came through test():
+
+  state <- f.relevel_state_covariates(state, config, caller="test_trend")
   
   ## the design and the columns of it carrying the test, from the same helper
   ##   test_lm() and filter_features_by_estimability() use, so that all three test
@@ -3649,14 +3816,19 @@ f.format_lm <- function(tbl, id_col, config) {
       names(tbl), config=config)
   }
 
-  nom <- c("pval", "p.adj")
+  nom <- c("pval", "p.adj", "stat")
   if(!all(nom %in% names(tbl))) {
-    f.err("f.format_lm: expected names not %in% names(tbl); names(tbl):", 
+    f.err("f.format_lm: expected names not %in% names(tbl); names(tbl):",
       names(tbl), "; expected names:", nom, config=config)
   }
-  
+
+  ## stat is the F statistic test_lm() reports for its model comparison, and used to be
+  ##   left empty here although the engine had it: f.fill_standard() fills logfc and
+  ##   expr where an engine's own table does not carry them, but nothing fills stat, so
+  ##   a "lm" run reported a column of NA next to a real p-value:
+
   tbl <- data.frame(feature=tbl[[id_col]], expr=as.numeric(NA),
-    logfc=as.numeric(NA), stat=as.numeric(NA), lod=as.numeric(NA),
+    logfc=as.numeric(NA), stat=tbl$stat, lod=as.numeric(NA),
     pval=tbl$pval, adj_pval=tbl$p.adj)
   
   tbl <- tbl[order(tbl$pval, decreasing=F), , drop=F]
@@ -3872,29 +4044,6 @@ f.format_limma <- function(tbl, config) {
     f.err("f.format_limma: expected names not %in% names(tbl); names(tbl):", 
       names(tbl), config=config)
   }
-  
-  tbl <- tbl[order(tbl$pval, decreasing=F), , drop=F]
-  rownames(tbl) <- NULL
-  
-  return(tbl)
-}
-
-f.format_limma.old <- function(tbl, config) {
-  
-  if(!is.data.frame(tbl)) {
-    f.err("f.format_limma: !is.data.frame(tbl); class(tbl): ", 
-      class(tbl), config=config)
-  }
-    
-  nom <- c("AveExpr", "logFC", "t", "B", "P.Value", "adj.P.Val")
-  if(!all(nom %in% names(tbl))) {
-    f.err("f.format_limma: expected names not %in% names(tbl); names(tbl):", 
-      names(tbl), config=config)
-  }
-  
-  tbl <- data.frame(feature=rownames(tbl), expr=tbl$AveExpr, 
-    logfc=tbl$logFC, stat=tbl$t, lod=tbl$B, 
-    pval=tbl$P.Value, adj_pval=tbl$adj.P.Val)
   
   tbl <- tbl[order(tbl$pval, decreasing=F), , drop=F]
   rownames(tbl) <- NULL

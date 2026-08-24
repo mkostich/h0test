@@ -210,6 +210,12 @@ f.frm_min_noint_cols <- function(config) {
 #' @details
 #'   Only checks parameters in the configuration. Does not complain about
 #'     missing settings.
+#'   A numeric parameter has to be a single finite value. \code{NA} and
+#'     \code{NaN} are refused by name, having reached a comparison as R's own
+#'     "missing value where TRUE/FALSE needed" before, and so is an infinite
+#'     count, which used to pass every check since \code{Inf == round(Inf)}. An
+#'     infinite proportion is refused as out of range rather than as not finite,
+#'     which says more about a proportion.
 #'   Beyond the type of each value, the combinations that no other setting can rescue
 #'     are refused here rather than at the step that would meet them:
 #'     \code{config$test_method} outside \code{h0testr::test_methods()},
@@ -397,6 +403,27 @@ check_config <- function(config) {
         f.err("check_config: param not scalar count; param:",  nom, 
           "; value:", config[[nom]], config=config)
       }
+
+      ## is.numeric() is TRUE for NA_real_ and for NaN, either of which then
+      ##   reached the comparison below as R's own "missing value where
+      ##   TRUE/FALSE needed", naming neither the parameter nor this function
+      ##   (measured). A logical NA is caught by the is.numeric() test above:
+
+      if(is.na(config[[nom]])) {
+        f.err("check_config: param is NA or NaN; param:", nom,
+          "; value:", config[[nom]], config=config)
+      }
+
+      ## Inf passed every check below it: Inf == round(Inf), and Inf is not
+      ##   < 0, so an infinite count was accepted outright (measured on
+      ##   n_features_min and impute_k). Same test and wording as the
+      ##   scalar_nonpositive loop further down. -Inf is reported as not
+      ##   finite now rather than as not non-negative, which it also is:
+
+      if(!is.finite(config[[nom]])) {
+        f.err("check_config: param not finite:", nom,
+          "; value:", config[[nom]], config=config)
+      }
       if(config[[nom]] < 0) {
         f.err("check_config: param not non-negative integer:", nom,
           "; value:", config[[nom]], config=config)
@@ -414,6 +441,15 @@ check_config <- function(config) {
         f.err("check_config: param not scalar proportion; param:",  nom, 
           "; value:", config[[nom]], config=config)
       }
+
+      ## as in the scalar_counts loop above: NA_real_ and NaN are numeric, and
+      ##   the range check below is where R, rather than this function,
+      ##   reported them:
+
+      if(is.na(config[[nom]])) {
+        f.err("check_config: param is NA or NaN; param:", nom,
+          "; value:", config[[nom]], config=config)
+      }
       if(config[[nom]] < 0 || config[[nom]] > 1) {
         f.err("check_config: param not between 0 and 1:", nom,
           "; value:", config[[nom]], config=config)
@@ -427,6 +463,22 @@ check_config <- function(config) {
         f.err("check_config: param not scalar positive numeric; param:",  nom, 
           "; value:", config[[nom]], config=config)
       }
+
+      ## as in the two loops above: is.numeric() is TRUE for NA_real_ and for
+      ##   NaN, which then reached the comparison below as R's own "missing
+      ##   value where TRUE/FALSE needed", and Inf was accepted outright
+      ##   (both measured on impute_scale):
+
+      if(is.na(config[[nom]])) {
+        f.err("check_config: param is NA or NaN; param:", nom,
+          "; value:", config[[nom]], config=config)
+      }
+
+      if(!is.finite(config[[nom]])) {
+        f.err("check_config: param not finite:", nom,
+          "; value:", config[[nom]], config=config)
+      }
+
       if(config[[nom]] < 0) {
         f.err("check_config: param not non-negative:", nom,
           "; value:", config[[nom]], config=config)
@@ -492,6 +544,17 @@ check_config <- function(config) {
         f.err("check_config: param not vector of proportions; param:",  nom, 
           "; value:", config[[nom]], config=config)
       }
+
+      ## one NA_real_ or NaN anywhere in the vector made any(x < 0) itself NA,
+      ##   which is R's "missing value where TRUE/FALSE needed" (measured).
+      ##   An infinite element is left to the range check below, which names
+      ##   it as the out-of-range proportion it is:
+
+      if(anyNA(config[[nom]])) {
+        f.err("check_config: param has an NA or NaN; param:", nom,
+          "; value:", config[[nom]], config=config)
+      }
+
       if(any(config[[nom]] < 0) || any(config[[nom]] > 1)) {
         f.err("check_config: proportions out of range [0, 1]; param:", nom,
           "; value:", config[[nom]], config=config)

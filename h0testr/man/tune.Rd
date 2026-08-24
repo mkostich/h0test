@@ -6,9 +6,9 @@
 \usage{
 tune(
   config,
-  normalization_methods = c("RLE", "upperquartile", "q50", "q75", "quantiles.robust",
-    "cpm", "max", "sum", "div.mean", "div.median", "TMM", "TMMwsp", "vsn", "qquantile",
-    "loess", "log2", "none"),
+  normalization_methods = c("RLE", "upperquartile", "q50", "q75", "cpm", "max", "sum",
+    "div.mean", "div.median", "TMM", "TMMwsp", "vsn", "qquantile", "loess", "log2",
+    "none"),
   impute_methods = c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature",
     "glm_binom", "loess_logit", "glmnet", "rf", "knn", "min_det", "min_prob", "qrilc",
     "bpca", "ppca", "svdImpute", "lls", "missforest", "none"),

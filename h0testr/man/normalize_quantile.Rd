@@ -24,9 +24,9 @@ normalize_quantile(
   \code{normalization_quantile}   \cr \tab Quantile to use where \code{normalization_method \%in\% c("quantile", "upperquartile")}. \cr
 }}
 
-\item{normalization_quantile}{Numeric in closed interval \code{[0, 1]} specifying quantile to use.}
+\item{normalization_quantile}{Single number in closed interval \code{[0, 1]} specifying quantile to use.}
 
-\item{multiplier}{Numeric used to scale returned values after 
+\item{multiplier}{Single finite number greater than zero, used to scale returned values after 
 dividing by selected quantile.}
 }
 \value{

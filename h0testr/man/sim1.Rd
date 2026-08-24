@@ -26,7 +26,9 @@ sim1(
 with \code{log_m_mean >= 0}.}
 
 \item{log_m_sd}{Standard deviation of \code{log(feature means)} around
-\code{log_m_mean}. Scalar numeric, with \code{log_m_sd >= 0}.}
+\code{log_m_mean}. Scalar numeric, with \code{log_m_sd >= 0}. Either of
+\code{log_m_mean} and \code{log_m_sd} may be 0, but not both: the draw is redrawn until it
+is strictly positive, which a mean of 0 with an SD of 0 never is.}
 
 \item{log_cv_mean}{Mean of \code{log(feature CVs)}, the CVs being of features around
 their respective feature means. Scalar numeric.}
@@ -48,11 +50,12 @@ Scalar numeric, with \code{0 <= mcar_p <= 1}.}
 \value{
 List with elements:
   \tabular{ll}{
-    \code{mat}       \cr \tab Non-negative numeric matrix with \code{n_feats} rows
-      and \code{n_obs} columns. \cr
-    \code{feat_mean} \cr \tab Numeric vector of non-negative parameter means for each
+    \code{mat}       \cr \tab Numeric matrix with \code{n_feats} rows and \code{n_obs} columns,
+      of positive whole numbers, with \code{NA} wherever MNAR or MCAR made a value
+      missing. \cr
+    \code{feat_mean} \cr \tab Numeric vector of strictly positive parameter means for each
       feature in \code{mat}. \cr
-    \code{feat_cv}   \cr \tab Numeric vector of non-negative parameter CVs for each
+    \code{feat_cv}   \cr \tab Numeric vector of strictly positive parameter CVs for each
       feature in \code{mat}. \cr
   }
 }

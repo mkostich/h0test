@@ -14,7 +14,7 @@ normalize_qquantile(state, config)
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration values. Does not use any keys, so can pass empty list.}
+\item{config}{List with configuration values. Does not use any keys, so can pass an empty list; checked with \code{h0testr::check_config()}.}
 }
 \value{
 A list (the processed state) with the following elements:

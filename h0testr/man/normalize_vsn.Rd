@@ -14,7 +14,7 @@ normalize_vsn(state, config, n_pts = 42L)
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration values. Does not use any keys, so can pass empty list.}
+\item{config}{List with configuration values. Does not use any keys, so can pass an empty list; checked with \code{h0testr::check_config()}.}
 
 \item{n_pts}{Scalar minimum number of data points per stratum, as a whole number of 1 or more.
 Reduced to \code{round(sqrt(nrow(state$expression)))} with a message if it exceeds that.

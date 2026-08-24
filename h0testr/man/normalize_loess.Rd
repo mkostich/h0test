@@ -14,12 +14,12 @@ normalize_loess(state, config, span = NULL, method = "fast")
   \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
-\item{config}{List with configuration values. Uses the following key:
+\item{config}{List with configuration values, checked with \code{h0testr::check_config()}. Uses the following key:
 \tabular{ll}{
   \code{normalization_span} \cr \tab Span (numeric between 0 and 1) for the loess fit; read when \code{span} is \code{NULL}. \cr
 }}
 
-\item{span}{Numeric between 0 and 1 specifying span for loess fit.
+\item{span}{Single number between 0 and 1 specifying span for loess fit.
 Higher numbers result in smoother (less localized) fit. Defaults to
 \code{config$normalization_span}, or to \code{0.7} when that is unset as well.}
 
