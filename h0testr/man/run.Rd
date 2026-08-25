@@ -19,6 +19,7 @@ A list with the following elements:
     \code{standard} \cr \tab A \code{data.frame} with results in standardized format. \cr
     \code{fit}      \cr \tab Fitted model from selected testing procedure.
   }
+  The last three are \code{NULL} when \code{config$test_method} is \code{"none"}.
 }
 \description{
 Run a basic workflow according to: \code{config$run_order}.
@@ -40,7 +41,13 @@ Run a basic workflow: \code{load_data() -> config$run_order -> test()},
     \code{config$run_order} as given: for \code{config$test_method} of
     \code{"prolfqua_lmer"} or \code{"msqrob_agg"}, leave \code{"combine_features"} out
     of it, or those methods will refuse the aggregated state at the last step.
-  See documentation for \code{h0testr::new_config()} 
+  \code{config$test_method="none"} runs the whole workflow and skips the test step, so
+    that this function can be used to normalize, combine, filter and impute and stop
+    there; \code{$original}, \code{$standard} and \code{$fit} of the result are then
+    \code{NULL} and \code{$state} is the processed state. \code{"none"} is not one of
+    \code{h0testr::test_methods()}, which names the engines;
+    \code{h0testr::check_config()} is where the values the key may hold are listed.
+  See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.
 }
 \examples{

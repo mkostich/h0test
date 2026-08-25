@@ -33,7 +33,9 @@ Only checks parameters in the configuration. Does not complain about
     \code{"robustSummary"} and \code{"none"}, each of which would otherwise be found
     only when that step ran, which for \code{config$impute_method} is after the whole
     rest of the workflow; \code{""} is allowed for all four and means unset, the step's
-    own \code{method} argument naming the method instead;
+    own \code{method} argument naming the method instead, and
+    \code{config$test_method} additionally allows \code{"none"}, which skips the test
+    step so that \code{h0testr::run()} returns the processed state with no result;
     \code{config$contrast} and \code{config$test_term} both naming something to
     test, one run testing one hypothesis; \code{config$test_ridge=TRUE} on a
     mean model that cannot carry a penalty, which needs at least two non-intercept

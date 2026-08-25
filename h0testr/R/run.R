@@ -33,8 +33,14 @@ f.run_order_steps <- function() {
 #'     \code{config$run_order} as given: for \code{config$test_method} of
 #'     \code{"prolfqua_lmer"} or \code{"msqrob_agg"}, leave \code{"combine_features"} out
 #'     of it, or those methods will refuse the aggregated state at the last step.
-#'   See documentation for \code{h0testr::new_config()} 
-#'     for more detailed description of configuration parameters. 
+#'   \code{config$test_method="none"} runs the whole workflow and skips the test step, so
+#'     that this function can be used to normalize, combine, filter and impute and stop
+#'     there; \code{$original}, \code{$standard} and \code{$fit} of the result are then
+#'     \code{NULL} and \code{$state} is the processed state. \code{"none"} is not one of
+#'     \code{h0testr::test_methods()}, which names the engines;
+#'     \code{h0testr::check_config()} is where the values the key may hold are listed.
+#'   See documentation for \code{h0testr::new_config()}
+#'     for more detailed description of configuration parameters.
 #' @param config List with configuration values like those returned by 
 #'   \code{new_config()}.
 #' @return A list with the following elements: 
@@ -45,6 +51,7 @@ f.run_order_steps <- function() {
 #'     \code{standard} \cr \tab A \code{data.frame} with results in standardized format. \cr
 #'     \code{fit}      \cr \tab Fitted model from selected testing procedure.
 #'   }
+#'   The last three are \code{NULL} when \code{config$test_method} is \code{"none"}.
 #' @examples
 #' config <- h0testr::new_config()          ## defaults
 #' config$save_state <- FALSE               ## default is TRUE
@@ -69,9 +76,10 @@ f.run_order_steps <- function() {
 #' print(result$fit)                ## model fit by selected testing procedure
 
 run <- function(config) {
-  
-  report_config(config)
-  
+
+  ## no report_config(config) here: load_data() below calls it as its first statement,
+  ##   so a call here only prints the same configuration to the log twice:
+
   f.log_block("starting load_data", config=config)
   out <- load_data(config)
 
@@ -153,7 +161,14 @@ f.tune2_na_row <- function(config) {
   )
 }
 
-f.tune2 <- function(state, config, is_log_transformed=NULL) {
+f.tune2 <- function(state, config) {
+
+  ## no is_log_transformed argument: the scale of the data lives in
+  ##   config$is_log_transformed, put there by initialize() and updated by normalize(),
+  ##   and impute() and test() below both resolve an unset argument from the config they
+  ##   are handed. tune() was reading that same field out of the config and passing it back
+  ##   in beside the config, so the two could only ever agree, and a second copy of a
+  ##   setting is a second thing to keep in step for no gain:
 
   ## there were two guards here for engines that could not express the hypothesis
   ##   config$test_term implied, which skipped the combination rather than letting it
@@ -184,8 +199,7 @@ f.tune2 <- function(state, config, is_log_transformed=NULL) {
   }
 
   f.log_block("f.tune:2: impute", config=config)
-  out <- impute(out$state, out$config,
-    is_log_transformed=is_log_transformed)
+  out <- impute(out$state, out$config)
 
   ## test_deqms() refuses a run in which every gene has the same number of features,
   ##   there being no spread for its variance prior to be fitted against. Unlike the
@@ -227,8 +241,7 @@ f.tune2 <- function(state, config, is_log_transformed=NULL) {
   ##   which only records which combination the log entry belongs to:
 
   f.log_block("f.tune:2: test", config=config)
-  result <- try(test(out$state, out$config,
-    is_log_transformed=is_log_transformed), silent=T)
+  result <- try(test(out$state, out$config), silent=T)
 
   if(inherits(result, "try-error")) {
     f.msg("WARNING: f.tune2: test_method", config$test_method, "failed on this",
@@ -297,9 +310,16 @@ f.tune2 <- function(state, config, is_log_transformed=NULL) {
 #'   \code{"quantile"} at a \code{normalization_quantile} of \code{0.5} and \code{0.75}.
 #'   Defaults to every method \code{h0testr::normalize_methods()} names, with
 #'   \code{"quantile"} entered as those two. \code{"loess"} is the slowest of them, so
-#'   drop it from the list if the sweep takes too long.
+#'   drop it from the list if the sweep takes too long. A name outside that set is refused
+#'   before the sweep starts, rather than surfacing partway through from inside
+#'   \code{normalize()}, which reports the argument it was handed rather than the sweep that
+#'   handed it over. \code{"none"} is accepted: not normalizing is something a sweep has a
+#'   use for comparing against.
 #' @param impute_methods Character vector of methods to try. One or more of:
 #'   \code{c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", "knn", "min_det", "min_prob", "qrilc", "bpca", "ppca", "svdImpute", "lls", "missforest", "none")}.
+#'   A name that is not one of \code{h0testr::impute_methods()} is refused before the sweep
+#'   starts, rather than three loops down, after every earlier combination has already been
+#'   run. \code{"none"} is accepted here too, for the same reason.
 #' @param impute_quantiles Numeric vector of quantiles to try for \code{impute_unif_*} methods. 
 #'   One or more values between \code{0.0} and \code{1.0}.
 #' @param impute_scales Numeric vector of scales to try for \code{impute_rnorm_feature}. 
@@ -311,20 +331,37 @@ f.tune2 <- function(state, config, is_log_transformed=NULL) {
 #'   \code{h0testr::test_methods()}. Defaults to every method except
 #'   \code{"prolfqua_lmer"} and \code{"msqrob_agg"}, each of which fits a mixed model
 #'   per gene and so costs orders of magnitude more time per cell than the rest of the
-#'   sweep put together; name either explicitly to include it.
+#'   sweep put together; name either explicitly to include it. A name that is not one of
+#'   \code{h0testr::test_methods()} is refused before the sweep starts, rather than after
+#'   the combination it appears in has been normalized and imputed. That includes
+#'   \code{"none"}, which \code{config$test_method} accepts as "skip the test step": a
+#'   sweep over not testing has nothing to compare.
 #' @return A data.frame with the following columns:
 #'   \tabular{ll}{
-#'     \code{norm}       \cr \tab Normalization method (character). \cr
-#'     \code{norm_quant} \cr \tab Normalization quantile (numeric). \cr
-#'     \code{impute}     \cr \tab Imputation method (character). \cr
-#'     \code{imp_quant}  \cr \tab Imputation quantile (numeric). \cr
-#'     \code{scale}      \cr \tab Imputation scale for \code{impute_rnorm_feature}. \cr
-#'     \code{test}       \cr \tab Test method (character). \cr
-#'     \code{perm}       \cr \tab Permuted variable (character). \cr
-#'     \code{nhits}      \cr \tab Number of hits (numeric); \code{NA} if not tested. \cr
-#'     \code{ntests}     \cr \tab Number of tests (numeric); \code{NA} if not tested. \cr
-#'     \code{time}       \cr \tab Timestamp. \cr
+#'     \code{norm}   \cr \tab Normalization method (character). \cr
+#'     \code{nquant} \cr \tab Normalization quantile (numeric). \cr
+#'     \code{impute} \cr \tab Imputation method (character). \cr
+#'     \code{iquant} \cr \tab Imputation quantile (numeric). \cr
+#'     \code{scale}  \cr \tab Imputation scale, for \code{impute_rnorm_feature} and
+#'       \code{impute_qrilc} (numeric). \cr
+#'     \code{span}   \cr \tab Imputation span, for \code{impute_loess_logit} (numeric). \cr
+#'     \code{npcs}   \cr \tab Number of PCs, for \code{"bpca"}, \code{"ppca"} and
+#'       \code{"svdImpute"} (numeric). \cr
+#'     \code{k}      \cr \tab Number of neighbors, for \code{"knn"} and \code{"lls"}
+#'       (numeric). \cr
+#'     \code{test}   \cr \tab Test method (character). \cr
+#'     \code{perm}   \cr \tab Permuted variable (character). \cr
+#'     \code{nhits}  \cr \tab Number of hits (numeric); \code{NA} if not tested. \cr
+#'     \code{ntests} \cr \tab Number of tests (numeric); \code{NA} if not tested. \cr
+#'     \code{time}   \cr \tab Timestamp. \cr
 #'   }
+#'   A column for a parameter that this combination does not use is still filled in, from
+#'     \code{config}, rather than left \code{NA}: \code{iquant} carries
+#'     \code{config$impute_quantile} even where \code{impute} is \code{"rf"}. The nine
+#'     columns from \code{norm} through \code{test} are what identify a combination, and
+#'     \code{h0testr::tune_check()} joins the permuted results to the unpermuted ones on
+#'     those nine by name, so renaming or dropping one of them there is refused rather
+#'     than silently changing what is being compared.
 #'   A combination that could not be tested yields a row with \code{nhits} and
 #'     \code{ntests} set to \code{NA} rather than aborting the sweep, and the reason
 #'     is written to \code{config$log_file}. This happens when too few samples or
@@ -429,7 +466,50 @@ tune <- function(
     impute_npcs=c(3, 5, 10),
     impute_ks=c(5, 10, 20), 
     test_methods=c("lm", "trend", "deqms", "msqrob", "proda", "prolfqua", "voom")) {
-  
+
+  ## the sweep assigns each of these to config$test_method in turn, so a name that is not
+  ##   an engine is caught here rather than inside the loop, where it would fail only after
+  ##   the normalization, aggregation and imputation of that combination had been computed.
+  ##   "none" is a legal config$test_method, meaning skip the test step, and is refused
+  ##   here for the same reason as a typo: a sweep over not testing measures nothing. The
+  ##   argument shadows the function of the same name, which R resolves anyway, a call
+  ##   looking only at function bindings:
+
+  bad <- setdiff(test_methods, test_methods())
+
+  if(length(bad)) {
+    f.err("tune: unexpected test_methods:", bad, "\n",
+      "allowed:", test_methods(), "\n",
+      "config$test_method also accepts \"none\", meaning skip the test step, which a",
+      "sweep has no use for, there being nothing to compare", config=config)
+  }
+
+  ## the same reason applies to the other two lists the sweep assigns from, and neither
+  ##   was checked. A name that is not an impute_method reaches f.err() three loops down,
+  ##   after every earlier combination has been run, and one that is not a normalization
+  ##   method is not checked at all and surfaces from inside normalize() with a message
+  ##   about the argument it was handed rather than about the sweep that handed it over.
+  ##   The allowed normalization set is normalize_methods() plus "q50" and "q75", which
+  ##   normalize() does not accept: f.tune1() maps each onto normalization_method
+  ##   "quantile" with the matching config$normalization_quantile. "none" is left in both
+  ##   sets, unlike for test_methods above: not normalizing and not imputing are both
+  ##   settings a sweep has a use for comparing against:
+
+  bad <- setdiff(impute_methods, impute_methods())
+
+  if(length(bad)) {
+    f.err("tune: unexpected impute_methods:", bad, "\n",
+      "allowed:", impute_methods(), config=config)
+  }
+
+  norm_ok <- union(normalize_methods(), c("q50", "q75"))
+  bad <- setdiff(normalization_methods, norm_ok)
+
+  if(length(bad)) {
+    f.err("tune: unexpected normalization_methods:", bad, "\n",
+      "allowed:", norm_ok, config=config)
+  }
+
   ## load data:
   f.log_block("loading data", config=config)
   out <- load_data(config)              ## overwritten at each iteration
@@ -447,10 +527,8 @@ tune <- function(
     state2 <- out$state                 ## save for subsequent iterations
     config2 <- out$config               ## save for subsequent iterations
 
-    ## normalize(), called by f.tune1(), records the scale in config, so the
-    ##   sweep does not keep a second copy of it:
-
-    is_log_transformed <- config2$is_log_transformed
+    ## normalize(), called by f.tune1(), records the scale in config2, which is what
+    ##   reaches f.tune2() below, so the sweep does not keep a second copy of it:
 
     for(test_method in test_methods) {
       
@@ -484,8 +562,7 @@ tune <- function(
             config3$impute_quantile <- impute_quantile
             
             f.log_block("filter, impute, and test", config=config3)
-            rslt_i <- f.tune2(state3, config3, 
-              is_log_transformed=is_log_transformed)
+            rslt_i <- f.tune2(state3, config3)
             rslt <- rbind(rslt, rslt_i)
             f.log_obj(rslt, config=config3)
           }
@@ -498,8 +575,7 @@ tune <- function(
             config3$impute_scale <- impute_scale
             
             f.log_block("filter, impute, and test", config=config3)
-            rslt_i <- f.tune2(state3, config3, 
-              is_log_transformed=is_log_transformed)
+            rslt_i <- f.tune2(state3, config3)
             rslt <- rbind(rslt, rslt_i)
             f.log_obj(rslt, config=config3)
           }
@@ -515,8 +591,7 @@ tune <- function(
               config3$impute_scale <- impute_scale
               
               f.log_block("filter, impute, and test", config=config3)
-              rslt_i <- f.tune2(state3, config3, 
-                is_log_transformed=is_log_transformed)
+              rslt_i <- f.tune2(state3, config3)
               rslt <- rbind(rslt, rslt_i)
               f.log_obj(rslt, config=config3)
             }
@@ -530,8 +605,7 @@ tune <- function(
             config3$impute_span <- impute_span
             
             f.log_block("filter, impute, and test", config=config3)
-            rslt_i <- f.tune2(state3, config3, 
-              is_log_transformed=is_log_transformed)
+            rslt_i <- f.tune2(state3, config3)
             rslt <- rbind(rslt, rslt_i)
             f.log_obj(rslt, config=config3)
           }
@@ -544,8 +618,7 @@ tune <- function(
             config3$impute_npcs <- npcs
             
             f.log_block("filter, impute, and test", config=config3)
-            rslt_i <- f.tune2(state3, config3, 
-              is_log_transformed=is_log_transformed)
+            rslt_i <- f.tune2(state3, config3)
             rslt <- rbind(rslt, rslt_i)
             f.log_obj(rslt, config=config3)
           }
@@ -558,8 +631,7 @@ tune <- function(
             config3$impute_k <- impute_k
             
             f.log_block("filter, impute, and test", config=config3)
-            rslt_i <- f.tune2(state3, config3, 
-              is_log_transformed=is_log_transformed)
+            rslt_i <- f.tune2(state3, config3)
             rslt <- rbind(rslt, rslt_i)
             f.log_obj(rslt, config=config3)
           }
@@ -569,14 +641,25 @@ tune <- function(
           f.log_block("normalization_method:", normalization_method, 
             "; impute_method:", impute_method, "; test_method:", test_method, 
             config=config3)
-          if(any(is.na(c(state3$expression))) && test_method %in% c("msqrob", "voom")) {
-            f.msg("WARNING: OIL_WATER: skipping test_method", test_method, 
-              "because of NAs in expression", config=config3)
-            next  ## next impute_method in impute_methods
-          }          
+          ## a guard here, labelled OIL_WATER, skipped test_method "msqrob" and "voom"
+          ##   whenever state3$expression carried any NA. It is gone, for three reasons.
+          ##   It read the pre-imputation matrix, so it fired on every combination in
+          ##   this branch and not just the one where the NAs survive: all of sample_lod,
+          ##   glm_binom, glmnet, rf and missforest fill them, and were dropped anyway.
+          ##   Neither engine needs it even at impute_method "none": test_msqrob() counts
+          ##   non-missing values per feature and hands them to msqrob2's weighting, so
+          ##   missingness is what it is built for, and test_voom() holds out the features
+          ##   carrying an NA, saying how many, and refuses only when fewer than two
+          ##   complete features are left, from the post-filter matrix that actually
+          ##   reaches it rather than from this one. And it advanced the loop with next
+          ##   instead of recording anything, so the combination was absent from the
+          ##   result rather than present with nhits NA, which is what every other skip
+          ##   here produces and what tune_check() joins on. The one case that genuinely
+          ##   fails, voom on a state imputation left too sparse, is caught by the try()
+          ##   in f.tune2() and recorded with test_voom()'s own message:
+
           f.log_block("filter, impute, and test", config=config3)
-          rslt_i <- f.tune2(state3, config3, 
-            is_log_transformed=is_log_transformed)
+          rslt_i <- f.tune2(state3, config3)
           rslt <- rbind(rslt, rslt_i)
           f.log_obj(rslt, config=config3)
         } else {
@@ -587,6 +670,18 @@ tune <- function(
     }     ## for test_method in test_methods
   }       ## for normalization_method in normalization_methods
   
+  ## rslt starts NULL and grows by rbind(), so a sweep that never reached f.tune2()
+  ##   returns NULL rather than an empty table, and the write.table() in the usage above
+  ##   errors on it. An empty method list does that, and so does any future skip that
+  ##   advances the loop without recording a row. Columns come from f.tune2_na_row() so
+  ##   that the empty table cannot drift out of step with the rows a real sweep returns:
+
+  if(is.null(rslt)) {
+    f.msg("WARNING: tune: no parameter combination was tested; returning an empty",
+      "result table", config=config)
+    rslt <- f.tune2_na_row(config)[0, , drop=F]
+  }
+
   f.log_block("returning result", config=config)
   return(rslt)
 }
@@ -605,8 +700,26 @@ tune <- function(
 #'     given an \code{NA} \code{fdr}, which sorts them below every combination
 #'     that ran. They are not combinations that found nothing; they are
 #'     combinations that were never tested.
+#'   A combination present in the unpermuted results but in none of the
+#'     permuted ones has nothing to estimate its FDR from, so it too is given
+#'     an \code{NA} \code{fdr} and sorted below the combinations that have one.
+#'     A warning names how many combinations each set has that the other does
+#'     not, in both directions.
+#'   Permuted result rows with \code{ntests} of \code{0} were skipped as well,
+#'     so they are dropped before \code{max1}, \code{mid1}, \code{avg1} and
+#'     \code{sd1} are taken, rather than counted as permutations that found no
+#'     false positives. A combination left with no permuted run that tested
+#'     anything is then treated as one with no permuted counterpart, and gets
+#'     an \code{NA} \code{fdr} rather than an \code{fdr} of \code{0}.
+#'   A \code{dir_in} holding the unpermuted file and no permuted one has nothing
+#'     to estimate an FDR against at all, and is refused with a message naming the
+#'     prefix and suffix that were looked for.
 #' @param dir_in Character scalar with path to directory containing tuning results.
 #' @param prefix Character scalar with prefix (if any) of tuning result filenames.
+#'   Only files beginning with it are read, so that two sweeps sharing
+#'   \code{suffix} and \code{dir_in} do not pool their results; a warning names
+#'   how many files were passed over. \code{""} reads every file ending in
+#'   \code{suffix}.
 #' @param suffix Character scalar with distinctive suffix (required) of tuning results filenames.
 #' @param config List with at least \code{log_file} defined (can be \code{""}).
 #' @param fdr_cutoff Numeric scalar between \code{0} and \code{1.0} specifying 
@@ -616,7 +729,8 @@ tune <- function(
 #'   \tabular{ll}{
 #'     \code{nhits}      \cr \tab Number of significant hits. \cr
 #'     \code{ntests}     \cr \tab Number of features tested; \code{0} if the combination did not run. \cr
-#'     \code{fdr}        \cr \tab False discovery rate; \code{NA} where \code{ntests} is \code{0}. \cr
+#'     \code{fdr}        \cr \tab False discovery rate; \code{NA} where \code{ntests}
+#'       is \code{0}, or where there is no permuted counterpart. \cr
 #'     \code{max1}       \cr \tab Maximum number of hits in any permutation. \cr
 #'     \code{mid1}       \cr \tab Median number of hits across permutations. \cr
 #'     \code{avg1}       \cr \tab Average number of hits across permutations. \cr
@@ -641,16 +755,52 @@ tune <- function(
 
 tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05) {
 
-  pat <- paste0(gsub("(\\W)", "\\\\\\1", suffix), "$")
-  files <- sort(list.files(path=dir_in, pattern=pat))
-  
+  ## prefix was taken and then ignored: the pattern was built from suffix alone, so every
+  ##   file in dir_in ending in suffix was treated as part of this sweep, and the permuted
+  ##   files of a second sweep sharing the suffix were pooled into this one's null without
+  ##   a word about it. Anchor prefix at the front of the name too. A prefix of "" still
+  ##   matches every name ending in suffix, as before. The suffix-only pattern is kept
+  ##   because it is also what strips the suffix off a filename below:
+
+  sfx_re <- gsub("(\\W)", "\\\\\\1", suffix)
+  prfx_re <- gsub("(\\W)", "\\\\\\1", prefix)
+  pat_sfx <- paste0(sfx_re, "$")
+  pat <- paste0("^", prfx_re, ".*", pat_sfx)
+
+  files_sfx <- sort(list.files(path=dir_in, pattern=pat_sfx))
+  files <- files_sfx[grepl(pat, files_sfx)]
+  other <- setdiff(files_sfx, files)
+
+  if(length(other)) {
+    f.msg("WARNING: tune_check:", length(other), "file(s) in", dir_in, "end in", suffix,
+      "but do not begin with the prefix", paste0("'", prefix, "',"),
+      "so they are another sweep's results and are ignored; first few:",
+      utils::head(other, 3), config=config)
+  }
+
   unperm_file <- paste0(prefix, "0", suffix)
   i0 <- files %in% unperm_file
   if(sum(i0) != 1) f.err("tune_check: no unperm file found; looking for:", 
     unperm_file, config=config)
   perm_files <- files[!i0]
-  f.msg("found 1 unpermuted file and", length(perm_files), "permuted files\n", 
+  f.msg("found 1 unpermuted file and", length(perm_files), "permuted files\n",
     config=config)
+
+  ## with no permuted file there is no null to estimate an fdr against, and nothing
+  ##   downstream said so in terms anyone could act on. do.call(rbind, list()) below is
+  ##   NULL, the ntests fill turns that into a one-element list, and the drop of untested
+  ##   rows dies on it with "incorrect number of dimensions", which names neither this
+  ##   function nor the files that are missing; before that drop existed the same case
+  ##   reached the join column check instead and was reported as a missing column, which
+  ##   was no better. Say it here, where the count is already in hand, and name what was
+  ##   looked for, since a mistyped prefix or suffix is the likely cause:
+
+  if(length(perm_files) < 1) {
+    f.err("tune_check: found the unpermuted file", unperm_file, "but no permuted results",
+      "file to estimate an fdr from; looked in", dir_in, "for other files beginning with",
+      paste0("'", prefix, "'"), "and ending in", paste0("'", suffix, "';"),
+      "h0testr::tune() writes those with config$permute_var set", config=config)
+  }
   dat0 <- utils::read.table(paste(dir_in, unperm_file, sep="/"), header=T, 
     sep="\t", quote="", as.is=T)
 
@@ -660,7 +810,7 @@ tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05) {
   obj <- list()
   for(perm_file in perm_files) {
     f.msg("reading", perm_file, config=config)
-    prfx <- sub(pat, "", perm_file)
+    prfx <- sub(pat_sfx, "", perm_file)   ## pat now matches the whole name, so use pat_sfx
     dat_i <- utils::read.table(paste(dir_in, perm_file, sep="/"), header=T, 
       sep="\t", quote="", as.is=T)
     dat_i$perm_prfx <- prfx
@@ -670,12 +820,91 @@ tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05) {
   dat1 <- do.call(rbind, obj)
   rownames(dat1) <- NULL
 
-  dat1$nhits[is.na(dat1$nhits)] <- 0
   dat1$ntests[is.na(dat1$ntests)] <- 0
 
-  k0 <- apply(dat0[, 1:9], 1, paste, collapse=":")
-  k1 <- apply(dat1[, 1:9], 1, paste, collapse=":")
-  
+  ## a permuted run that h0testr::tune() skipped, or that lost every feature to
+  ##   filtering, has ntests 0 and nhits NA. Setting that nhits to 0 and summarizing it
+  ##   beside the runs that ran says the permutation looked for false positives and found
+  ##   none, when it never looked: a combination whose permuted runs were all skipped came
+  ##   out of here with max1 0 and therefore an fdr of 0, the best score in the table,
+  ##   sorted near the top on no evidence at all; one with only some of its permuted runs
+  ##   skipped had max1, mid1, avg1 and sd1 pulled toward 0 by runs that never happened.
+  ##   The unpermuted side carries the same rows and is already refused an fdr for them,
+  ##   below. Drop them here instead, which leaves a combination with no permuted run that
+  ##   tested anything looking like one with no permuted row at all; for estimating an fdr
+  ##   the two are the same thing, and the mismatch warning below reports it:
+
+  i_run <- !(dat1$ntests %in% 0)
+
+  if(any(!i_run)) {
+    f.msg("WARNING: tune_check:", sum(!i_run), "of", nrow(dat1),
+      "permuted result row(s) have ntests 0, so nothing was tested in them; they are",
+      "dropped rather than counted as permutations that found no hits", config=config)
+  }
+
+  dat1 <- dat1[i_run, , drop=F]
+
+  if(nrow(dat1) < 1) {
+    f.err("tune_check: no permuted result row has ntests above 0, so there is nothing",
+      "to estimate an fdr from; permuted files read:", length(perm_files), config=config)
+  }
+
+  dat1$nhits[is.na(dat1$nhits)] <- 0
+
+  ## the join key was dat0[, 1:9] and dat1[, 1:9], the first nine columns being the
+  ##   parameter combination as f.tune2() happens to emit it. Add a column to that
+  ##   data.frame, or reorder it, and the key silently changes meaning: it still pastes
+  ##   nine values together and the two sides still match each other, just on the wrong
+  ##   nine, so every fdr below is computed against the wrong permuted rows and nothing
+  ##   errors. Naming the columns makes that a stop instead. Both tables are checked, and
+  ##   separately: the permuted files are separate runs of the sweep and can have been
+  ##   written by a different version of it than the unpermuted one:
+
+  key_cols <- c("norm", "nquant", "impute", "iquant", "scale", "span", "npcs", "k",
+    "test")
+
+  bad <- setdiff(key_cols, names(dat0))
+
+  if(length(bad)) {
+    f.err("tune_check:", unperm_file, "is missing join column(s):", bad, "\n",
+      "  columns found:", names(dat0), config=config)
+  }
+
+  bad <- setdiff(key_cols, names(dat1))
+
+  if(length(bad)) {
+    f.err("tune_check: permuted results are missing join column(s):", bad, "\n",
+      "  columns found:", names(dat1), config=config)
+  }
+
+  k0 <- apply(dat0[, key_cols, drop=F], 1, paste, collapse=":")
+  k1 <- apply(dat1[, key_cols, drop=F], 1, paste, collapse=":")
+
+  ## perm_max[k0] below is NA for any unpermuted combination with no permuted
+  ##   counterpart, so that combination gets an NA fdr and the sort files it with the
+  ##   combinations that never ran, which is not what it is: it ran, and there is just
+  ##   nothing to measure it against. Combinations whose permuted runs were all dropped
+  ##   just above, having tested nothing, arrive here the same way and are counted with
+  ##   them. A permuted combination absent from the unpermuted table goes the other way
+  ##   and is dropped from the output without trace. Neither is an error, the two sides
+  ##   being separate runs, but both mean the sweeps do not line up and both were silent:
+
+  miss0 <- setdiff(unique(k0), unique(k1))
+  miss1 <- setdiff(unique(k1), unique(k0))
+
+  if(length(miss0)) {
+    f.msg("WARNING: tune_check:", length(miss0), "of", length(unique(k0)),
+      "unpermuted combination(s) have no permuted counterpart that tested anything, so",
+      "they get no fdr and sort below every combination that has one; first few:",
+      utils::head(miss0, 3), config=config)
+  }
+
+  if(length(miss1)) {
+    f.msg("WARNING: tune_check:", length(miss1), "of", length(unique(k1)),
+      "permuted combination(s) are absent from", unperm_file,
+      "and are ignored; first few:", utils::head(miss1, 3), config=config)
+  }
+
   ## permuted results in dat1; take max, median, mean, and sd of 10 permutation results:
   perm_max <- tapply(dat1$nhits, k1, max, na.rm=T)
   perm_mid <- tapply(dat1$nhits, k1, stats::median, na.rm=T)

@@ -150,10 +150,10 @@ new_config <- function() {
     impute_alpha=1,                      ## alpha mixing parameter for impute_glmnet()
     impute_n_pts=1e7,                    ## granularity of imputed values for impute_glm_binom() and impute_loess_logit()
     impute_aug_steps=3,                  ## data augmentation iterations for impute_rf() and impute_glmnet()
-    test_method="trend",                 ## hypothesis test method; h0testr::test_methods() returns options.
+    test_method="trend",                 ## hypothesis test method; h0testr::test_methods() returns options; also "none", which skips the test step so that run() returns the processed state with no result, and which test_methods() deliberately does not list since it names the engines and is looped over
     test_prior_df=3,                     ## prior df for test_proda()
-    test_moderate=TRUE,                  ## whether to shrink the per-feature error variance across features before testing; used by test_prolfqua(), which is the only method here that can be told not to; the limma-based methods always moderate and proda always shrinks
-    test_trend=FALSE,                    ## whether the prior variance of that shrinkage is fitted against mean feature intensity instead of being flat; honored by test_method "prolfqua", where it makes the prior the one test_method="trend" uses, and by "deqms", where it sets the limma prior beneath DEqMS's count-based one; "trend" always trends and the remaining methods cannot, which test() warns about rather than refusing; overridden by test(trend=); unrelated to test_method
+    test_moderate=TRUE,                  ## whether to shrink the per-feature error variance across features before testing; used by test_prolfqua(), which is the only method here that can be told not to; the limma-based methods always moderate and proda always shrinks, and test() notes a FALSE that the resolved method will not read rather than refusing it
+    test_trend=FALSE,                    ## whether the prior variance of that shrinkage is fitted against mean feature intensity instead of being flat; honored by test_method "prolfqua", where it makes the prior the one test_method="trend" uses, and by "deqms", where it sets the limma prior beneath DEqMS's count-based one and so moves the limma columns of the returned table but no column test() reports, which test() warns about; "trend" always trends and the remaining methods cannot, which test() also warns about rather than refusing; overridden by test(trend=); unrelated to test_method
     test_random_obs=TRUE,                ## whether the feature level mixed model paths, test_method %in% c("prolfqua_lmer", "msqrob_agg"), add a random observation effect to the random feature effect; TRUE is the calibrated model; FALSE gives the feature-only structure both packages document, which is anti-conservative; see test_prolfqua() and test_msqrob()
     test_ridge=FALSE,                    ## whether test_method="msqrob_agg" penalizes the fixed effects, msqrob2::msqrobAggregate(ridge=TRUE); FALSE is msqrob2's own default throughout; TRUE shrinks the coefficients toward zero, so the reported logFC is not comparable to what the other methods report, renames the fitted parameters, and refuses a mean model with fewer than two non-intercept columns; see test_msqrob()
 
@@ -225,7 +225,9 @@ f.frm_min_noint_cols <- function(config) {
 #'     \code{"robustSummary"} and \code{"none"}, each of which would otherwise be found
 #'     only when that step ran, which for \code{config$impute_method} is after the whole
 #'     rest of the workflow; \code{""} is allowed for all four and means unset, the step's
-#'     own \code{method} argument naming the method instead;
+#'     own \code{method} argument naming the method instead, and
+#'     \code{config$test_method} additionally allows \code{"none"}, which skips the test
+#'     step so that \code{h0testr::run()} returns the processed state with no result;
 #'     \code{config$contrast} and \code{config$test_term} both naming something to
 #'     test, one run testing one hypothesis; \code{config$test_ridge=TRUE} on a
 #'     mean model that cannot carry a penalty, which needs at least two non-intercept
@@ -584,17 +586,24 @@ check_config <- function(config) {
 
   ## config$test_method names the engine test() will dispatch to, and a name that is
   ##   not one of them is a configuration error that no other setting can fix, so it is
-  ##   caught here rather than at the end of the dispatch chain in test(). Empty is
-  ##   allowed and means unset: test(method=) overrides config$test_method, and test()
-  ##   refuses only when both are unset. NA is not, a missing setting being expressed
-  ##   by its absence:
+  ##   caught here rather than at the end of the dispatch chain in test(). Two values
+  ##   that name no engine are allowed. "" means unset: test(method=) overrides
+  ##   config$test_method, and test() refuses only when both are unset. "none" means skip
+  ##   the test step, which is what lets run() be used as a preprocessing workflow; it
+  ##   returns the processed state with NULL where a result would be. Neither is in
+  ##   test_methods(), which names the engines and is looped over, by its own examples and
+  ##   by hand in tune()'s test_methods= default, and a loop over the test methods should
+  ##   not include a non-test. So the two lists differ on purpose, and this is still the
+  ##   single place that decides what the key may hold. NA is not allowed, a missing
+  ##   setting being expressed by its absence:
 
   if("test_method" %in% names(config)) {
     if(is.na(config$test_method) ||
-        !(config$test_method %in% c(test_methods(), ""))) {
+        !(config$test_method %in% c(test_methods(), "", "none"))) {
       f.err("check_config: unexpected test_method:", config$test_method, "\n",
         "allowed:", test_methods(), "\n",
-        "or \"\", meaning unset, with test(method=) naming the engine instead",
+        "or \"\", meaning unset, with test(method=) naming the engine instead,",
+        "or \"none\", meaning skip the test step and return the processed state",
         config=config)
     }
   }

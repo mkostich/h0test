@@ -9,7 +9,11 @@ tune_check(dir_in, prefix, suffix, config, fdr_cutoff = 0.05)
 \arguments{
 \item{dir_in}{Character scalar with path to directory containing tuning results.}
 
-\item{prefix}{Character scalar with prefix (if any) of tuning result filenames.}
+\item{prefix}{Character scalar with prefix (if any) of tuning result filenames.
+Only files beginning with it are read, so that two sweeps sharing
+\code{suffix} and \code{dir_in} do not pool their results; a warning names
+how many files were passed over. \code{""} reads every file ending in
+\code{suffix}.}
 
 \item{suffix}{Character scalar with distinctive suffix (required) of tuning results filenames.}
 
@@ -24,7 +28,8 @@ A \code{data.frame} with the following columns:
   \tabular{ll}{
     \code{nhits}      \cr \tab Number of significant hits. \cr
     \code{ntests}     \cr \tab Number of features tested; \code{0} if the combination did not run. \cr
-    \code{fdr}        \cr \tab False discovery rate; \code{NA} where \code{ntests} is \code{0}. \cr
+    \code{fdr}        \cr \tab False discovery rate; \code{NA} where \code{ntests}
+      is \code{0}, or where there is no permuted counterpart. \cr
     \code{max1}       \cr \tab Maximum number of hits in any permutation. \cr
     \code{mid1}       \cr \tab Median number of hits across permutations. \cr
     \code{avg1}       \cr \tab Average number of hits across permutations. \cr
@@ -54,6 +59,20 @@ Imports data from basic tuning loop, comparing results from unpermuted
     given an \code{NA} \code{fdr}, which sorts them below every combination
     that ran. They are not combinations that found nothing; they are
     combinations that were never tested.
+  A combination present in the unpermuted results but in none of the
+    permuted ones has nothing to estimate its FDR from, so it too is given
+    an \code{NA} \code{fdr} and sorted below the combinations that have one.
+    A warning names how many combinations each set has that the other does
+    not, in both directions.
+  Permuted result rows with \code{ntests} of \code{0} were skipped as well,
+    so they are dropped before \code{max1}, \code{mid1}, \code{avg1} and
+    \code{sd1} are taken, rather than counted as permutations that found no
+    false positives. A combination left with no permuted run that tested
+    anything is then treated as one with no permuted counterpart, and gets
+    an \code{NA} \code{fdr} rather than an \code{fdr} of \code{0}.
+  A \code{dir_in} holding the unpermuted file and no permuted one has nothing
+    to estimate an FDR against at all, and is refused with a message naming the
+    prefix and suffix that were looked for.
 }
 \examples{
 dir_in <- system.file("extdata/tune", package="h0testr")

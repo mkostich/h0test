@@ -744,6 +744,143 @@ f.design_rank <- function(mat) {
   return(qr(mat)$rank)
 }
 
+## Helper for f.normalize_terms(), which is a helper for f.design_test_cols(),
+##   which serves test() and filter_features_by_estimability(). Converts formula
+##   config$frm to character, makes intercept explicit (either '0' or '1'), sorts
+##   variables in interaction terms (so e.g. 'sex:age' becomes 'age:sex'), then
+##   returns formula representation as tokenized character vector. So would take
+##   formula e.g. ~age + strain + strain:age, and return:
+##   c("1", "age", "strain", "age:strain").
+
+f.formula2terms <- function(config) {
+
+  frm <- config$frm
+
+  if(is.null(frm) || all(as.character(frm) %in% "")) {
+    f.err("f.formula2terms: config$frm empty or undefined.", config=config)
+  }
+
+  parsed <- f.parse_frm(frm, config)
+
+  ## make intercept explicit, so that it can be dropped or kept downstream;
+  ##   '*', '^', and '/' expansion, as well as intercept removal, are handled
+  ##   by stats::terms() within f.parse_frm(), so e.g. ~x1*x2 and
+  ##   ~x1+x2+x1:x2 both give c("1", "x1", "x2", "x1:x2"):
+
+  if(parsed$intercept %in% 1) {
+    terms <- c("1", parsed$labels)
+  } else {
+    terms <- c("0", parsed$labels)
+  }
+
+  return(terms)
+}
+
+## Helper for f.normalize_terms(). Given a parsed formula (see f.parse_frm())
+##   and a canonical config$test_term, returns the character vector of term
+##   labels to be dropped from the full model to form the reduced model.
+##   A test_term naming a variable drops that variable's term along with every
+##   higher-order term containing it (so testing 'x1' in ~x1*x2 is a 2 df test
+##   of 'x1' and 'x1:x2'); this keeps the reduced model hierarchical, so the
+##   test does not depend on the contrast coding or on which level of x2 is the
+##   reference. A test_term naming an interaction term drops just that term,
+##   and is an error if some higher-order term in the formula contains it:
+
+f.test_term_drops <- function(parsed, test_term, config) {
+
+  if(test_term %in% "1") {
+    if(parsed$intercept %in% 0) {
+      f.err("f.test_term_drops: test_term is intercept ('1'), but frm has no",
+        "intercept; frm:", parsed$frm, config=config)
+    }
+    return("1")
+  }
+
+  vars <- rownames(parsed$factors)
+
+  ## test_term names a variable: drop every term it takes part in:
+
+  if(test_term %in% vars) {
+    drops <- parsed$labels[parsed$factors[test_term, ] > 0]
+    return(drops)
+  }
+
+  ## test_term names a term of the model: drop it alone, but only if no
+  ##   higher-order term contains it:
+
+  if(test_term %in% parsed$labels) {
+    vars_test <- vars[parsed$factors[, test_term] > 0]
+    for(lbl in setdiff(parsed$labels, test_term)) {
+      vars_lbl <- vars[parsed$factors[, lbl] > 0]
+      if(all(vars_test %in% vars_lbl)) {
+        f.err("f.test_term_drops: test_term '", test_term,
+          "' is contained in higher-order term '", lbl,
+          "' of frm, so cannot be tested on its own; test the variables of",
+          "'", test_term, "' individually, or test '", lbl, "' instead",
+          config=config)
+      }
+    }
+    return(test_term)
+  }
+
+  f.err("f.test_term_drops: test_term '", test_term,
+    "' is neither a variable nor a term of frm; variables:",
+    paste(vars, collapse=" "), "; terms:",
+    paste(parsed$labels, collapse=" "), config=config)
+}
+
+## Helper for f.design_test_cols(). Character scalar config$test_term, formula
+##   config$frm; returns list with canonicalized character scalar $test_term,
+##   tokenized character vector $frm_terms carrying either '1' for intercept or
+##   '0' for no intercept, and character vector $drop_terms with the terms to be
+##   dropped from the full model to form the reduced model. Interaction terms in
+##   $frm_terms and $test_term are sorted alphabetically (so 'sex:age' becomes
+##   'age:sex'), to facilitate formula/term comparison.
+
+f.normalize_terms <- function(config) {
+
+  test_term <- config$test_term
+  frm <- config$frm
+  
+  if(is.null(test_term) || test_term %in% "") {
+    f.err("f.normalize_terms: config$test_term empty or undefined.", config=config)
+  }
+  
+  if(is.null(frm) || all(as.character(frm) %in% "")) {
+    f.err("f.normalize_terms: config$frm empty or undefined.", config=config)
+  }
+  
+  if(length(test_term) != 1) {
+    f.err("f.normalize_terms: length(test_term) != 1; test_term: '", 
+      paste(test_term), "'", config=config)
+  }
+  
+  if(grepl("[\\*\\-\\|\\(\\)\\^/]", test_term)) {
+    f.err("f.normalize_terms: cannot handle '*', '-', '|', '^', '/', '(', or ')'",
+      " in test_term: '", test_term, "'; test_term must name a single variable",
+      " or a single interaction term, e.g. 'age' or 'age:sex'", config=config)
+  }
+
+  test_term <- gsub("[[:space:]]", "", test_term)
+
+  if(test_term %in% "0") {
+    f.err("f.normalize_terms: invalid test term: '", test_term, "'",
+      config=config)
+  }
+
+  test_term <- f.canon_label(test_term)
+
+  parsed <- f.parse_frm(frm, config)
+  frm_terms <- f.formula2terms(config)    ## returns character vector
+
+  ## terms of the full model to be dropped to form the reduced model; throws
+  ##   an error if test_term is not compatible with frm:
+
+  drop_terms <- f.test_term_drops(parsed, test_term, config)
+
+  return(list(test_term=test_term, frm_terms=frm_terms, drop_terms=drop_terms))
+}
+
 ## The design matrix for config$frm, the columns of it that carry the test of
 ##   config$test_term, and the degrees of freedom of that test measured over all
 ##   observations. Single place where the full and reduced models are derived

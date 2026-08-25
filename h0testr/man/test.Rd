@@ -34,7 +34,14 @@ test(
 }}
 
 \item{method}{Name of test method where
-\code{method \%in\% h0testr::test_methods()}.}
+\code{method \%in\% h0testr::test_methods()}. Defaults to
+\code{config$test_method}, and either being \code{""} counts as unset; both unset
+is an error. Also accepts \code{"none"}, which skips the test step and returns
+\code{NULL} without reading \code{state}; that is what
+\code{config$test_method="none"} is for in \code{h0testr::run()}, whose result then
+carries the processed state and \code{NULL} in place of a test. \code{"none"} is
+deliberately not one of \code{h0testr::test_methods()}, which names the engines;
+\code{h0testr::check_config()} lists what the key may hold.}
 
 \item{is_log_transformed}{Logical scalar: whether \code{state$expression} has
 been log transformed. Only consulted for \code{method \%in\% c("proda",
@@ -46,9 +53,14 @@ passing both is an error unless they agree.}
 where \code{2 <= prior_df <= n_features}.}
 
 \item{trend}{Logical scalar: whether the variance prior of the moderation is fitted
-against mean feature intensity rather than being flat. Honored by \code{method
-\%in\% c("deqms", "prolfqua")}; \code{"trend"} always trends and the rest cannot,
-which is a \code{WARNING} rather than an error. Defaults to
+against mean feature intensity rather than being flat. Changes the reported answer
+only for \code{method="prolfqua"}; \code{"trend"} always trends; \code{"deqms"}
+accepts it, and it moves the \code{limma} columns of \code{original}, but
+\code{DEqMS} refits the prior from the spectra counts afterward so the reported
+p-value is the one a \code{FALSE} gives; and the rest cannot trend at all. A request
+the resolved method cannot honor, or honors without the reported answer moving, is a
+\code{WARNING} rather than an error, so that an \code{h0testr::tune()} sweep over
+methods does not die on the first method that will not trend. Defaults to
 \code{config$test_trend}, and to \code{FALSE} when that is absent too; unlike
 \code{is_log_transformed}, an argument that disagrees with the configuration simply
 wins, this being a preference rather than a fact about the data. Unrelated to
@@ -61,6 +73,7 @@ A list with the following elements: \cr
     \code{standard} \cr \tab A \code{data.frame} with results in a standardized format. \cr
     \code{fit}      \cr \tab Fitted model returned by the selected testing procedure. \cr
   } \cr
+  Or \code{NULL} for \code{method="none"}, which skips the test step. \cr
   The \code{standard} \code{data.frame} has the following fields: \cr
   \tabular{ll}{
     \code{feature}   \cr \tab Name of feature tested. \cr
@@ -100,6 +113,23 @@ A list with the following elements: \cr
       coefficients it weights, so unlike a joint test it always has one number to
       report. See \code{h0testr::new_config()} for how to write one.
   }
+  Which side supplies \code{logfc} depends on \code{method}, although what the column
+    means does not. On a one column test \code{"trend"}, \code{"voom"},
+    \code{"deqms"}, \code{"msqrob"}, \code{"msqrob_agg"} and \code{"proda"} each
+    carry an effect size in their own result table, and it is reported as it stands;
+    \code{"lm"}, \code{"prolfqua"} and \code{"prolfqua_lmer"} do not, and no method
+    does on a joint test or a \code{config$contrast}, so for those the value is
+    computed here from the fitted coefficients of the columns under test. Both routes
+    give the quantity described above, on the scale of \code{state$expression}, so
+    \code{logfc} is comparable between methods; what differs between them is the
+    model that produced the coefficient, not what the column holds.
+  \code{lod} is narrower than the rest: it is \code{limma}'s \code{B}, the log-odds
+    that a feature is differentially expressed, and only \code{method} \code{"trend"}
+    and \code{"voom"} report it, and only on a one column test. Every other method
+    leaves it \code{NA}, as does any joint test: \code{B} is a quantity of
+    \code{limma}'s posterior odds calculation, nothing else here computes one, and
+    unlike \code{logfc} and \code{expr} it is not filled in afterward. So an empty
+    \code{lod} column says which method ran, not anything about the data.
   \code{feature} holds the value of \code{config$feat_col} identifying the row
     of \code{state$expression} the result describes, except for the gene level
     methods, \code{method \%in\% c("deqms", "msqrob", "msqrob_agg",

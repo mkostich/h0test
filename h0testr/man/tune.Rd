@@ -28,10 +28,17 @@ tune(
 \code{"quantile"} at a \code{normalization_quantile} of \code{0.5} and \code{0.75}.
 Defaults to every method \code{h0testr::normalize_methods()} names, with
 \code{"quantile"} entered as those two. \code{"loess"} is the slowest of them, so
-drop it from the list if the sweep takes too long.}
+drop it from the list if the sweep takes too long. A name outside that set is refused
+before the sweep starts, rather than surfacing partway through from inside
+\code{normalize()}, which reports the argument it was handed rather than the sweep that
+handed it over. \code{"none"} is accepted: not normalizing is something a sweep has a
+use for comparing against.}
 
 \item{impute_methods}{Character vector of methods to try. One or more of:
-\code{c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", "knn", "min_det", "min_prob", "qrilc", "bpca", "ppca", "svdImpute", "lls", "missforest", "none")}.}
+\code{c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", "knn", "min_det", "min_prob", "qrilc", "bpca", "ppca", "svdImpute", "lls", "missforest", "none")}.
+A name that is not one of \code{h0testr::impute_methods()} is refused before the sweep
+starts, rather than three loops down, after every earlier combination has already been
+run. \code{"none"} is accepted here too, for the same reason.}
 
 \item{impute_quantiles}{Numeric vector of quantiles to try for \code{impute_unif_*} methods. 
 One or more values between \code{0.0} and \code{1.0}.}
@@ -49,22 +56,39 @@ See \code{impute_rnorm_feature()} \code{scale}. parameter.}
 \code{h0testr::test_methods()}. Defaults to every method except
 \code{"prolfqua_lmer"} and \code{"msqrob_agg"}, each of which fits a mixed model
 per gene and so costs orders of magnitude more time per cell than the rest of the
-sweep put together; name either explicitly to include it.}
+sweep put together; name either explicitly to include it. A name that is not one of
+\code{h0testr::test_methods()} is refused before the sweep starts, rather than after
+the combination it appears in has been normalized and imputed. That includes
+\code{"none"}, which \code{config$test_method} accepts as "skip the test step": a
+sweep over not testing has nothing to compare.}
 }
 \value{
 A data.frame with the following columns:
   \tabular{ll}{
-    \code{norm}       \cr \tab Normalization method (character). \cr
-    \code{norm_quant} \cr \tab Normalization quantile (numeric). \cr
-    \code{impute}     \cr \tab Imputation method (character). \cr
-    \code{imp_quant}  \cr \tab Imputation quantile (numeric). \cr
-    \code{scale}      \cr \tab Imputation scale for \code{impute_rnorm_feature}. \cr
-    \code{test}       \cr \tab Test method (character). \cr
-    \code{perm}       \cr \tab Permuted variable (character). \cr
-    \code{nhits}      \cr \tab Number of hits (numeric); \code{NA} if not tested. \cr
-    \code{ntests}     \cr \tab Number of tests (numeric); \code{NA} if not tested. \cr
-    \code{time}       \cr \tab Timestamp. \cr
+    \code{norm}   \cr \tab Normalization method (character). \cr
+    \code{nquant} \cr \tab Normalization quantile (numeric). \cr
+    \code{impute} \cr \tab Imputation method (character). \cr
+    \code{iquant} \cr \tab Imputation quantile (numeric). \cr
+    \code{scale}  \cr \tab Imputation scale, for \code{impute_rnorm_feature} and
+      \code{impute_qrilc} (numeric). \cr
+    \code{span}   \cr \tab Imputation span, for \code{impute_loess_logit} (numeric). \cr
+    \code{npcs}   \cr \tab Number of PCs, for \code{"bpca"}, \code{"ppca"} and
+      \code{"svdImpute"} (numeric). \cr
+    \code{k}      \cr \tab Number of neighbors, for \code{"knn"} and \code{"lls"}
+      (numeric). \cr
+    \code{test}   \cr \tab Test method (character). \cr
+    \code{perm}   \cr \tab Permuted variable (character). \cr
+    \code{nhits}  \cr \tab Number of hits (numeric); \code{NA} if not tested. \cr
+    \code{ntests} \cr \tab Number of tests (numeric); \code{NA} if not tested. \cr
+    \code{time}   \cr \tab Timestamp. \cr
   }
+  A column for a parameter that this combination does not use is still filled in, from
+    \code{config}, rather than left \code{NA}: \code{iquant} carries
+    \code{config$impute_quantile} even where \code{impute} is \code{"rf"}. The nine
+    columns from \code{norm} through \code{test} are what identify a combination, and
+    \code{h0testr::tune_check()} joins the permuted results to the unpermuted ones on
+    those nine by name, so renaming or dropping one of them there is refused rather
+    than silently changing what is being compared.
   A combination that could not be tested yields a row with \code{nhits} and
     \code{ntests} set to \code{NA} rather than aborting the sweep, and the reason
     is written to \code{config$log_file}. This happens when too few samples or
