@@ -29,7 +29,7 @@ sim_design(
 \item{samps}{Sample-level annotation \code{data.frame}, one row per biological sample, holding
 every variable named in \code{frm}; see \code{\link{sim_samples}}, which builds one. A
 \code{sample_id} column is used if present and generated otherwise. Factor variables should
-be factors, their first level being taken as the reference; character and logical variables
+be factors, with first level being the reference; character and logical variables
 are levelled in sorted order. Treatment contrasts are what make a factor coefficient a fold
 change against that reference level, so an ordered factor, a variable carrying a
 \code{contrasts} attribute, and an \code{options("contrasts")} whose unordered entry is not
@@ -72,8 +72,7 @@ sample's own value.}
 
 \item{log_m_sd}{Standard deviation of \code{log(feature means)} around \code{log_m_mean}.
 Scalar numeric, with \code{log_m_sd >= 0}. Either of \code{log_m_mean} and \code{log_m_sd}
-may be 0, but not both: the draw is redrawn until it is strictly positive, which a mean of 0
-with an SD of 0 never is.}
+may be 0, but not both.}
 
 \item{log_cv_mean}{Mean of \code{log(feature CVs)}, the CVs being of features around their
 respective feature means. Scalar numeric.}
@@ -129,8 +128,8 @@ Simulates a non-negative data matrix, with the annotation and configuration need
 The mean structure is
   \code{log2(mean[feat, obs]) = log2(feat_mean[feat]) + x[obs, ] \%*\% beta[feat, ]}, with
   \code{x} the \code{stats::model.matrix()} of \code{frm}, so any number of groups, a
-  continuous covariate, an adjustment covariate and an interaction are all the same thing
-  here. Around that mean, \code{log(feature_mean) ~ rnorm(mean=log_m_mean, sd=log_m_sd)} and
+  continuous covariate, an adjustment covariate and an interaction are all the same here.
+  Around the mean, \code{log(feature_mean) ~ rnorm(mean=log_m_mean, sd=log_m_sd)} and
   \code{log(feature_cv) ~ rnorm(mean=log_cv_mean, sd=log_cv_sd)}; values are drawn on the raw
   scale with an SD proportional to the mean, and then come technical replication, MNAR
   (\code{logit(p(mnar|log(m))) ~ mnar_c0 + mnar_c1 * log(m + mnar_off)}, turned off by
@@ -154,11 +153,11 @@ The mean structure is
   level that is declared but has no samples is all zero, and planting there would give a
   \code{truth} the data does not carry. A term whose columns all turn out constant gets a
   warning and no effect. All features of a gene share their gene's coefficients. Per-term counts
-  of significant genes are worth using: a realistic confounder moves many genes while the term
+  of significant genes are useful: a realistic confounder moves many genes while the term
   of interest moves few, as in \code{n_genes_signif=c(sex=2, age=40)}.
 
-  Two shared defaults are worth knowing. The feature-mean draw is redrawn until it is strictly
-  positive, so \code{log(feat_mean)} is a normal truncated below at 0 and \code{feat_mean} is
+  The feature-mean draw is redrawn until strictly
+  positive, so \code{log(feat_mean)} is a normal truncated below 0 and \code{feat_mean} is
   never below 1. And \code{p_drop=0.75} is aggressive: with \code{peps_per_gene=3} a gene has
   all three of its peptides dropped about 42\% of the time, and then keeps one of them, chosen
   at random, since the floor is per gene. So every gene of \code{truth} still has a feature in
@@ -166,8 +165,7 @@ The mean structure is
   \code{p_drop} or raise \code{peps_per_gene} for counts spread more evenly.
 
   A design that cannot be fitted is not refused. Only \code{X \%*\% beta} is needed here,
-  which is defined even when the design is rank deficient or has empty cells, so such a design
-  reaches \code{\link{test}}, which is where its treatment is worth seeing.
+  which is defined even when the design is rank deficient or has empty cells.
 }
 \examples{
 ## one factor and one covariate, with the covariate moving more genes, as a confounder would:

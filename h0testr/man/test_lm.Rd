@@ -26,17 +26,10 @@ test_lm(state, config, fdr.method = "BH")
 testing adjustment of p-values. See \code{stats::p.adjust.methods()} for
 latest list of valid choices. Currently one of:
 \code{c("holm", "hochberg", "hommel", "bonferroni", "BH", "BY")}.
-Defaults to \code{"BH"}, which is what every other test method here uses;
-earlier versions defaulted this one method to the considerably more
-conservative \code{"BY"}, so the same data gave \code{"lm"} a larger adjusted
-p-value than the other methods for reasons that had nothing to do with the
-test. Pass \code{"BY"} to control the false discovery rate under arbitrary
-dependence between features. Reachable only by calling this function directly:
-\code{h0testr::test()} passes no value for it and no \code{config} key carries one,
-so a workflow run gets \code{"BH"}, which is the point of that being the default.}
+Defaults to \code{"BH"}.}
 }
 \value{
-A list with a \code{$hits} data.frame of results and a \code{$fit} that is
+List with a \code{$hits} data.frame of results and a \code{$fit} that is
     always \code{NULL}, since a separate model is fitted to every feature.
     Columns of \code{$hits} are \code{c("feature", "p.adj", "pval", "stat")},
     where \code{stat} is the F statistic of the model comparison, then the
@@ -57,40 +50,9 @@ Tests for differential expression by fitting full and reduced linear
     models, then comparing them with an F test.
 }
 \details{
-This test is suitable for use with missing values without imputation. The
-    test does not use moderated standard error estimates, so should only be 
-    relied upon when there is plenty of replication (at least 5 observations 
-    per condition, preferably more).
-  The design matrix for \code{config$frm} is built once, with
-    \code{stats::model.matrix()}. For each feature, \code{stats::lm()} fits a
-    full model to that matrix and a reduced model to the same matrix with the
-    columns of \code{config$test_term} removed, both restricted to the
-    observations where the feature was measured. Removing columns rather than
-    rebuilding a reduced formula matters: re-deriving the reduced model from
-    formula text lets \code{stats::model.matrix()} re-code the remaining
-    factors to full rank and restore the span that was to be removed, leaving
-    nothing to test. The columns removed are those of \code{config$test_term}
-    together with those of every higher-order term containing it, so testing
-    a variable involved in an interaction tests the interaction too.
-  The two models are compared with the exact F test of \code{stats::anova()},
-    rather than with the likelihood ratio chi-square of
-    \code{lmtest::lrtest()} that earlier versions used. The chi-square is the
-    large-sample limit of the same test, reached by treating the residual
-    variance as known rather than estimated, and is anti-conservative at the
-    replication these designs usually have. Raw p-values are adjusted for
-    multiple testing using \code{stats::p.adjust()}.
-  A feature measured in too few observations to support the test yields
-    \code{NA} for its p-value, its adjusted p-value and its statistic, which
-    earlier versions reported as a p-value of 1. Too few means either that the
-    term under test has no estimable degrees of freedom left once the
-    unmeasured observations are dropped, or that the full model is left with
-    no residual degrees of freedom; these are the \code{df_test} and
-    \code{df_resid} of \code{h0testr::filter_features_by_estimability()},
-    computed here from the same two matrices by the same helper. Use that
-    function beforehand to drop such features instead. Since
-    \code{stats::p.adjust()} takes its \code{n} from the p-values that are not
-    \code{NA}, an untested feature does not count against the features that
-    were tested.
+Suitable for use with missing values without imputation. Does not use moderated 
+    standard error estimates, so only rely upon when there is plenty of replication 
+    (at least 5 observations per condition, preferably more).
   Any covariate type that \code{stats::model.matrix()} accepts is supported,
     categorical or continuous, in any combination, as are interactions and
     formulas without an intercept.

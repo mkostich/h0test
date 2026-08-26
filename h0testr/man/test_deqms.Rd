@@ -27,15 +27,7 @@ test_deqms(state, config, trend = NULL)
 
 \item{trend}{Logical scalar. Whether \code{limma::eBayes()} fits its variance prior
 against mean gene intensity rather than shrinking every gene toward one number.
-Defaults to \code{config$test_trend}, and to \code{FALSE} when that is absent, which
-is the fit this function performed before the key reached it. \strong{This moves
-less than it appears to}: \code{DEqMS::spectraCounteBayes()} fits its own prior from
-\code{fit$sigma}, \code{fit$df.residual} and \code{fit$count}, which
-\code{limma::eBayes()} does not alter, and the reported statistic comes from that
-prior. So \code{trend} sets \code{P.Value}, \code{t}, \code{B}, \code{s2.prior} and
-\code{s2.post} of \code{hits}, and leaves every \code{sca.} column, which is what
-\code{h0testr::test()} reports, unchanged. For a trended prior that changes the
-answer, use \code{config$test_method="trend"}.}
+Defaults to \code{config$test_trend}, and to \code{FALSE} when that is absent.}
 }
 \value{
 A list with components:
@@ -70,96 +62,22 @@ Tests for differential expression using the
 The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm}
     and a moderated test is performed for whether the effect of
     \code{config$test_term} on \code{state$expression} is zero.
-  The coefficients carrying that test are the columns of the design matrix
-    assigned to \code{config$test_term} and to every term containing it, which is
-    the same selection used by \code{h0testr::test_lm()},
-    \code{h0testr::test_trend()} and
-    \code{h0testr::filter_features_by_estimability()}. So naming a variable that
-    also appears in an interaction tests the interaction too: with
-    \code{config$frm = ~sex * batch} and \code{config$test_term = "sex"}, the test
-    is a joint 2 degree of freedom test of \code{sexM} and \code{sexM:batchb2}.
-    Testing a factor with more than two levels is likewise a joint test over its
-    contrasts.
   A test of one coefficient is reported as \code{DEqMS}'s own moderated t, with a
     \code{logFC} column; a test of several is reported as a moderated F, and no
     \code{logFC}, since several coefficients have no single fold change.
     \code{DEqMS} itself reports only the former: \code{DEqMS::spectraCounteBayes()}
     moderates the t-statistic of one coefficient and the package has no F-analogue
-    anywhere. Its moderation does not have that limit. That function fits a variance
-    prior against the number of features behind each gene and returns a per-gene
-    posterior variance and a prior degrees of freedom, neither of which mentions a
-    coefficient, so the joint test is the ordinary F with the residual variance
+    anywhere. The joint test is the ordinary F with the residual variance
     replaced by the posterior one and the denominator degrees of freedom raised by
     those of the prior. At one numerator degree of freedom that F is the square of
-    \code{DEqMS}'s own moderated t, so the single-coefficient case reports
-    \code{DEqMS}'s statistic unchanged. Earlier versions refused anything but that
-    case.
-  A joint test additionally requires that no value of the aggregated expression
-    matrix be missing, and it is an error if any is. \code{limma} fits each gene on
-    the observations that gene has, so \code{fit$stdev.unscaled} is per gene while
-    \code{fit$cov.coefficients}, which a joint test needs, comes from the complete
-    design; the joint statistic would then be wrong for exactly the genes with
-    missing values. Running \code{h0testr::impute()} first, which the documented
-    workflow does, satisfies this. A single coefficient, which
-    \code{config$contrast} also reduces to, is unaffected.
+    \code{DEqMS}'s own moderated t.
   \code{config$contrast} tests a weighted sum of coefficients instead of a term, is
     one degree of freedom however many coefficients it weights, and reaches this
-    engine as a single coefficient, \code{limma::contrasts.fit()} having made it
-    one. It is a different hypothesis rather than a way around a restriction: a
-    contrast compares the levels it names, holding the other variables of any
-    higher-order term at their reference level, which
-    \code{h0testr::new_config()} describes and which is warned about when it
-    applies.
-  Stops if every gene/protein-group has the same number of features. The whole
-    of what \code{DEqMS} adds to \code{limma} is a variance prior fitted against
-    that count, and \code{DEqMS::spectraCounteBayes()} has no spread to fit its
-    loess against when the count does not vary. Earlier versions fell through to
-    \code{h0testr::test_trend()} on the un-aggregated state, which returned
-    feature level rows under the \code{"deqms"} label together with a \code{fit}
-    that was not a \code{DEqMS} fit. Use \code{config$test_method="trend"}, which
-    is the same \code{limma} fit without the count based prior, or supply feature
-    level data. \code{h0testr::tune()} checks the same condition before testing
-    and records the combination as untested rather than stopping the sweep.
-  Counts that vary but are lopsided are the same shortage in weaker form, and
-    \code{DEqMS::spectraCounteBayes()} answers it two ways. Its loess comes back
-    \code{NaN} for the genes at a crowded count, which are then reported without a
-    moderated statistic and counted in the log; twenty genes of two peptides with two
-    single-peptide genes among them lost 18 of 20 that way. When it comes back
-    \code{NaN} for every gene the function fails outright, with an error about a missing
-    value in an \code{if()} condition, and that is refused with the counts named, one to
-    three genes of 19, 24 or 60 away from a single count being enough. An even split
-    fits either way. The same fixes apply.
+    engine as a single coefficient. 
   A gene with no residual degrees of freedom, which is a gene the aggregated matrix
     has as many observations of as \code{config$frm} has design columns, is left out
-    of that prior and reported with \code{NA} in every \code{sca.} column, which
-    is said in the log. \code{limma}'s own columns of that row are not \code{NA}:
-    \code{limma::eBayes()} shrinks such a gene toward its own prior, which needs no
-    residual variance of the gene's own, and reports a moderated \code{P.Value} on the
-    prior's degrees of freedom alone. \code{DEqMS}'s prior is a loess against the
-    feature counts and has no value to contribute at a gene it was not fitted from.
-    This is not a restriction so much as
-    avoidance of a silent error: \code{DEqMS::spectraCounteBayes()} fits its prior
-    with \code{stats::loess()}, whose default \code{na.action} drops such a gene, and
-    then recycles the shortened predictions against every gene, so the prior reaching
-    each gene depends on where the untestable ones sit in
-    \code{state$expression}. Running \code{h0testr::impute()} first, which the
-    documented workflow does, or screening features with
-    \code{h0testr::filter_features_by_estimability()} and a \code{config$df_resid_min}
-    of at least 1, leaves every gene with residual degrees of freedom.
-    \code{stats::p.adjust()} takes its \code{n} from the p-values that are not
-    \code{NA}, so the excluded genes are left out of the multiplicity correction
-    rather than counted in it.
-  The counts come from \code{config$n_feats_col} when \code{state$features}
-    carries it, which \code{h0testr::combine_features()} writes, and are counted
-    from \code{config$gene_id_col} otherwise. So this method runs on an already
-    aggregated state as well as on feature level input.
-  Aggregates peptides internally with \code{h0testr::combine_features()},
-    which fits an additive model and so requires
-    \code{config$is_log_transformed} to be \code{TRUE}; \code{DEqMS} is built
-    on \code{limma} and wants the same scale. Running
-    \code{h0testr::normalize()} first satisfies both.
-  Returns gene-level hypothesis testing results based on 
-    peptide/precursor-level input.
+    of that prior and reported with \code{NA} in every \code{sca.} column.
+  Returns gene-level hypothesis testing results based on peptide/precursor-level input.
   Flow is:
     \tabular{l}{
       1. for each gene, count number of associated peptides. \cr
@@ -168,15 +86,11 @@ The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm}
       4. Append peptide counts to model returned by \code{limma::eBayes()}. \cr
       5. Adjust statistics using \code{DEqMS::spectraCounteBayes()}, fitted on the
            genes that have residual degrees of freedom. \cr
-      6. Form the moderated test of the coefficients carrying the test from the
+      6. Form moderated test of the coefficients carrying the test from the
            variance prior that fitted. \cr
       7. Generate hit table with \code{limma::topTable()}, with the moderated
            statistics appended. \cr
     }
-  \code{DEqMS::outputResult()} built the hit table until the joint test was added,
-    and is no longer used: it takes a single \code{coef_col}, there being nothing
-    joint for it to report. Every column it produced is still in the table, with
-    the joint statistic and its degrees of freedom added.
   See documentation for \code{h0testr::new_config()} 
     for more detailed description of configuration parameters.
 }
@@ -193,9 +107,7 @@ config <- sim$config
 rm(samps, sim)
 
 ## no grp:sex term here, so that this example shows the single-coefficient case,
-##   which reports DEqMS's own moderated t. By marginality, testing "grp" in
-##   ~grp+sex+grp:sex would be a joint test of grptrt and grptrt:sexM, reported as
-##   a moderated F; test "grp:sex" to test the interaction itself:
+##   which reports DEqMS's own moderated t:
 out <- h0testr::initialize(state, config, minimal=TRUE)
 
 ## test_deqms() aggregates peptides internally with combine_features(), which
@@ -209,7 +121,7 @@ out$config$is_log_transformed <- TRUE
 result <- h0testr::test_deqms(out$state, out$config)
 head(result$hits)
 
-## the same fit with limma's own prior fitted against mean gene intensity instead of
+## same fit with limma's prior fitted against mean gene intensity instead of
 ##   flat. Equivalently config$test_trend <- TRUE, which h0testr::test(method="deqms")
 ##   passes through. limma's P.Value moves and DEqMS's sca.P.Value does not, the
 ##   count-based prior the latter comes from being fitted from quantities

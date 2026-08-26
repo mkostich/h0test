@@ -42,8 +42,7 @@ Filter samples based on number of features with a non-\code{NA} value.
 \details{
 A value is missing if and only if it is \code{NA}. Raw zeros are converted
     to \code{NA} by \code{h0testr::initialize()}, so a feature is counted as
-    measured in a sample whenever its value there is not \code{NA},
-    regardless of sign.
+    measured when its value there is not \code{NA}, regardless of sign.
   Sample constant if \code{length(unique(expression_values)) \%in\% 1)}.
   See documentation for \code{h0testr::new_config()} 
     for more detailed description of configuration parameters.

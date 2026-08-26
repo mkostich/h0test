@@ -48,27 +48,20 @@ An updated \code{state} list with the following elements:
 Filter features without enough distinct values for each variable in \code{config$frm}.
 }
 \details{
-Every variable in \code{config$frm} is screened, including variables that
-    appear only within an interaction term. Interaction terms themselves are
-    not screened here.
-  This is a cheap pre-screen, intended to remove obviously untestable
-    features before more expensive steps; whether a term is actually
-    estimable for a feature is a separate question.
+Every variable in \code{config$frm} checked, including variables that
+    appear only in an interaction term. Interaction terms are not screened here.
+  This is a cheap pre-screen.
   For a factor variable, a feature is kept if at least
     \code{n_groups_non_na_min} levels have at least \code{n_non_na_min}
     non-\code{NA} values, and at least \code{n_groups_distinct_min} levels
     have at least \code{n_distinct_min} distinct non-\code{NA} values.
   For a numeric (continuous) variable there are no levels to count, so a
     feature is kept if it has at least \code{n_non_na_min} non-\code{NA}
-    values, at least \code{n_distinct_min} distinct values among them, and
+    values, with at least \code{n_distinct_min} distinct values, and
     the variable takes at least two distinct values across the observations
     where the feature was measured.
-  Variables are classified as factor or numeric as described for
-    \code{h0testr::initialize()}, and their values are checked as described
-    there: missing, blank, non-finite and constant covariate values are
-    errors here too, since the counts below would otherwise be taken over the
-    observations whose covariates happen to be known, while every step that
-    builds a design matrix refuses the same \code{state}.
+  Variables are classified as factor or numeric and checked as described for
+    \code{h0testr::initialize()}.
 }
 \examples{
 set.seed(101)

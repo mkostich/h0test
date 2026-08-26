@@ -55,20 +55,12 @@ Filter features and samples based on expression.
 \details{
 Filters out features measured in too few samples, and filters out samples
     with too few measured features. A value is missing if and only if it is
-    \code{NA}; raw zeros are converted to \code{NA} by
-    \code{h0testr::initialize()}.
+    \code{NA}.
   Features are filtered before observations, and then
-    \code{filter_features_by_estimability()} runs last, since dropping an
-    observation changes every feature's missingness pattern. This is a single
-    pass: features dropped for lack of estimability are not fed back into
-    \code{filter_observations()}.
+    \code{filter_features_by_estimability()} runs last. Only one pass is performed.
   Features and/or samples considered constant if
     \code{length(unique(expression_values)) \%in\% 1}.
   Stops with an error if any feature is left with no measured value at all.
-    Such a feature has no intensity for any downstream step to model, so an
-    imputer would have to invent one; the filtering criteria above already
-    remove them, and one surviving means a criterion was disabled or a
-    threshold set too low.
   See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.
 }

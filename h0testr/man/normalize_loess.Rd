@@ -35,7 +35,7 @@ A list (the processed state) with the following elements:
   }
 }
 \description{
-Normalize expression using the cyclic-loess algorithm.
+Normalize expression using cyclic-loess.
 }
 \details{
 Inter-observation normalization using cyclic-loess results
@@ -52,11 +52,7 @@ Inter-observation normalization using cyclic-loess results
     quietly, \code{method \%in\% c("affy", "pairs")} is an error when
     \code{state$expression} has any missing value.
   Cyclic loess is an \emph{additive} correction, so \code{state$expression} is
-    expected on a log scale, which is also the input \code{limma} documents.
-    \code{h0testr::normalize(method="loess")} transforms before calling this.
-    Raw intensities are not refused, since the fitted values are meaningful
-    either way, but the smallest of them come back negative and so cannot be
-    log transformed afterwards.
+    expected on a log scale, but raw intensities are not refused.
 }
 \examples{
 set.seed(101)

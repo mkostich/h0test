@@ -22,7 +22,7 @@ A list with the following elements:
   The last three are \code{NULL} when \code{config$test_method} is \code{"none"}.
 }
 \description{
-Run a basic workflow according to: \code{config$run_order}.
+Run basic workflow according to: \code{config$run_order}.
 }
 \details{
 Run a basic workflow: \code{load_data() -> config$run_order -> test()},

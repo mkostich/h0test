@@ -4,12 +4,12 @@
 #'     example values. Configuration meant to be customized then passed to
 #'     other functions.
 #' @details 
-#'   This function is meant to simplify generation of configurations for 
+#'   Simplifies generation of configurations for 
 #'     higher level functions, like \code{h0testr::run()}, or 
 #'     \code{h0testr::tune()}. For most other functions, you can pass a 
 #'     simpler config as a list containing only the needed parameters. See 
-#'     documentation and examples for the function of interest for the minimal 
-#'     configuration needed.
+#'     documentation of the function of interest for the minimal 
+#'     configuration needed and relevant examples.
 #'   For hypothesis testing or calls to \code{h0testr::initialize()},
 #'     customize \code{frm}, \code{test_term}, and \code{reference_levels}.
 #'   \code{contrast} is the alternative to \code{test_term}: it names a weighted
@@ -20,12 +20,10 @@
 #'     \code{"`sexM:batchb2`"}. Constants may scale a coefficient; two coefficient
 #'     names may not be multiplied together, that not being a weighted sum.
 #'   The two are mutually exclusive and one run tests one hypothesis, so set
-#'     \code{test_term} to \code{""} to test a contrast. The difference is what
-#'     each answers: \code{test_term} obeys marginality, testing the named term
-#'     together with every term containing it, which for a factor of more than two
-#'     levels is a joint test over all of its coefficients; a contrast is one
-#'     degree of freedom, so it can compare two particular levels, and reaches
-#'     \code{test_method="deqms"}, which cannot run a joint test at all.
+#'     \code{test_term} to \code{""} to test a contrast. The \code{test_term} obeys 
+#'     marginality, testing the named term together with every term containing it; 
+#'     a contrast is one degree of freedom, so it can compare two particular levels, 
+#'     using \code{test_method="deqms"}, which cannot run a joint test at all.
 #'   When using the config to load data from files (e.g. by calling 
 #'     \code{h0testr::load_data(config)}), calling 
 #'     \code{h0testr::initialize()}, or for aggregating multiple 
@@ -34,26 +32,24 @@
 #'     \code{h0testr::combine_precursors()}), you should customize 
 #'     \code{feat_id_col}, \code{gene_id_col}, \code{sample_id_col}, 
 #'     and \code{obs_id_col}. In these cases, leave \code{feat_col} and
-#'     \code{obs_col} as \code{""} (they will be automatically set and 
-#'     changed after observation or precursor aggregation.
+#'     \code{obs_col} as \code{""} (automatically set and 
+#'     changed after observation or precursor aggregation).
 #'   Otherwise, you may only need to set \code{feat_col} and \code{obs_col}.
-#'     see examples for the function of interest to see what is needed.
+#'     see examples in documentation of the function of interest.
 #'   \code{is_log_transformed} declares the scale of \code{state$expression} and
 #'     is the single place the rest of the package looks to find it out. The
 #'     default \code{FALSE} says the input is raw, so \code{h0testr::initialize()}
-#'     converts zeros to \code{NA} and rejects negative values, and
-#'     \code{h0testr::normalize()} may transform it. Set it to \code{TRUE} for
+#'     converts zeros to \code{NA} and rejects negative values. Set it to \code{TRUE} for
 #'     input that has already been log transformed or otherwise put on a log-like
-#'     scale: zeros and negative values are then left alone,
-#'     \code{h0testr::normalize()} accepts no method other than \code{"none"},
-#'     and the imputation and testing functions know not to transform it again.
+#'     scale: zeros and negative values are then left alone, \code{h0testr::normalize()} 
+#'     accepts no normalization method other than \code{"none"},
+#'     and imputation as well as testing functions know not to transform it.
 #'     \code{h0testr::normalize()} sets it to \code{TRUE} once it has transformed
 #'     the data, so a workflow does not have to track the scale itself.
 #'   \code{impute_floor_offset} is an offset, in log2 units, from the global
-#'     minimum observed value, and it is used only when
-#'     \code{is_log_transformed} is \code{TRUE}. The \code{unif_} imputation
-#'     methods draw from an interval whose lower bound is
-#'     \code{min(state$expression, na.rm=TRUE) + impute_floor_offset}. The
+#'     minimum observed value; only used when \code{is_log_transformed} 
+#'     is \code{TRUE}. The \code{unif_} imputation methods draw from an interval whose 
+#'     lower bound is \code{min(state$expression, na.rm=TRUE) + impute_floor_offset}. The
 #'     default \code{-1} puts that bound one log2 unit below the dimmest value
 #'     actually measured, so the interval has width even when
 #'     \code{impute_quantile} is \code{0}. A less negative value narrows the
@@ -172,12 +168,7 @@ new_config <- function() {
 
 ## helper for check_config(): a lower bound on the number of non-intercept columns
 ##   stats::model.matrix() will build from config$frm, or NA when the config does not
-##   settle it. Every term contributes at least one column, so a formula with two or
-##   more terms already has at least two and the count need not be exact. A single term
-##   is counted only when it names one variable whose type initialize() has resolved: a
-##   numeric contributes one column, and a factor one per level, less one for a design
-##   that keeps its intercept. Anything else, an interaction or a variable not yet
-##   classified, is NA, since how many columns it becomes depends on the data:
+##   settle it:
 
 f.frm_min_noint_cols <- function(config) {
 
@@ -211,34 +202,8 @@ f.frm_min_noint_cols <- function(config) {
 #'   Only checks parameters in the configuration. Does not complain about
 #'     missing settings.
 #'   A numeric parameter has to be a single finite value. \code{NA} and
-#'     \code{NaN} are refused by name, having reached a comparison as R's own
-#'     "missing value where TRUE/FALSE needed" before, and so is an infinite
-#'     count, which used to pass every check since \code{Inf == round(Inf)}. An
-#'     infinite proportion is refused as out of range rather than as not finite,
-#'     which says more about a proportion.
-#'   Beyond the type of each value, the combinations that no other setting can rescue
-#'     are refused here rather than at the step that would meet them:
-#'     \code{config$test_method} outside \code{h0testr::test_methods()},
-#'     \code{config$normalization_method} outside \code{h0testr::normalize_methods()},
-#'     \code{config$impute_method} outside \code{h0testr::impute_methods()}, and
-#'     \code{config$feature_aggregation} outside \code{"medianPolish"},
-#'     \code{"robustSummary"} and \code{"none"}, each of which would otherwise be found
-#'     only when that step ran, which for \code{config$impute_method} is after the whole
-#'     rest of the workflow; \code{""} is allowed for all four and means unset, the step's
-#'     own \code{method} argument naming the method instead, and
-#'     \code{config$test_method} additionally allows \code{"none"}, which skips the test
-#'     step so that \code{h0testr::run()} returns the processed state with no result;
-#'     \code{config$contrast} and \code{config$test_term} both naming something to
-#'     test, one run testing one hypothesis; \code{config$test_ridge=TRUE} on a
-#'     mean model that cannot carry a penalty, which needs at least two non-intercept
-#'     columns; and a \code{config$run_order} naming a step that is not one of the
-#'     workflow steps \code{h0testr::run()} can walk, which would otherwise fail as an
-#'     "object not found" partway through the workflow, with the steps before it already
-#'     done. A step named twice is not refused, since running one again may be meant;
-#'     \code{h0testr::run()} warns about it once, its output files being named after the
-#'     first occurrence. The limits that depend on the data rather than on the configuration,
-#'     such as how many features a gene has, stay with the engine that meets them; see
-#'     \code{h0testr::test_msqrob()} and \code{h0testr::test_deqms()}.
+#'     \code{NaN} are refused. An infinite proportion is refused as out of
+#'     range rather than as not finite, which says more about a proportion.
 #'   A setting that the chosen method does not consult is not refused and is not
 #'     reported here: it is a \code{NOTE} from \code{h0testr::test()}, which every
 #'     workflow calls once, this function being called once per step.
@@ -268,8 +233,8 @@ f.frm_min_noint_cols <- function(config) {
 #' config$impute_method <- "unif_sample_lodd"
 #' try(h0testr::check_config(config))
 #'
-#' ## invalid: a config written against a version that had the key; says what happened
-#' ##   to it rather than only naming it:
+#' ## invalid: a config written against a version that had the key; refused by name
+#' ##   rather than ignored:
 #' config <- h0testr::new_config()
 #' config$feature_aggregation_scaled <- TRUE
 #' try(h0testr::check_config(config))
@@ -355,26 +320,6 @@ check_config <- function(config) {
     vector_character, vector_props,
     list_character
   )
-
-  ## retired parameters, checked before the unrecognized name loop below so that
-  ##   a config written against an older version says what to do instead of just
-  ##   naming the offending parameter:
-
-  retired <- c(
-    zeros_to_na=paste("use is_log_transformed instead, with the opposite sense:",
-      "is_log_transformed=FALSE means the input is raw, so zeros become NA and",
-      "negative values are an error"),
-    feature_aggregation_scaled=paste("rescaling before aggregation is no longer",
-      "supported, having only ever been refused: it divided each feature by its",
-      "own mean, which is a raw scale operation, but aggregation requires log",
-      "scale data; drop the key. See h0testr::combine_features()")
-  )
-  for(nom in names(retired)) {
-    if(nom %in% noms) {
-      f.err("check_config: retired parameter:", nom, ";", retired[[nom]],
-        config=config)
-    }
-  }
   
   if(is.null(noms)) f.err("check_config: is.null(names(config))", config=config)
   for(idx in 1:length(config)) {
@@ -387,9 +332,7 @@ check_config <- function(config) {
         config=config)
     }
   }  
-  
-  ## check param values:
-  
+    
   for(nom in scalar_character) {
     if(nom %in% names(config)) {
       if(!(is.character(config[[nom]]) && length(config[[nom]]) == 1)) {
@@ -406,21 +349,10 @@ check_config <- function(config) {
           "; value:", config[[nom]], config=config)
       }
 
-      ## is.numeric() is TRUE for NA_real_ and for NaN, either of which then
-      ##   reached the comparison below as R's own "missing value where
-      ##   TRUE/FALSE needed", naming neither the parameter nor this function
-      ##   (measured). A logical NA is caught by the is.numeric() test above:
-
       if(is.na(config[[nom]])) {
         f.err("check_config: param is NA or NaN; param:", nom,
           "; value:", config[[nom]], config=config)
       }
-
-      ## Inf passed every check below it: Inf == round(Inf), and Inf is not
-      ##   < 0, so an infinite count was accepted outright (measured on
-      ##   n_features_min and impute_k). Same test and wording as the
-      ##   scalar_nonpositive loop further down. -Inf is reported as not
-      ##   finite now rather than as not non-negative, which it also is:
 
       if(!is.finite(config[[nom]])) {
         f.err("check_config: param not finite:", nom,
@@ -444,10 +376,6 @@ check_config <- function(config) {
           "; value:", config[[nom]], config=config)
       }
 
-      ## as in the scalar_counts loop above: NA_real_ and NaN are numeric, and
-      ##   the range check below is where R, rather than this function,
-      ##   reported them:
-
       if(is.na(config[[nom]])) {
         f.err("check_config: param is NA or NaN; param:", nom,
           "; value:", config[[nom]], config=config)
@@ -465,11 +393,6 @@ check_config <- function(config) {
         f.err("check_config: param not scalar positive numeric; param:",  nom, 
           "; value:", config[[nom]], config=config)
       }
-
-      ## as in the two loops above: is.numeric() is TRUE for NA_real_ and for
-      ##   NaN, which then reached the comparison below as R's own "missing
-      ##   value where TRUE/FALSE needed", and Inf was accepted outright
-      ##   (both measured on impute_scale):
 
       if(is.na(config[[nom]])) {
         f.err("check_config: param is NA or NaN; param:", nom,
@@ -547,10 +470,7 @@ check_config <- function(config) {
           "; value:", config[[nom]], config=config)
       }
 
-      ## one NA_real_ or NaN anywhere in the vector made any(x < 0) itself NA,
-      ##   which is R's "missing value where TRUE/FALSE needed" (measured).
-      ##   An infinite element is left to the range check below, which names
-      ##   it as the out-of-range proportion it is:
+      ## one NA_real_ or NaN anywhere in the vector made any(x < 0) itself NA:
 
       if(anyNA(config[[nom]])) {
         f.err("check_config: param has an NA or NaN; param:", nom,
@@ -584,18 +504,7 @@ check_config <- function(config) {
     }
   }
 
-  ## config$test_method names the engine test() will dispatch to, and a name that is
-  ##   not one of them is a configuration error that no other setting can fix, so it is
-  ##   caught here rather than at the end of the dispatch chain in test(). Two values
-  ##   that name no engine are allowed. "" means unset: test(method=) overrides
-  ##   config$test_method, and test() refuses only when both are unset. "none" means skip
-  ##   the test step, which is what lets run() be used as a preprocessing workflow; it
-  ##   returns the processed state with NULL where a result would be. Neither is in
-  ##   test_methods(), which names the engines and is looped over, by its own examples and
-  ##   by hand in tune()'s test_methods= default, and a loop over the test methods should
-  ##   not include a non-test. So the two lists differ on purpose, and this is still the
-  ##   single place that decides what the key may hold. NA is not allowed, a missing
-  ##   setting being expressed by its absence:
+  ## config$test_method names the engine test() will dispatch to:
 
   if("test_method" %in% names(config)) {
     if(is.na(config$test_method) ||
@@ -609,14 +518,7 @@ check_config <- function(config) {
   }
 
   ## config$normalization_method, config$impute_method and config$feature_aggregation name
-  ##   the methods normalize(), impute() and combine_features() dispatch to, and a name that
-  ##   is not one of them is settled by the configuration alone, so it is refused here
-  ##   rather than at the step that would meet it. That matters most for a misspelled
-  ##   impute_method: impute() is the last step of the default config$run_order, so the whole
-  ##   pipeline runs before the typo is found. Empty is allowed and means unset, the step's
-  ##   own method= argument naming the method instead; NA is not, a missing setting being
-  ##   expressed by its absence. Only the name is checked: whether the method suits the data
-  ##   it is given stays with the step, which is the one that has the data:
+  ##   the methods normalize(), impute() and combine_features() dispatch to:
 
   method_params <- list(
     normalization_method=normalize_methods(),
@@ -634,16 +536,6 @@ check_config <- function(config) {
     }
   }
 
-  ## config$run_order names the pipeline steps run() walks, fetching each with get(), so
-  ##   a name that is not one of them fails as "object not found" at the point that step
-  ##   would have run, with every step before it already done and its output already
-  ##   written. The set is small and fixed, so a misspelling is settled by the
-  ##   configuration alone and belongs here. A zero length run_order is allowed and means
-  ##   load_data() then test(), which is a real workflow for data that arrives prepared.
-  ##   A repeated step is not refused, normalizing again after aggregation being something
-  ##   someone may mean; run() warns about it once, f.save_state() naming its files after
-  ##   the first occurrence:
-
   if("run_order" %in% names(config) && length(config$run_order)) {
 
     steps <- f.run_order_steps()
@@ -659,14 +551,8 @@ check_config <- function(config) {
     }
   }
 
-  ## config$test_term and config$contrast are two different hypotheses about the
-  ##   same model, and one run tests one hypothesis: the results file carries one
-  ##   row per feature, and run.R's permutation aggregation reads it back that way.
-  ##   Which of the two was tested cannot be recovered from the config if both are
-  ##   set, and neither is a safe default to prefer: new_config() ships a non-empty
-  ##   test_term, so preferring the contrast would silently ignore a populated key,
-  ##   and preferring test_term would silently ignore the key that was deliberately
-  ##   added. So set config$test_term to "" to test a contrast:
+  ## config$test_term and config$contrast are different hypotheses about the
+  ##   same model; one run tests one hypothesis: 
 
   if(f.contrast_set(config) && length(config$test_term) %in% 1 &&
       !is.na(config$test_term) && nzchar(trimws(config$test_term))) {
@@ -678,16 +564,7 @@ check_config <- function(config) {
       "\"\" to test the term", config=config)
   }
 
-  ## config$test_ridge=TRUE is msqrob2::msqrobAggregate(ridge=TRUE), which refits every
-  ##   non-intercept column of the mean model as a level of a random effect and refuses
-  ##   a mean model with fewer than two of them, so ~grp for a two level factor has to
-  ##   be written ~0+grp; see test_msqrob(). How many columns a factor contributes
-  ##   depends on how many levels it has, which is data and not configuration, so only
-  ##   what the config settles is refused here: a formula with no non-intercept term at
-  ##   all, and a single term whose type and levels initialize() has already resolved
-  ##   into config$covariate_types and config$factor_levels. Anything less definite is
-  ##   left to msqrob2. Only for the one method that reads the setting; on any other it
-  ##   is an ignored setting, which the note below covers:
+  ## config$test_ridge=TRUE is msqrob2::msqrobAggregate(ridge=TRUE):
 
   if(isTRUE(config$test_ridge) && "test_method" %in% names(config) &&
       config$test_method %in% "msqrob_agg") {
@@ -710,9 +587,7 @@ check_config <- function(config) {
     }
   }
 
-  ## reference_levels holds one reference level per factor variable in
-  ##   config$frm, so every element needs a variable name, and every value has
-  ##   to be a usable level:
+  ## reference_levels has one reference level per factor variable in config$frm:
 
   for(nom in c("reference_levels", "covariate_types", "factor_levels")) {
 
@@ -788,12 +663,6 @@ report_config <- function(config) {
       f.msg(k1, ":", paste(deparse(v1), collapse=" "), config=config)
     } else f.msg(k1, ":", paste(as.character(v1), collapse=", "), config=config)
   }
-  
-  ## check config$test_term compatible with config$frm; throws error if not,
-  ##   else returns NULL. A run testing config$contrast has no config$test_term to
-  ##   check, check_config() having just refused a config that sets both; the
-  ##   contrast is checked against the coefficients of the design by
-  ##   f.design_contrast(), which needs the observations to build it:
 
   if(!f.contrast_set(config)) f.normalize_terms(config)
 }

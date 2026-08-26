@@ -89,7 +89,7 @@ Checks to make sure columns specified in \code{config} parameters are
     each factor covariate; the remaining levels are sorted. The resulting
     level ordering of each factor covariate is logged, and returned in
     \code{config$factor_levels}.
-  Establishes the missingness contract on \code{state$expression}: \code{NA}
+  Establishes uniform representation of missing values: \code{NA}
     is the only indicator of a missing value everywhere downstream. Raw
     expression values cannot be negative, and a raw zero means the feature was
     not detected, so a negative value is an error and zeros are converted to
@@ -101,18 +101,13 @@ Checks to make sure columns specified in \code{config} parameters are
     legitimately hold negative (transformed) values, but
     \code{config$is_log_transformed} is filled in either way if it was unset,
     so that every downstream step finds the scale recorded there. Unset means
-    raw, and what was assumed is logged; the scale is never read out of the
-    values themselves.
-  Checks that the metadata lines up with \code{state$expression}, which
-    nothing else does this early: \code{state$features} must have one row per
-    row of the matrix and \code{state$samples} one row per column, and
-    \code{config$feat_id_col} and \code{config$obs_id_col} must agree with
-    \code{rownames(state$expression)} and
+    raw.
+  Checks that the metadata lines up with \code{state$expression}: 
+    \code{state$features} must have one row per row of the matrix and 
+    \code{state$samples} one row per column, and \code{config$feat_id_col} and 
+    \code{config$obs_id_col} must agree with \code{rownames(state$expression)} and
     \code{colnames(state$expression)}. The two are matched by position
-    everywhere downstream, a column of the matrix being the observation
-    described by the corresponding row of \code{state$samples}, so a samples
-    table in a different order would otherwise have its covariates attached
-    to the wrong observations without complaint.
+    everywhere downstream.
   Flow is:
     \tabular{l}{
       1. \code{check_config()}. \cr

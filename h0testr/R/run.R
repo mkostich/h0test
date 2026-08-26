@@ -1,11 +1,4 @@
-## The pipeline steps run() will walk, which is what config$run_order may name. run()
-##   fetches each by get(), so a name that is not one of these is an "object not found"
-##   at the point the step would have run, with the steps before it already done; kept in
-##   one place here so that check_config(), which refuses such a name up front, and the
-##   comment on config$run_order in new_config() cannot drift apart. Not the order they
-##   have to appear in: normalize() before combine_features() is required, aggregation
-##   needing log scale data, but that is combine_features()'s own refusal to make, and
-##   filter() and impute() are usable either way round:
+## The pipeline steps run() will walk; what config$run_order may name:
 
 f.run_order_steps <- function() {
   return(
@@ -15,7 +8,7 @@ f.run_order_steps <- function() {
 
 #' Run a basic workflow
 #' @description
-#'   Run a basic workflow according to: \code{config$run_order}.
+#'   Run basic workflow according to: \code{config$run_order}.
 #' @details
 #'   Run a basic workflow: \code{load_data() -> config$run_order -> test()},
 #'     where \code{config$run_order} is vector of functions which are run in
@@ -77,18 +70,13 @@ f.run_order_steps <- function() {
 
 run <- function(config) {
 
-  ## no report_config(config) here: load_data() below calls it as its first statement,
-  ##   so a call here only prints the same configuration to the log twice:
+  ## no report_config(config) here: 
 
   f.log_block("starting load_data", config=config)
   out <- load_data(config)
 
-  ## a step named twice runs twice, which is not obviously wrong: normalizing again after
-  ##   aggregation, or filtering again after imputation, are things someone may mean. But
-  ##   f.save_state() names its output files after the first occurrence of a step in
-  ##   config$run_order, so a second occurrence overwrites the first one's files. Said
-  ##   here, once, rather than in check_config(), which every step calls; the names
-  ##   themselves are refused there, where a config error belongs:
+  ## step named twice runs twice: normalizing again after aggregation, or filtering 
+  ##   again after imputation, are things someone may mean:
 
   dups <- unique(config$run_order[duplicated(config$run_order)])
 
@@ -101,8 +89,7 @@ run <- function(config) {
   }
 
   ## the scale of the data lives in out$config$is_log_transformed, put there by
-  ##   initialize() and updated by normalize(), so each step below reads it from
-  ##   the config it is handed rather than from a second copy kept here:
+  ##   initialize() and updated by normalize():
 
   for(f_name in config$run_order) {
 
@@ -146,8 +133,7 @@ f.tune1 <- function(state, config, normalization_method) {
 ## helper for tune(); filter, impute, and test:
 
 ## helper for f.tune2(); the result row for a parameter combination that was not
-##   tested, so that one unusable combination does not abort a whole sweep. Same
-##   columns as a real result row, with nhits and ntests unset:
+##   tested, so that one unusable combination does not abort a whole sweep:
 
 f.tune2_na_row <- function(config) {
   return(
@@ -163,25 +149,7 @@ f.tune2_na_row <- function(config) {
 
 f.tune2 <- function(state, config) {
 
-  ## no is_log_transformed argument: the scale of the data lives in
-  ##   config$is_log_transformed, put there by initialize() and updated by normalize(),
-  ##   and impute() and test() below both resolve an unset argument from the config they
-  ##   are handed. tune() was reading that same field out of the config and passing it back
-  ##   in beside the config, so the two could only ever agree, and a second copy of a
-  ##   setting is a second thing to keep in step for no gain:
-
-  ## there were two guards here for engines that could not express the hypothesis
-  ##   config$test_term implied, which skipped the combination rather than letting it
-  ##   stop the sweep. Neither is left. The first was for an engine bounded by terms
-  ##   rather than by coefficients: prolfqua, while it read the rows of a per-term anova
-  ##   table; test_prolfqua() now compares an explicit full and reduced design, and the
-  ##   guard went with f.test_max_terms(), which by then returned Inf for every method.
-  ##   The second was for an engine that could report only one coefficient at a time.
-  ##   deqms was the last of those, and f.deqms_moderated_f() forms the joint test from
-  ##   the variance prior DEqMS::spectraCounteBayes() fits, so no engine is bounded that
-  ##   way either and f.test_max_cols() and f.design_test_cols_max() went with it. Every
-  ##   method now runs every formula and test_term that the filters accept, so a sweep
-  ##   has nothing to skip on these grounds:
+  ## no is_log_transformed argument:
 
   f.log_block("f.tune:2: filter", config=config)
   out <- filter(state, config)
@@ -201,11 +169,7 @@ f.tune2 <- function(state, config) {
   f.log_block("f.tune:2: impute", config=config)
   out <- impute(out$state, out$config)
 
-  ## test_deqms() refuses a run in which every gene has the same number of features,
-  ##   there being no spread for its variance prior to be fitted against. Unlike the
-  ##   guards above this is a property of the data reaching the test rather than of
-  ##   config$frm, so it is checked here, after filtering, and only for the one method
-  ##   it applies to. Checked rather than caught so that the reason is specific:
+  ## test_deqms() refuses a run in which every gene has the same number of features:
 
   if(config$test_method %in% "deqms") {
     counts <- f.gene_counts(out$state, out$config, "f.tune2")
@@ -219,8 +183,7 @@ f.tune2 <- function(state, config) {
 
   ## the mixed model paths of test_prolfqua() and test_msqrob() need feature level
   ##   input, which is what tune() hands them by not aggregating for a gene level
-  ##   method. A config naming one column as both the feature and the gene id has no
-  ##   feature level to model, and no other parameter in the sweep changes that:
+  ##   method:
 
   if(config$test_method %in% c("prolfqua_lmer", "msqrob_agg") &&
       out$config$feat_id_col %in% out$config$gene_id_col) {
@@ -232,13 +195,7 @@ f.tune2 <- function(state, config) {
   }
 
   ## a sweep exists to fill in a matrix of parameter combinations, so one combination
-  ##   that an engine cannot fit should cost that cell and not the rest of the run. The
-  ##   guards above catch the failures that can be predicted; anything else is caught
-  ##   here, logged in full so that the run says where it ran into trouble, and recorded
-  ##   as a combination that was never tested. tune_check() already reads such a row as
-  ##   untested rather than as one that found nothing. f.err() logs its whole message
-  ##   before stopping, so the detail is in the log immediately above the warning below,
-  ##   which only records which combination the log entry belongs to:
+  ##   that an engine cannot fit should cost that cell and not the whole run:
 
   f.log_block("f.tune:2: test", config=config)
   result <- try(test(out$state, out$config), silent=T)
@@ -257,9 +214,7 @@ f.tune2 <- function(state, config) {
     scale=config$impute_scale, span=config$impute_span, 
     npcs=config$impute_npcs, k=config$impute_k, test=config$test_method, 
     ## na.rm, so that a single feature with an undefined adjusted p-value, from a
-    ##   singular or non-converged per-feature fit, counts as no hit rather than
-    ##   turning the whole row's nhits into NA, which tune_check() then reads as a
-    ##   combination that ran and found nothing:
+    ##   singular or non-converged per-feature fit, counts as no hit:
     perm=config$permute_var, nhits=sum(tbl$adj_pval < 0.05, na.rm=T), ntests=nrow(tbl),
     time=format(Sys.time(), "%H:%M:%S"), stringsAsFactors=F)
   
@@ -297,29 +252,21 @@ f.tune2 <- function(state, config) {
 #'     \code{df_resid_min}, \code{test_prior_df}, \code{test_moderate}, \code{test_trend},
 #'     \code{test_random_obs} and \code{test_ridge}. To compare two values of one of those,
 #'     run one sweep per value.
-#'   \code{config$run_order} is not read at all: the step sequence above is fixed. A
-#'     \code{config$run_order} that reorders or omits steps, which \code{h0testr::run()}
-#'     honors, therefore sweeps a different pipeline than the one it names. The one
-#'     departure from the sequence is \code{combine_features()}, which is skipped for the
-#'     test methods that take feature level input; see \code{h0testr::run()}.
+#'   \code{config$run_order} is not read at all: the step sequence above is fixed. 
 #'   See documentation for \code{h0testr::new_config()}
 #'     for more detailed description of configuration parameters.
 #' @param config List with configuration values like those returned by \code{new_config()}.
 #' @param normalization_methods Character vector of methods to try. One or more element of
 #'   \code{h0testr::normalize_methods()}, or \code{"q50"} or \code{"q75"}, which are
 #'   \code{"quantile"} at a \code{normalization_quantile} of \code{0.5} and \code{0.75}.
-#'   Defaults to every method \code{h0testr::normalize_methods()} names, with
+#'   Default: every method returned by \code{h0testr::normalize_methods()}, with
 #'   \code{"quantile"} entered as those two. \code{"loess"} is the slowest of them, so
-#'   drop it from the list if the sweep takes too long. A name outside that set is refused
-#'   before the sweep starts, rather than surfacing partway through from inside
-#'   \code{normalize()}, which reports the argument it was handed rather than the sweep that
-#'   handed it over. \code{"none"} is accepted: not normalizing is something a sweep has a
+#'   drop it from the list if the sweep takes too long. A name outside that set is refused. 
+#'   \code{"none"} is accepted: not normalizing is something a sweep has a
 #'   use for comparing against.
 #' @param impute_methods Character vector of methods to try. One or more of:
 #'   \code{c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", "knn", "min_det", "min_prob", "qrilc", "bpca", "ppca", "svdImpute", "lls", "missforest", "none")}.
-#'   A name that is not one of \code{h0testr::impute_methods()} is refused before the sweep
-#'   starts, rather than three loops down, after every earlier combination has already been
-#'   run. \code{"none"} is accepted here too, for the same reason.
+#'   A name not returned by \code{h0testr::impute_methods()} is refused.
 #' @param impute_quantiles Numeric vector of quantiles to try for \code{impute_unif_*} methods. 
 #'   One or more values between \code{0.0} and \code{1.0}.
 #' @param impute_scales Numeric vector of scales to try for \code{impute_rnorm_feature}. 
@@ -331,10 +278,9 @@ f.tune2 <- function(state, config) {
 #'   \code{h0testr::test_methods()}. Defaults to every method except
 #'   \code{"prolfqua_lmer"} and \code{"msqrob_agg"}, each of which fits a mixed model
 #'   per gene and so costs orders of magnitude more time per cell than the rest of the
-#'   sweep put together; name either explicitly to include it. A name that is not one of
-#'   \code{h0testr::test_methods()} is refused before the sweep starts, rather than after
-#'   the combination it appears in has been normalized and imputed. That includes
-#'   \code{"none"}, which \code{config$test_method} accepts as "skip the test step": a
+#'   sweep put together; name explicitly to include. A name not returned by
+#'   \code{h0testr::test_methods()} is refused. That includes
+#'   \code{"none"}, which is interpreted as "skip the test step": a
 #'   sweep over not testing has nothing to compare.
 #' @return A data.frame with the following columns:
 #'   \tabular{ll}{
@@ -363,38 +309,16 @@ f.tune2 <- function(state, config) {
 #'     those nine by name, so renaming or dropping one of them there is refused rather
 #'     than silently changing what is being compared.
 #'   A combination that could not be tested yields a row with \code{nhits} and
-#'     \code{ntests} set to \code{NA} rather than aborting the sweep, and the reason
-#'     is written to \code{config$log_file}. This happens when too few samples or
-#'     genes survive filtering. It no longer happens because \code{test_method} cannot
-#'     express the test \code{config$test_term} implies: every method now tests as many
-#'     coefficients jointly as \code{config$test_term} carries. \code{"deqms"} and
-#'     \code{"msqrob"} were the two that could not, and both were bounded at their APIs
-#'     rather than by their fits: \code{msqrob2::hypothesisTest()} returns one table per
-#'     column of the contrast, and \code{DEqMS::spectraCounteBayes()} moderates one
-#'     coefficient's t-statistic, while a joint test needs only the fitted coefficients
-#'     and, for \code{"deqms"}, the per-gene variance that same function fits. Both now
-#'     report a joint test computed from those; see \code{h0testr::test_msqrob()} and
-#'     \code{h0testr::test_deqms()}.
-#'     \code{"proda"} and \code{"prolfqua"} were bounded by neither,
-#'     testing several coefficients jointly: \code{"proda"} by likelihood ratio and
-#'     \code{"prolfqua"} by an F-test comparing the full design against the design
-#'     with the tested columns removed, with the error variance moderated across
-#'     features as the \code{limma}-based methods do.
-#'     \code{"prolfqua_lmer"} is unbounded in the same way, testing the same
-#'     coefficients by a Satterthwaite Wald F from one mixed model per gene, and
-#'     \code{"msqrob_agg"} by a joint Wald F from one \code{msqrob2} mixed model per
-#'     gene.
-#'     \code{"deqms"} is also skipped when every gene has the same number of
-#'     features, there being no spread for its variance prior to be fitted against;
-#'     see \code{h0testr::test_deqms()}. \code{"prolfqua_lmer"} and
-#'     \code{"msqrob_agg"} are skipped when
+#'     \code{ntests} set to \code{NA}. This happens when too few samples or
+#'     genes survive filtering. 
+#'     \code{"deqms"} is skipped when every gene has the same number of
+#'     features, there being no spread for its variance prior to be fitted against.
+#'     \code{"prolfqua_lmer"} and \code{"msqrob_agg"} are skipped when
 #'     \code{config$feat_id_col} and \code{config$gene_id_col} name one column, there
-#'     being no feature level for them to model; see
-#'     \code{h0testr::test_prolfqua()} and \code{h0testr::test_msqrob()}.
-#'     Any other failure of the test step is caught the same way, so that one
+#'     being no feature level for them to model.
+#'     Other failures of the test step are caught the same way, so that one
 #'     combination an engine cannot fit costs that cell and not the rest of the
-#'     sweep; the error is written to \code{config$log_file} in full, immediately
-#'     above the line naming the combination it belongs to.
+#'     sweep.
 #'     \code{h0testr::tune_check()} counts these \code{NA} \code{nhits} as zero hits,
 #'     but gives such a row no \code{fdr}, so that a combination which never ran is
 #'     not ranked above every combination that did.
@@ -438,21 +362,6 @@ f.tune2 <- function(state, config) {
 
 tune <- function(
     config,  
-    ## every method normalize_methods() names, with "quantile" entered as the "q50"
-    ##   and "q75" that f.tune1() turns back into it, since a quantile is a second
-    ##   parameter and the sweep varies one name at a time. "loess" was left out while
-    ##   normalize() handed raw intensities to limma::normalizeCyclicLoess() and then
-    ##   log2(x + 1)'d the negative fitted values it returns for the smallest of them
-    ##   into NaN: 5707 of the 146841 measured values on the rdtc_seer2 protein
-    ##   groups, so the cell was scored on a matrix the sweep had damaged. normalize()
-    ##   now transforms before that fit instead, so nothing is lost, but it is still
-    ##   the slowest method here; drop it from this list if the sweep takes too long.
-    ##   "quantiles.robust" is left out for a different reason: normalize_mscoreutils()
-    ##   refuses it on data with any missing value: it assigns values by rank within each
-    ##   observation, so a gap comes back at that rank in every observation rather than in
-    ##   the one it was missing from (see normalize_mscoreutils()), and
-    ##   normalization comes here before imputation, so the sweep would stop at that
-    ##   cell on any real matrix. Pass it explicitly to sweep it on a complete one:
     normalization_methods=c("RLE", "upperquartile", "q50", "q75", "cpm", "max",
       "sum", "div.mean", "div.median", "TMM", "TMMwsp", "vsn", "qquantile",
       "loess", "log2", "none"),
@@ -467,14 +376,7 @@ tune <- function(
     impute_ks=c(5, 10, 20), 
     test_methods=c("lm", "trend", "deqms", "msqrob", "proda", "prolfqua", "voom")) {
 
-  ## the sweep assigns each of these to config$test_method in turn, so a name that is not
-  ##   an engine is caught here rather than inside the loop, where it would fail only after
-  ##   the normalization, aggregation and imputation of that combination had been computed.
-  ##   "none" is a legal config$test_method, meaning skip the test step, and is refused
-  ##   here for the same reason as a typo: a sweep over not testing measures nothing. The
-  ##   argument shadows the function of the same name, which R resolves anyway, a call
-  ##   looking only at function bindings:
-
+  ## the sweep assigns each of these to config$test_method in turn:
   bad <- setdiff(test_methods, test_methods())
 
   if(length(bad)) {
@@ -483,17 +385,6 @@ tune <- function(
       "config$test_method also accepts \"none\", meaning skip the test step, which a",
       "sweep has no use for, there being nothing to compare", config=config)
   }
-
-  ## the same reason applies to the other two lists the sweep assigns from, and neither
-  ##   was checked. A name that is not an impute_method reaches f.err() three loops down,
-  ##   after every earlier combination has been run, and one that is not a normalization
-  ##   method is not checked at all and surfaces from inside normalize() with a message
-  ##   about the argument it was handed rather than about the sweep that handed it over.
-  ##   The allowed normalization set is normalize_methods() plus "q50" and "q75", which
-  ##   normalize() does not accept: f.tune1() maps each onto normalization_method
-  ##   "quantile" with the matching config$normalization_quantile. "none" is left in both
-  ##   sets, unlike for test_methods above: not normalizing and not imputing are both
-  ##   settings a sweep has a use for comparing against:
 
   bad <- setdiff(impute_methods, impute_methods())
 
@@ -527,8 +418,7 @@ tune <- function(
     state2 <- out$state                 ## save for subsequent iterations
     config2 <- out$config               ## save for subsequent iterations
 
-    ## normalize(), called by f.tune1(), records the scale in config2, which is what
-    ##   reaches f.tune2() below, so the sweep does not keep a second copy of it:
+    ## normalize(), called by f.tune1(), records the scale in config2:
 
     for(test_method in test_methods) {
       
@@ -641,22 +531,6 @@ tune <- function(
           f.log_block("normalization_method:", normalization_method, 
             "; impute_method:", impute_method, "; test_method:", test_method, 
             config=config3)
-          ## a guard here, labelled OIL_WATER, skipped test_method "msqrob" and "voom"
-          ##   whenever state3$expression carried any NA. It is gone, for three reasons.
-          ##   It read the pre-imputation matrix, so it fired on every combination in
-          ##   this branch and not just the one where the NAs survive: all of sample_lod,
-          ##   glm_binom, glmnet, rf and missforest fill them, and were dropped anyway.
-          ##   Neither engine needs it even at impute_method "none": test_msqrob() counts
-          ##   non-missing values per feature and hands them to msqrob2's weighting, so
-          ##   missingness is what it is built for, and test_voom() holds out the features
-          ##   carrying an NA, saying how many, and refuses only when fewer than two
-          ##   complete features are left, from the post-filter matrix that actually
-          ##   reaches it rather than from this one. And it advanced the loop with next
-          ##   instead of recording anything, so the combination was absent from the
-          ##   result rather than present with nhits NA, which is what every other skip
-          ##   here produces and what tune_check() joins on. The one case that genuinely
-          ##   fails, voom on a state imputation left too sparse, is caught by the try()
-          ##   in f.tune2() and recorded with test_voom()'s own message:
 
           f.log_block("filter, impute, and test", config=config3)
           rslt_i <- f.tune2(state3, config3)
@@ -670,11 +544,7 @@ tune <- function(
     }     ## for test_method in test_methods
   }       ## for normalization_method in normalization_methods
   
-  ## rslt starts NULL and grows by rbind(), so a sweep that never reached f.tune2()
-  ##   returns NULL rather than an empty table, and the write.table() in the usage above
-  ##   errors on it. An empty method list does that, and so does any future skip that
-  ##   advances the loop without recording a row. Columns come from f.tune2_na_row() so
-  ##   that the empty table cannot drift out of step with the rows a real sweep returns:
+  ## rslt starts NULL and grows by rbind():
 
   if(is.null(rslt)) {
     f.msg("WARNING: tune: no parameter combination was tested; returning an empty",
@@ -755,13 +625,6 @@ tune <- function(
 
 tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05) {
 
-  ## prefix was taken and then ignored: the pattern was built from suffix alone, so every
-  ##   file in dir_in ending in suffix was treated as part of this sweep, and the permuted
-  ##   files of a second sweep sharing the suffix were pooled into this one's null without
-  ##   a word about it. Anchor prefix at the front of the name too. A prefix of "" still
-  ##   matches every name ending in suffix, as before. The suffix-only pattern is kept
-  ##   because it is also what strips the suffix off a filename below:
-
   sfx_re <- gsub("(\\W)", "\\\\\\1", suffix)
   prfx_re <- gsub("(\\W)", "\\\\\\1", prefix)
   pat_sfx <- paste0(sfx_re, "$")
@@ -786,14 +649,7 @@ tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05) {
   f.msg("found 1 unpermuted file and", length(perm_files), "permuted files\n",
     config=config)
 
-  ## with no permuted file there is no null to estimate an fdr against, and nothing
-  ##   downstream said so in terms anyone could act on. do.call(rbind, list()) below is
-  ##   NULL, the ntests fill turns that into a one-element list, and the drop of untested
-  ##   rows dies on it with "incorrect number of dimensions", which names neither this
-  ##   function nor the files that are missing; before that drop existed the same case
-  ##   reached the join column check instead and was reported as a missing column, which
-  ##   was no better. Say it here, where the count is already in hand, and name what was
-  ##   looked for, since a mistyped prefix or suffix is the likely cause:
+  ## with no permuted file there is no null to estimate an fdr against:
 
   if(length(perm_files) < 1) {
     f.err("tune_check: found the unpermuted file", unperm_file, "but no permuted results",
@@ -822,18 +678,6 @@ tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05) {
 
   dat1$ntests[is.na(dat1$ntests)] <- 0
 
-  ## a permuted run that h0testr::tune() skipped, or that lost every feature to
-  ##   filtering, has ntests 0 and nhits NA. Setting that nhits to 0 and summarizing it
-  ##   beside the runs that ran says the permutation looked for false positives and found
-  ##   none, when it never looked: a combination whose permuted runs were all skipped came
-  ##   out of here with max1 0 and therefore an fdr of 0, the best score in the table,
-  ##   sorted near the top on no evidence at all; one with only some of its permuted runs
-  ##   skipped had max1, mid1, avg1 and sd1 pulled toward 0 by runs that never happened.
-  ##   The unpermuted side carries the same rows and is already refused an fdr for them,
-  ##   below. Drop them here instead, which leaves a combination with no permuted run that
-  ##   tested anything looking like one with no permuted row at all; for estimating an fdr
-  ##   the two are the same thing, and the mismatch warning below reports it:
-
   i_run <- !(dat1$ntests %in% 0)
 
   if(any(!i_run)) {
@@ -850,15 +694,6 @@ tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05) {
   }
 
   dat1$nhits[is.na(dat1$nhits)] <- 0
-
-  ## the join key was dat0[, 1:9] and dat1[, 1:9], the first nine columns being the
-  ##   parameter combination as f.tune2() happens to emit it. Add a column to that
-  ##   data.frame, or reorder it, and the key silently changes meaning: it still pastes
-  ##   nine values together and the two sides still match each other, just on the wrong
-  ##   nine, so every fdr below is computed against the wrong permuted rows and nothing
-  ##   errors. Naming the columns makes that a stop instead. Both tables are checked, and
-  ##   separately: the permuted files are separate runs of the sweep and can have been
-  ##   written by a different version of it than the unpermuted one:
 
   key_cols <- c("norm", "nquant", "impute", "iquant", "scale", "span", "npcs", "k",
     "test")
@@ -880,14 +715,7 @@ tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05) {
   k0 <- apply(dat0[, key_cols, drop=F], 1, paste, collapse=":")
   k1 <- apply(dat1[, key_cols, drop=F], 1, paste, collapse=":")
 
-  ## perm_max[k0] below is NA for any unpermuted combination with no permuted
-  ##   counterpart, so that combination gets an NA fdr and the sort files it with the
-  ##   combinations that never ran, which is not what it is: it ran, and there is just
-  ##   nothing to measure it against. Combinations whose permuted runs were all dropped
-  ##   just above, having tested nothing, arrive here the same way and are counted with
-  ##   them. A permuted combination absent from the unpermuted table goes the other way
-  ##   and is dropped from the output without trace. Neither is an error, the two sides
-  ##   being separate runs, but both mean the sweeps do not line up and both were silent:
+  ## perm_max[k0] below is NA for unpermuted combinations with no permuted counterparts:
 
   miss0 <- setdiff(unique(k0), unique(k1))
   miss1 <- setdiff(unique(k1), unique(k0))
@@ -911,7 +739,7 @@ tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05) {
   perm_avg <- tapply(dat1$nhits, k1, mean, na.rm=T)
   perm_sd  <- tapply(dat1$nhits, k1, stats::sd, na.rm=T)
   
-  ## get them in the same order as dat1 (k1 made from dat1):
+  ## get them in same order as dat1 (k1 made from dat1):
   dat0$max1 <- perm_max[k0]   ## max number of hits in permutations
   dat0$mid1 <- perm_mid[k0]   ## median number of hits in permutations
   dat0$avg1 <- perm_avg[k0]   ## mean number of hits in permutations
@@ -927,12 +755,8 @@ tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05) {
   dat0$fdr[dat0$fdr > 1] <- 1.0
 
   ## a combination f.tune2() skipped, or that lost every feature to filtering, has
-  ##   ntests 0 and nhits NA, which the substitution above turns into 0 hits out of
-  ##   0 tests; its permuted runs are skipped identically, so max1 is 0 too and the
-  ##   fdr computed for it is 0, which is the best score there is. Such a
-  ##   combination is not a good one, it is one that never ran, so give it no fdr
-  ##   and let the sort below put it below every combination that did run. ntests is
-  ##   reported so the difference from 0 hits out of many tests is visible:
+  ##   ntests 0 and nhits NA, which substitution above turns into 0 hits out of
+  ##   0 tests:
 
   dat0$fdr[dat0$ntests %in% 0] <- NA
 

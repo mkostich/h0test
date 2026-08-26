@@ -12,11 +12,9 @@
 #'  The \code{lmFit()} model is fit to \code{config$frm} and a test is
 #'    performed on each \code{config$feat_col} for whether the effect of
 #'    \code{config$test_term} on \code{state$expression} is zero.
-#'   The coefficients carrying that test are the columns of the design matrix
-#'     assigned to \code{config$test_term} and to every term containing it, which is
-#'     the same selection used by \code{h0testr::test_lm()} and by
-#'     \code{h0testr::filter_features_by_estimability()}. So naming a variable that
-#'     also appears in an interaction tests the interaction too: with
+#'   Coefficients carrying that test are columns of the design matrix
+#'     assigned to \code{config$test_term} and to every term containing it. Naming a 
+#'     variable that also appears in an interaction tests the interaction too: with
 #'     \code{config$frm = ~sex * batch} and \code{config$test_term = "sex"}, the test
 #'     is a joint 2 degree of freedom test of \code{sexM} and \code{sexM:batchb2}.
 #'     Testing a factor with more than two levels is likewise a joint test over its
@@ -51,7 +49,7 @@
 #'     \code{fit}   \cr \tab Model returned by \code{limma::eBayes()}. \cr
 #'   } 
 #'   \code{logFC} is an effect size on the scale of \code{state$expression}: for a two level
-#'     factor, the difference between its levels, so a log fold change when the input is log
+#'     factor, the difference between its levels, or log fold change when the input is log
 #'     transformed; for a \strong{continuous} covariate, the change \strong{per unit} of it,
 #'     whose size depends on the units the covariate is recorded in. This is what
 #'     \code{h0testr::test()} reports as \code{logfc}. A joint test has no \code{logFC}
@@ -87,28 +85,19 @@ test_trend <- function(state, config) {
     f.err("test_trend: !is.matrix(state$expression)", config=config)
   }
 
-  ## the declared reference level first in each factor covariate, before the design
-  ##   is built; see test_lm() for what this prevents on a direct call. A no-op for a
-  ##   run that came through test():
+  ## declared reference level first in each factor covariate, before design is built:
 
   state <- f.relevel_state_covariates(state, config, caller="test_trend")
   
-  ## the design and the columns of it carrying the test, from the same helper
-  ##   test_lm() and filter_features_by_estimability() use, so that all three test
-  ##   the hypothesis config$test_term names. Selecting coefficients by name instead
-  ##   (from the column names of ~0 + test_term) silently violated marginality: those
-  ##   names never include a higher-order term containing the test variable, so
-  ##   testing 'sex' in ~sex*batch became a 1 df test of sexM alone rather than a
-  ##   joint test of sexM and sexM:batchb2:
+  ## design and columns of it carrying test, from same helper
+  ##   test_lm() and filter_features_by_estimability() use:
 
   design <- f.design_test_cols(state, config)
-
   fit <- limma::lmFit(state$expression, design$X)
   lc <- f.limma_contrast_fit(fit, design, config)
   fit <- limma::eBayes(lc$fit, trend=T)
 
   ## a single coefficient gives a t-test and a logFC column; several give an F-test:
-
   tbl <- limma::topTable(fit, coef=lc$coef, number=Inf)
 
   f.msg("test_trend:", f.test_label(design, config), "; design columns:",

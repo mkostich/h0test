@@ -35,8 +35,7 @@ passing both is an error unless they agree.}
 
 \item{maxit}{Strictly positive count indicating maximum number of iterations for \code{proDA::proDA()} algorithm.
 Reachable only by calling this function directly: \code{h0testr::test()} passes no
-value for it and no \code{config} key carries one, so a workflow run gets the default.
-Unlike \code{prior_df}, which \code{config$test_prior_df} answers.}
+value for it and no \code{config} key carries one.}
 }
 \value{
 A list with components:
@@ -62,33 +61,20 @@ Tests for differential expression using the \code{proDA::proDA()} function.
 \details{
 Uses the \code{proDA::proDA()} function. Returned results sorted by p-value.
   Returns peptide/precursor/gene-level hypothesis testing results based on 
-    peptide/precursor/gene-level input. That is, testing is on features of 
-    the input, so have to aggregate data to the desired level for 
-    hypothesis testing first. Main feature of this method is its native
-    handling of missing values.
+    peptide/precursor/gene-level input. Natively handles missing values.
   When \code{config$test_term} resolves to a single design matrix column, that
     column is tested by \code{proDA::test_diff()} as a single contrast, and
     \code{logFC} is the corresponding coefficient: for a two level factor, the non
     reference level minus the reference level declared in
-    \code{config$reference_levels}. When it resolves to several columns, which by
-    the marginality rule it does for a factor with more than two levels and for a
-    variable appearing in an interaction, all of them are tested jointly, as a
-    likelihood ratio test of the full model against the model with those columns
-    dropped. That test is reported as an F statistic with \code{logFC} \code{NA},
-    there being no single difference to report, as for the F tests of
+    \code{config$reference_levels}. When it resolves to several columns, all of them are 
+    tested jointly, as a likelihood ratio test of the full model against a reduced model. 
+    Reported as an F statistic with \code{logFC} \code{NA}, as for the F tests of
     \code{h0testr::test_trend()} and \code{h0testr::test_voom()}.
   Testing the intercept (\code{config$test_term} \code{"1"}) is supported:
     \code{proDA::proDA()} renames that column \code{Intercept}, and the contrast is
     looked up under that name.
   The one formula this method cannot take that the others can is a
-    \code{config$test_term} that leaves no parameters in the reduced model, which
-    happens when \code{config$frm} suppresses the intercept and
-    \code{config$test_term} names every remaining term (\code{~0+grp} testing
-    \code{"grp"}). \code{proDA} cannot fit a model with no parameters, so that is
-    refused with an informative error; use \code{h0testr::test_lm()},
-    \code{h0testr::test_trend()}, \code{h0testr::test_voom()} or
-    \code{h0testr::test_prolfqua()} for it, or keep the intercept in
-    \code{config$frm}, which is the usual comparison among levels in any case.
+    \code{config$test_term} that leaves no parameters in the reduced model.
   See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.
 }
@@ -105,9 +91,7 @@ config <- sim$config
 rm(samps, sim)
 
 ## no grp:sex term here, so testing "grp" is the single coefficient grptrt, and a
-##   fold change is reported. Adding one would, by marginality, make it a joint
-##   test of grptrt and grptrt:sexM, run as a likelihood ratio test reporting an F
-##   statistic and no fold change:
+##   fold change is reported:
 out <- h0testr::initialize(state, config, minimal=TRUE)
 
 ## actual test:

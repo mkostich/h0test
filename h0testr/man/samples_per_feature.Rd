@@ -24,9 +24,8 @@ A numeric vector of length \code{nrow(state$expression)} with non-negative sampl
 Calculates the number of samples in which each feature was measured
 }
 \details{
-A feature counts as measured in a sample whenever its value there is
-  not \code{NA}, regardless of sign; raw zeros are converted to \code{NA} by
-  \code{h0testr::initialize()}.
+A feature counts as measured in a sample when its value there is
+  not \code{NA}; raw zeros are converted to \code{NA} by \code{h0testr::initialize()}.
 }
 \examples{
 set.seed(101)

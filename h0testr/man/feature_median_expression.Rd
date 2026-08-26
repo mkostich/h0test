@@ -25,10 +25,7 @@ A numeric vector of length \code{nrow(state$expression)} with median
 Calculates the median expression of each feature in each expressing sample.
 }
 \details{
-Median over the non-\code{NA} values of the feature. Values are not
-    screened by sign, so a transformed value of zero or below counts toward
-    the median; raw zeros are already \code{NA} by this point, having been
-    converted by \code{h0testr::initialize()}. A feature measured in no
+Median over the non-\code{NA} values of the feature. A feature measured in no
     sample has no median, and gets \code{NA}.
 }
 \examples{

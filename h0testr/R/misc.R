@@ -1,12 +1,4 @@
-## Flatten arguments destined for cat() into character scalars, one per argument.
-##   cat() cannot handle language objects (e.g. formulas, calls) or non-atomic
-##   objects (e.g. lists), which otherwise mask the message being logged with a
-##   confusing cat() error; those are deparsed instead. A zero-length argument is
-##   deparsed too, rather than dropped: most such an argument is the value a
-##   message exists to report, and dropping it left the message hanging on its
-##   colon, e.g. 'f.parse_frm: config$frm not a formula; value:' for a config$frm
-##   that is NULL. deparse() names the empty value ('NULL', 'character(0)'),
-##   which is the fact the reader needs:
+## Flatten arguments destined for cat() into character scalars, one per argument:
 
 f.cat_args <- function(...) {
   args <- list(...)
@@ -21,11 +13,6 @@ f.cat_args <- function(...) {
   return(unlist(out))
 }
 
-## Say once, per file, that config$log_file could not be written, then let the
-##   messages themselves go to the console. Once rather than ahead of every
-##   message, since a log file that cannot be opened cannot be opened for any of
-##   them, and the notice repeated would bury the run's own output:
-
 f.log_notice <- local({
   seen <- character(0)
   function(file) {
@@ -38,15 +25,8 @@ f.log_notice <- local({
   }
 })
 
-## Write one already-flattened message to config$log_file, falling back to the
-##   console when that file cannot be opened. Every message in the package goes
-##   through cat(file=config$log_file), which used to be taken on trust: a
-##   log_file under a directory that is not there raised "cannot open the
-##   connection" from cat() instead of printing, so a mistyped path replaced
-##   every diagnostic in the package, including the error f.err() exists to
-##   report, with that one message about a connection. A message that misses the
-##   log is a nuisance; one that reaches nowhere loses the reason the run
-##   stopped, so the console is used rather than the failure propagated:
+## Write one already-flattened message to config$log_file, falling back to 
+##   console when file cannot be opened:
 
 f.cat_log <- function(..., config) {
 
@@ -105,7 +85,7 @@ f.log_obj <- function(obj, config) {
     return(invisible(NULL))
   }
 
-  ## same fallback as f.cat_log(), for the printed objects (quantiles, tables):
+  ## same fallback as f.cat_log() for printed objects (quantiles, tables):
 
   ok <- tryCatch({
       utils::capture.output(obj, file=config$log_file, append=T)
@@ -124,17 +104,7 @@ f.log_obj <- function(obj, config) {
   invisible(NULL)
 }
 
-## Write one table to file_out as a tab delimited file. The write goes to a
-##   temporary file beside the destination and is moved into place only once it
-##   has finished, so that a write that fails leaves whatever was already at
-##   file_out as it was: write.table() streams its output, so a failure part way
-##   through - a full disk, a volume that goes away - used to leave a truncated
-##   file that looks like a complete one, under the name every later step reads.
-##   Both error and warning stay fatal: an open that fails arrives as a warning
-##   rather than an error (a read-only destination gives "cannot open file ...
-##   Permission denied" that way), so demoting warnings would report a write
-##   that never happened as a success. What they get instead is a message that
-##   says which of the two it was and that the destination is untouched:
+## Write one table to file_out as a tab delimited file:
 
 f.save_tsv <- function(dat, file_out, config, row.names=T, col.names=T) {
 
@@ -147,9 +117,7 @@ f.save_tsv <- function(dat, file_out, config, row.names=T, col.names=T) {
 
   file_tmp <- paste0(file_out, ".tmp", Sys.getpid())
 
-  ## the condition is returned rather than acted on inside the handler, so that
-  ##   write.table()'s on.exit() has closed the connection before the temporary
-  ##   file is removed; an open file cannot be removed on every platform:
+  ## condition is returned rather than acted on inside handler:
 
   cond <- tryCatch({
       utils::write.table(dat, file=file_tmp, quote=F, sep="\t",
@@ -177,10 +145,8 @@ f.save_tsv <- function(dat, file_out, config, row.names=T, col.names=T) {
       } else "", config=config)
   }
 
-  ## file.rename() replaces an existing destination on the platforms this runs
-  ##   on, but not on all of them, and it cannot cross a file system; the copy
-  ##   is the fallback for both, and the finished table is named if even that
-  ##   fails, so that a completed write is never lost silently:
+  ## file.rename() replaces an existing destination on platforms this runs
+  ##   on, but not on all of them. It cannot cross a file system:
 
   if(!file.rename(file_tmp, file_out)) {
 
@@ -208,22 +174,15 @@ f.is_formula <- function(x) {
   return(inherits(x, "formula") && length(x) %in% c(2, 3))
 }
 
-## Operators supported in config$frm. Everything else ('|', '^', '/', '%in%',
-##   parentheses, and any function call, like log() or I()) is rejected by
-##   f.check_frm_expr(). '-' is supported only for removing the intercept:
+## Operators supported in config$frm:
 
 f.frm_ops <- c("+", ":", "*", "-")
 
-## Recursively check one expression from the right-hand side of a formula.
-##   Throws an informative error on any unsupported construct; otherwise
-##   returns TRUE invisibly:
+## Recursively check one expression from the right-hand side of a formula:
 
 f.check_frm_expr <- function(expr, config, top=NULL) {
 
   if(is.null(top)) top <- expr
-
-  ## terminal symbol: a bare variable name; '.' would silently pull in every
-  ##   column of the sample metadata, so is not supported:
 
   if(is.symbol(expr)) {
     if(as.character(expr) %in% ".") {
@@ -233,7 +192,7 @@ f.check_frm_expr <- function(expr, config, top=NULL) {
     return(invisible(TRUE))
   }
 
-  ## terminal constant: only 0 and 1 are meaningful (intercept):
+  ## only 0 and 1 are meaningful (intercept):
 
   if(is.numeric(expr) && length(expr) %in% 1) {
     if(!(expr %in% c(0, 1))) {
@@ -249,12 +208,7 @@ f.check_frm_expr <- function(expr, config, top=NULL) {
       "in formula; frm rhs:", deparse(top), config=config)
   }
 
-  ## what is called is normally a symbol, an operator name among f.frm_ops. It
-  ##   can be a call itself, as in '(a)(b)', and as.character() of a call returns
-  ##   one element per part, which the if() below cannot use: it failed with "the
-  ##   condition has length > 1" rather than saying what was unsupported.
-  ##   deparse() cannot stand in for as.character() here, since it backquotes an
-  ##   operator name ('`+`'), which would then match nothing in f.frm_ops:
+  ## what is called is normally a symbol, an operator name among f.frm_ops:
 
   if(!is.symbol(expr[[1]])) {
     f.err("f.check_frm_expr: unsupported construct", deparse(expr),
@@ -273,19 +227,14 @@ f.check_frm_expr <- function(expr, config, top=NULL) {
       "log() or I()); frm rhs:", deparse(top), config=config)
   }
 
-  ## an operator called with no operands at all, e.g. ~`+`(), which is a call of
-  ##   length 1. Checked before the operands are looked at: the '-' check below
-  ##   would otherwise take expr[[length(expr)]] to be the operator itself and
-  ##   report it as a term that cannot be removed, and the loop at the end would
-  ##   count down from 2 to 1 (R's empty range trap) and stop with 'subscript out
-  ##   of bounds', naming neither the formula nor the construct:
+  ## operator called with no operands, e.g. ~`+`(), which is call of length 1:
 
   if(length(expr) < 2) {
     f.err("f.check_frm_expr: operator '", op, "' has no operands in formula;",
       "got", deparse(expr), "; frm rhs:", deparse(top), config=config)
   }
 
-  ## '-' only for dropping the intercept, so what is removed must be 1 or 0;
+  ## '-' only for dropping intercept, so what is removed must be 1 or 0;
   ##   covers both binary (x-1) and unary (-1+x) minus:
 
   if(op %in% "-") {
@@ -302,9 +251,7 @@ f.check_frm_expr <- function(expr, config, top=NULL) {
   return(invisible(TRUE))
 }
 
-## Sort the variables within each interaction term label, so that e.g.
-##   'sex:age' and 'age:sex' both become 'age:sex'. Facilitates comparison of
-##   terms and of a term with config$test_term:
+## Sort variables within each interaction term label:
 
 f.canon_label <- function(labels) {
   if(length(labels) %in% 0) return(character(0))
@@ -316,9 +263,9 @@ f.canon_label <- function(labels) {
   return(unname(out))
 }
 
-## Parse and check a model formula. Single place where config$frm is
+## Parse and check model formula. Single place where config$frm is
 ##   interpreted. Throws an informative error on unsupported constructs.
-##   Returns a list:
+##   Returns list:
 ##     $frm       one-sided formula, with any dependent variable dropped
 ##     $vars      character vector of variables (bare column names) in $frm
 ##     $labels    character vector of canonical term labels (see f.canon_label)
@@ -332,15 +279,12 @@ f.parse_frm <- function(frm, config) {
     f.err("f.parse_frm: config$frm not a formula; value:", frm, config=config)
   }
 
-  ## dependent variable is always the expression values of one feature, so a
-  ##   dependent given in frm carries no information; drop it, so that it is
-  ##   not mistaken for a covariate downstream:
+  ## dependent variable always expression values of one feature:
 
   two_sided <- length(frm) %in% 3
   if(two_sided) frm <- frm[-2]
 
-  ## '|' would otherwise be reported as an unsupported '(', which is unhelpful,
-  ##   since it is nearly always an attempt at a random effect:
+  ## '|' otherwise reported as unsupported:
 
   if(any(grepl("|", deparse(frm), fixed=T))) {
     f.err("f.parse_frm: '|' not supported in formula; mixed models (random",
@@ -377,10 +321,7 @@ f.parse_frm <- function(frm, config) {
   return(out)
 }
 
-## TRUE iff config$contrast asks for a contrast. "" (the default) means none, the
-##   same convention config$permute_var uses. Single place where that is decided,
-##   so that the config checks, the estimability filter and every hypothesis test
-##   agree about which of the two hypotheses a run is testing:
+## TRUE iff config$contrast asks for a contrast. "" (default) means none:
 
 f.contrast_set <- function(config) {
   if(length(config$contrast) != 1) return(FALSE)
@@ -388,27 +329,18 @@ f.contrast_set <- function(config) {
   return(nzchar(trimws(config$contrast)))
 }
 
-## What a run is testing, for progress messages: config$test_term, or the contrast
-##   when config$contrast is set, the two being mutually exclusive:
+## What run is testing, for progress messages: 
 
 f.test_label <- function(design, config) {
   if(!is.null(design$contrast)) return(paste("contrast:", trimws(config$contrast)))
   return(paste("test_term:", config$test_term))
 }
 
-## Operators supported in config$contrast. A contrast is arithmetic over
-##   coefficient names rather than a model formula, so the supported set differs
-##   from f.frm_ops: '(' and '/' are allowed here, since averaging a group of
-##   levels ('(grpb + grpc)/2') is the usual way to write one side of a contrast,
-##   while ':' and '*' are not interaction operators here. An interaction
-##   coefficient is named by one backquoted name ('`sexM:batchb2`') rather than
-##   built from its variables, since what a contrast weights is a column of the
-##   design matrix that config$frm has already produced:
+## Operators supported in config$contrast:
 
 f.contrast_ops <- c("+", "-", "*", "/", "(")
 
-## TRUE iff expr mentions any coefficient name; helper for f.check_contrast_expr(),
-##   which needs to know whether an operand of '*' or '/' is a constant:
+## TRUE iff expr mentions any coefficient name; helper for f.check_contrast_expr():
 
 f.contrast_has_name <- function(expr) {
   if(is.symbol(expr)) return(TRUE)
@@ -420,19 +352,13 @@ f.contrast_has_name <- function(expr) {
 }
 
 ## Recursively check one expression from config$contrast against cols, the
-##   coefficient names of the design matrix for config$frm. Throws an informative
-##   error on any unsupported construct; otherwise returns TRUE invisibly.
-##   Same shape as f.check_frm_expr(), and for the same reason: the expression is
-##   evaluated below, so what it may contain is decided here rather than by
-##   whatever base::eval() would accept:
+##   coefficient names of the design matrix for config$frm:
 
 f.check_contrast_expr <- function(expr, cols, config, top=NULL) {
 
   if(is.null(top)) top <- expr
 
-  ## terminal symbol: a coefficient name, which must be a column of the design.
-  ##   Checking here rather than after evaluation is what makes a misspelled or
-  ##   mis-cased level name say so, and say what was available instead:
+  ## terminal symbol: a coefficient name, which must be a column of the design:
 
   if(is.symbol(expr)) {
 
@@ -450,8 +376,7 @@ f.check_contrast_expr <- function(expr, cols, config, top=NULL) {
     return(invisible(TRUE))
   }
 
-  ## terminal constant: any finite number, unlike in a formula, where only 0 and 1
-  ##   (the intercept) mean anything. Here a constant is a weight:
+  ## terminal constant: any finite number, unlike in a formula:
 
   if(is.numeric(expr) && length(expr) %in% 1) {
     if(!is.finite(expr)) {
@@ -466,11 +391,7 @@ f.check_contrast_expr <- function(expr, cols, config, top=NULL) {
       "in config$contrast; config$contrast:", deparse(top), config=config)
   }
 
-  ## same as in f.check_frm_expr(), and more easily reached, config$contrast being
-  ##   a string the caller writes: what is called can be a call itself, as in
-  ##   '(grpb)(2)', and as.character() of a call returns one element per part,
-  ##   which the if() below cannot use. deparse() cannot stand in for it here,
-  ##   backquoting an operator name so that nothing in f.contrast_ops matches:
+  ## same as in f.check_frm_expr():
 
   if(!is.symbol(expr[[1]])) {
     f.err("f.check_contrast_expr: unsupported construct", deparse(expr),
@@ -491,12 +412,7 @@ f.check_contrast_expr <- function(expr, cols, config, top=NULL) {
       "only; config$contrast:", deparse(top), config=config)
   }
 
-  ## an operator called with no operands at all, e.g. '`+`()', which is a call of
-  ##   length 1. Checked before the operands are looked at, since the loop at the
-  ##   end would otherwise count down from 2 to 1 (R's empty range trap) and stop
-  ##   with 'subscript out of bounds', naming neither config$contrast nor the
-  ##   construct. '*' and '/' have their own two-operand check below, which this
-  ##   one precedes only so that every operator is covered by one message:
+  ## operator called without operands e.g. '`+`()'; call of length 1:
 
   if(length(expr) < 2) {
     f.err("f.check_contrast_expr: operator '", op, "' has no operands in",
@@ -504,10 +420,7 @@ f.check_contrast_expr <- function(expr, cols, config, top=NULL) {
       config=config)
   }
 
-  ## '*' and '/' scale a contrast by a constant. Between two coefficient names
-  ##   they would multiply the two weight vectors elementwise, which is not a
-  ##   linear combination of the coefficients at all, and would silently yield a
-  ##   contrast of all zeros for two different coefficients:
+  ## '*' and '/' scale a contrast by a constant:
 
   if(op %in% c("*", "/")) {
 
@@ -542,13 +455,7 @@ f.check_contrast_expr <- function(expr, cols, config, top=NULL) {
 }
 
 ## The weight vector L of config$contrast over cols, the coefficient names of the
-##   design matrix for config$frm. The hypothesis tested is that the weighted sum
-##   of the coefficients is zero, which is one degree of freedom whatever
-##   config$frm looks like. Evaluated by binding each coefficient name to its own
-##   indicator vector over cols and letting '+', '-', '*', '/' and '(' do ordinary
-##   vector arithmetic, so that the weights are built by the same rules a reader
-##   of the expression would apply. The environment's parent is baseenv() so that
-##   those operators resolve and nothing else does:
+##   design matrix for config$frm:
 
 f.contrast_vector <- function(config, cols, caller="f.contrast_vector") {
 
@@ -567,13 +474,8 @@ f.contrast_vector <- function(config, cols, caller="f.contrast_vector") {
 
   env <- new.env(parent=baseenv())
 
-  ## the same bindings again, in an environment where '+' and '-' add magnitudes
-  ##   instead of cancelling, so that evaluating the expression there gives the
-  ##   scale the weights would have had had nothing cancelled; see below, where
-  ##   that is what distinguishes a contrast of zero from a small one. '(' is left
-  ##   to baseenv() in both, and the two are built together so that they cannot
-  ##   come to hold different coefficients:
-
+  ## same bindings again, in environment where '+' and '-' add magnitudes
+  ##   instead of cancelling:
   env_abs <- new.env(parent=baseenv())
 
   for(idx in seq_along(cols)) {
@@ -604,30 +506,13 @@ f.contrast_vector <- function(config, cols, caller="f.contrast_vector") {
 
   names(out) <- cols
 
-  ## whether there is a hypothesis at all, which the size of the weights alone
-  ##   cannot answer. The hypothesis is that the weighted sum is zero, and that is
-  ##   invariant under rescaling the weights, so '(grpb - grpc)/1e9' asks exactly
+  ## whether there is a hypothesis at all. The hypothesis is that the weighted sum is zero, 
+  ##   which is invariant under rescaling the weights, so '(grpb - grpc)/1e9' asks exactly
   ##   what 'grpb - grpc' asks while carrying weights of 1e-9. A contrast written
   ##   so that it cancels, on the other hand, such as
   ##   '(grpb + grpc)/3 - grpb/3 - grpc/3', is left with weights of about 1e-17
   ##   whose direction is rounding noise rather than a hypothesis. An absolute
-  ##   threshold cannot separate those two, and the one used here,
-  ##   sqrt(.Machine$double.eps) or about 1.5e-8, refused the first as readily as
-  ##   the second. What separates them is whether cancellation happened, which is
-  ##   measured rather than guessed at: env_abs above evaluates the same
-  ##   expression with the magnitudes added instead of cancelled, so its result is
-  ##   the scale the weights would have had without any cancellation, and a weight
-  ##   negligible against that scale is what is left of a cancellation rather than
-  ##   a small contrast. The weights are not rescaled to suit the comparison: the
-  ##   hypothesis would be unchanged, but the effect size reported from them would
-  ##   not, '2*grpb - 2*grpc' being twice the difference 'grpb - grpc' reports.
-  ##   The two causes are reported separately, since the remedy differs: a
-  ##   contrast that is zero by construction has to be rewritten, while one that
-  ##   cancels was probably meant to be written some other way.
-  ##   A no_cancel that does not come back usable leaves only the exact zero
-  ##   refused, which is the weakest safe answer; it cannot happen for an
-  ##   expression f.check_contrast_expr() has passed, every operator in it being
-  ##   one of the four bound above or '(':
+  ##   threshold cannot separate those two:
 
   no_cancel <- try(eval(expr, envir=env_abs), silent=T)
 
@@ -656,21 +541,15 @@ f.contrast_vector <- function(config, cols, caller="f.contrast_vector") {
   return(out)
 }
 
-## A basis for the null space of the contrast, as the columns of a matrix with one
-##   column fewer than L has elements. Post-multiplying the design by it gives the
-##   design of the model constrained so that the contrast is zero, which is nested
-##   in the full model and one rank below it. That reduced design is what makes a
-##   contrast reach the engines that test a full model against a reduced one
-##   without any contrast-specific code of their own; see f.design_contrast().
-##   The first column of the complete Q of L spans L, so the rest span its
-##   orthogonal complement:
+## Basis for null space of contrast, as columns of a matrix with one
+##   column fewer than L has elements:
 
 f.contrast_null_basis <- function(L) {
   qrl <- qr(matrix(L, ncol=1))
   return(qr.Q(qrl, complete=TRUE)[, -1, drop=F])
 }
 
-## The design matrix for config$frm over the observations of state, checked against
+## Design matrix for config$frm over observations of state, checked against
 ##   state$expression. Shared by the config$test_term and config$contrast branches
 ##   of f.design_test_cols():
 
@@ -689,30 +568,14 @@ f.design_X <- function(state, parsed, config, caller="f.design_test_cols") {
 }
 
 ## A design with fewer independent columns than columns cannot support a test of
-##   one of its terms: some coefficient is a linear combination of the others, so
-##   the data do not decide which of them carries the effect. Refused rather than
-##   left to the engines, which used to be handed such a design and each failed
-##   their own way: limma stopped with "Coefficients not estimable: grpd" and then
-##   "Subsetting to non-estimable coefficients is not allowed", naming neither the
-##   covariate nor config, while the engines that fit feature by feature reported
-##   NAs. Two routes reach one: a factor covariate carrying a level that nothing
-##   was measured at, whose column model.matrix() codes as all zeros, and two
-##   terms of config$frm that code the same grouping.
-##   Only for the config$test_term branch. A config$contrast is a weighted sum of
-##   coefficients, which can be estimable in a rank deficient design (the sum of
-##   two aliased coefficients is, either one alone is not), and
-##   f.design_contrast() tests exactly that by asking whether the contrast lies in
-##   the row space, so the deficiency is not by itself a reason to refuse there.
-##   Per feature estimability, where the design is full rank over all observations
-##   but not over the observations one feature was measured in, is a third matter,
-##   screened by filter_features_by_estimability() from this same design:
+##   one of its terms: 
 
 f.design_check_rank <- function(X, rank_all, parsed, config,
     caller="f.design_test_cols") {
 
   if(!(rank_all > 0 && rank_all < ncol(X))) return(invisible(NULL))
 
-  ## qr() pivots the columns it could not use to the end, which names them:
+  ## qr() pivots columns it could not use to the end:
 
   qrx <- qr(X)
   aliased <- colnames(X)[qrx$pivot[-seq_len(qrx$rank)]]
@@ -735,22 +598,14 @@ f.design_check_rank <- function(X, rank_all, parsed, config,
     }, config=config)
 }
 
-## Rank of a design matrix, tolerant of the degenerate shapes that arise when a
-##   feature was measured in too few observations, or when the reduced model has
-##   no columns left:
+## Rank of a design matrix:
 
 f.design_rank <- function(mat) {
   if(nrow(mat) %in% 0 || ncol(mat) %in% 0) return(0L)
   return(qr(mat)$rank)
 }
 
-## Helper for f.normalize_terms(), which is a helper for f.design_test_cols(),
-##   which serves test() and filter_features_by_estimability(). Converts formula
-##   config$frm to character, makes intercept explicit (either '0' or '1'), sorts
-##   variables in interaction terms (so e.g. 'sex:age' becomes 'age:sex'), then
-##   returns formula representation as tokenized character vector. So would take
-##   formula e.g. ~age + strain + strain:age, and return:
-##   c("1", "age", "strain", "age:strain").
+## Helper for f.normalize_terms():
 
 f.formula2terms <- function(config) {
 
@@ -762,10 +617,7 @@ f.formula2terms <- function(config) {
 
   parsed <- f.parse_frm(frm, config)
 
-  ## make intercept explicit, so that it can be dropped or kept downstream;
-  ##   '*', '^', and '/' expansion, as well as intercept removal, are handled
-  ##   by stats::terms() within f.parse_frm(), so e.g. ~x1*x2 and
-  ##   ~x1+x2+x1:x2 both give c("1", "x1", "x2", "x1:x2"):
+  ## make intercept explicit, so can be dropped or kept downstream:
 
   if(parsed$intercept %in% 1) {
     terms <- c("1", parsed$labels)
@@ -776,15 +628,7 @@ f.formula2terms <- function(config) {
   return(terms)
 }
 
-## Helper for f.normalize_terms(). Given a parsed formula (see f.parse_frm())
-##   and a canonical config$test_term, returns the character vector of term
-##   labels to be dropped from the full model to form the reduced model.
-##   A test_term naming a variable drops that variable's term along with every
-##   higher-order term containing it (so testing 'x1' in ~x1*x2 is a 2 df test
-##   of 'x1' and 'x1:x2'); this keeps the reduced model hierarchical, so the
-##   test does not depend on the contrast coding or on which level of x2 is the
-##   reference. A test_term naming an interaction term drops just that term,
-##   and is an error if some higher-order term in the formula contains it:
+## Helper for f.normalize_terms():
 
 f.test_term_drops <- function(parsed, test_term, config) {
 
@@ -798,14 +642,14 @@ f.test_term_drops <- function(parsed, test_term, config) {
 
   vars <- rownames(parsed$factors)
 
-  ## test_term names a variable: drop every term it takes part in:
+  ## test_term names variable: drop every term it is found in:
 
   if(test_term %in% vars) {
     drops <- parsed$labels[parsed$factors[test_term, ] > 0]
     return(drops)
   }
 
-  ## test_term names a term of the model: drop it alone, but only if no
+  ## test_term names a term of model: drop it alone, but only if no
   ##   higher-order term contains it:
 
   if(test_term %in% parsed$labels) {
@@ -829,13 +673,7 @@ f.test_term_drops <- function(parsed, test_term, config) {
     paste(parsed$labels, collapse=" "), config=config)
 }
 
-## Helper for f.design_test_cols(). Character scalar config$test_term, formula
-##   config$frm; returns list with canonicalized character scalar $test_term,
-##   tokenized character vector $frm_terms carrying either '1' for intercept or
-##   '0' for no intercept, and character vector $drop_terms with the terms to be
-##   dropped from the full model to form the reduced model. Interaction terms in
-##   $frm_terms and $test_term are sorted alphabetically (so 'sex:age' becomes
-##   'age:sex'), to facilitate formula/term comparison.
+## Helper for f.design_test_cols():
 
 f.normalize_terms <- function(config) {
 
@@ -874,45 +712,33 @@ f.normalize_terms <- function(config) {
   frm_terms <- f.formula2terms(config)    ## returns character vector
 
   ## terms of the full model to be dropped to form the reduced model; throws
-  ##   an error if test_term is not compatible with frm:
+  ##   error if test_term is not compatible with frm:
 
   drop_terms <- f.test_term_drops(parsed, test_term, config)
 
   return(list(test_term=test_term, frm_terms=frm_terms, drop_terms=drop_terms))
 }
 
-## The design matrix for config$frm, the columns of it that carry the test of
-##   config$test_term, and the degrees of freedom of that test measured over all
-##   observations. Single place where the full and reduced models are derived
-##   from config, so that filter_features_by_estimability() and the hypothesis
-##   tests cannot disagree about what is being tested.
-##   A df_intend of zero means the reduced model spans the same column space as
-##   the full model, so the two fits are indistinguishable and there is no
-##   hypothesis to test; any p-value reported would be an artifact of how the
-##   models were coded rather than a statement about the data. That is an error
-##   rather than a warning, since there is no result to salvage. It is reached
-##   whenever config$test_term contributes no column that the remaining terms do
-##   not already imply, most easily by naming the intercept alongside a factor
-##   that the reduced model codes to full rank: with frm ~grp and test_term '1',
-##   'y ~ 1 + grp' and 'y ~ 0 + grp' are two codings of one model:
+## Design matrix for config$frm, columns carry the test of
+##   config$test_term, and the degrees of freedom of that test measured over
+##   observations:
 
 f.design_test_cols <- function(state, config) {
 
-  ## config$contrast tests a weighted sum of coefficients within the full model
-  ##   instead of a term of it, so it is a different hypothesis, derived below by
-  ##   its own route. check_config() has already refused a config that sets both:
+  ## config$contrast tests weighted sum of coefficients within full model
+  ##   instead of a term:
 
   if(f.contrast_set(config)) return(f.design_contrast(state, config))
 
-  ## throws an informative error if config$test_term does not fit config$frm:
+  ## throws informative error if config$test_term doesn't fit config$frm:
 
   parsed <- f.parse_frm(config$frm, config)
   drops <- f.normalize_terms(config)$drop_terms
 
   X <- f.design_X(state, parsed, config)
 
-  ## attr(X, 'assign') indexes the term labels in order, with 0 for the
-  ##   intercept; parsed$labels is those same labels, canonicalized:
+  ## attr(X, 'assign') indexes term labels in order; 0 for the
+  ##   intercept; parsed$labels is same labels, but canonicalized:
 
   asgn <- attr(X, "assign")
   cols_test <- which(asgn %in% match(setdiff(drops, "1"), parsed$labels))
@@ -927,23 +753,14 @@ f.design_test_cols <- function(state, config) {
 
   rank_all <- f.design_rank(X)
 
-  ## before the df_intend arithmetic below, which cannot tell a design that is
-  ##   short of rank from a term that is redundant, and used to hand both on:
+  ## before df_intend arithmetic below:
 
   f.design_check_rank(X, rank_all, parsed, config, caller="f.design_test_cols")
 
   rank_red <- f.design_rank(X[, -cols_test, drop=F])
   df_intend <- rank_all - rank_red
 
-  ## nothing left in the reduced model. Two quite different causes, told apart here
-  ##   because the advice differs and the wrong advice sends the reader to config$frm
-  ##   when the formula is fine. If the full model has no rank either, there is nothing
-  ##   to fit at all, which is what an upstream step that removed every observation looks
-  ##   like from here. Otherwise config$frm suppresses the intercept and config$test_term
-  ##   names every remaining term, so the test is against zero rather than against a
-  ##   common mean: well defined, but on log-scale abundances every feature rejects it,
-  ##   which is rarely the question. Warn rather than stop, since the test asked for is
-  ##   the one performed, and it is also what filter_features_by_estimability() screens:
+  ## nothing left in reduced model:
 
   if(rank_red %in% 0) {
     if(rank_all %in% 0) {
@@ -964,14 +781,7 @@ f.design_test_cols <- function(state, config) {
     }
   }
 
-  ## the intercept is the fitted value where every covariate is zero. For a factor
-  ##   that is its reference level, which is an observed group; for a continuous
-  ##   covariate it need not be anywhere near the observed range, and where zero falls
-  ##   decides the answer rather than merely the labelling: testing the intercept in
-  ##   ~age compares the space spanned by (1, age) against the space spanned by age
-  ##   alone, and shifting age leaves the first unchanged while changing the second.
-  ##   Centering the covariate in state$samples makes the intercept the fitted value at
-  ##   its mean, which is usually the intended quantity:
+  ## intercept is fitted value where every covariate is zero:
 
   if("1" %in% drops) {
     types <- f.covariate_types(state, config)
@@ -986,13 +796,6 @@ f.design_test_cols <- function(state, config) {
     }
   }
 
-  ## the advice depends on the cause, and the wrong advice sends the reader to the
-  ##   intercept when config$test_term never named it, or to config$frm when the
-  ##   formula is fine and the observations are gone. Three causes: a full model
-  ##   with no rank, where there is nothing to fit either way; the intercept named
-  ##   alongside a factor the reduced model codes to full rank; and a term that
-  ##   adds no rank to what the remaining terms already span:
-
   if(df_intend %in% 0) {
     hint <- if(rank_all %in% 0) {
         paste("the full model has no rank either, so there is nothing to fit",
@@ -1004,10 +807,7 @@ f.design_test_cols <- function(state, config) {
       } else {
         paste("the term(s) dropped add no rank to what the remaining terms of",
           "config$frm already span, so they code a grouping the rest imply:",
-          "drop the redundant term, or test one that is not implied. A design",
-          "whose columns are outright aliased is refused before this, by",
-          "f.design_check_rank(), so the redundancy here is between terms rather",
-          "than between columns")
+          "drop the redundant term, or test one that is not implied.")
       }
     f.err("f.design_test_cols: dropping config$test_term '", config$test_term,
       "' leaves a reduced model spanning the same space as the full model,",
@@ -1017,10 +817,7 @@ f.design_test_cols <- function(state, config) {
       ncol(X), "; rank:", rank_all, "\n", hint, config=config)
   }
 
-  ## the reduced model, returned explicitly rather than left to each engine to form
-  ##   by dropping columns, so that the engines which compare a full model against a
-  ##   reduced one need no contrast-specific code: see f.design_contrast(), where
-  ##   this is not a subset of the columns of X:
+  ## reduced model:
 
   out <- list(
     parsed=parsed,
@@ -1036,20 +833,10 @@ f.design_test_cols <- function(state, config) {
   return(out)
 }
 
-## The design matrix for config$frm and the weighted sum of its coefficients that
-##   config$contrast tests, in the shape f.design_test_cols() returns for
-##   config$test_term, so that the estimability filter and the hypothesis tests take
-##   the two the same way. The test is of whether that weighted sum is zero, which
-##   is one degree of freedom however many coefficients carry a non-zero weight. That
-##   used to be the only way a capped engine could reach a multi-level factor; no engine
-##   is capped any more, so a contrast is now a different hypothesis rather than a way
-##   around one, and it stays one degree of freedom for the limma-family engines because
-##   limma::contrasts.fit() leaves them a single coefficient.
-##   $X_red is the design of the model constrained so that the contrast is zero,
-##   which is nested in the full model and one rank below it, so comparing the two
-##   is exactly the test of the contrast. It is a re-parameterization rather than a
-##   subset of the columns of X, which is why f.design_test_cols() returns it
-##   explicitly in both cases:
+## Design matrix for config$frm and the weighted sum of its coefficients that
+##   config$contrast tests; in shape f.design_test_cols() returns for
+##   config$test_term, so estimability filter and the hypothesis tests take
+##   the two the same way. Test is whether weighted sum is zero:
 
 f.design_contrast <- function(state, config) {
 
@@ -1057,39 +844,15 @@ f.design_contrast <- function(state, config) {
   X <- f.design_X(state, parsed, config, caller="f.design_contrast")
 
   L <- f.contrast_vector(config, colnames(X), caller="f.design_contrast")
-  ## which coefficients the contrast weights, for the messages below and for the
-  ##   effect size f.logfc_effect() forms from L[cols_test]. Relative to the
-  ##   largest weight rather than absolute: the weights carry whatever scale the
-  ##   caller wrote them in, so an absolute cut called every weight of
-  ##   '(grpb - grpc)/1e9' unweighted, while a weight this far below the largest
-  ##   moves the estimate by no more than rounding does. f.contrast_vector() has
-  ##   already refused an L that is zero, so the largest weight is positive:
 
+  ## which coefficients contrast weights:
   cols_test <- which(abs(L) >= max(abs(L)) * sqrt(.Machine$double.eps))
 
-  ## the contrast has to be estimable over all observations, which it is exactly
-  ##   when it lies in the row space of the design: otherwise no linear combination
-  ##   of the fitted values estimates it, and every engine would report either a
-  ##   silently aliased coefficient or an error of its own naming neither
-  ##   config$contrast nor config$frm. Reached by weighting a coefficient that
-  ##   config$frm codes as aliased with another. Per feature estimability is a
-  ##   separate matter, screened by filter_features_by_estimability() from the same
-  ##   pair of designs:
+  ## contrast must be estimable over all observations; true when it within 
+  ##   row space of design: 
 
-  ## normalized by the largest weight, rather than by the 2-norm, before the rank
-  ##   test and the null space basis below: the weights carry whatever scale the
-  ##   caller wrote them in, and squaring them loses that scale at both ends of the
-  ##   double range. sum(L^2) of '(grpb - grpc)/1e200' is exactly 0, so L/sqrt(...)
-  ##   is NaN and Inf, and the rank test dies inside LAPACK ("NA/NaN/Inf in foreign
-  ##   function call (arg 1)"), naming neither config$contrast nor config$frm;
-  ##   sum(L^2) of the same contrast times 1e200 is Inf, so the normalized row is
-  ##   all zeros, which the row space of every design contains, and an unestimable
-  ##   contrast then passes the check below vacuously. Dividing by max(abs(L))
-  ##   overflows and underflows for no L that f.contrast_vector() returns, and is
-  ##   positive because f.contrast_vector() has already refused an L that is zero.
-  ##   Both the rank test and the null space are scale invariant, so which of the
-  ##   two normalizers is used changes nothing else. L itself is left as written,
-  ##   since f.logfc_effect() forms the reported effect size from it:
+  ## normalized by  largest weight, rather than 2-norm, before rank
+  ##   test and null space basis below: 
 
   rank_all <- f.design_rank(X)
   Lr <- L / max(abs(L))
@@ -1107,11 +870,8 @@ f.design_contrast <- function(state, config) {
   colnames(X_red) <- paste0("h0red", seq_len(ncol(X_red)))
   df_intend <- rank_all - f.design_rank(X_red)
 
-  ## the constrained model is one rank below the full model whenever the contrast is
-  ##   estimable, which the check above has established, so this cannot fire; kept
-  ##   because it is the assumption every engine below relies on, and a silent
-  ##   failure of it would be reported as a test of the wrong number of degrees of
-  ##   freedom rather than as an error:
+  ## the constrained model is one rank below the full model whenever contrast is
+  ##   estimable, which the check above has established; so this never trigger:
 
   if(df_intend != 1) {
     f.err("f.design_contrast: the model constrained so that config$contrast",
@@ -1137,23 +897,14 @@ f.design_contrast <- function(state, config) {
 }
 
 ## Warn when config$contrast weights a coefficient of a term that a higher-order
-##   term of config$frm also contains. Testing a term obeys marginality: dropping
-##   'grp' from ~grp*sex drops the interaction too, so the test covers every term
-##   containing grp. A contrast cannot, being a statement about named coefficients
-##   inside one model, so 'grpb - grpc' in ~grp*sex compares those levels at the
-##   reference level of sex alone rather than averaged over it. That is a legitimate
-##   question and is the one asked for, so it is a warning rather than an error, but
-##   it is rarely the question intended, and the coefficients involved do not say so
-##   on their own. Same shape of problem, and the same remedy, as the intercept
-##   warning in f.design_test_cols(): the answer depends on where the variables not
-##   under test are held:
+##   term of config$frm also contains:
 
 f.warn_contrast_marginality <- function(parsed, X, L, cols_test, state, config) {
 
   asgn <- attr(X, "assign")
   if(is.null(asgn)) return(invisible(NULL))
 
-  ## the terms of config$frm carrying a weighted coefficient, and any term of
+  ## terms of config$frm carrying a weighted coefficient, and any term of
   ##   config$frm strictly containing one of them:
 
   trms <- unique(asgn[cols_test])
@@ -1206,78 +957,19 @@ f.warn_contrast_marginality <- function(parsed, X, L, cols_test, state, config) 
   return(invisible(NULL))
 }
 
-## f.test_max_cols() was here, returning how many design matrix columns a test method
-##   could test at once, along with f.design_test_cols_max(), which wrapped
-##   f.design_test_cols() so that a method which could not express the hypothesis
-##   config$test_term implied said so rather than quietly testing a narrower one. Both
-##   are gone, because no method is bounded that way any more.
-##   The limma-family methods were always unlimited, taking a vector of coefficients and
-##   returning an F over all of them, and proDA is unlimited by a different route:
-##   proDA::test_diff() takes either one contrast or a reduced model, and test_proda()
-##   hands it the reduced model f.design_test_cols() built whenever more than one column
-##   carries the test, which is a likelihood ratio test over all of them.
-##   The other two were bounded only at their APIs, not in what their fits could support.
-##   msqrob2::hypothesisTest() loops over the columns of the contrast and returns one
-##   table per column rather than a joint test over several, while the fit carries
-##   everything a joint test needs; test_msqrob() computes that test from the fitted
-##   models, see f.msqrob_wald(). DEqMS moderates one coefficient's t-statistic and has
-##   no F-analogue anywhere, but the moderation is a variance prior: its
-##   DEqMS::spectraCounteBayes() returns a per-gene posterior variance and a prior
-##   degrees of freedom, neither of which mentions a coefficient, and coef_col enters
-##   only where sca.t is formed from them. test_deqms() computes the joint test from
-##   those, see f.deqms_moderated_f(). What was said here before, that "the limit is in
-##   the moderation itself", was wrong on that second point.
-##   So config$test_term and config$contrast now reach every method, and the only
-##   remaining refusals are properties of an engine's model rather than of its API: see
-##   the capability table in the tests directory.
-
-## Whether a test method takes feature level input and reports gene level results,
-##   whatever level state$expression is at. test_deqms() aggregates with
-##   combine_features() and test_msqrob() with QFeatures::aggregateFeatures(), both
-##   internally, so their results have one row per gene even when handed precursors;
-##   "prolfqua_lmer" reaches the same place by modelling instead of aggregating, fitting
-##   one mixed model per gene with a random effect for the feature, and "msqrob_agg" the
-##   same way through msqrob2::msqrobAggregate(), which aggregates only to carry the
-##   result and fits on the un-aggregated assay; every other method
-##   is row-wise on state$expression and reports one row per row of it. Written once
-##   here because four places need the same answer: test() (for the row ids and the
-##   feature metadata it reports), f.feature_means() (for the level the average
-##   expression is over), the f.format_*() functions (for which column of an engine's
-##   table holds the id) and tune() (for whether to aggregate before testing):
-
+## Whether test method takes feature level input and reports gene level results:
 f.gene_level_method <- function(method) {
   return(method %in% c("deqms", "msqrob", "prolfqua_lmer", "msqrob_agg"))
 }
 
-## Which column of state$features identifies the rows a test method returns.
-##   config$feat_col is by definition the column matching rownames(state$expression)
-##   at every point in the pipeline, so it is the answer for a row-wise method whether
-##   state is at precursor level or has already been through combine_features(), which
-##   sets config$feat_col to config$gene_id_col when it aggregates. The two gene level
-##   methods aggregate for themselves, so they are keyed by the gene id either way:
+## Which column of state$features identifies rows a test method returns:
 
 f.test_id_col <- function(method, config) {
   if(f.gene_level_method(method)) return(config$gene_id_col)
   return(config$feat_col)
 }
 
-## Classify each variable in config$frm as "factor" or "numeric" (continuous).
-##   Single place where covariate type is decided, so that value checking,
-##   filtering, and hypothesis testing all agree. Rules, in order:
-##     1. named in config$reference_levels: "factor"; a numeric column may be
-##          declared there, which is how a numeric variable is made categorical;
-##     2. already a factor (e.g. set by f.set_covariate_factor_levels()): "factor";
-##     3. logical: "factor"; model.matrix() orders these FALSE, TRUE, which is
-##          deterministic, so no declaration is needed;
-##     4. numeric: "numeric" (continuous);
-##     5. anything else (typically character): error. Deriving the reference
-##          level by sorting the values is locale dependent, and silently sets
-##          the meaning of the reported coefficients, so the reference level has
-##          to be declared in config$reference_levels.
-##   Returns a named character vector with one element per variable in
-##   config$frm. config$covariate_types records what this function decided, and
-##   is checked against the columns rather than returned in place of them; see
-##   below:
+## Classify each variable in config$frm as "factor" or "numeric" (continuous):
 
 f.covariate_types <- function(state, config) {
 
@@ -1309,19 +1001,7 @@ f.covariate_types <- function(state, config) {
     }
   }
 
-  ## the cache as a cross-check, not as an override. It used to be returned
-  ##   whenever its names covered config$frm and its values were spelled right,
-  ##   which let it name a type the column cannot have: a character or factor
-  ##   covariate was then fit as continuous, or a numeric one split into levels,
-  ##   and rule 5 above stopped refusing an undeclared character covariate, so
-  ##   its reference level went back to being set by sorting. The type of a
-  ##   column does not depend on which observations are left, so what the cache
-  ##   says has to agree with the rules above; where it does not, the config was
-  ##   built against other data or edited by hand, and neither answer can be
-  ##   assumed to be the intended one. Deriving the types is cheap - one class()
-  ##   per variable - so the cache saves nothing worth this. Variables the cache
-  ##   covers and config$frm does not are ignored, config$frm being free to
-  ##   change between calls:
+  ## cache as cross-check, not override:
 
   cached <- config$covariate_types
 
@@ -1351,33 +1031,14 @@ f.covariate_types <- function(state, config) {
   return(out)
 }
 
-## The level ordering of one factor covariate, resolved from config. Single place
-##   where that ordering is decided, so that it does not depend on which entry
-##   point asked for it:
-##     config$factor_levels[[trm]]      what initialize() resolved and logged;
-##                                        preferred, since it is the ordering the
-##                                        rest of the run has been reported under
-##     config$reference_levels[[trm]]    the declared reference level first and
-##                                        the remaining values sorted, which is
-##                                        how initialize() resolves it; used when
-##                                        initialize() has not run
-##     levels(factor(v))                 neither declared: a covariate that is
-##                                        already a factor, or is logical,
-##                                        carries an ordering of its own that is
-##                                        not locale dependent
-##   config$reference_levels only ever names the first level, so the rest are
-##   sorted; their order does not set the reference level, but it does set the
-##   order in which the coefficients are reported. A declared reference level that
-##   is not among the values is an error rather than an ordering, since it is a
-##   declaration about data that are not there:
+## Level ordering of one factor covariate, resolved from config:
 
 f.covariate_levels <- function(v, trm, config, caller="f.covariate_levels") {
 
   lvls <- config$factor_levels[[trm]]
   if(!is.null(lvls)) return(lvls)
 
-  ## NOTE: config$reference_levels is an atomic vector, so [[ throws on a name
-  ##   that is not present, rather than returning NULL:
+  ## NOTE: config$reference_levels is atomic vector:
 
   if(!(trm %in% names(config$reference_levels))) return(levels(factor(v)))
   ref1 <- config$reference_levels[[trm]]
@@ -1398,14 +1059,8 @@ f.covariate_levels <- function(v, trm, config, caller="f.covariate_levels") {
   return(c(ref1, setdiff(vals, ref1)))
 }
 
-## Rebuild a factor covariate with the level ordering f.covariate_levels()
-##   resolves, with the declared reference level first. Handing a downstream fit a
-##   character vector instead leaves it to re-derive the levels by sorting, which
-##   renames the coefficients: with reference level "M", h0testr names the tested
-##   column sexF while an alphabetical re-derivation names it sexM. Where the fit
-##   reports one named contrast (test_msqrob()) that mismatch yields a table of
-##   NAs with no error; where it reports a coefficient (test_prolfqua()) it changes
-##   which contrast the reported numbers describe. Both are silent, hence this:
+## Rebuild factor covariate with level ordering f.covariate_levels()
+##   resolves, with declared reference level first:
 
 f.relevel_covariate <- function(v, trm, config, caller) {
 
@@ -1422,28 +1077,8 @@ f.relevel_covariate <- function(v, trm, config, caller) {
   return(out)
 }
 
-## Rebuild the covariates of config$frm in state$samples whose level ordering
-##   config declares, so that the reference level a run reports is the declared one
-##   whether or not initialize() has run. Without this, config$reference_levels
-##   reaches the design only through initialize(), which is what turns it into
-##   factor columns and into config$factor_levels: f.design_X() hands
-##   state$samples to stats::model.matrix() as they are, and a character column
-##   there is levelled by sorting, so a direct caller got coefficients named for a
-##   reference level it did not ask for, with nothing said about it. Called once
-##   per entry point that fits anything, rather than inside f.design_X(), because
-##   the engines that build a model frame of their own (test_proda(),
-##   test_msqrob(), test_prolfqua()) take it from state$samples rather than from
-##   the design. The level ordering of a covariate config declares nothing about is
-##   left exactly as it is, so what stats::model.matrix() does with it is unchanged.
-##   Levels no observation has are dropped either way, since model.matrix() codes
-##   such a level as a column of zeros and f.design_X() refuses the rank deficient
-##   design that results. Two routes reach one: a factor column the caller built
-##   with a level that was never measured, and config$factor_levels, which
-##   initialize() records over all observations and which a later filtering step can
-##   empty out. Dropped rather than refused, since the levels that remain are a
-##   model that can be fit and are what the data support; said out loud, because
-##   dropping a level renames no coefficient but removes one, so a config$contrast
-##   naming it stops being parseable:
+## Rebuild covariates of config$frm in state$samples whose level ordering
+##   config declares:
 
 f.relevel_state_covariates <- function(state, config,
     caller="f.relevel_state_covariates") {
@@ -1487,29 +1122,14 @@ f.relevel_state_covariates <- function(state, config,
   return(state)
 }
 
-## Check the values of the covariates in config$frm. Missing, blank, non-finite,
-##   and constant covariates are errors: they cannot be fit, and letting them
-##   through means model.matrix() silently drops observations (so that the
-##   number of observations differs between features) or yields a
-##   rank-deficient design. A numeric covariate with few distinct values is
-##   often a miscoded factor, so is warned about; threshold is
-##   config$n_distinct_numeric_warn. Optional types from f.covariate_types().
-##   caller names the function to blame in the messages, since this is called from
-##   more than one entry point; warn_distinct=FALSE suppresses the distinct-value
-##   warning for callers that run after initialize() has already issued it:
+## Check values of covariates in config$frm:
 
 f.check_covariate_values <- function(state, config, types=NULL,
     caller="f.check_covariate_values", warn_distinct=TRUE) {
 
   if(is.null(types)) types <- f.covariate_types(state, config)
 
-  ## every check below is over the values of a covariate, and a table of no rows
-  ##   has none: is.na() of nothing is logical(0), unique() of nothing has length
-  ##   0, so the missing, non-finite, blank, and constant checks all passed and
-  ##   the covariates were reported as checked. The run then stopped at the first
-  ##   design matrix, in stats::model.matrix(), with "contrasts can be applied
-  ##   only to factors with 2 or more levels", which names neither the empty
-  ##   table nor the step that emptied it:
+  ## every check below is over values of a covariate:
 
   if(nrow(state$samples) %in% 0) {
     f.err(caller, ": state$samples has no rows, so there are no covariate",
@@ -1539,14 +1159,7 @@ f.check_covariate_values <- function(state, config, types=NULL,
 
   for(nom in names(types)) {
 
-    ## a covariate that is not a column of state$samples at all: every check
-    ##   below would otherwise be run on the NULL that state$samples[[nom]]
-    ##   returns, where is.na(NULL) is logical(0) and unique(NULL) has length 0,
-    ##   so all of them pass vacuously and the covariate is reported as checked.
-    ##   Reachable only from a caller that supplies types itself, since
-    ##   f.covariate_types() checks membership, but silence is the wrong answer
-    ##   for a check whose whole job is to refuse a covariate that cannot be fit:
-
+    ## covariate that is not a column of state$samples: 
     if(!(nom %in% names(state$samples))) {
       f.err(caller, ": covariate", nom, "is not a column of state$samples;",
         "\n", "columns present:", paste(names(state$samples), collapse=", "),
@@ -1571,14 +1184,7 @@ f.check_covariate_values <- function(state, config, types=NULL,
         config=config)
     }
 
-    ## a blank is a missing value that does not look like one: utils::read.table(),
-    ##   which read_data() uses, reads an empty field in a character column as "",
-    ##   and only the strings in na.strings (default "NA") as NA. An empty cell in
-    ##   the samples file therefore arrives here as a value rather than as a gap,
-    ##   and would be carried into the design as a factor level of its own, silently
-    ##   adding a group made of the observations whose annotation is missing. An
-    ##   empty field in a numeric column does become NA, so this only applies to the
-    ##   covariates that carry text:
+    ## blank is a missing value: 
 
     if(types[nom] %in% "factor") {
       i <- !nzchar(trimws(as.character(v)))
@@ -1611,17 +1217,7 @@ f.check_covariate_values <- function(state, config, types=NULL,
   return(invisible(TRUE))
 }
 
-## helper for f.check_state() and f.check_parameters(): state$expression has to
-##   be a numeric matrix. Only is.matrix() was checked, which a character matrix
-##   passes, and nothing downstream looks again: the exact zero check in
-##   f.check_state() compares with %in% 0, which no string can match, and
-##   f.zeros_to_na() compares with a numeric as well, so a matrix of text got as
-##   far as the first arithmetic and failed there, naming neither the matrix nor
-##   the step that should have refused it. read_data() checks the type of what it
-##   reads off disk, but a state assembled in the session, which is how every
-##   example builds one, arrives here unchecked. An integer matrix is numeric and
-##   passes; a logical one does not, no normalization or imputation of TRUE and
-##   FALSE being defined. fn_name only labels the messages:
+## helper for f.check_state() and f.check_parameters(): 
 
 f.check_expr_matrix <- function(state, config, fn_name) {
 
@@ -1642,22 +1238,7 @@ f.check_expr_matrix <- function(state, config, fn_name) {
   return(invisible(TRUE))
 }
 
-## helper for f.check_state() and f.check_parameters(): the metadata rows and
-##   state$expression are matched by position everywhere downstream, a column of
-##   the matrix being the observation described by the corresponding row of
-##   state$samples, so the metadata has to have one row per feature or
-##   observation, and the ids it carries have to agree with the dimnames the
-##   matrix carries. `==` returns logical(0) when either side is NULL, and
-##   all(logical(0)) is TRUE, so comparing the two directly passed vacuously in
-##   exactly the cases where the agreement could not be checked: a
-##   state$expression with no dimnames, and a key naming no column of the
-##   metadata. Unequal lengths were not caught either, `==` recycling the shorter
-##   side, so metadata of twice the length compared against itself and passed.
-##   All refused rather than assumed. Dimensions are checked before dimnames,
-##   being answerable whether or not the matrix is named. key is "feat_col" or
-##   "feat_id_col" for the rows, "obs_col" or "obs_id_col" for the columns;
-##   f.check_state() has the first pair, f.check_parameters() runs before they
-##   are set and has the second. fn_name only labels the messages:
+## helper for f.check_state() and f.check_parameters(): 
 
 f.check_dimnames <- function(state, config, key, fn_name="f.check_state") {
 
@@ -1675,16 +1256,6 @@ f.check_dimnames <- function(state, config, key, fn_name="f.check_state") {
     f.err(me, meta_lab, "is missing, so the", unit, "of",
       "state$expression have no metadata to be checked against", config=config)
   }
-
-  ## meta[[nom]] with a nom that is not a single name raises a raw R error from
-  ##   the function whose whole purpose is to explain the mismatch: "attempt to
-  ##   select less than one element in get1index" for a NULL key, and "subscript
-  ##   out of bounds" for a key of two names, [[ reading those as recursive
-  ##   indexing rather than as two columns. check_config() refuses a key of the
-  ##   wrong shape, but f.check_parameters() checks only that the key names a
-  ##   column, so a two-name key reached here whenever both happened to be
-  ##   columns. The empty string is a name like any other here: it names no
-  ##   column, and the message below says so:
 
   if(!(length(nom) %in% 1 && is.character(nom) && !is.na(nom))) {
     f.err(me, paste0("config$", key), "has to be a single column name of",
@@ -1725,15 +1296,7 @@ f.check_dimnames <- function(state, config, key, fn_name="f.check_state") {
       "the only thing that shows the order is right", config=config)
   }
 
-  ## an NA on either side compares to NA rather than to FALSE, so all() returned
-  ##   NA and the if() below raised "missing value where TRUE/FALSE needed",
-  ##   losing the message it was there to print. Reported here rather than made
-  ##   NA-safe below, since a missing id is a different problem from a
-  ##   disagreement: there is no id to compare, so no ordering can be right, and
-  ##   the remedy is to supply one rather than to reorder. utils::read.table(),
-  ##   which read_data() uses, reads the string NA as a missing value, so an id
-  ##   of that name arrives as a gap; f.check_parameters() does not catch it
-  ##   either, duplicated() not counting a single NA as a duplicate:
+  ## an NA on either side compares to NA rather than to FALSE:
 
   if(any(is.na(nms)) || any(is.na(ids))) {
     i <- which(is.na(nms) | is.na(ids))
@@ -1777,16 +1340,7 @@ f.check_state <- function(state, config) {
   }
   f.check_dimnames(state, config, "obs_col")
 
-  ## NA is the only indicator of a missing value; see f.zeros_to_na(). Where
-  ##   normalize() was able to guarantee that an exact 0 cannot be a measurement,
-  ##   it says so in config$log_from_raw, and one appearing afterwards can only
-  ##   have been written by code using 0 to mean missing. That is easy to do by
-  ##   accident: combining a replicate group with sum(na.rm=TRUE) returns 0 for a
-  ##   group in which nothing was measured, and on a log scale 0 is not a neutral
-  ##   value but the most extreme one in the matrix. Checked at every step
-  ##   boundary because the value is indistinguishable from a real measurement
-  ##   once anything downstream has read it. Unset means no guarantee, so no
-  ##   check, which is also what a minimal config gets:
+  ## NA is only indicator of a missing value:
 
   if(isTRUE(config$log_from_raw)) {
 
@@ -1813,14 +1367,8 @@ f.check_state <- function(state, config) {
   }
 }
 
-## Resolve the scale of state$expression for a function that takes an
-##   is_log_transformed argument. The argument wins when given, so that the
-##   function can be called on its own with a config that says nothing about the
-##   scale; otherwise config$is_log_transformed answers, having been set by
-##   initialize() and updated by normalize(). Disagreement between the two is an
-##   error rather than a silent preference, since it means the caller and the
-##   workflow hold different beliefs about the data and only one of them can be
-##   right:
+## Resolve scale of state$expression for function that takes
+##   is_log_transformed argument:
 
 f.is_log_transformed <- function(is_log_transformed, config, fn_name) {
 
@@ -1833,7 +1381,7 @@ f.is_log_transformed <- function(is_log_transformed, config, fn_name) {
       from_config, config=config)
   }
 
-  ## "" is accepted as unset for callers that pass an empty character:
+  ## "" is unset for callers that pass an empty character:
 
   unset <- is.null(is_log_transformed) ||
     (is.character(is_log_transformed) && all(is_log_transformed %in% ""))
@@ -1866,14 +1414,8 @@ f.is_log_transformed <- function(is_log_transformed, config, fn_name) {
   return(is_log_transformed)
 }
 
-## Resolve whether the variance prior of the moderation is fitted against mean feature
-##   intensity, for a function that takes a trend argument. The argument wins when given,
-##   config$test_trend answers otherwise, and FALSE when neither says anything, which is
-##   what new_config() ships. Unlike f.is_log_transformed(), disagreement between the two
-##   is not an error: the scale of the data is a fact and the two cannot both be right,
-##   whereas this is a preference about how to fit a prior, so a caller passing one is
-##   overriding the configuration on purpose. Which methods honor it, and what the ones
-##   that cannot do instead, is test()'s business; see f.trend_methods():
+## Resolve whether the variance prior of moderation is fitted against mean feature
+##   intensity, for function that takes trend argument:
 
 f.is_trend <- function(trend, config, fn_name="f.is_trend") {
 
@@ -1886,7 +1428,7 @@ f.is_trend <- function(trend, config, fn_name="f.is_trend") {
       from_config, config=config)
   }
 
-  ## "" is accepted as unset for callers that pass an empty character:
+  ## "" is accepted as unset for callers that pass empty character:
 
   unset <- is.null(trend) || (is.character(trend) && all(trend %in% ""))
 
@@ -1903,21 +1445,8 @@ f.is_trend <- function(trend, config, fn_name="f.is_trend") {
   return(trend)
 }
 
-## Drop the features that cannot contribute to a fit of missingness against
-##   intensity, and refuse the fit outright if too little is left of it. A
-##   feature measured nowhere has no observed intensity, so the f_mid summary of
-##   it is NA. Substituting a stand-in value would enter it into the fit as a
-##   genuine point, sitting at the extreme of the response axis where it carries
-##   the most leverage over the slope, so it is dropped instead; it is still
-##   imputed afterwards, from the curve the remaining features determine.
-##   h0testr::filter() rejects features measured nowhere, so this normally only
-##   arises when an imputer is called on its own. Degeneracy is judged on the
-##   number of distinct intensities rather than the number of features, since
-##   many features sharing one intensity still cannot identify a slope. The fit
-##   is extrapolated across the whole intensity range and imputed values are
-##   drawn from it, so a curve resting on a handful of points does not merely
-##   estimate badly, it invents structure that then enters the data as
-##   measurements:
+## Drop features that cannot contribute to fit of missingness against
+##   intensity, and refuse fit outright if too little is left of it:
 
 f.drop_unfittable <- function(dat, config, fn_name, min_fit_pts) {
 
@@ -1926,14 +1455,6 @@ f.drop_unfittable <- function(dat, config, fn_name, min_fit_pts) {
     f.err(fn_name, ": min_fit_pts is not a finite numeric scalar >= 2; value:",
       min_fit_pts, config=config)
   }
-
-  ## dat$m used to be read on trust, and `$` partial matches on a data.frame:
-  ##   a frame whose only m-like column was something else entirely (mean_int,
-  ##   say) had that column fit as the intensity summary and was returned
-  ##   unchanged, and a frame with no such column at all reached the degeneracy
-  ##   check below as zero distinct intensities, which reported a caller's
-  ##   mistake as too little data and advised changing config$impute_method.
-  ##   Read by name from here on, and the shape stated before it is used:
 
   if(!(is.data.frame(dat) && "m" %in% names(dat) && is.numeric(dat[["m"]]))) {
     f.err(fn_name, ": the missingness fit needs a data.frame with a numeric",
@@ -1983,16 +1504,7 @@ f.drop_unfittable <- function(dat, config, fn_name, min_fit_pts) {
   return(dat)
 }
 
-## The lower bound of the interval the unif_ imputation methods draw from. A
-##   missing value means the feature fell below detection in that sample, so the
-##   bound belongs at the bottom of the scale the data are on. On the raw scale
-##   that is zero abundance, a fixed point of the measurement that needs no
-##   configuration. A log scale has no such point: zero there is a single count,
-##   which after normalization usually sits near the top of the range rather than
-##   the bottom, so the bound is placed relative to the dimmest value actually
-##   measured and displaced by config$impute_floor_offset. That offset is also
-##   what gives the interval any width when config$impute_quantile is 0, since
-##   the upper bound is then the observed minimum itself:
+## Lower bound of interval unif_ imputation methods draw from.:
 
 f.impute_floor <- function(mat, config, fn_name, is_log_transformed=NULL) {
 
@@ -2029,12 +1541,6 @@ f.report_state <- function(state, config) {
   v <- c(state$expression)
   n_ok <- sum(!is.na(v))
 
-  ## min() of nothing is Inf and mean() of nothing is NaN, both after a warning
-  ##   that this function's own message then hid: an all-NA matrix, and a matrix
-  ##   with no features at all, were reported as a signal distribution with a
-  ##   minimum of Inf rather than as the absence of one. Both are states a
-  ##   filtering step can produce, and this is where they are meant to be seen:
-
   if(n_ok %in% 0) {
 
     f.msg("signal distribution: none to report:", length(v), "value(s), none",
@@ -2061,17 +1567,7 @@ f.save_state <- function(state, config, prefix) {
     return(NULL)
   }
 
-  ## the three paths below are built by pasting config$dir_out, which used to be
-  ##   taken as given. A NULL or empty one made '/3.normalized.expression.tsv',
-  ##   the root of the filesystem rather than a run directory, and one naming a
-  ##   directory that is not there was reported only by f.save_tsv()'s warning
-  ##   handler, after the log had said the data were being written. check_config()
-  ##   catches a dir_out of the wrong shape, but only for a caller that runs it,
-  ##   and it cannot know whether the directory exists at the time of the write;
-  ##   checked here because this is the only function that writes state to disk.
-  ##   Refused rather than created: an output directory that is not there usually
-  ##   means the path is wrong, and creating it scatters run output over the
-  ##   filesystem instead of saying so:
+  ## three paths below built by pasting config$dir_out:
 
   dir_out <- config$dir_out
 
@@ -2110,10 +1606,7 @@ f.quantile <- function(v, config, probs=NULL, digits=3, na.rm=T) {
   if(is.null(probs)) probs <- config$probs
   if(is.null(probs)) probs <- c(0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0)
 
-  ## through f.log_obj(), so that an unwritable config$log_file prints the
-  ##   quantiles rather than stopping the run on the connection:
-
-  f.log_obj(round(stats::quantile(v, probs=probs, na.rm=na.rm), digits=digits),
-    config)
+  ## through f.log_obj(), so that an unwritable config$log_file prints the quantiles:
+  f.log_obj(round(stats::quantile(v, probs=probs, na.rm=na.rm), digits=digits), config)
 }
 

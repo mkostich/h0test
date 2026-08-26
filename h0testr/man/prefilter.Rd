@@ -38,20 +38,15 @@ Remove features and observations too sparse to be worth carrying through
     normalization and aggregation.
 }
 \details{
-A cheap first pass, meant to run before anything has been normalized. It removes
+A cheap first pass, meant to run before anything has been normalized. Removes
     features with fewer than 3 distinct non-\code{NA} values or fewer than 4
     non-\code{NA} values, which leaves the possibility, though not the guarantee, of
-    two distinct values in one group and two values in another, and then removes
-    observations with fewer than \code{n_features_min} non-\code{NA} values. Neither
-    screen is a statement about \code{config$frm}: the filtering that knows the design
-    is \code{h0testr::filter()}, which runs after normalization and aggregation.
+    two distinct values in one group and two values in another. Removes
+    observations with fewer than \code{n_features_min} non-\code{NA} values. 
   \code{config$n_samples_min} and \code{config$n_features_min} are deliberately not
     consulted here. They are the thresholds of \code{h0testr::filter()}, and they are
     meant to be applied to the aggregated data that step sees, not to the precursor
-    level table this one gets: \code{config$n_features_min} in particular defaults to
-    1000, which is a sensible count of protein groups per observation and would
-    discard nearly every observation if applied here. The feature thresholds above are
-    therefore fixed, and \code{n_features_min} is this function's own argument.
+    level table this one gets.
   A value is missing if and only if it is \code{NA}; raw zeros are converted to
     \code{NA} by \code{h0testr::initialize()}, which runs first.
   Reports the state before and after each of the two screens.

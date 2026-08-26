@@ -4,33 +4,20 @@
 #' @details
 #'   Uses the \code{proDA::proDA()} function. Returned results sorted by p-value.
 #'   Returns peptide/precursor/gene-level hypothesis testing results based on 
-#'     peptide/precursor/gene-level input. That is, testing is on features of 
-#'     the input, so have to aggregate data to the desired level for 
-#'     hypothesis testing first. Main feature of this method is its native
-#'     handling of missing values.
+#'     peptide/precursor/gene-level input. Natively handles missing values.
 #'   When \code{config$test_term} resolves to a single design matrix column, that
 #'     column is tested by \code{proDA::test_diff()} as a single contrast, and
 #'     \code{logFC} is the corresponding coefficient: for a two level factor, the non
 #'     reference level minus the reference level declared in
-#'     \code{config$reference_levels}. When it resolves to several columns, which by
-#'     the marginality rule it does for a factor with more than two levels and for a
-#'     variable appearing in an interaction, all of them are tested jointly, as a
-#'     likelihood ratio test of the full model against the model with those columns
-#'     dropped. That test is reported as an F statistic with \code{logFC} \code{NA},
-#'     there being no single difference to report, as for the F tests of
+#'     \code{config$reference_levels}. When it resolves to several columns, all of them are 
+#'     tested jointly, as a likelihood ratio test of the full model against a reduced model. 
+#'     Reported as an F statistic with \code{logFC} \code{NA}, as for the F tests of
 #'     \code{h0testr::test_trend()} and \code{h0testr::test_voom()}.
 #'   Testing the intercept (\code{config$test_term} \code{"1"}) is supported:
 #'     \code{proDA::proDA()} renames that column \code{Intercept}, and the contrast is
 #'     looked up under that name.
 #'   The one formula this method cannot take that the others can is a
-#'     \code{config$test_term} that leaves no parameters in the reduced model, which
-#'     happens when \code{config$frm} suppresses the intercept and
-#'     \code{config$test_term} names every remaining term (\code{~0+grp} testing
-#'     \code{"grp"}). \code{proDA} cannot fit a model with no parameters, so that is
-#'     refused with an informative error; use \code{h0testr::test_lm()},
-#'     \code{h0testr::test_trend()}, \code{h0testr::test_voom()} or
-#'     \code{h0testr::test_prolfqua()} for it, or keep the intercept in
-#'     \code{config$frm}, which is the usual comparison among levels in any case.
+#'     \code{config$test_term} that leaves no parameters in the reduced model.
 #'   See documentation for \code{h0testr::new_config()}
 #'     for more detailed description of configuration parameters.
 #' @param state List with elements like those returned by \code{read_data()}:
@@ -57,8 +44,7 @@
 #' @param prior_df Strictly positive count (\code{location_prior_df}) indicating number of dfs for prior.
 #' @param maxit Strictly positive count indicating maximum number of iterations for \code{proDA::proDA()} algorithm.
 #'   Reachable only by calling this function directly: \code{h0testr::test()} passes no
-#'   value for it and no \code{config} key carries one, so a workflow run gets the default.
-#'   Unlike \code{prior_df}, which \code{config$test_prior_df} answers.
+#'   value for it and no \code{config} key carries one.
 #' @return
 #'   A list with components:
 #'   \tabular{ll}{
@@ -89,9 +75,7 @@
 #' rm(samps, sim)
 #'
 #' ## no grp:sex term here, so testing "grp" is the single coefficient grptrt, and a
-#' ##   fold change is reported. Adding one would, by marginality, make it a joint
-#' ##   test of grptrt and grptrt:sexM, run as a likelihood ratio test reporting an F
-#' ##   statistic and no fold change:
+#' ##   fold change is reported:
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
 #'
 #' ## actual test:
@@ -105,41 +89,17 @@ test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit
 
   is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
     "test_proda")
-  
-  ## the design columns carrying the test, derived before the fit so that a
-  ##   config$test_term that does not fit config$frm is an error before the
-  ##   expensive part rather than after it. f.parse_frm()$frm is handed to
-  ##   proDA::proDA() below, not config$frm: proDA::proDA() builds its own design,
-  ##   as model.matrix(design, col_data), and the reduced model given to
-  ##   proDA::test_diff() further down is this design$X with columns removed by
-  ##   position, so the two designs have to be the same matrix. They are not for a
-  ##   two sided config$frm, whose response model.matrix() would have to find in
-  ##   col_data, nor for a formula writing an interaction ahead of its variables,
-  ##   which changes the order stats::model.matrix() names the interaction column in:
 
-  ## proDA::proDA() builds its own design from col_data and the formula, so the
-  ##   covariates have to reach it with the level ordering config resolves, exactly
-  ##   as they reach f.design_test_cols() below; otherwise the two designs differ in
-  ##   which level is the reference, which the column name check further down
-  ##   reports rather than letting it through. A no-op for a run that came through
-  ##   test(); this function is exported, so it does not rely on that:
+  ## proDA::proDA() builds its own design from col_data and the formula:
 
   state <- f.relevel_state_covariates(state, config, caller="test_proda")
-
   design <- f.design_test_cols(state, config)
   cols_pick <- colnames(design$X)[design$cols_test]
 
   fit <- proDA::proDA(state$expression, design=design$parsed$frm, col_data=state$samples,
     data_is_log_transformed=is_log_transformed, location_prior_df=prior_df, max_iter=maxit)
 
-  ## proDA::proDA() renames '(Intercept)' to 'Intercept'; past that its design
-  ##   should be column for column the one above, being the same model.matrix()
-  ##   call on the same data. Checked rather than assumed, since a divergence would
-  ##   have the reduced model below drop columns by position from one design and be
-  ##   compared against the other, which is a different hypothesis than the one
-  ##   config$test_term names and than filter_features_by_estimability() screened
-  ##   features against. The Wald branch would catch it looking its coefficient up
-  ##   by name; the likelihood ratio branch has no name to look up:
+  ## proDA::proDA() renames '(Intercept)' to 'Intercept':
 
   cols_want <- colnames(design$X)
   cols_want[cols_want %in% "(Intercept)"] <- "Intercept"
@@ -152,19 +112,11 @@ test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit
   }
 
   ## config$contrast goes to the likelihood ratio branch below whatever it weights.
-  ##   proDA::test_diff() does take a contrast expression, so a one degree of freedom
-  ##   Wald test is available, but the constrained design f.design_contrast() has
-  ##   already built reaches the same hypothesis through the interface used here for
-  ##   every joint test, with no second parsing of the contrast by proDA to disagree
-  ##   with f.contrast_vector() about what was weighted:
+  ##   proDA::test_diff() takes a contrast expression, so one df Wald test is available:
 
   if(is.null(design$contrast) && length(design$cols_test) %in% 1) {
 
-    ## one design column carries the test, so the Wald test on that coefficient is
-    ##   the test config$test_term names. See test_deqms() for what selecting by
-    ##   coefficient name used to hide. proDA::result_names() quotes coefficient
-    ##   names containing ':', and knows the intercept under the name proDA::proDA()
-    ##   renamed it to, which is the column config$test_term '1' selects:
+    ## one design column carries the test, so the Wald test on that coefficient:
 
     col_pick <- cols_pick
     if(col_pick %in% "(Intercept)") col_pick <- "Intercept"
@@ -181,28 +133,10 @@ test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit
 
   } else {
 
-    ## several design columns carry the test, which no single contrast can express,
-    ##   so compare the full model against the reduced model f.design_test_cols()
-    ##   formed by dropping them: a likelihood ratio test over all of them at once,
-    ##   which is the test the marginality rule makes config$test_term mean.
-    ##   Handed over as a matrix rather than as formula text, so that the models
-    ##   compared are the two f.design_test_cols() already derived, with no second
-    ##   derivation of factor level ordering or of interaction column naming to
-    ##   disagree with the first. Reported as an F statistic with no fold change,
-    ##   like the other multiple coefficient tests, there being no single
-    ##   difference to report:
-
+    ## several design columns carry the test, which no single contrast can express:
     x_red <- design$X_red
 
-    ## no columns left in the reduced model, which f.design_test_cols() has already
-    ##   warned about: config$frm suppresses the intercept and config$test_term names
-    ##   every remaining term, so the test is of whether the means are all zero rather
-    ##   than of whether they differ. The OLS and limma based methods fit a model with
-    ##   no parameters and run that test; proDA::proDA() cannot, and
-    ##   proDA::test_diff() reports the empty reduced model from deep inside itself as
-    ##   "'d' must be a nonempty numeric vector", which names neither the reduced model
-    ##   nor config$frm:
-
+    ## no columns left in the reduced model:
     if(ncol(x_red) %in% 0) {
       f.err("test_proda: dropping config$test_term '", config$test_term,
         "' leaves a reduced model with no parameters, which proDA cannot fit;", "\n",
@@ -214,9 +148,8 @@ test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit
         config=config)
     }
 
-    ## proDA::test_diff() requires a full rank reduced model, and reports a rank
-    ##   deficient one as colinear covariates, which says nothing about which part
-    ##   of config$frm is responsible:
+    ## proDA::test_diff() requires a full rank reduced model;
+    ##   reports rank deficient one as colinear:
 
     rank_red <- f.design_rank(x_red)
 

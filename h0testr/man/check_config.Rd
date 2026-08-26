@@ -19,34 +19,8 @@ Check configuration list for recognizable names and proper value types.
 Only checks parameters in the configuration. Does not complain about
     missing settings.
   A numeric parameter has to be a single finite value. \code{NA} and
-    \code{NaN} are refused by name, having reached a comparison as R's own
-    "missing value where TRUE/FALSE needed" before, and so is an infinite
-    count, which used to pass every check since \code{Inf == round(Inf)}. An
-    infinite proportion is refused as out of range rather than as not finite,
-    which says more about a proportion.
-  Beyond the type of each value, the combinations that no other setting can rescue
-    are refused here rather than at the step that would meet them:
-    \code{config$test_method} outside \code{h0testr::test_methods()},
-    \code{config$normalization_method} outside \code{h0testr::normalize_methods()},
-    \code{config$impute_method} outside \code{h0testr::impute_methods()}, and
-    \code{config$feature_aggregation} outside \code{"medianPolish"},
-    \code{"robustSummary"} and \code{"none"}, each of which would otherwise be found
-    only when that step ran, which for \code{config$impute_method} is after the whole
-    rest of the workflow; \code{""} is allowed for all four and means unset, the step's
-    own \code{method} argument naming the method instead, and
-    \code{config$test_method} additionally allows \code{"none"}, which skips the test
-    step so that \code{h0testr::run()} returns the processed state with no result;
-    \code{config$contrast} and \code{config$test_term} both naming something to
-    test, one run testing one hypothesis; \code{config$test_ridge=TRUE} on a
-    mean model that cannot carry a penalty, which needs at least two non-intercept
-    columns; and a \code{config$run_order} naming a step that is not one of the
-    workflow steps \code{h0testr::run()} can walk, which would otherwise fail as an
-    "object not found" partway through the workflow, with the steps before it already
-    done. A step named twice is not refused, since running one again may be meant;
-    \code{h0testr::run()} warns about it once, its output files being named after the
-    first occurrence. The limits that depend on the data rather than on the configuration,
-    such as how many features a gene has, stay with the engine that meets them; see
-    \code{h0testr::test_msqrob()} and \code{h0testr::test_deqms()}.
+    \code{NaN} are refused. An infinite proportion is refused as out of
+    range rather than as not finite, which says more about a proportion.
   A setting that the chosen method does not consult is not refused and is not
     reported here: it is a \code{NOTE} from \code{h0testr::test()}, which every
     workflow calls once, this function being called once per step.
@@ -75,8 +49,8 @@ config <- h0testr::new_config()
 config$impute_method <- "unif_sample_lodd"
 try(h0testr::check_config(config))
 
-## invalid: a config written against a version that had the key; says what happened
-##   to it rather than only naming it:
+## invalid: a config written against a version that had the key; refused by name
+##   rather than ignored:
 config <- h0testr::new_config()
 config$feature_aggregation_scaled <- TRUE
 try(h0testr::check_config(config))

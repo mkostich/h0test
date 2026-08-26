@@ -56,13 +56,8 @@ Uses the \code{MsCoreUtils::normalize_matrix()} function to normalize
     any missing value. \code{preprocessCore} assigns values by rank within
     each observation, and a missing value takes a rank of its own, so it
     comes back at that rank in every observation, on whichever feature sorts
-    there rather than on the one it was missing from. Measured on a 30 x 6
-    matrix: one gap became six missing cells in five different features, 15
-    scattered gaps became 60, and an observation measuring nothing turned all
-    180 values missing. Values are relocated rather than only lost, and
-    nothing downstream can tell a feature emptied that way from one never
-    measured. The other four methods here return the missing values they were
-    given, in the cells they were given them in;
+    there rather than on the one it was missing from. The other four methods 
+    here return the missing values they were given, in the cells they were given them in;
     \code{h0testr::normalize_qquantile()} matches quantiles across
     observations without the robust trimming and without moving anything.
   See documentation for \code{MsCoreUtils::normalize_matrix()} for details of each method.

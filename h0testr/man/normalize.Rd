@@ -52,14 +52,14 @@ A list with the following two elements:
 }
 \description{
 Normalize expression data to reduce effects of technical differences 
-    between samples.
+    between obervations.
 }
 \details{
 Inter-observation normalization using any of the methods available in 
     the \code{h0testr} package. See individual methods for more details. 
     Normalizes \code{state$expression}. Does not affect 
     \code{state$features} or \code{state$samples}.
-  Every method other than \code{"none"} leaves the data log transformed, so
+  Every method other than \code{"none"} leaves data log transformed, so
     \code{config$is_log_transformed} is set to \code{TRUE} on return and the
     rest of the workflow reads the scale from there rather than tracking it.
     For that reason a method other than \code{"none"} is an error when
@@ -77,15 +77,10 @@ Inter-observation normalization using any of the methods available in
     observation, on whichever feature sorts there rather than on the one it
     was missing from. Normalization comes before imputation, so that is most
     matrices; \code{"qquantile"} matches quantiles across observations
-    without moving anything. See \code{h0testr::normalize_mscoreutils()}.
+    without changing anything. See \code{h0testr::normalize_mscoreutils()}.
   An observation with no measured value is reported whatever the method, since
-    there is nothing in it for an inter-observation method to work with. Most
-    methods carry it through as the all-NA column it already was, so it is a
-    warning; the \code{edgeR} methods and \code{"qquantile"} cannot proceed on
-    one and refuse it, in \code{h0testr::normalize_edger()} and
-    \code{h0testr::normalize_qquantile()} respectively. Either way,
-    \code{h0testr::filter_observations()} is where such an observation is
-    meant to be dropped.
+    there is nothing for an inter-observation method to work with. Such observations
+    should be dropped beforehand by, \code{h0testr::filter_observations()}.
   A single feature is normalized by whichever method can do it, with a
     \code{WARNING} from here: ten of the sixteen methods return the same
     value for every observation, so every difference between observations is

@@ -58,8 +58,7 @@ Only \code{NAs} considered missing. If you want \code{0} to be considered
   }
 }
 \examples{
-## setup state and config, including prefiltering. No effects are planted, these
-##   examples being about missing values rather than about testing:
+## setup state and config, including prefiltering:
 set.seed(101)
 samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
   n_per_cell=3)
@@ -85,10 +84,8 @@ state2 <- h0testr::impute_pca(state, config, method="ppca",
 summary(c(state2$expression))   ## Note number of NAs
 round(head(state2$expression))
 
-## impute as linear combo of \code{n_pcs} eigengenes; on these data the
-##   reconstruction runs a few cells below the raw scale's floor of zero,
-##   which cannot be a measurement, so this stops rather than nudging the
-##   offending values upward into fabricated ones:
+## raw example impute as linear combo of n_pcs eigengenes,
+##   which can yield below 0 measurements so wrap in try():
 try(h0testr::impute_pca(state, config, method="svdImpute",
   is_log_transformed=FALSE))
 

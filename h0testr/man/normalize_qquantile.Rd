@@ -25,16 +25,13 @@ A list (the processed state) with the following elements:
   }
 }
 \description{
-Normalize expression values using the 'quantile normalization' algorithm.
+Normalize expression values using 'quantile normalization'.
 }
 \details{
 Inter-observation normalization resulting in nearly identical
     signal distributions across all samples, so all quantiles in \code{0:1} match
     across all samples. Calls \code{limma::normalizeQuantiles()} under the hood.
-  An observation with no measured value is refused here, since there is
-    nothing in it to normalize: \code{limma} reports it as \code{"'x' and 'y'
-    lengths differ"}, which names neither the observation nor what to do
-    about it. Drop such observations with
+  An observation with no measured value is refused. Drop such observations with
     \code{h0testr::filter_observations()} first.
   A single feature is refused as well: quantiles are matched by
     interpolating between the values of each observation, and a single

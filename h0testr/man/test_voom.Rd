@@ -51,9 +51,7 @@ Tests for differential expression using the \code{limma::voom()} function.
 The \code{limma::voom()} model is fit to \code{config$frm} and a test
     is performed for whether the effect of \code{config$test_term} on
     \code{state$expression} is zero.
-  Coefficients are selected exactly as in \code{h0testr::test_trend()}: the design
-    matrix columns assigned to \code{config$test_term} and to every term
-    containing it, so naming a variable that also appears in an interaction gives a
+  Naming a variable that also appears in an interaction gives a
     joint test over the interaction as well. One coefficient gives a moderated
     t-test with a \code{logFC} column, several give an F-test with an \code{F}
     column.
@@ -62,15 +60,12 @@ The \code{limma::voom()} model is fit to \code{config$frm} and a test
     abundances.
   \code{limma::voom()} fits one mean-variance trend across the whole matrix and
     has no handling for a missing value, so a feature carrying any is held out of
-    the fit and does not appear in the result, which therefore has one row per
-    tested feature rather than one per feature of \code{state}. How many were held
+    the fit and does not appear in the result. How many were held
     out, and the first few of them, are logged. If fewer than two features are
-    left, which is the smallest number \code{limma::voom()} can fit a
-    mean-variance trend to, the call is refused here rather than failing inside
-    \code{limma::voom()}: impute first, see \code{h0testr::impute()}, or use a
+    left, the call is refused: impute first, see \code{h0testr::impute()}, or use a
     method that does not need complete features, such as \code{h0testr::test_lm()}.
-  See documentation for \code{h0testr::new_config()}
-    for more detailed description of configuration parameters.
+  See documentation for \code{h0testr::new_config()} for detailed description of 
+    configuration parameters.
 }
 \examples{
 set.seed(101)

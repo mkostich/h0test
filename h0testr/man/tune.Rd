@@ -26,19 +26,15 @@ tune(
 \item{normalization_methods}{Character vector of methods to try. One or more element of
 \code{h0testr::normalize_methods()}, or \code{"q50"} or \code{"q75"}, which are
 \code{"quantile"} at a \code{normalization_quantile} of \code{0.5} and \code{0.75}.
-Defaults to every method \code{h0testr::normalize_methods()} names, with
+Default: every method returned by \code{h0testr::normalize_methods()}, with
 \code{"quantile"} entered as those two. \code{"loess"} is the slowest of them, so
-drop it from the list if the sweep takes too long. A name outside that set is refused
-before the sweep starts, rather than surfacing partway through from inside
-\code{normalize()}, which reports the argument it was handed rather than the sweep that
-handed it over. \code{"none"} is accepted: not normalizing is something a sweep has a
+drop it from the list if the sweep takes too long. A name outside that set is refused. 
+\code{"none"} is accepted: not normalizing is something a sweep has a
 use for comparing against.}
 
 \item{impute_methods}{Character vector of methods to try. One or more of:
 \code{c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", "knn", "min_det", "min_prob", "qrilc", "bpca", "ppca", "svdImpute", "lls", "missforest", "none")}.
-A name that is not one of \code{h0testr::impute_methods()} is refused before the sweep
-starts, rather than three loops down, after every earlier combination has already been
-run. \code{"none"} is accepted here too, for the same reason.}
+A name not returned by \code{h0testr::impute_methods()} is refused.}
 
 \item{impute_quantiles}{Numeric vector of quantiles to try for \code{impute_unif_*} methods. 
 One or more values between \code{0.0} and \code{1.0}.}
@@ -56,10 +52,9 @@ See \code{impute_rnorm_feature()} \code{scale}. parameter.}
 \code{h0testr::test_methods()}. Defaults to every method except
 \code{"prolfqua_lmer"} and \code{"msqrob_agg"}, each of which fits a mixed model
 per gene and so costs orders of magnitude more time per cell than the rest of the
-sweep put together; name either explicitly to include it. A name that is not one of
-\code{h0testr::test_methods()} is refused before the sweep starts, rather than after
-the combination it appears in has been normalized and imputed. That includes
-\code{"none"}, which \code{config$test_method} accepts as "skip the test step": a
+sweep put together; name explicitly to include. A name not returned by
+\code{h0testr::test_methods()} is refused. That includes
+\code{"none"}, which is interpreted as "skip the test step": a
 sweep over not testing has nothing to compare.}
 }
 \value{
@@ -90,38 +85,16 @@ A data.frame with the following columns:
     those nine by name, so renaming or dropping one of them there is refused rather
     than silently changing what is being compared.
   A combination that could not be tested yields a row with \code{nhits} and
-    \code{ntests} set to \code{NA} rather than aborting the sweep, and the reason
-    is written to \code{config$log_file}. This happens when too few samples or
-    genes survive filtering. It no longer happens because \code{test_method} cannot
-    express the test \code{config$test_term} implies: every method now tests as many
-    coefficients jointly as \code{config$test_term} carries. \code{"deqms"} and
-    \code{"msqrob"} were the two that could not, and both were bounded at their APIs
-    rather than by their fits: \code{msqrob2::hypothesisTest()} returns one table per
-    column of the contrast, and \code{DEqMS::spectraCounteBayes()} moderates one
-    coefficient's t-statistic, while a joint test needs only the fitted coefficients
-    and, for \code{"deqms"}, the per-gene variance that same function fits. Both now
-    report a joint test computed from those; see \code{h0testr::test_msqrob()} and
-    \code{h0testr::test_deqms()}.
-    \code{"proda"} and \code{"prolfqua"} were bounded by neither,
-    testing several coefficients jointly: \code{"proda"} by likelihood ratio and
-    \code{"prolfqua"} by an F-test comparing the full design against the design
-    with the tested columns removed, with the error variance moderated across
-    features as the \code{limma}-based methods do.
-    \code{"prolfqua_lmer"} is unbounded in the same way, testing the same
-    coefficients by a Satterthwaite Wald F from one mixed model per gene, and
-    \code{"msqrob_agg"} by a joint Wald F from one \code{msqrob2} mixed model per
-    gene.
-    \code{"deqms"} is also skipped when every gene has the same number of
-    features, there being no spread for its variance prior to be fitted against;
-    see \code{h0testr::test_deqms()}. \code{"prolfqua_lmer"} and
-    \code{"msqrob_agg"} are skipped when
+    \code{ntests} set to \code{NA}. This happens when too few samples or
+    genes survive filtering. 
+    \code{"deqms"} is skipped when every gene has the same number of
+    features, there being no spread for its variance prior to be fitted against.
+    \code{"prolfqua_lmer"} and \code{"msqrob_agg"} are skipped when
     \code{config$feat_id_col} and \code{config$gene_id_col} name one column, there
-    being no feature level for them to model; see
-    \code{h0testr::test_prolfqua()} and \code{h0testr::test_msqrob()}.
-    Any other failure of the test step is caught the same way, so that one
+    being no feature level for them to model.
+    Other failures of the test step are caught the same way, so that one
     combination an engine cannot fit costs that cell and not the rest of the
-    sweep; the error is written to \code{config$log_file} in full, immediately
-    above the line naming the combination it belongs to.
+    sweep.
     \code{h0testr::tune_check()} counts these \code{NA} \code{nhits} as zero hits,
     but gives such a row no \code{fdr}, so that a combination which never ran is
     not ranked above every combination that did.
@@ -156,11 +129,7 @@ Run a basic tuning loop that iterates over parameter combinations,
     \code{df_resid_min}, \code{test_prior_df}, \code{test_moderate}, \code{test_trend},
     \code{test_random_obs} and \code{test_ridge}. To compare two values of one of those,
     run one sweep per value.
-  \code{config$run_order} is not read at all: the step sequence above is fixed. A
-    \code{config$run_order} that reorders or omits steps, which \code{h0testr::run()}
-    honors, therefore sweeps a different pipeline than the one it names. The one
-    departure from the sequence is \code{combine_features()}, which is skipped for the
-    test methods that take feature level input; see \code{h0testr::run()}.
+  \code{config$run_order} is not read at all: the step sequence above is fixed. 
   See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.
 }

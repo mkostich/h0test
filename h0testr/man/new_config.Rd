@@ -15,12 +15,12 @@ Returns a configuration list filled with defaults and
     other functions.
 }
 \details{
-This function is meant to simplify generation of configurations for 
+Simplifies generation of configurations for 
     higher level functions, like \code{h0testr::run()}, or 
     \code{h0testr::tune()}. For most other functions, you can pass a 
     simpler config as a list containing only the needed parameters. See 
-    documentation and examples for the function of interest for the minimal 
-    configuration needed.
+    documentation of the function of interest for the minimal 
+    configuration needed and relevant examples.
   For hypothesis testing or calls to \code{h0testr::initialize()},
     customize \code{frm}, \code{test_term}, and \code{reference_levels}.
   \code{contrast} is the alternative to \code{test_term}: it names a weighted
@@ -31,12 +31,10 @@ This function is meant to simplify generation of configurations for
     \code{"`sexM:batchb2`"}. Constants may scale a coefficient; two coefficient
     names may not be multiplied together, that not being a weighted sum.
   The two are mutually exclusive and one run tests one hypothesis, so set
-    \code{test_term} to \code{""} to test a contrast. The difference is what
-    each answers: \code{test_term} obeys marginality, testing the named term
-    together with every term containing it, which for a factor of more than two
-    levels is a joint test over all of its coefficients; a contrast is one
-    degree of freedom, so it can compare two particular levels, and reaches
-    \code{test_method="deqms"}, which cannot run a joint test at all.
+    \code{test_term} to \code{""} to test a contrast. The \code{test_term} obeys 
+    marginality, testing the named term together with every term containing it; 
+    a contrast is one degree of freedom, so it can compare two particular levels, 
+    using \code{test_method="deqms"}, which cannot run a joint test at all.
   When using the config to load data from files (e.g. by calling 
     \code{h0testr::load_data(config)}), calling 
     \code{h0testr::initialize()}, or for aggregating multiple 
@@ -45,26 +43,24 @@ This function is meant to simplify generation of configurations for
     \code{h0testr::combine_precursors()}), you should customize 
     \code{feat_id_col}, \code{gene_id_col}, \code{sample_id_col}, 
     and \code{obs_id_col}. In these cases, leave \code{feat_col} and
-    \code{obs_col} as \code{""} (they will be automatically set and 
-    changed after observation or precursor aggregation.
+    \code{obs_col} as \code{""} (automatically set and 
+    changed after observation or precursor aggregation).
   Otherwise, you may only need to set \code{feat_col} and \code{obs_col}.
-    see examples for the function of interest to see what is needed.
+    see examples in documentation of the function of interest.
   \code{is_log_transformed} declares the scale of \code{state$expression} and
     is the single place the rest of the package looks to find it out. The
     default \code{FALSE} says the input is raw, so \code{h0testr::initialize()}
-    converts zeros to \code{NA} and rejects negative values, and
-    \code{h0testr::normalize()} may transform it. Set it to \code{TRUE} for
+    converts zeros to \code{NA} and rejects negative values. Set it to \code{TRUE} for
     input that has already been log transformed or otherwise put on a log-like
-    scale: zeros and negative values are then left alone,
-    \code{h0testr::normalize()} accepts no method other than \code{"none"},
-    and the imputation and testing functions know not to transform it again.
+    scale: zeros and negative values are then left alone, \code{h0testr::normalize()} 
+    accepts no normalization method other than \code{"none"},
+    and imputation as well as testing functions know not to transform it.
     \code{h0testr::normalize()} sets it to \code{TRUE} once it has transformed
     the data, so a workflow does not have to track the scale itself.
   \code{impute_floor_offset} is an offset, in log2 units, from the global
-    minimum observed value, and it is used only when
-    \code{is_log_transformed} is \code{TRUE}. The \code{unif_} imputation
-    methods draw from an interval whose lower bound is
-    \code{min(state$expression, na.rm=TRUE) + impute_floor_offset}. The
+    minimum observed value; only used when \code{is_log_transformed} 
+    is \code{TRUE}. The \code{unif_} imputation methods draw from an interval whose 
+    lower bound is \code{min(state$expression, na.rm=TRUE) + impute_floor_offset}. The
     default \code{-1} puts that bound one log2 unit below the dimmest value
     actually measured, so the interval has width even when
     \code{impute_quantile} is \code{0}. A less negative value narrows the

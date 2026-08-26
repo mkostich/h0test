@@ -58,86 +58,28 @@ Combines signals from lower-level features, like peptides,
     \code{unknown_} followed by its feature id, rather than all such features
     being pooled into one group.
   The returned \code{state$features} has one row per gene and keeps only those
-    columns whose value is the same for every feature of a gene. A column that
-    varies within a gene describes the feature rather than the gene, so it has
-    no gene level value; carried forward it would report whichever feature
-    happened to come first. The dropped columns are named in the log. This
-    always removes \code{config$feat_id_col}, and removes the per-feature
-    statistics \code{h0testr::add_filter_stats()} writes, which
-    \code{h0testr::filter()} recomputes for the aggregated features.
+    columns whose value is the same for every feature of a gene. 
   Adds \code{config$n_feats_col} (default \code{"n_feats"}), the number of
     features aggregated into each gene. This is the covariate
-    \code{h0testr::test_deqms()} moderates against, so recording it here lets
-    that method run on an already aggregated state. An existing column of that
-    name is preserved rather than recomputed, since a table that has been
-    aggregated once has one feature per gene and recounting would report
-    \code{1} for every gene.
+    \code{h0testr::test_deqms()} moderates against. 
   \code{rescale=TRUE} is refused unless \code{method} is \code{"none"}, where
-    nothing is aggregated and the setting is reported as ignored. The config
-    key that used to set it, \code{config$feature_aggregation_scaled}, has been
-    removed, having only ever been refused. It divided each feature
-    by its own mean, which is a raw scale operation, and aggregation requires
-    log scale data (see below), where a per-feature mean near zero explodes
-    the feature and a negative one flips the sign of its contrasts. The log
-    scale form of the same idea, subtracting the per-feature mean, is absorbed
-    exactly by \code{medianPolish()}'s own per-feature effect and so changes
-    no per-sample effect, which is why the option is removed rather than
-    corrected.
+    nothing is aggregated and the setting is reported as ignored. 
   Adds \code{config$combine_method_col} (default \code{"combine_method"}),
-    naming the aggregator that summarized each gene. For
-    \code{method="medianPolish"} that is \code{"medianPolish"} throughout; for
-    \code{method="robustSummary"} it is \code{"robustSummary"} except for the
-    gene groups described next. Nothing is added by \code{method="none"},
-    which aggregates nothing. An existing column of that name is preserved
-    rather than overwritten, for the same reason the feature counts are.
+    naming the aggregator that summarized each gene. 
   \code{method="robustSummary"} summarizes a gene group with
     \code{MsCoreUtils::medianPolish()} instead if the group holds two or more
     features and contains a sample whose every measured value in the group is
-    exactly \code{0}. \code{MsCoreUtils::robustSummary()} sheds such a sample
-    from its design, since its coefficient comes back exactly \code{0} as
-    though the design were rank deficient, and reports the sample as
-    \code{NA}, which cannot afterwards be told apart from a sample where the
-    gene was never measured; when every sample qualifies, the design empties
-    and \code{MASS::rlm()} stops instead. \code{medianPolish()} fits the same
-    additive model by medians, so it has no design to shed, and the affected
-    genes are summarized rather than lost. Earlier versions refused the whole
-    run here. Writing \code{NA} for those samples was the other option and is
-    wrong: the failing unit is a (gene, sample) cell, so no choice of features
-    to keep can resolve it, and \code{0} on the log scale this function
-    requires is an ordinary measurement, not a missing one. The count of
-    affected genes and cells is logged and the route recorded per gene, since
-    the two aggregators do not return the same numbers. The rule is
-    deliberately conservative: the offending coefficient sometimes comes back
-    at \code{1e-16} rather than exactly \code{0} and is then summarized
-    correctly, and such a group is routed to \code{medianPolish()} anyway.
-    None of this can arise from raw input, where
-    \code{h0testr::initialize()} converts zeros to \code{NA}; it is reachable
-    only for input that was already transformed and holds genuine zeros.
-    \code{method="medianPolish"} is unaffected throughout.
+    exactly \code{0}. 
   For \code{method="medianPolish"}, for each unique gene in 
     \code{state$features[, config$gene_id_col]}, the submatrix of 
       corresponding peptide signals across all samples is decomposed into: 
       \code{pep_exprs == median_column_effect + median_row_effect + overall_median},
     Then \code{median_column_effect} is returned as it stands. Values at or
       below zero are ordinary on the log scale this function requires, and are
-      returned unaltered; earlier versions added a per-group constant to lift
-      each group's vector strictly positive, which left a per-feature
-      coefficient untouched but moved the feature's average expression, and so
-      the trended prior of \code{limma::eBayes(trend=TRUE)} and the
-      \code{p(missing|intensity)} models of several imputers.
+      returned unaltered.
   \code{stats::medpolish()}, which \code{MsCoreUtils::medianPolish()} calls,
     warns when it runs out of sweeps. That warning is intercepted and reported
-    through the log instead, once per call, naming the affected genes. Its own
-    wording implies that more sweeps would help, and usually they would not:
-    the convergence criterion compares the sum of absolute residuals between
-    successive sweeps, so a residual sum that decays by a constant fraction, or
-    cycles with period 2, never satisfies it however long it runs, even once the
-    summary itself has stopped moving. On 3913 rdtc_seer2 protein groups, 84 did
-    not converge in the 30 sweeps used here, and allowing 1000 left 82 of them
-    unconverged while tripling the time spent aggregating and changing one
-    group's summary by more than \code{0.01}. A minority are genuinely cut
-    short, which is why this is reported rather than suppressed. Any other
-    warning from the fit propagates as usual.
+    through the log instead, once per call, naming the affected genes.
   Both aggregation methods fit an additive model of an overall level plus
     per-feature and per-sample effects, which holds for mass spectrometry
     signal only after a log transform, since sample loading and precursor

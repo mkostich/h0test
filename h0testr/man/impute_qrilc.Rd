@@ -59,9 +59,7 @@ state <- h0testr::filter_observations(state, config, n_features_min=30)
 
 ## untransformed example. QRILC draws from a truncated distribution fitted in
 ##   log space, and a draw below zero there back-transforms to a raw value
-##   below the detection floor of zero, which cannot be a measurement. Whether
-##   that happens depends on the draw, so this is wrapped: on the raw scale
-##   the method can stop for reasons the data alone do not decide.
+##   below zero, which cannot be a measurement, so wrap in try(). 
 state2 <- try(h0testr::impute_qrilc(state, config, is_log_transformed=FALSE))
 summary(c(state$expression))    ## Note number of NAs
 if(!inherits(state2, "try-error")) summary(c(state2$expression))

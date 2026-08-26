@@ -97,15 +97,11 @@ Imputes missing values using a method and parameters specified in
     and \code{h0testr::normalize()} updates, and whichever answers is recorded
     in the returned \code{config} and passed to the method, so that methods
     without an \code{is_log_transformed} argument of their own still see it.
-    Methods that need log scale data transform and back-transform around
-    their own fit; see the individual \code{impute_*} methods.
   Only \code{NA} is missing. If you want \code{0} to be considered missing,
     and have \code{0} in the data, do something like
     \code{exprs[exprs \%in\% 0] <- NA} prior to imputing;
     \code{h0testr::initialize()} does this for raw input.
-  An imputed value that cannot be a measurement is an error rather than a
-    value nudged into range: at or below zero on the raw scale, or infinite on
-    either scale, the latter meaning the method had no signal to work from.
+  An imputed value that cannot be a measurement is an error.
   See documentation for \code{h0testr::new_config()} 
     for more detailed description of configuration parameters.
 }

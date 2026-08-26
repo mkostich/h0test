@@ -45,11 +45,8 @@ feature expression across samples.}
 
 \item{min_fit_pts}{Numeric scalar (at least two): the number of distinct
 feature intensities that must remain after features measured in no sample
-have been dropped, before the missingness fit is attempted. Those features
-have no intensity to fit against, so they are excluded from the fit and
-imputed from the curve the rest determine. Stops with an error when too few
-distinct intensities remain, since the fit is extrapolated across the whole
-intensity range and imputed values are drawn from it. Default: \code{10}.}
+have been dropped, before the missingness fit is attempted. Stops with an 
+error when too few distinct intensities remain. Default: \code{10}.}
 }
 \value{
 An updated `state` list with the following elements:

@@ -57,14 +57,7 @@ against mean feature intensity rather than being flat. Changes the reported answ
 only for \code{method="prolfqua"}; \code{"trend"} always trends; \code{"deqms"}
 accepts it, and it moves the \code{limma} columns of \code{original}, but
 \code{DEqMS} refits the prior from the spectra counts afterward so the reported
-p-value is the one a \code{FALSE} gives; and the rest cannot trend at all. A request
-the resolved method cannot honor, or honors without the reported answer moving, is a
-\code{WARNING} rather than an error, so that an \code{h0testr::tune()} sweep over
-methods does not die on the first method that will not trend. Defaults to
-\code{config$test_trend}, and to \code{FALSE} when that is absent too; unlike
-\code{is_log_transformed}, an argument that disagrees with the configuration simply
-wins, this being a preference rather than a fact about the data. Unrelated to
-\code{method="trend"}, which names a different limma fit.}
+p-value is the one a \code{FALSE} gives; and the rest cannot trend at all.}
 }
 \value{
 A list with the following elements: \cr
@@ -86,15 +79,14 @@ A list with the following elements: \cr
   }
   What \code{logfc} holds depends on how many design matrix columns
     \code{config$test_term} resolves to, which is a property of
-    \code{config$frm} and \code{config$test_term} and so is the same for every
+    \code{config$frm} and \code{config$test_term}; same for every
     row of one result:
   \itemize{
     \item One column: the coefficient of that column, signed. For a two level
       factor that is the difference between its levels on the scale of
-      \code{state$expression}, so a log fold change when the input is log
-      transformed. For a \strong{continuous} covariate it is instead the change
-      \strong{per unit} of that covariate, which is not a fold change between
-      groups and whose size depends on the units the covariate is recorded in:
+      \code{state$expression}; a log fold change when the input is log
+      transformed. For a \strong{continuous} covariate it is the change
+      \strong{per unit} of that covariate, whose size depends on the units the covariate:
       an effect per month is a twelfth of the same effect per year. Thresholds
       on \code{abs(logfc)} therefore have to be chosen with the covariate's
       units in mind, although rankings and p-values are unaffected.
@@ -102,45 +94,25 @@ A list with the following elements: \cr
       single contrast to report, so what is reported is the total swing, the
       range over the observations of the fitted contribution of the terms under
       test. This is the largest difference those terms can account for between
-      any two observations: for a factor of more than two levels, the largest
-      difference between any two of its levels; for a continuous covariate, the
-      slope times the range of the covariate, that is the total change across
-      the observed range. It is unsigned, since several coefficients have no one
-      direction, and it is on the same scale as the single coefficient case.
+      any two observations: for a factor, the largest
+      difference between any two levels; for a continuous covariate, the
+      slope times the range of the covariate. It is unsigned, since several coefficients 
+      have no single direction, and is on same scale as the single coefficient case.
     \item \code{config$contrast}: the weighted sum of the coefficients it names,
       signed, which is the quantity being tested and is on the same scale as the
       single coefficient case. A contrast is one degree of freedom however many
       coefficients it weights, so unlike a joint test it always has one number to
       report. See \code{h0testr::new_config()} for how to write one.
   }
-  Which side supplies \code{logfc} depends on \code{method}, although what the column
-    means does not. On a one column test \code{"trend"}, \code{"voom"},
-    \code{"deqms"}, \code{"msqrob"}, \code{"msqrob_agg"} and \code{"proda"} each
-    carry an effect size in their own result table, and it is reported as it stands;
-    \code{"lm"}, \code{"prolfqua"} and \code{"prolfqua_lmer"} do not, and no method
-    does on a joint test or a \code{config$contrast}, so for those the value is
-    computed here from the fitted coefficients of the columns under test. Both routes
-    give the quantity described above, on the scale of \code{state$expression}, so
-    \code{logfc} is comparable between methods; what differs between them is the
-    model that produced the coefficient, not what the column holds.
-  \code{lod} is narrower than the rest: it is \code{limma}'s \code{B}, the log-odds
-    that a feature is differentially expressed, and only \code{method} \code{"trend"}
+  \code{lod}: it is \code{limma}'s \code{B}, the log-odds
+    that a feature is differentially expressed. Only \code{method} \code{"trend"}
     and \code{"voom"} report it, and only on a one column test. Every other method
-    leaves it \code{NA}, as does any joint test: \code{B} is a quantity of
-    \code{limma}'s posterior odds calculation, nothing else here computes one, and
-    unlike \code{logfc} and \code{expr} it is not filled in afterward. So an empty
-    \code{lod} column says which method ran, not anything about the data.
+    leaves it \code{NA}, as does any joint test.
   \code{feature} holds the value of \code{config$feat_col} identifying the row
     of \code{state$expression} the result describes, except for the gene level
     methods, \code{method \%in\% c("deqms", "msqrob", "msqrob_agg",
     "prolfqua_lmer")}, which report one row per value of
-    \code{config$gene_id_col} whatever level the input is at. So a
-    method other than those reports precursors when handed precursors and
-    genes when handed the output of \code{h0testr::combine_features()}, which
-    sets \code{config$feat_col} to \code{config$gene_id_col}. The feature
-    metadata reported in \code{original} is at the matching level: for the gene
-    level methods it is the gene level form of \code{state$features},
-    built exactly as \code{h0testr::combine_features()} builds it.
+    \code{config$gene_id_col} whatever level the input is at. 
   \code{expr} is the mean of the values handed to the test, over the
     observations where the feature was seen; for the gene level methods, which
     take feature level input and report gene level results, it
@@ -179,17 +151,7 @@ Tests for differential expression using method specified in config.
     \code{prolfqua_lmer} \cr \tab Use \code{prolfqua::strategy_lmer()}: one mixed model per gene over the rows of its features, with the feature and the observation as random effects. \cr
     \code{voom}   \cr \tab Use \code{limma::voom()}. \cr
   }
-  Most methods are row-wise on \code{state$expression} and return one row per row of
-    it, so their granularity follows the input. \code{"deqms"}, \code{"msqrob"},
-    \code{"msqrob_agg"} and \code{"prolfqua_lmer"} return one row per gene whatever
-    the input is: the first two aggregate internally, and the last two model the
-    features of a gene instead of aggregating them, \code{"msqrob_agg"} aggregating
-    only to carry the result. \code{h0testr::tune()} therefore does not call
-    \code{combine_features()} before those four, and \code{h0testr::run()} should be
-    given a \code{config$run_order} without it; \code{"prolfqua_lmer"} and
-    \code{"msqrob_agg"} need feature level input and refuse a state whose features
-    are already aggregated.
-  The two feature level mixed model paths fit the same random structure by different
+  Two feature level mixed model paths fit the same random structure by different
     engines. \code{"prolfqua_lmer"} takes Satterthwaite degrees of freedom for the
     tested contrast and is the better calibrated of the two; \code{"msqrob_agg"}
     reports \code{msqrob2}'s moderated t against \code{dfPosterior}, which is
@@ -197,30 +159,6 @@ Tests for differential expression using method specified in config.
     \code{h0testr::test_msqrob()} for the simulated rejection rates.
   Several settings are read by some engines and not by others, so one set on a run
     whose method does not consult it does nothing at all:
-    \code{config$test_random_obs} is read by \code{"prolfqua_lmer"} and
-    \code{"msqrob_agg"}, and \code{config$test_ridge} by \code{"msqrob_agg"}. Such a
-    setting is reported as a \code{NOTE} in the log rather than refused, and only when
-    its value differs from the one \code{h0testr::new_config()} ships:
-    \code{h0testr::tune()} sets one configuration and varies the method, so most
-    combinations of a sweep carry a setting meant for one of the others. Said here,
-    once per run, rather than in \code{h0testr::check_config()}, which every step of
-    the workflow calls.
-  The trended variance prior is the same kind of setting, but is resolved here for
-    every method rather than read by each: the \code{trend} argument answers when
-    given and \code{config$test_trend} otherwise, and the resolved value is passed to
-    \code{"prolfqua"}, where it fits the prior against mean feature intensity, and to
-    \code{"deqms"}, where it sets \code{limma::eBayes(trend=)} but does not change what
-    is reported: \code{DEqMS} fits its own prior from quantities
-    \code{limma::eBayes()} leaves alone, so only the \code{limma} columns of
-    \code{original} move. \code{"trend"} always trends, that being its
-    definition, so \code{TRUE} is silent there and only an explicit \code{FALSE} draws
-    a remark. The remaining methods cannot trend: \code{"lm"} and \code{"msqrob"} do
-    not moderate against a covariate, \code{"proda"} fits its own prior, \code{"voom"}
-    carries the mean-variance relationship in its precision weights so a trended prior
-    would count it twice, and the mixed paths have a Satterthwaite denominator rather
-    than one residual variance to shrink. A \code{TRUE} reaching one of those is a
-    \code{WARNING} in the log, not a refusal, for the same \code{h0testr::tune()}
-    reason.
   See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.
 }

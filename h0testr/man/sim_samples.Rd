@@ -34,7 +34,7 @@ A \code{data.frame} with one row per sample and columns:
   }
 }
 \description{
-Builds a sample-level annotation \code{data.frame} for \code{\link{sim_design}} from a
+Builds sample-level annotation \code{data.frame} for \code{\link{sim_design}} from a
   crossing of factor levels and a set of continuous covariates.
 }
 \details{
@@ -47,16 +47,8 @@ Rows are one biological sample each; \code{\link{sim_design}} expands technical 
     shuffle   \cr \tab \code{samps <- samps[sample(nrow(samps)), ]} \cr
     confound  \cr \tab \code{samps$age <- samps$age + 10 * (samps$sex == "M")} \cr
   }
-  The last of those matters: a covariate drawn independently of the term of interest is a
-  nuisance covariate, not a confounder, and adjusting for it cannot go wrong.
-
-  Rows are returned in \code{expand.grid()} order rather than shuffled, since a systematic
-  ordering is the worst case for confounding with run order and so is worth having by default.
-
   The default covariate draw is standard normal rather than uniform because a uniform
-  covariate has no tails and so never presents a high-leverage observation. Its scale does
-  not matter to the effect size in any case, \code{\link{sim_design}} scaling continuous
-  covariates to their own SD.
+  covariate has no tails and so never presents a high-leverage observation.
 }
 \examples{
 ## balanced crossing, three samples per cell:

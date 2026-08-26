@@ -5,9 +5,7 @@
 #'   The \code{limma::voom()} model is fit to \code{config$frm} and a test
 #'     is performed for whether the effect of \code{config$test_term} on
 #'     \code{state$expression} is zero.
-#'   Coefficients are selected exactly as in \code{h0testr::test_trend()}: the design
-#'     matrix columns assigned to \code{config$test_term} and to every term
-#'     containing it, so naming a variable that also appears in an interaction gives a
+#'   Naming a variable that also appears in an interaction gives a
 #'     joint test over the interaction as well. One coefficient gives a moderated
 #'     t-test with a \code{logFC} column, several give an F-test with an \code{F}
 #'     column.
@@ -16,15 +14,12 @@
 #'     abundances.
 #'   \code{limma::voom()} fits one mean-variance trend across the whole matrix and
 #'     has no handling for a missing value, so a feature carrying any is held out of
-#'     the fit and does not appear in the result, which therefore has one row per
-#'     tested feature rather than one per feature of \code{state}. How many were held
+#'     the fit and does not appear in the result. How many were held
 #'     out, and the first few of them, are logged. If fewer than two features are
-#'     left, which is the smallest number \code{limma::voom()} can fit a
-#'     mean-variance trend to, the call is refused here rather than failing inside
-#'     \code{limma::voom()}: impute first, see \code{h0testr::impute()}, or use a
+#'     left, the call is refused: impute first, see \code{h0testr::impute()}, or use a
 #'     method that does not need complete features, such as \code{h0testr::test_lm()}.
-#'   See documentation for \code{h0testr::new_config()}
-#'     for more detailed description of configuration parameters.
+#'   See documentation for \code{h0testr::new_config()} for detailed description of 
+#'     configuration parameters.
 #' @param state List with elements like those returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -84,22 +79,14 @@ test_voom <- function(state, config, normalize.method="none") {
   check_config(config)
   f.check_state(state, config)
   
-  ## the declared reference level first in each factor covariate, before the design
-  ##   is built; see test_lm() for what this prevents on a direct call. A no-op for a
-  ##   run that came through test():
-
+  ## declared reference level first in each factor covariate, before design built:
   state <- f.relevel_state_covariates(state, config, caller="test_voom")
 
   exprs <- state$expression
   i <- apply(exprs, 1, function(v) any(is.na(v)))
 
-  ## limma::voom() fits one mean-variance trend across the whole matrix and has no
-  ##   handling for a missing value, so a feature carrying any is held out. Said rather
-  ##   than done silently, which is what happened before: the count below reported the
-  ##   features that were tested and nothing anywhere reported the ones that were not,
-  ##   so a result table shorter than the state it came from looked like the whole
-  ##   answer. Same shape, and for the same reason, as f.prolfqua_nested_f() and
-  ##   test_prolfqua() use where they drop features:
+  ## limma::voom() fits one mean-variance trend across the whole matrix;
+  ##   has no handling for a missing value:
 
   if(any(i)) {
     f.msg("WARNING: test_voom: dropping", sum(i), "of", nrow(exprs), "features with",
@@ -107,13 +94,6 @@ test_voom <- function(state, config, normalize.method="none") {
       "first few:", paste(utils::head(rownames(exprs)[i], 5), collapse=", "),
       config=config)
   }
-
-  ## and with too few features left limma::voom() was reached with a matrix it cannot
-  ##   fit and failed from inside it, saying "Need at least two genes to fit a
-  ##   mean-variance trend": a statement about the input to a variance fit, with nothing
-  ##   about the missing values that emptied it or what to do about them. Two is
-  ##   limma::voom()'s own bound, not a round number chosen here, so a state with one
-  ##   complete feature is refused for the same reason as a state with none:
 
   if(sum(!i) < 2) {
     f.err("test_voom: only", sum(!i), "of", nrow(exprs), "features have no missing",
@@ -124,9 +104,6 @@ test_voom <- function(state, config, normalize.method="none") {
 
   exprs <- exprs[!i, , drop=F]
 
-  ## the design and the columns of it carrying the test; see test_trend() for why
-  ##   these come from f.design_test_cols() rather than from coefficient names:
-
   design <- f.design_test_cols(state, config)
 
   obj <- limma::voom(exprs, design$X, plot=F, normalize.method=normalize.method)
@@ -134,7 +111,7 @@ test_voom <- function(state, config, normalize.method="none") {
   lc <- f.limma_contrast_fit(fit, design, config)
   fit <- limma::eBayes(lc$fit, trend=F)
 
-  ## a single coefficient gives a t-test and a logFC column; several give an F-test:
+  ## single coefficient yields t-test and logFC column; several yield F-test:
 
   tbl <- limma::topTable(fit, coef=lc$coef, number=Inf)
 

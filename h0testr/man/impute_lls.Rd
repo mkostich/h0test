@@ -70,9 +70,8 @@ state <- h0testr::filter_features(state, config, n_samples_min=3)
 state <- h0testr::filter_observations(state, config, n_features_min=30)
 
 ## example with untransformed data. LLS regresses a feature on its correlated
-##   neighbors, and a reconstruction can land below the raw scale's floor of
-##   zero, which cannot be a measurement, so this is wrapped: on the raw scale
-##   the method can stop for reasons the data alone do not decide.
+##   neighbors, and a reconstruction can land below zero, so this is wrapped
+##   in try().
 summary(c(state$expression))    ## Note number of NAs
 state2 <- try(h0testr::impute_lls(state, config, is_log_transformed=FALSE))
 if(!inherits(state2, "try-error")) summary(c(state2$expression))

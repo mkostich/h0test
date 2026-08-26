@@ -60,13 +60,12 @@ List with elements:
   }
 }
 \description{
-Simulates non-negative data matrix with \code{n_feats} rows and
-  \code{n_obs} columns.
+Simulates non-negative data matrix with \code{n_feats} rows and \code{n_obs} columns.
 }
 \details{
 Feature means: \code{log(feature_mean) ~ rnorm(mean=log_m_mean, sd=log_m_sd)}.
-  That draw is redrawn until it is strictly positive, so it is really a normal truncated
-    below at 0 and \code{feat_mean} is never below 1. With the default
+  That draw is redrawn until it is strictly positive, so really a normal truncated
+    below 0 and \code{feat_mean} is never below 1. With the default
     \code{log_m_mean=11, log_m_sd=2.7} the truncation is 4 SDs out and so takes almost no
     draws, but a smaller \code{log_m_mean} or a larger \code{log_m_sd} will pull the realized
     mean of \code{log(feat_mean)} above \code{log_m_mean}.

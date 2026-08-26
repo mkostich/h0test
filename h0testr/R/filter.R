@@ -19,12 +19,7 @@ f.filter_features_by_term <- function(term, state, config, type="factor",
 
   if(type %in% "numeric") {
 
-    ## a continuous variable has no groups whose members can be counted, and
-    ##   counting its distinct values as groups would drop nearly every feature;
-    ##   so the cheap screen is enough non-NA values, enough distinct values
-    ##   among them, and at least two distinct values of the variable among the
-    ##   observations that were measured. Whether the corresponding term is
-    ##   actually estimable is settled by filter_features_by_estimability():
+    ## a continuous variable has no groups whose members can be counted:
 
     x <- state$samples[[term]]
 
@@ -64,27 +59,20 @@ f.filter_features_by_term <- function(term, state, config, type="factor",
 #' @description
 #'   Filter features without enough distinct values for each variable in \code{config$frm}.
 #' @details
-#'   Every variable in \code{config$frm} is screened, including variables that
-#'     appear only within an interaction term. Interaction terms themselves are
-#'     not screened here.
-#'   This is a cheap pre-screen, intended to remove obviously untestable
-#'     features before more expensive steps; whether a term is actually
-#'     estimable for a feature is a separate question.
+#'   Every variable in \code{config$frm} checked, including variables that
+#'     appear only in an interaction term. Interaction terms are not screened here.
+#'   This is a cheap pre-screen.
 #'   For a factor variable, a feature is kept if at least
 #'     \code{n_groups_non_na_min} levels have at least \code{n_non_na_min}
 #'     non-\code{NA} values, and at least \code{n_groups_distinct_min} levels
 #'     have at least \code{n_distinct_min} distinct non-\code{NA} values.
 #'   For a numeric (continuous) variable there are no levels to count, so a
 #'     feature is kept if it has at least \code{n_non_na_min} non-\code{NA}
-#'     values, at least \code{n_distinct_min} distinct values among them, and
+#'     values, with at least \code{n_distinct_min} distinct values, and
 #'     the variable takes at least two distinct values across the observations
 #'     where the feature was measured.
-#'   Variables are classified as factor or numeric as described for
-#'     \code{h0testr::initialize()}, and their values are checked as described
-#'     there: missing, blank, non-finite and constant covariate values are
-#'     errors here too, since the counts below would otherwise be taken over the
-#'     observations whose covariates happen to be known, while every step that
-#'     builds a design matrix refuses the same \code{state}.
+#'   Variables are classified as factor or numeric and checked as described for
+#'     \code{h0testr::initialize()}.
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -125,20 +113,11 @@ filter_features_by_formula <- function(state, config,
   if(is.null(config$frm)) {
     f.err("filter_features_by_formula: is.null(config$frm)", config=config)
   }
-  ## screened one variable at a time, including variables that appear only
-  ##   within an interaction; interaction terms themselves are left to
-  ##   filter_features_by_estimability(), since they have no cheap screen. The
-  ##   criteria depend on whether the variable is a factor or continuous:
+  ## screened one variable at a time:
 
   types <- f.covariate_types(state, config)
 
-  ## the counts below are per level of a factor and per observation for a continuous
-  ##   variable, neither of which needs a design matrix, so nothing here would notice
-  ##   a covariate that no fit can use: base::table() drops missing values silently,
-  ##   so a feature would be screened over the observations whose covariates happen
-  ##   to be known and then reported as kept, while every downstream step that builds
-  ##   a design refuses the same state. Checked here so that the count this reports
-  ##   is over the observations that would actually be fit:
+  ## counts below are per level of a factor and per observation for a continuous variable:
 
   f.check_covariate_values(state, config, types=types,
     caller="filter_features_by_formula", warn_distinct=FALSE)
@@ -175,12 +154,8 @@ filter_features_by_formula <- function(state, config,
 #'   Filter features for which the coefficients of \code{config$test_term}
 #'     cannot be estimated from the values actually observed for that feature.
 #' @details
-#'   This is the last and most expensive of three tiers of filtering. The
-#'     earlier tiers ask necessary but not sufficient questions:
-#'     \code{prefilter()} counts non-\code{NA} values without reference to
-#'     \code{config$frm}, and \code{filter_features_by_formula()} screens one
-#'     variable at a time, marginally. Only this function looks at the design
-#'     matrix as a whole, so only this function can answer whether the requested
+#'   This is the last and most expensive of three filtering tiers. This function 
+#'     looks at the design matrix as a whole, determining whether the 
 #'     test is estimable for a feature.
 #'   A value is missing if and only if it is \code{NA}; see
 #'     \code{h0testr::initialize()}. For each feature, let \code{S} be the
@@ -193,18 +168,10 @@ filter_features_by_formula <- function(state, config,
 #'       \code{df_intend} \cr \tab \code{df_test} recomputed over all observations; the test that was asked for. \cr
 #'       \code{df_deficit} \cr \tab \code{ncol(X) - rank(X[S, ])}; coefficients of the requested model that are not estimable. \cr
 #'     }
-#'   \code{X} is built once over all observations and then subset by row, so the
-#'     factor level ordering set by \code{initialize()} is preserved: a level
-#'     absent from \code{S} leaves an all-zero column, which is exactly the rank
-#'     deficiency to be detected. Transformations in \code{config$frm} are not
-#'     supported (see \code{h0testr::initialize()}), so row subsetting and
-#'     per-feature refitting agree.
+#'   \code{X} is built once over all observations and then subset by row, so 
+#'     factor level ordering set by \code{initialize()} is preserved.
 #'   The reduced model is formed by dropping term labels, not by editing the
-#'     formula text, and the labels come from the same helper the hypothesis
-#'     tests use. A \code{config$test_term} naming a variable therefore drops
-#'     every term containing that variable, keeping the reduced model
-#'     hierarchical; a \code{config$test_term} naming an interaction drops that
-#'     term alone.
+#'     formula text.
 #'   \code{config$estimability} selects one of three nested requirements, each
 #'     strictly stronger than the one before it. \code{df_deficit} is the sum of
 #'     the nuisance-side deficit and \code{df_intend - df_test}, so requiring
@@ -214,15 +181,11 @@ filter_features_by_formula <- function(state, config,
 #'       \code{"term"} \cr \tab \code{df_test == df_intend}; every feature is tested against the same hypothesis, but the covariate adjustment may still differ. \cr
 #'       \code{"full"} \cr \tab \code{df_deficit == 0}; every coefficient of the requested model is estimable for every feature. \cr
 #'     }
-#'   Independently of that, a feature is dropped when
-#'     \code{df_resid < df_resid_min}, which is a question of residual precision
-#'     rather than of estimability.
+#'   A feature is dropped when \code{df_resid < df_resid_min}, which is a question of 
+#'     residual precision rather than of estimability.
 #'   Counts of dropped features, broken out by reason, are logged. Features whose
 #'     covariate columns collapsed are counted in the log even when
-#'     \code{config$estimability} is too permissive to drop them: such a feature
-#'     is tested without the adjustment that was asked for, which
-#'     \code{df_test} cannot reveal, since removing the test columns removes the
-#'     same rank from both models.
+#'     \code{config$estimability} is too permissive to drop them.
 #'   Ranks are computed once per distinct missingness pattern rather than once
 #'     per feature, which on real data is usually a large saving.
 #'   Following \code{add_filter_stats()}, \code{df_test} and \code{df_resid} are
@@ -308,17 +271,6 @@ filter_features_by_estimability <- function(state, config, estimability=NULL,
       "numeric scalar; value:", df_resid_min, config=config)
   }
 
-  ## the design, the columns carrying the test, and the df of the test that was
-  ##   asked for, measured over all observations; derived by the same helper the
-  ##   hypothesis tests use, so the reduced model screened here is the one that
-  ##   will actually be tested. Throws an informative error if config$test_term
-  ##   does not fit config$frm, or if the test it names is vacuous. The covariates
-  ##   are releveled first, for the same reason test() relevels them, and into a
-  ##   state of their own: which features are estimable has to be decided on the
-  ##   design that will be fitted, but this function returns a filtered state
-  ##   rather than a refitted one, so the classes of the columns it was given are
-  ##   left alone. See f.relevel_state_covariates():
-
   st_fit <- f.relevel_state_covariates(state, config,
     caller="filter_features_by_estimability")
   design <- f.design_test_cols(st_fit, config)
@@ -335,9 +287,7 @@ filter_features_by_estimability <- function(state, config, estimability=NULL,
     "; design columns:", ncol(X), "; test columns:", length(cols_test),
     "; df_intend:", df_intend, config=config)
 
-  ## n_samples_min screens on the same axis as df_resid_min, so an
-  ##   n_samples_min below what df_resid_min implies does no work ahead of this
-  ##   filter; not an error, since the two are set independently:
+  ## n_samples_min screens on the same axis as df_resid_min:
 
   n_needed <- df_resid_min + rank_all
   if(length(config$n_samples_min) %in% 1 && config$n_samples_min < n_needed) {
@@ -348,8 +298,7 @@ filter_features_by_estimability <- function(state, config, estimability=NULL,
       "ahead of this filter", config=config)
   }
 
-  ## ranks depend only on which observations are missing, so compute them once
-  ##   per distinct missingness pattern:
+  ## ranks depend only on which observations are missing:
 
   na_mat <- is.na(state$expression)
   keys <- apply(na_mat, 1, function(v) paste0(as.integer(v), collapse=""))
@@ -370,10 +319,7 @@ filter_features_by_estimability <- function(state, config, estimability=NULL,
     i_obs <- !na_mat[i_rep[idx], ]
     r_full <- f.design_rank(X[i_obs, , drop=F])
 
-    ## the reduced model comes from f.design_test_cols() rather than by dropping
-    ##   columns here, so that a config$contrast run screens features against the
-    ##   constrained design the tests will compare against, which is a
-    ##   re-parameterization of X and not a subset of its columns:
+    ## reduced model from f.design_test_cols() rather than dropping columns here:
 
     df_test_u[idx] <- r_full - f.design_rank(X_red[i_obs, , drop=F])
     df_resid_u[idx] <- sum(i_obs) - r_full
@@ -400,8 +346,7 @@ filter_features_by_estimability <- function(state, config, estimability=NULL,
   if(estimability %in% c("term", "full")) i <- i & ok_term
   if(estimability %in% "full") i <- i & ok_full
 
-  ## every dropped feature attributed to the first applicable reason, so the
-  ##   counts sum to the number dropped:
+  ## every dropped feature attributed to first applicable reason:
 
   why <- rep("", length(i))
   why[!i & !ok_test] <- "test_term_not_estimable"
@@ -416,9 +361,7 @@ filter_features_by_estimability <- function(state, config, estimability=NULL,
     f.msg("  dropped,", nom, ":", sum(why %in% nom), config=config)
   }
 
-  ## reported whether or not they were dropped: a feature that keeps df_test but
-  ##   loses covariate columns is tested without the adjustment that was asked
-  ##   for, and df_test cannot show that:
+  ## reported whether or not dropped: 
 
   f.msg("  features with test_term only partly estimable:", sum(!ok_term),
     "; features whose requested model is not full rank:", sum(!ok_full),
@@ -542,8 +485,7 @@ filter_features <- function(state, config,
 #' @details
 #'   A value is missing if and only if it is \code{NA}. Raw zeros are converted
 #'     to \code{NA} by \code{h0testr::initialize()}, so a feature is counted as
-#'     measured in a sample whenever its value there is not \code{NA},
-#'     regardless of sign.
+#'     measured when its value there is not \code{NA}, regardless of sign.
 #'   Sample constant if \code{length(unique(expression_values)) \%in\% 1)}.
 #'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
@@ -626,9 +568,8 @@ filter_observations <- function(state, config,
 #' Number of samples in which each feature was measured
 #' @description
 #'   Calculates the number of samples in which each feature was measured
-#' @details A feature counts as measured in a sample whenever its value there is
-#'   not \code{NA}, regardless of sign; raw zeros are converted to \code{NA} by
-#'   \code{h0testr::initialize()}.
+#' @details A feature counts as measured in a sample when its value there is
+#'   not \code{NA}; raw zeros are converted to \code{NA} by \code{h0testr::initialize()}.
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -665,10 +606,7 @@ samples_per_feature <- function(state, config) {
 #' @description
 #'   Calculates the median expression of each feature in each expressing sample. 
 #' @details 
-#'   Median over the non-\code{NA} values of the feature. Values are not
-#'     screened by sign, so a transformed value of zero or below counts toward
-#'     the median; raw zeros are already \code{NA} by this point, having been
-#'     converted by \code{h0testr::initialize()}. A feature measured in no
+#'   Median over the non-\code{NA} values of the feature. A feature measured in no
 #'     sample has no median, and gets \code{NA}.
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
@@ -696,14 +634,7 @@ feature_median_expression <- function(state, config) {
       "class(state$expression):", class(state$expression), config=config)
   }
   
-  ## a feature measured in no sample has no median, and NA says so. Standing a
-  ##   number in for it would place a never-measured feature at a real position
-  ##   on the scale, in a statistic reported to the user; on a log scale zero is
-  ##   not even a neutral choice, but near the top of the range. Nothing in the
-  ##   package reads this column back, and combine_features() carries feature
-  ##   metadata forward by taking the first row of each group rather than by
-  ##   arithmetic, so an NA rides through untouched:
-
+  ## a feature measured in no sample has no median, and NA says so:
   m <- apply(state$expression, 1, stats::median, na.rm=T)
   
   return(m)
@@ -743,7 +674,6 @@ features_per_sample <- function(state, config) {
   }
   
   ## NA is the only indicator of a missing value; see f.zeros_to_na():
-
   n <- apply(state$expression, 2, function(v) sum(!is.na(v)))
 
   return(n)
@@ -773,20 +703,15 @@ f.prefilter_features <- function(state, min1=3, min2=4) {
 #'   Remove features and observations too sparse to be worth carrying through
 #'     normalization and aggregation.
 #' @details
-#'   A cheap first pass, meant to run before anything has been normalized. It removes
+#'   A cheap first pass, meant to run before anything has been normalized. Removes
 #'     features with fewer than 3 distinct non-\code{NA} values or fewer than 4
 #'     non-\code{NA} values, which leaves the possibility, though not the guarantee, of
-#'     two distinct values in one group and two values in another, and then removes
-#'     observations with fewer than \code{n_features_min} non-\code{NA} values. Neither
-#'     screen is a statement about \code{config$frm}: the filtering that knows the design
-#'     is \code{h0testr::filter()}, which runs after normalization and aggregation.
+#'     two distinct values in one group and two values in another. Removes
+#'     observations with fewer than \code{n_features_min} non-\code{NA} values. 
 #'   \code{config$n_samples_min} and \code{config$n_features_min} are deliberately not
 #'     consulted here. They are the thresholds of \code{h0testr::filter()}, and they are
 #'     meant to be applied to the aggregated data that step sees, not to the precursor
-#'     level table this one gets: \code{config$n_features_min} in particular defaults to
-#'     1000, which is a sensible count of protein groups per observation and would
-#'     discard nearly every observation if applied here. The feature thresholds above are
-#'     therefore fixed, and \code{n_features_min} is this function's own argument.
+#'     level table this one gets.
 #'   A value is missing if and only if it is \code{NA}; raw zeros are converted to
 #'     \code{NA} by \code{h0testr::initialize()}, which runs first.
 #'   Reports the state before and after each of the two screens.
@@ -831,9 +756,7 @@ prefilter <- function(state, config, n_features_min=2) {
   f.msg("before filtering features:", config=config)
   f.report_state(state, config)
 
-  ## f.prefilter_features() rather than filter_features(): the thresholds here are its
-  ##   own fixed ones and not config$n_samples_min, which belongs to filter(), and there
-  ##   is no design to screen against before normalization and aggregation:
+  ## f.prefilter_features() rather than filter_features():
 
   state <- f.prefilter_features(state)
   f.msg("after filtering features", config=config)
@@ -849,12 +772,7 @@ prefilter <- function(state, config, n_features_min=2) {
 }
 
 ## helper for add_filter_stats(): each statistic there is written into a metadata column
-##   whose rows are identified by position, so the names the statistic carries have to
-##   match the ids the metadata carries. `==` returns logical(0) when either side is NULL,
-##   and all(logical(0)) is TRUE, so comparing the two directly passed vacuously in
-##   exactly the cases where the alignment could not be verified: a config$feat_col or
-##   config$obs_col that names no column, which includes the "" that new_config() ships,
-##   and a state$expression with no dimnames. Refused rather than assumed:
+##   whose rows are identified by position:
 
 f.check_stat_ids <- function(nms, ids, stat, key, config) {
 
@@ -968,20 +886,12 @@ add_filter_stats <- function(state, config) {
 #' @details 
 #'   Filters out features measured in too few samples, and filters out samples
 #'     with too few measured features. A value is missing if and only if it is
-#'     \code{NA}; raw zeros are converted to \code{NA} by
-#'     \code{h0testr::initialize()}.
+#'     \code{NA}.
 #'   Features are filtered before observations, and then
-#'     \code{filter_features_by_estimability()} runs last, since dropping an
-#'     observation changes every feature's missingness pattern. This is a single
-#'     pass: features dropped for lack of estimability are not fed back into
-#'     \code{filter_observations()}.
+#'     \code{filter_features_by_estimability()} runs last. Only one pass is performed.
 #'   Features and/or samples considered constant if
 #'     \code{length(unique(expression_values)) \%in\% 1}.
 #'   Stops with an error if any feature is left with no measured value at all.
-#'     Such a feature has no intensity for any downstream step to model, so an
-#'     imputer would have to invent one; the filtering criteria above already
-#'     remove them, and one surviving means a criterion was disabled or a
-#'     threshold set too low.
 #'   See documentation for \code{h0testr::new_config()}
 #'     for more detailed description of configuration parameters.
 #' @param state A list with elements like that returned by `read_data()`:
@@ -1051,23 +961,14 @@ filter <- function(state, config, remove_constant=TRUE, filter_by_formula=TRUE,
   state <- filter_observations(state, config,
     remove_constant=remove_constant)
 
-  ## last, and after observations have been dropped: dropping an observation
-  ##   changes every feature's missingness pattern, and so its ranks. Single
-  ##   pass, so dropping features here does not re-qualify any observation:
-
+  ## last, and after observations have been dropped: 
   if(filter_by_estimability) {
     state <- filter_features_by_estimability(state, config)
   }
 
   state <- add_filter_stats(state, config)
 
-  ## nothing downstream can work with a feature measured in no sample: it has no
-  ##   intensity to model, so an imputer would have to invent one outright.
-  ##   filter_features() and filter_features_by_estimability() both remove such
-  ##   features, so one surviving to here means a criterion was disabled or a
-  ##   threshold set too low. Reported plainly rather than left for an imputer to
-  ##   trip over several steps later:
-
+  ## nothing downstream can work with a feature measured in no sample: 
   n_obs <- rowSums(!is.na(state$expression))   ## a count, not a value
 
   if(any(n_obs %in% 0)) {

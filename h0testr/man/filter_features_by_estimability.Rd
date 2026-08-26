@@ -48,12 +48,8 @@ Filter features for which the coefficients of \code{config$test_term}
     cannot be estimated from the values actually observed for that feature.
 }
 \details{
-This is the last and most expensive of three tiers of filtering. The
-    earlier tiers ask necessary but not sufficient questions:
-    \code{prefilter()} counts non-\code{NA} values without reference to
-    \code{config$frm}, and \code{filter_features_by_formula()} screens one
-    variable at a time, marginally. Only this function looks at the design
-    matrix as a whole, so only this function can answer whether the requested
+This is the last and most expensive of three filtering tiers. This function 
+    looks at the design matrix as a whole, determining whether the 
     test is estimable for a feature.
   A value is missing if and only if it is \code{NA}; see
     \code{h0testr::initialize()}. For each feature, let \code{S} be the
@@ -66,18 +62,10 @@ This is the last and most expensive of three tiers of filtering. The
       \code{df_intend} \cr \tab \code{df_test} recomputed over all observations; the test that was asked for. \cr
       \code{df_deficit} \cr \tab \code{ncol(X) - rank(X[S, ])}; coefficients of the requested model that are not estimable. \cr
     }
-  \code{X} is built once over all observations and then subset by row, so the
-    factor level ordering set by \code{initialize()} is preserved: a level
-    absent from \code{S} leaves an all-zero column, which is exactly the rank
-    deficiency to be detected. Transformations in \code{config$frm} are not
-    supported (see \code{h0testr::initialize()}), so row subsetting and
-    per-feature refitting agree.
+  \code{X} is built once over all observations and then subset by row, so 
+    factor level ordering set by \code{initialize()} is preserved.
   The reduced model is formed by dropping term labels, not by editing the
-    formula text, and the labels come from the same helper the hypothesis
-    tests use. A \code{config$test_term} naming a variable therefore drops
-    every term containing that variable, keeping the reduced model
-    hierarchical; a \code{config$test_term} naming an interaction drops that
-    term alone.
+    formula text.
   \code{config$estimability} selects one of three nested requirements, each
     strictly stronger than the one before it. \code{df_deficit} is the sum of
     the nuisance-side deficit and \code{df_intend - df_test}, so requiring
@@ -87,15 +75,11 @@ This is the last and most expensive of three tiers of filtering. The
       \code{"term"} \cr \tab \code{df_test == df_intend}; every feature is tested against the same hypothesis, but the covariate adjustment may still differ. \cr
       \code{"full"} \cr \tab \code{df_deficit == 0}; every coefficient of the requested model is estimable for every feature. \cr
     }
-  Independently of that, a feature is dropped when
-    \code{df_resid < df_resid_min}, which is a question of residual precision
-    rather than of estimability.
+  A feature is dropped when \code{df_resid < df_resid_min}, which is a question of 
+    residual precision rather than of estimability.
   Counts of dropped features, broken out by reason, are logged. Features whose
     covariate columns collapsed are counted in the log even when
-    \code{config$estimability} is too permissive to drop them: such a feature
-    is tested without the adjustment that was asked for, which
-    \code{df_test} cannot reveal, since removing the test columns removes the
-    same rank from both models.
+    \code{config$estimability} is too permissive to drop them.
   Ranks are computed once per distinct missingness pattern rather than once
     per feature, which on real data is usually a large saving.
   Following \code{add_filter_stats()}, \code{df_test} and \code{df_resid} are

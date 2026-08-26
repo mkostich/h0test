@@ -1,9 +1,4 @@
-## The number of features behind each gene, which is the covariate DEqMS moderates the
-##   per-gene variance against. Taken from config$n_feats_col when the table carries it,
-##   so that a state that has already been through combine_features() still reports the
-##   counts of the features that went into it rather than 1 per gene; counted from the
-##   gene ids otherwise. Keyed by the ids f.gene_ids() assigns, not by the raw column,
-##   so that the counts of the unknown_* genes are found rather than coming back NA:
+## Number of features behind each gene:
 
 f.gene_counts <- function(state, config, caller="f.gene_counts") {
 
@@ -23,42 +18,15 @@ f.gene_counts <- function(state, config, caller="f.gene_counts") {
   return(out)
 }
 
-## The variance prior DEqMS::spectraCounteBayes() fits, fitted on the genes that can
-##   carry one. Its own row handling is silently wrong otherwise: it fits
-##   loess(log(fit$sigma^2) ~ log2(fit$count)), and stats::loess() defaults to
-##   na.action=na.omit, so a gene whose residual variance is not finite is dropped from
-##   the fit. A gene fitted on as many observations as the design has columns has
-##   df.residual 0 and sigma NA, which is what unimputed missing values leave behind, so
-##   that is reachable from a documented workflow rather than hypothetical.
-##   stats::fitted() then comes back shorter than the fit and DEqMS recycles it against
-##   fit$df.residual, which hands every gene at or after the first dropped row another
-##   gene's prior variance. The recycling restores the length, so
-##   f.deqms_moderated_f()'s length check cannot see it, and nothing else says anything:
-##   with one ineligible gene among 200, a gene's sca.postvar came back 1.122234 with
-##   the ineligible one in row 1 and 1.126142 with it in row 100, the same gene with the
-##   same feature count and the same data both times.
-##   So the prior is fitted here on the eligible genes alone and the per-gene results
-##   are put back where they belong, which leaves the rest without a moderated statistic
-##   rather than with a wrong one. That subset fit is DEqMS's own: fitting it this way
-##   agrees to all.equal() with DEqMS on an expression matrix that never held the other
-##   genes. limma's `[.MArrayLM`() subsets the components it knows about and leaves
-##   fit$count alone, which is the same misalignment in miniature, hence setting that by
-##   hand below.
-##   Genes with no residual degrees of freedom are the ones limma itself cannot test
-##   either: their P.Value comes back NA from limma::topTable() for the same reason.
-##   Returns fit with the components DEqMS::spectraCounteBayes() adds, each per-gene one
-##   filled in for the eligible genes and NA elsewhere, in the row order of
-##   fit$coefficients:
+## Variance prior DEqMS::spectraCounteBayes() fits, fitted on genes that can
+##   carry one. Its own row handling is silently wrong otherwise: 
 
 f.deqms_prior <- function(fit, config, who="f.deqms_prior") {
 
   nom <- rownames(fit$coefficients)
   n <- length(nom)
 
-  ## log2(0) is -Inf and would be dropped by na.omit the same way, so the count is
-  ##   checked for being usable rather than merely present; test_deqms() has already
-  ##   refused an NA count by here:
-
+  ## log2(0) is -Inf and would be dropped by na.omit the same way:
   ok <- is.finite(fit$sigma) & is.finite(fit$df.residual) & fit$df.residual > 0 &
     is.finite(fit$count) & fit$count > 0
 
@@ -73,10 +41,6 @@ f.deqms_prior <- function(fit, config, who="f.deqms_prior") {
       "config$df_resid_min of at least 1, or use config$test_method 'trend', which is",
       "the same limma fit without the count based prior", config=config)
   }
-
-  ## the up-front guard in test_deqms() counts every gene, and excluding the ineligible
-  ##   ones can leave the survivors with a single count between them, which DEqMS itself
-  ##   fails on with an error about a missing value in an if() condition:
 
   if(length(unique(fit$count[ok])) < 2) {
     f.err(who, ": the", sum(ok), "genes with a finite residual variance all have the",
@@ -105,8 +69,7 @@ f.deqms_prior <- function(fit, config, who="f.deqms_prior") {
   sub <- fit[ok, ]
   sub$count <- fit$count[ok]
 
-  ## the whole point of this function, so said rather than assumed:
-
+  ## whole point of this function:
   if(!identical(rownames(sub$coefficients), nom[ok])) {
     f.err(who, ": subsetting the fit did not preserve the gene order, so the prior",
       "cannot be mapped back;", "\n", "  first few expected:",
@@ -114,23 +77,9 @@ f.deqms_prior <- function(fit, config, who="f.deqms_prior") {
       utils::head(rownames(sub$coefficients), 5), config=config)
   }
 
-  ## the loess needs those counts spread rather than merely varied, and answers two ways
-  ##   when almost every gene sits at one of them: its fitted values come back NaN for
-  ##   the genes at the crowded count, and when they come back NaN for all of them the
-  ##   mean DEqMS matches its prior degrees of freedom against is NaN too and the search
-  ##   for them walks off the end of a vector, which surfaces as an error about a missing
-  ##   value in an if() condition. Two of sixty genes at one count and the rest at another
-  ##   gave the first, twenty genes of two peptides with two single-peptide genes among
-  ##   them lost 18 of 20 the same way, and one to three genes of 19, 24 or 60 away from a
-  ##   single count gave the second, while an even split fits either way.
-  ##   A gene whose posterior variance came back NaN is reported without a moderated
-  ##   statistic, like a gene the prior could not be fitted from, and the count of them is
-  ##   said in the log; only DEqMS erroring outright is refused, there being no prior at
-  ##   all then, and its own message mentions neither the counts nor what to do:
-
+  ## loess needs those counts spread rather than merely varied:
   tb <- table(fit$count[ok])
   tb <- paste(names(tb), as.integer(tb), sep="x", collapse=" ")
-
   sub <- try(DEqMS::spectraCounteBayes(sub, fit.method="loess"), silent=TRUE)
 
   if(inherits(sub, "try-error")) {
@@ -167,7 +116,7 @@ f.deqms_prior <- function(fit, config, who="f.deqms_prior") {
   fit$model <- sub$model
   fit$sca.dfprior <- sub$sca.dfprior          ## one number for the whole fit
 
-  ## a per-gene quantity of the subset fit, back in the row order of the whole fit:
+  ## per-gene quantity of subset fit, back in row order of whole fit:
 
   f.fill <- function(x) {
     out <- rep(as.numeric(NA), n)
@@ -178,10 +127,6 @@ f.deqms_prior <- function(fit, config, who="f.deqms_prior") {
 
   fit$sca.postvar <- f.fill(sub$sca.postvar)
   fit$sca.priorvar <- f.fill(sub$sca.priorvar)
-
-  ## and the same for the gene by coefficient matrices DEqMS forms from them.
-  ##   spectraCounteBayes() takes its coef_col missing here, and a missing argument
-  ##   passed to `[` is an empty index, so these carry every coefficient rather than one:
 
   f.fill_mat <- function(x) {
     out <- matrix(as.numeric(NA), nrow=n, ncol=ncol(x),
@@ -196,39 +141,8 @@ f.deqms_prior <- function(fit, config, who="f.deqms_prior") {
   return(fit)
 }
 
-## The moderated test of the design matrix columns carrying the test, from a fit
-##   DEqMS::spectraCounteBayes() has moderated. DEqMS's own statistic is one
-##   coefficient's moderated t, and its API stops there: spectraCounteBayes() takes a
-##   coef_col and DEqMS::outputResult() reports one column. The moderation itself does
-##   not: that function fits a variance prior against the number of features behind
-##   each gene and returns, per gene, a posterior variance in $sca.postvar and a prior
-##   degrees of freedom in $sca.dfprior, neither of which mentions a coefficient. Its
-##   coef_col enters only in the last two statements, where it forms sca.t and sca.p
-##   from them. So the prior is a variance prior of exactly limma's kind, and a joint
-##   test over several coefficients is the same substitution limma makes for its own F:
-##   the ordinary F with the per-gene residual variance replaced by the posterior
-##   variance and the denominator degrees of freedom raised by those of the prior. See
-##   f.moderate_var(), which says the same thing about prolfqua's prior.
-##   At one numerator degree of freedom that F is the square of DEqMS's own moderated
-##   t, so both cases are computed here rather than only the joint one, and the numbers
-##   this reports for a single coefficient are DEqMS's own to within floating point.
-##   That case is deliberately computed from fit$stdev.unscaled, which limma fits per
-##   gene, rather than from fit$cov.coefficients, which it takes from the complete
-##   design: the two agree only when every gene was fitted on every observation, and
-##   the single coefficient case has to keep working when they do not. Hence also the
-##   guard in test_deqms() for the joint case, which has no per-gene covariance matrix
-##   available; limma's own F carries the same caveat and does not refuse, but a
-##   reported statistic that is quietly wrong for the genes with missing values is
-##   worse than one that is not reported.
-##   cols indexes the columns of fit$coefficients carrying the test, which after
-##   f.limma_contrast_fit() is the single column of the contrast; the fit that comes
-##   back from limma::contrasts.fit() carries $cov.coefficients and $stdev.unscaled for
-##   that column, so a contrast needs no separate code here.
-##   Returns a data.frame with one row per gene, in the row order of fit$coefficients:
-##   $t is the signed moderated t when one column carries the test and NA otherwise,
-##   $F the moderated F in both cases, and $p.value the p-value of $F. A gene whose
-##   posterior variance could not be fitted, or that is missing one of the tested
-##   coefficients, comes back NA rather than dropping out of the table:
+## Moderated test of design matrix columns carrying test, from a fit
+##   DEqMS::spectraCounteBayes() has moderated:
 
 f.deqms_moderated_f <- function(fit, cols, config, who="f.deqms_moderated_f") {
 
@@ -256,8 +170,8 @@ f.deqms_moderated_f <- function(fit, cols, config, who="f.deqms_moderated_f") {
 
   if(length(cols) %in% 1) {
 
-    ## DEqMS's own statistic, recomputed: coefficient over stdev.unscaled times the
-    ##   square root of the posterior variance, which is what it divides by:
+    ## DEqMS's own statistic, recomputed: coefficient over stdev.unscaled times 
+    ##   square root of posterior variance:
 
     se <- fit$stdev.unscaled[, cols] * sqrt(post_var)
     tval <- betas[, 1] / se
@@ -266,10 +180,7 @@ f.deqms_moderated_f <- function(fit, cols, config, who="f.deqms_moderated_f") {
 
   } else {
 
-    ## the unscaled covariance of the tested coefficients, indexed by name because
-    ##   limma drops the columns of a rank deficient design from this matrix rather
-    ##   than keeping them as NA, so position and name need not agree:
-
+    ## unscaled covariance of tested coefficients, indexed by name:
     V <- fit$cov.coefficients
 
     if(is.null(V) || !all(nom %in% rownames(V))) {
@@ -298,8 +209,8 @@ f.deqms_moderated_f <- function(fit, cols, config, who="f.deqms_moderated_f") {
         paste(nom, collapse=", "), ") could not be inverted", config=config)
     }
 
-    ## rowSums() rather than a loop over genes: the same quadratic form
-    ##   t(b) %*% Vinv %*% b for every row of betas, and the matrix is small:
+    ## rowSums() rather than loop over genes: same quadratic form
+    ##   t(b) %*% Vinv %*% b for every row of betas, and matrix is small:
 
     quad <- rowSums((betas %*% Vinv) * betas)
     fval <- (quad / df_num) / post_var
@@ -307,12 +218,8 @@ f.deqms_moderated_f <- function(fit, cols, config, who="f.deqms_moderated_f") {
 
   pval <- stats::pf(fval, df_num, df_den, lower.tail=F)
 
-  ## a gene whose posterior variance came back non-finite, which is a gene f.deqms_prior()
-  ##   left out of the prior because it has no residual degrees of freedom for one to be
-  ##   fitted from. Said out loud because the p-value is then missing for that gene and
-  ##   nothing else reports it. Feature counts with too little spread are a different
-  ##   failure, refused up front by test_deqms() and f.deqms_prior() rather than reaching
-  ##   here, DEqMS::spectraCounteBayes() erroring rather than returning NA on them:
+  ## gene whose posterior variance came back non-finite, which is a gene f.deqms_prior()
+  ##   left out of prior because it has no residual df:
 
   lost <- !is.finite(fval)
 
@@ -340,96 +247,22 @@ f.deqms_moderated_f <- function(fit, cols, config, who="f.deqms_moderated_f") {
 #'   The \code{DEqMS::spectraCounteBayes()} model is fit to \code{config$frm}
 #'     and a moderated test is performed for whether the effect of
 #'     \code{config$test_term} on \code{state$expression} is zero.
-#'   The coefficients carrying that test are the columns of the design matrix
-#'     assigned to \code{config$test_term} and to every term containing it, which is
-#'     the same selection used by \code{h0testr::test_lm()},
-#'     \code{h0testr::test_trend()} and
-#'     \code{h0testr::filter_features_by_estimability()}. So naming a variable that
-#'     also appears in an interaction tests the interaction too: with
-#'     \code{config$frm = ~sex * batch} and \code{config$test_term = "sex"}, the test
-#'     is a joint 2 degree of freedom test of \code{sexM} and \code{sexM:batchb2}.
-#'     Testing a factor with more than two levels is likewise a joint test over its
-#'     contrasts.
 #'   A test of one coefficient is reported as \code{DEqMS}'s own moderated t, with a
 #'     \code{logFC} column; a test of several is reported as a moderated F, and no
 #'     \code{logFC}, since several coefficients have no single fold change.
 #'     \code{DEqMS} itself reports only the former: \code{DEqMS::spectraCounteBayes()}
 #'     moderates the t-statistic of one coefficient and the package has no F-analogue
-#'     anywhere. Its moderation does not have that limit. That function fits a variance
-#'     prior against the number of features behind each gene and returns a per-gene
-#'     posterior variance and a prior degrees of freedom, neither of which mentions a
-#'     coefficient, so the joint test is the ordinary F with the residual variance
+#'     anywhere. The joint test is the ordinary F with the residual variance
 #'     replaced by the posterior one and the denominator degrees of freedom raised by
 #'     those of the prior. At one numerator degree of freedom that F is the square of
-#'     \code{DEqMS}'s own moderated t, so the single-coefficient case reports
-#'     \code{DEqMS}'s statistic unchanged. Earlier versions refused anything but that
-#'     case.
-#'   A joint test additionally requires that no value of the aggregated expression
-#'     matrix be missing, and it is an error if any is. \code{limma} fits each gene on
-#'     the observations that gene has, so \code{fit$stdev.unscaled} is per gene while
-#'     \code{fit$cov.coefficients}, which a joint test needs, comes from the complete
-#'     design; the joint statistic would then be wrong for exactly the genes with
-#'     missing values. Running \code{h0testr::impute()} first, which the documented
-#'     workflow does, satisfies this. A single coefficient, which
-#'     \code{config$contrast} also reduces to, is unaffected.
+#'     \code{DEqMS}'s own moderated t.
 #'   \code{config$contrast} tests a weighted sum of coefficients instead of a term, is
 #'     one degree of freedom however many coefficients it weights, and reaches this
-#'     engine as a single coefficient, \code{limma::contrasts.fit()} having made it
-#'     one. It is a different hypothesis rather than a way around a restriction: a
-#'     contrast compares the levels it names, holding the other variables of any
-#'     higher-order term at their reference level, which
-#'     \code{h0testr::new_config()} describes and which is warned about when it
-#'     applies.
-#'   Stops if every gene/protein-group has the same number of features. The whole
-#'     of what \code{DEqMS} adds to \code{limma} is a variance prior fitted against
-#'     that count, and \code{DEqMS::spectraCounteBayes()} has no spread to fit its
-#'     loess against when the count does not vary. Earlier versions fell through to
-#'     \code{h0testr::test_trend()} on the un-aggregated state, which returned
-#'     feature level rows under the \code{"deqms"} label together with a \code{fit}
-#'     that was not a \code{DEqMS} fit. Use \code{config$test_method="trend"}, which
-#'     is the same \code{limma} fit without the count based prior, or supply feature
-#'     level data. \code{h0testr::tune()} checks the same condition before testing
-#'     and records the combination as untested rather than stopping the sweep.
-#'   Counts that vary but are lopsided are the same shortage in weaker form, and
-#'     \code{DEqMS::spectraCounteBayes()} answers it two ways. Its loess comes back
-#'     \code{NaN} for the genes at a crowded count, which are then reported without a
-#'     moderated statistic and counted in the log; twenty genes of two peptides with two
-#'     single-peptide genes among them lost 18 of 20 that way. When it comes back
-#'     \code{NaN} for every gene the function fails outright, with an error about a missing
-#'     value in an \code{if()} condition, and that is refused with the counts named, one to
-#'     three genes of 19, 24 or 60 away from a single count being enough. An even split
-#'     fits either way. The same fixes apply.
+#'     engine as a single coefficient. 
 #'   A gene with no residual degrees of freedom, which is a gene the aggregated matrix
 #'     has as many observations of as \code{config$frm} has design columns, is left out
-#'     of that prior and reported with \code{NA} in every \code{sca.} column, which
-#'     is said in the log. \code{limma}'s own columns of that row are not \code{NA}:
-#'     \code{limma::eBayes()} shrinks such a gene toward its own prior, which needs no
-#'     residual variance of the gene's own, and reports a moderated \code{P.Value} on the
-#'     prior's degrees of freedom alone. \code{DEqMS}'s prior is a loess against the
-#'     feature counts and has no value to contribute at a gene it was not fitted from.
-#'     This is not a restriction so much as
-#'     avoidance of a silent error: \code{DEqMS::spectraCounteBayes()} fits its prior
-#'     with \code{stats::loess()}, whose default \code{na.action} drops such a gene, and
-#'     then recycles the shortened predictions against every gene, so the prior reaching
-#'     each gene depends on where the untestable ones sit in
-#'     \code{state$expression}. Running \code{h0testr::impute()} first, which the
-#'     documented workflow does, or screening features with
-#'     \code{h0testr::filter_features_by_estimability()} and a \code{config$df_resid_min}
-#'     of at least 1, leaves every gene with residual degrees of freedom.
-#'     \code{stats::p.adjust()} takes its \code{n} from the p-values that are not
-#'     \code{NA}, so the excluded genes are left out of the multiplicity correction
-#'     rather than counted in it.
-#'   The counts come from \code{config$n_feats_col} when \code{state$features}
-#'     carries it, which \code{h0testr::combine_features()} writes, and are counted
-#'     from \code{config$gene_id_col} otherwise. So this method runs on an already
-#'     aggregated state as well as on feature level input.
-#'   Aggregates peptides internally with \code{h0testr::combine_features()},
-#'     which fits an additive model and so requires
-#'     \code{config$is_log_transformed} to be \code{TRUE}; \code{DEqMS} is built
-#'     on \code{limma} and wants the same scale. Running
-#'     \code{h0testr::normalize()} first satisfies both.
-#'   Returns gene-level hypothesis testing results based on 
-#'     peptide/precursor-level input.
+#'     of that prior and reported with \code{NA} in every \code{sca.} column.
+#'   Returns gene-level hypothesis testing results based on peptide/precursor-level input.
 #'   Flow is:
 #'     \tabular{l}{
 #'       1. for each gene, count number of associated peptides. \cr
@@ -438,15 +271,11 @@ f.deqms_moderated_f <- function(fit, cols, config, who="f.deqms_moderated_f") {
 #'       4. Append peptide counts to model returned by \code{limma::eBayes()}. \cr
 #'       5. Adjust statistics using \code{DEqMS::spectraCounteBayes()}, fitted on the
 #'            genes that have residual degrees of freedom. \cr
-#'       6. Form the moderated test of the coefficients carrying the test from the
+#'       6. Form moderated test of the coefficients carrying the test from the
 #'            variance prior that fitted. \cr
 #'       7. Generate hit table with \code{limma::topTable()}, with the moderated
 #'            statistics appended. \cr
 #'     }
-#'   \code{DEqMS::outputResult()} built the hit table until the joint test was added,
-#'     and is no longer used: it takes a single \code{coef_col}, there being nothing
-#'     joint for it to report. Every column it produced is still in the table, with
-#'     the joint statistic and its degrees of freedom added.
 #'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
 #' @param state List with elements like those returned by \code{read_data()}:
@@ -467,15 +296,7 @@ f.deqms_moderated_f <- function(fit, cols, config, who="f.deqms_moderated_f") {
 #'   }
 #' @param trend Logical scalar. Whether \code{limma::eBayes()} fits its variance prior
 #'   against mean gene intensity rather than shrinking every gene toward one number.
-#'   Defaults to \code{config$test_trend}, and to \code{FALSE} when that is absent, which
-#'   is the fit this function performed before the key reached it. \strong{This moves
-#'   less than it appears to}: \code{DEqMS::spectraCounteBayes()} fits its own prior from
-#'   \code{fit$sigma}, \code{fit$df.residual} and \code{fit$count}, which
-#'   \code{limma::eBayes()} does not alter, and the reported statistic comes from that
-#'   prior. So \code{trend} sets \code{P.Value}, \code{t}, \code{B}, \code{s2.prior} and
-#'   \code{s2.post} of \code{hits}, and leaves every \code{sca.} column, which is what
-#'   \code{h0testr::test()} reports, unchanged. For a trended prior that changes the
-#'   answer, use \code{config$test_method="trend"}.
+#'   Defaults to \code{config$test_trend}, and to \code{FALSE} when that is absent. 
 #' @return
 #'   A list with components:
 #'   \tabular{ll}{
@@ -513,9 +334,7 @@ f.deqms_moderated_f <- function(fit, cols, config, who="f.deqms_moderated_f") {
 #' rm(samps, sim)
 #'
 #' ## no grp:sex term here, so that this example shows the single-coefficient case,
-#' ##   which reports DEqMS's own moderated t. By marginality, testing "grp" in
-#' ##   ~grp+sex+grp:sex would be a joint test of grptrt and grptrt:sexM, reported as
-#' ##   a moderated F; test "grp:sex" to test the interaction itself:
+#' ##   which reports DEqMS's own moderated t:
 #' out <- h0testr::initialize(state, config, minimal=TRUE)
 #'
 #' ## test_deqms() aggregates peptides internally with combine_features(), which
@@ -529,7 +348,7 @@ f.deqms_moderated_f <- function(fit, cols, config, who="f.deqms_moderated_f") {
 #' result <- h0testr::test_deqms(out$state, out$config)
 #' head(result$hits)
 #'
-#' ## the same fit with limma's own prior fitted against mean gene intensity instead of
+#' ## same fit with limma's prior fitted against mean gene intensity instead of
 #' ##   flat. Equivalently config$test_trend <- TRUE, which h0testr::test(method="deqms")
 #' ##   passes through. limma's P.Value moves and DEqMS's sca.P.Value does not, the
 #' ##   count-based prior the latter comes from being fitted from quantities
@@ -541,58 +360,19 @@ f.deqms_moderated_f <- function(fit, cols, config, who="f.deqms_moderated_f") {
 
 test_deqms <- function(state, config, trend=NULL) {
 
-  ## NULL rather than FALSE, so that config$test_trend reaches this engine: the key
-  ##   describes the prior of a moderation and this fit has one to describe, and a
-  ##   caller who never touches config$test_trend still gets the untrended fit that
-  ##   was the previous default. See f.is_trend():
+  ## NULL rather than FALSE, so that config$test_trend reaches this engine:
 
   trend <- f.is_trend(trend, config, "test_deqms")
 
   check_config(config)
   f.check_state(state, config)
 
-  ## before combine_features(), so that the design f.design_test_cols() builds below
-  ##   from the aggregated state carries the reference level config declares rather
-  ##   than the alphabetically first one; see test_lm() for what this prevents. A
-  ##   no-op for a run that came through test():
-
   state <- f.relevel_state_covariates(state, config, caller="test_deqms")
-
   save_state <- config$save_state
   config$save_state <- FALSE
-  ## unqualified, like every other internal call in the package, so that test_deqms()
-  ##   also works when the sources are loaded without installing. rescale was TRUE
-  ##   here, a raw scale division by the per-feature mean applied to the log scale
-  ##   data combine_features() requires; medianPolish() absorbs the log scale form of
-  ##   that same centering into its own per-feature effect, so dropping it leaves the
-  ##   per-sample effects unchanged while keeping each gene's overall level, which is
-  ##   the average expression DEqMS's underlying limma trend reads:
   out <- combine_features(state, config, method="medianPolish", rescale=FALSE)
   config$save_state <- save_state
-  
-  ## the design and the columns carrying the test, from the same helper test_lm() and
-  ##   filter_features_by_estimability() use, so that all three test the hypothesis
-  ##   config$test_term names. This was capped at a single column, because
-  ##   DEqMS::spectraCounteBayes() reports one coefficient's moderated t and the package
-  ##   has no F-analogue; the moderation itself has no such limit, and
-  ##   f.deqms_moderated_f() forms the joint test from what that function returns.
-  ##   Selecting by coefficient name instead of by design column would still be wrong,
-  ##   for the reason it always was: the name match happens to yield exactly one column
-  ##   for a two-level factor or a numeric covariate inside an interaction, so testing
-  ##   'sex' in ~sex*batch matched sexM alone and quietly dropped sexM:batchb2:
-
   design <- f.design_test_cols(out$state, out$config)
-
-  ## DEqMS's whole contribution is a variance prior fitted against the number of
-  ##   features behind each gene, so it has nothing to offer when that number is the
-  ##   same for every gene: DEqMS::spectraCounteBayes() has no spread to fit the loess
-  ##   against. This used to fall through to test_trend() on the un-aggregated state,
-  ##   which returned feature level rows under the deqms label together with a fit that
-  ##   was not a DEqMS fit; refused here instead, and f.tune2() checks the same
-  ##   condition up front so that a sweep records the combination as untested and
-  ##   carries on. After the cap above, so that a hypothesis this engine cannot express
-  ##   is still reported as such rather than as a shortage of counts:
-
   counts <- f.gene_counts(state, config, "test_deqms")
 
   if(length(unique(counts)) < 2) {
@@ -606,18 +386,6 @@ test_deqms <- function(state, config, trend=NULL) {
       "  config$gene_id_col:", config$gene_id_col,
       "; config$feat_col:", config$feat_col, config=config)
   }
-
-  ## a joint test needs the covariance of the tested coefficients, and limma supplies
-  ##   only one such matrix for the whole fit, taken from the complete design: with a
-  ##   missing value it fits each gene on the observations that gene has, so
-  ##   fit$stdev.unscaled is per gene but fit$cov.coefficients is not, and the joint
-  ##   statistic would be wrong for exactly the genes with missing values. limma's own
-  ##   F has the same caveat and does not refuse; refused here rather than reported
-  ##   wrong, since h0testr::impute() runs before h0testr::test() in the documented
-  ##   workflow and so this is normally already satisfied. A single coefficient, which a
-  ##   contrast also reduces to, is unaffected: f.deqms_moderated_f() reads
-  ##   fit$stdev.unscaled there. Per-missingness-pattern recomputation is the way to
-  ##   lift this if it turns out to bite:
 
   if(is.null(design$contrast) && length(design$cols_test) > 1 &&
       anyNA(out$state$expression)) {
@@ -635,18 +403,7 @@ test_deqms <- function(state, config, trend=NULL) {
       "'msqrob_agg', 'prolfqua', 'prolfqua_lmer' or 'proda'", config=config)
   }
 
-  ## config$contrast reaches this engine by a shorter route: whatever it weights,
-  ##   limma::contrasts.fit() leaves one coefficient, and the fit it returns carries
-  ##   $cov.coefficients and $stdev.unscaled for that coefficient, so nothing below
-  ##   needs to know which of the two kinds of hypothesis is being tested:
-
   fit <- limma::lmFit(out$state$expression, design$X)
-
-  ## limma::eBayes() refuses a fit in which no gene has a residual degree of freedom, and
-  ##   f.deqms_prior() cannot fit a variance prior from fewer than two such genes. Checked
-  ##   here so that what to do about it is said: limma's own message for this is "No
-  ##   residual degrees of freedom in linear model fits", which does not mention that
-  ##   imputing or filtering first is what this engine needs:
 
   if(sum(fit$df.residual > 0, na.rm=T) < 2) {
     f.err("test_deqms: only", sum(fit$df.residual > 0, na.rm=T), "of",
@@ -662,17 +419,6 @@ test_deqms <- function(state, config, trend=NULL) {
   lc <- f.limma_contrast_fit(fit, design, out$config)
   idx <- lc$coef
 
-  ## said out loud because the two fits differ only in the prior and the hit table does
-  ##   not record which was used. Worth being explicit about how little this reaches:
-  ##   DEqMS::spectraCounteBayes() fits its own prior from fit$sigma, fit$df.residual and
-  ##   fit$count, none of which limma::eBayes() alters, and f.deqms_moderated_f() forms
-  ##   the reported statistic from that prior (sca.postvar, sca.dfprior). So the trended
-  ##   prior moves limma's own columns of hits, P.Value, t, B, s2.prior and s2.post, and
-  ##   leaves every sca.* column, and therefore everything h0testr::test() reports for
-  ##   this method, exactly where it was. Passed through anyway, because the argument is
-  ##   limma's to take and the columns it moves are returned to the caller, but a caller
-  ##   after a trended prior that changes the answer wants test_method "trend":
-
   f.msg("test_deqms: limma::eBayes prior fitted against", if(trend) {
     "mean gene intensity (trend=TRUE)"
   } else "one number for every gene (trend=FALSE)", "\n",
@@ -683,10 +429,6 @@ test_deqms <- function(state, config, trend=NULL) {
   fit <- limma::eBayes(lc$fit, trend=trend)
   fit$count <- counts[rownames(fit$coefficients)]
 
-  ## the aggregated matrix has one row per gene and f.gene_counts() one count per gene,
-  ##   so a miss here means the two disagree about the gene ids rather than that a count
-  ##   is genuinely unknown, and DEqMS would fit its prior against NA:
-
   if(any(is.na(fit$count))) {
     f.err("test_deqms: no feature count for", sum(is.na(fit$count)), "of",
       length(fit$count), "genes of the aggregated expression matrix;", "\n",
@@ -694,22 +436,8 @@ test_deqms <- function(state, config, trend=NULL) {
       config=config)
   }
 
-  ## rather than DEqMS::spectraCounteBayes() directly: a gene with no residual degrees
-  ##   of freedom is dropped from the loess that fits the prior and the predictions are
-  ##   then recycled against every gene, which misaligns the prior silently. See
-  ##   f.deqms_prior(), which fits it on the genes that can carry one:
-
   fit <- f.deqms_prior(fit, out$config, "test_deqms")
-
-  ## the moderated test, and the table it is reported in. DEqMS::outputResult() built
-  ##   this table, and is not used: it takes a single coef_col, since there is nothing
-  ##   joint for it to report, and it reads fit$sca.t and fit$sca.p, which
-  ##   DEqMS::spectraCounteBayes() forms for one coefficient at a time. The columns it
-  ##   produced are all still here, with the joint statistic and its degrees of freedom
-  ##   added, so that a caller reading the original table sees what it saw before:
-
   mod <- f.deqms_moderated_f(fit, idx, out$config, "test_deqms")
-
   hits <- limma::topTable(fit, coef=idx, number=Inf, sort.by="none")
   mod <- mod[rownames(hits), , drop=F]
 
@@ -720,13 +448,7 @@ test_deqms <- function(state, config, trend=NULL) {
   hits$sca.df.num <- mod$df_num
   hits$sca.df.den <- mod$df_den
   hits$sca.P.Value <- mod$p.value
-
-  ## stats::p.adjust() takes n from the number of p-values that are not NA, so a gene
-  ##   whose posterior variance could not be fitted is left out of the correction
-  ##   rather than counted in it:
-
   hits$sca.adj.pval <- stats::p.adjust(hits$sca.P.Value, method="BH")
-
   hits <- hits[order(hits$sca.P.Value, decreasing=F), , drop=F]
 
   f.msg("test_deqms:", f.test_label(design, config), "; design columns:",

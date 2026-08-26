@@ -37,11 +37,7 @@ Inter-observation normalization. Uses \code{limma::normalizeVSN()}, which
     Unlike most other normalization methods, results are returned on a 
     log2-like scale.
   A single feature is refused: \code{vsn::vsn2} fits a transformation per
-    stratum, and one feature is not enough to fit one to. Whether it fails
-    on one depends on the values: of 20 single-feature matrices from one
-    simulation it returned 12, each with the same value for every
-    observation, and failed on the other 8 with \code{"L-BFGS-B needs
-    finite values of 'fn'"}. Refused here either way.
+    stratum; one feature is not enough to fit, so is refused.
 }
 \examples{
 set.seed(101)
