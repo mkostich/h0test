@@ -6,17 +6,16 @@
 \usage{
 tune(
   config,
-  normalization_methods = c("RLE", "upperquartile", "q50", "q75", "cpm", "max", "sum",
-    "div.mean", "div.median", "TMM", "TMMwsp", "vsn", "qquantile", "loess", "log2",
-    "none"),
+  normalization_methods = c("RLE", "TMM", "TMMwsp", "q50", "q75", "cpm", "qquantile",
+    "vsn", "loess", "log2"),
   impute_methods = c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature",
-    "glm_binom", "loess_logit", "glmnet", "rf", "knn", "min_det", "min_prob", "qrilc",
-    "bpca", "ppca", "svdImpute", "lls", "missforest", "none"),
-  impute_quantiles = c(0, 0.01, 0.05, 0.1),
-  impute_scales = c(1, 0.33, 0.1),
-  impute_spans = c(0.25, 0.5, 0.75),
-  impute_npcs = c(3, 5, 10),
-  impute_ks = c(5, 10, 20),
+    "glm_binom", "loess_logit", "glmnet", "knn", "min_det", "min_prob", "qrilc", "bpca",
+    "svdImpute", "missforest", "none"),
+  impute_quantiles = c(0, 0.05),
+  impute_scales = c(1, 0.1),
+  impute_spans = 0.5,
+  impute_npcs = c(3, 10),
+  impute_ks = c(5, 20),
   test_methods = c("lm", "trend", "deqms", "msqrob", "proda", "prolfqua", "voom")
 )
 }
@@ -26,15 +25,17 @@ tune(
 \item{normalization_methods}{Character vector of methods to try. One or more element of
 \code{h0testr::normalize_methods()}, or \code{"q50"} or \code{"q75"}, which are
 \code{"quantile"} at a \code{normalization_quantile} of \code{0.5} and \code{0.75}.
-Default: every method returned by \code{h0testr::normalize_methods()}, with
-\code{"quantile"} entered as those two. \code{"loess"} is the slowest of them, so
-drop it from the list if the sweep takes too long. A name outside that set is refused. 
-\code{"none"} is accepted: not normalizing is something a sweep has a
-use for comparing against.}
+Default: \code{"RLE"}, \code{"TMM"}, \code{"TMMwsp"}, \code{"q50"}, \code{"q75"},
+\code{"cpm"}, \code{"qquantile"}, \code{"vsn"}, \code{"loess"} and \code{"log2"}.
+Any other accepted name, \code{"upperquartile"} and \code{"none"} included, is swept
+only when named. \code{"loess"} is the slowest of them, so drop it from the list if
+the sweep takes too long. A name outside the accepted set is refused.}
 
 \item{impute_methods}{Character vector of methods to try. One or more of:
 \code{c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", "knn", "min_det", "min_prob", "qrilc", "bpca", "ppca", "svdImpute", "lls", "missforest", "none")}.
-A name not returned by \code{h0testr::impute_methods()} is refused.}
+A name not returned by \code{h0testr::impute_methods()} is refused.
+Default: every one of them except \code{"ppca"}, \code{"rf"} and \code{"lls"}, which
+are swept only when named.}
 
 \item{impute_quantiles}{Numeric vector of quantiles to try for \code{impute_method \%in\%
 c("unif_global_lod", "unif_sample_lod", "min_det", "min_prob")}. One or more values
@@ -94,9 +95,12 @@ A data.frame with the following columns:
     \code{"prolfqua_lmer"} and \code{"msqrob_agg"} are skipped when
     \code{config$feat_id_col} and \code{config$gene_id_col} name one column, there
     being no feature level for them to model.
-    Other failures of the test step are caught the same way, so that one
-    combination an engine cannot fit costs that cell and not the rest of the
-    sweep.
+    Failures of the aggregation, filtering, imputation and test steps are caught
+    the same way, so that a combination which cannot run costs that cell and not
+    the rest of the sweep. Since aggregation runs once per test method, above the
+    imputation cells, its failure gives every one of them such a row: this is what
+    \code{normalization_method="none"} does on raw scale input, where the default
+    \code{medianPolish} aggregation has no log scale to work on.
     \code{h0testr::tune_check()} counts these \code{NA} \code{nhits} as zero hits,
     but gives such a row no \code{fdr}, so that a combination which never ran is
     not ranked above every combination that did.

@@ -147,12 +147,24 @@ f.tune2_na_row <- function(config) {
   )
 }
 
+## helper for f.tune2(); report a failed step and give up on that combination:
+
+f.tune2_bad <- function(config, step, err) {
+  f.msg("WARNING: f.tune2:", step, "failed on this combination; returning NA;", "\n",
+    "  ", as.character(err), config=config)
+  return(f.tune2_na_row(config))
+}
+
 f.tune2 <- function(state, config) {
 
   ## no is_log_transformed argument:
 
+  ## a sweep exists to fill in a matrix of parameter combinations, so a step that
+  ##   cannot run should cost that cell and not the whole run:
+
   f.log_block("f.tune:2: filter", config=config)
-  out <- filter(state, config)
+  out <- try(filter(state, config), silent=T)
+  if(inherits(out, "try-error")) return(f.tune2_bad(config, "filter", out))
 
   if(length(unique(out$state$samples[[out$config$sample_id_col]])) < 4) {
     f.msg("WARNING: f.tune2: post-filter <4 samples left; return NA",
@@ -167,7 +179,8 @@ f.tune2 <- function(state, config) {
   }
 
   f.log_block("f.tune:2: impute", config=config)
-  out <- impute(out$state, out$config)
+  out <- try(impute(out$state, out$config), silent=T)
+  if(inherits(out, "try-error")) return(f.tune2_bad(config, "impute", out))
 
   ## test_deqms() refuses a run in which every gene has the same number of features:
 
@@ -194,18 +207,9 @@ f.tune2 <- function(state, config) {
     return(f.tune2_na_row(config))
   }
 
-  ## a sweep exists to fill in a matrix of parameter combinations, so one combination
-  ##   that an engine cannot fit should cost that cell and not the whole run:
-
   f.log_block("f.tune:2: test", config=config)
   result <- try(test(out$state, out$config), silent=T)
-
-  if(inherits(result, "try-error")) {
-    f.msg("WARNING: f.tune2: test_method", config$test_method, "failed on this",
-      "combination; skipping and returning NA;", "\n",
-      "  ", as.character(result), config=config)
-    return(f.tune2_na_row(config))
-  }
+  if(inherits(result, "try-error")) return(f.tune2_bad(config, "test", result))
 
   tbl <- result$standard
 
@@ -259,14 +263,16 @@ f.tune2 <- function(state, config) {
 #' @param normalization_methods Character vector of methods to try. One or more element of
 #'   \code{h0testr::normalize_methods()}, or \code{"q50"} or \code{"q75"}, which are
 #'   \code{"quantile"} at a \code{normalization_quantile} of \code{0.5} and \code{0.75}.
-#'   Default: every method returned by \code{h0testr::normalize_methods()}, with
-#'   \code{"quantile"} entered as those two. \code{"loess"} is the slowest of them, so
-#'   drop it from the list if the sweep takes too long. A name outside that set is refused. 
-#'   \code{"none"} is accepted: not normalizing is something a sweep has a
-#'   use for comparing against.
+#'   Default: \code{"RLE"}, \code{"TMM"}, \code{"TMMwsp"}, \code{"q50"}, \code{"q75"},
+#'   \code{"cpm"}, \code{"qquantile"}, \code{"vsn"}, \code{"loess"} and \code{"log2"}.
+#'   Any other accepted name, \code{"upperquartile"} and \code{"none"} included, is swept
+#'   only when named. \code{"loess"} is the slowest of them, so drop it from the list if
+#'   the sweep takes too long. A name outside the accepted set is refused.
 #' @param impute_methods Character vector of methods to try. One or more of:
 #'   \code{c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", "knn", "min_det", "min_prob", "qrilc", "bpca", "ppca", "svdImpute", "lls", "missforest", "none")}.
 #'   A name not returned by \code{h0testr::impute_methods()} is refused.
+#'   Default: every one of them except \code{"ppca"}, \code{"rf"} and \code{"lls"}, which
+#'   are swept only when named.
 #' @param impute_quantiles Numeric vector of quantiles to try for \code{impute_method \%in\%
 #'   c("unif_global_lod", "unif_sample_lod", "min_det", "min_prob")}. One or more values
 #'   between \code{0.0} and \code{1.0}.
@@ -318,9 +324,12 @@ f.tune2 <- function(state, config) {
 #'     \code{"prolfqua_lmer"} and \code{"msqrob_agg"} are skipped when
 #'     \code{config$feat_id_col} and \code{config$gene_id_col} name one column, there
 #'     being no feature level for them to model.
-#'     Other failures of the test step are caught the same way, so that one
-#'     combination an engine cannot fit costs that cell and not the rest of the
-#'     sweep.
+#'     Failures of the aggregation, filtering, imputation and test steps are caught
+#'     the same way, so that a combination which cannot run costs that cell and not
+#'     the rest of the sweep. Since aggregation runs once per test method, above the
+#'     imputation cells, its failure gives every one of them such a row: this is what
+#'     \code{normalization_method="none"} does on raw scale input, where the default
+#'     \code{medianPolish} aggregation has no log scale to work on.
 #'     \code{h0testr::tune_check()} counts these \code{NA} \code{nhits} as zero hits,
 #'     but gives such a row no \code{fdr}, so that a combination which never ran is
 #'     not ranked above every combination that did.
@@ -364,18 +373,17 @@ f.tune2 <- function(state, config) {
 
 tune <- function(
     config,  
-    normalization_methods=c("RLE", "upperquartile", "q50", "q75", "cpm", "max",
-      "sum", "div.mean", "div.median", "TMM", "TMMwsp", "vsn", "qquantile",
-      "loess", "log2", "none"),
-    impute_methods=c("sample_lod", "unif_sample_lod", "unif_global_lod", 
-      "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", 
-      "knn", "min_det", "min_prob", "qrilc", "bpca", "ppca", "svdImpute", 
-      "lls", "missforest", "none"),
-    impute_quantiles=c(0, 0.01, 0.05, 0.1), 
-    impute_scales=c(1, 0.33, 0.1),
-    impute_spans=c(0.25, 0.5, 0.75),
-    impute_npcs=c(3, 5, 10),
-    impute_ks=c(5, 10, 20), 
+    normalization_methods=c("RLE", "TMM", "TMMwsp", "q50", "q75", "cpm",
+      "qquantile", "vsn", "loess", "log2"),
+    impute_methods=c("sample_lod", "unif_sample_lod", "unif_global_lod",
+      "rnorm_feature", "glm_binom", "loess_logit", "glmnet",
+      "knn", "min_det", "min_prob", "qrilc", "bpca", "svdImpute",
+      "missforest", "none"),
+    impute_quantiles=c(0, 0.05),
+    impute_scales=c(1, 0.1),
+    impute_spans=0.5,
+    impute_npcs=c(3, 10),
+    impute_ks=c(5, 20),
     test_methods=c("lm", "trend", "deqms", "msqrob", "proda", "prolfqua", "voom")) {
 
   ## the sweep assigns each of these to config$test_method in turn:
@@ -434,19 +442,39 @@ tune <- function(
       config2$test_method <- test_method
       f.msg("test_method:", test_method, config=config2)
       
+      agg_ok <- TRUE
+
       if(!f.gene_level_method(test_method)) {
         ## for methods that do not use peptides for gene testing:
         f.log_block("combine_features", config=config2)
-        out <- combine_features(state2, config2)
-        state3 <- out$state
-        config3 <- out$config
+        out <- try(combine_features(state2, config2), silent=T)
+
+        if(inherits(out, "try-error")) {
+          f.msg("WARNING: tune: combine_features failed under normalization_method",
+            normalization_method, "; every combination below it returns NA;", "\n",
+            "  ", as.character(out), config=config2)
+          agg_ok <- FALSE
+          state3 <- state2
+          config3 <- config2
+        } else {
+          state3 <- out$state
+          config3 <- out$config
+        }
       } else {
         ## for methods that do use peptides for gene testing:
         f.log_block("skipping combine_features", config=config2)
         state3 <- state2
         config3 <- config2
       }
-      
+
+      ## combine_features runs once per test method, above the cells, so its failure
+      ##   costs each of them a row rather than emptying the grid:
+
+      f.cell <- function(state, config) {
+        if(!agg_ok) return(f.tune2_na_row(config))
+        return(f.tune2(state, config))
+      }
+
       for(impute_method in impute_methods) {
         
         config3$impute_method <- impute_method
@@ -461,7 +489,7 @@ tune <- function(
             config3$impute_quantile <- impute_quantile
             
             f.log_block("filter, impute, and test", config=config3)
-            rslt_i <- f.tune2(state3, config3)
+            rslt_i <- f.cell(state3, config3)
             rslt <- rbind(rslt, rslt_i)
             f.log_obj(rslt_i, config=config3)
           }
@@ -474,7 +502,7 @@ tune <- function(
             config3$impute_scale <- impute_scale
             
             f.log_block("filter, impute, and test", config=config3)
-            rslt_i <- f.tune2(state3, config3)
+            rslt_i <- f.cell(state3, config3)
             rslt <- rbind(rslt, rslt_i)
             f.log_obj(rslt_i, config=config3)
           }
@@ -490,7 +518,7 @@ tune <- function(
               config3$impute_scale <- impute_scale
               
               f.log_block("filter, impute, and test", config=config3)
-              rslt_i <- f.tune2(state3, config3)
+              rslt_i <- f.cell(state3, config3)
               rslt <- rbind(rslt, rslt_i)
               f.log_obj(rslt_i, config=config3)
             }
@@ -504,7 +532,7 @@ tune <- function(
             config3$impute_span <- impute_span
             
             f.log_block("filter, impute, and test", config=config3)
-            rslt_i <- f.tune2(state3, config3)
+            rslt_i <- f.cell(state3, config3)
             rslt <- rbind(rslt, rslt_i)
             f.log_obj(rslt_i, config=config3)
           }
@@ -517,7 +545,7 @@ tune <- function(
             config3$impute_npcs <- npcs
             
             f.log_block("filter, impute, and test", config=config3)
-            rslt_i <- f.tune2(state3, config3)
+            rslt_i <- f.cell(state3, config3)
             rslt <- rbind(rslt, rslt_i)
             f.log_obj(rslt_i, config=config3)
           }
@@ -530,7 +558,7 @@ tune <- function(
             config3$impute_k <- impute_k
             
             f.log_block("filter, impute, and test", config=config3)
-            rslt_i <- f.tune2(state3, config3)
+            rslt_i <- f.cell(state3, config3)
             rslt <- rbind(rslt, rslt_i)
             f.log_obj(rslt_i, config=config3)
           }
@@ -542,7 +570,7 @@ tune <- function(
             config=config3)
 
           f.log_block("filter, impute, and test", config=config3)
-          rslt_i <- f.tune2(state3, config3)
+          rslt_i <- f.cell(state3, config3)
           rslt <- rbind(rslt, rslt_i)
           f.log_obj(rslt_i, config=config3)
         } else {
