@@ -162,6 +162,8 @@ f.tune2 <- function(state, config) {
   ## a sweep exists to fill in a matrix of parameter combinations, so a step that
   ##   cannot run should cost that cell and not the whole run:
 
+  check_config(config)
+
   f.log_block("f.tune:2: filter", config=config)
   out <- try(filter(state, config), silent=T)
   if(inherits(out, "try-error")) return(f.tune2_bad(config, "filter", out))
