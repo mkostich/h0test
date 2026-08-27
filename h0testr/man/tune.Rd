@@ -36,11 +36,13 @@ use for comparing against.}
 \code{c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", "knn", "min_det", "min_prob", "qrilc", "bpca", "ppca", "svdImpute", "lls", "missforest", "none")}.
 A name not returned by \code{h0testr::impute_methods()} is refused.}
 
-\item{impute_quantiles}{Numeric vector of quantiles to try for \code{impute_unif_*} methods. 
-One or more values between \code{0.0} and \code{1.0}.}
+\item{impute_quantiles}{Numeric vector of quantiles to try for \code{impute_method \%in\%
+c("unif_global_lod", "unif_sample_lod", "min_det", "min_prob")}. One or more values
+between \code{0.0} and \code{1.0}.}
 
-\item{impute_scales}{Numeric vector of scales to try for \code{impute_rnorm_feature}. 
-See \code{impute_rnorm_feature()} \code{scale}. parameter.}
+\item{impute_scales}{Numeric vector of scales to try for \code{impute_method \%in\%
+c("rnorm_feature", "qrilc", "min_prob")}. See the \code{scale} parameter of
+\code{h0testr::impute_rnorm_feature()}.}
 
 \item{impute_spans}{Numeric vector of spans to try for \code{impute_loess_logit}.}
 
@@ -129,7 +131,7 @@ Run a basic tuning loop that iterates over parameter combinations,
     \code{df_resid_min}, \code{test_prior_df}, \code{test_moderate}, \code{test_trend},
     \code{test_random_obs} and \code{test_ridge}. To compare two values of one of those,
     run one sweep per value.
-  \code{config$run_order} is not read at all: the step sequence above is fixed. 
+  \code{config$run_order} is not read.
   See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.
 }

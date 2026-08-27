@@ -28,8 +28,9 @@ A \code{data.frame} with the following columns:
   \tabular{ll}{
     \code{nhits}      \cr \tab Number of significant hits. \cr
     \code{ntests}     \cr \tab Number of features tested; \code{0} if the combination did not run. \cr
-    \code{fdr}        \cr \tab False discovery rate; \code{NA} where \code{ntests}
-      is \code{0}, or where there is no permuted counterpart. \cr
+    \code{fdr}        \cr \tab False discovery rate, \code{max1} divided by \code{nhits}
+      and capped at \code{1}; \code{NA} where \code{ntests} is \code{0}, or where there
+      is no permuted counterpart. \cr
     \code{max1}       \cr \tab Maximum number of hits in any permutation. \cr
     \code{mid1}       \cr \tab Median number of hits across permutations. \cr
     \code{avg1}       \cr \tab Average number of hits across permutations. \cr

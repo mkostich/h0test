@@ -252,7 +252,7 @@ f.tune2 <- function(state, config) {
 #'     \code{df_resid_min}, \code{test_prior_df}, \code{test_moderate}, \code{test_trend},
 #'     \code{test_random_obs} and \code{test_ridge}. To compare two values of one of those,
 #'     run one sweep per value.
-#'   \code{config$run_order} is not read at all: the step sequence above is fixed. 
+#'   \code{config$run_order} is not read.
 #'   See documentation for \code{h0testr::new_config()}
 #'     for more detailed description of configuration parameters.
 #' @param config List with configuration values like those returned by \code{new_config()}.
@@ -267,10 +267,12 @@ f.tune2 <- function(state, config) {
 #' @param impute_methods Character vector of methods to try. One or more of:
 #'   \code{c("sample_lod", "unif_sample_lod", "unif_global_lod", "rnorm_feature", "glm_binom", "loess_logit", "glmnet", "rf", "knn", "min_det", "min_prob", "qrilc", "bpca", "ppca", "svdImpute", "lls", "missforest", "none")}.
 #'   A name not returned by \code{h0testr::impute_methods()} is refused.
-#' @param impute_quantiles Numeric vector of quantiles to try for \code{impute_unif_*} methods. 
-#'   One or more values between \code{0.0} and \code{1.0}.
-#' @param impute_scales Numeric vector of scales to try for \code{impute_rnorm_feature}. 
-#'   See \code{impute_rnorm_feature()} \code{scale}. parameter.
+#' @param impute_quantiles Numeric vector of quantiles to try for \code{impute_method \%in\%
+#'   c("unif_global_lod", "unif_sample_lod", "min_det", "min_prob")}. One or more values
+#'   between \code{0.0} and \code{1.0}.
+#' @param impute_scales Numeric vector of scales to try for \code{impute_method \%in\%
+#'   c("rnorm_feature", "qrilc", "min_prob")}. See the \code{scale} parameter of
+#'   \code{h0testr::impute_rnorm_feature()}.
 #' @param impute_spans Numeric vector of spans to try for \code{impute_loess_logit}.
 #' @param impute_npcs Numeric vector of N PCs to try for \code{impute_method \%in\% c("bpca", "ppca", "svdImpute")}.
 #' @param impute_ks Numeric vector of \code{k} to use for \code{impute_method \%in\% c("knn", "lls")}.
@@ -401,9 +403,16 @@ tune <- function(
       "allowed:", norm_ok, config=config)
   }
 
+  ## the loop below assigns all three method keys, and tune()'s step sequence is
+  ##   the default one, so a stale value in any of them should not refuse the sweep:
+
+  config0 <- config
+  config0[c("normalization_method", "impute_method", "test_method")] <- ""
+  config0$run_order <- f.run_order_steps()
+
   ## load data:
   f.log_block("loading data", config=config)
-  out <- load_data(config)              ## overwritten at each iteration
+  out <- load_data(config0)             ## overwritten at each iteration
   state1 <- out$state                   ## save for subsequent iterations
   config1 <- out$config                 ## save for subsequent iterations
   rslt <- NULL
@@ -454,7 +463,7 @@ tune <- function(
             f.log_block("filter, impute, and test", config=config3)
             rslt_i <- f.tune2(state3, config3)
             rslt <- rbind(rslt, rslt_i)
-            f.log_obj(rslt, config=config3)
+            f.log_obj(rslt_i, config=config3)
           }
         } else if(impute_method %in% c("qrilc", "rnorm_feature")) {
           for(impute_scale in impute_scales) {
@@ -467,7 +476,7 @@ tune <- function(
             f.log_block("filter, impute, and test", config=config3)
             rslt_i <- f.tune2(state3, config3)
             rslt <- rbind(rslt, rslt_i)
-            f.log_obj(rslt, config=config3)
+            f.log_obj(rslt_i, config=config3)
           }
         } else if(impute_method %in% c("min_prob")) {
           for(impute_quantile in impute_quantiles) {
@@ -483,7 +492,7 @@ tune <- function(
               f.log_block("filter, impute, and test", config=config3)
               rslt_i <- f.tune2(state3, config3)
               rslt <- rbind(rslt, rslt_i)
-              f.log_obj(rslt, config=config3)
+              f.log_obj(rslt_i, config=config3)
             }
           }
         } else if(impute_method %in% c("loess_logit")) {
@@ -497,7 +506,7 @@ tune <- function(
             f.log_block("filter, impute, and test", config=config3)
             rslt_i <- f.tune2(state3, config3)
             rslt <- rbind(rslt, rslt_i)
-            f.log_obj(rslt, config=config3)
+            f.log_obj(rslt_i, config=config3)
           }
         } else if(impute_method %in% c("bpca", "ppca", "svdImpute")) {
           for(npcs in impute_npcs) {
@@ -510,7 +519,7 @@ tune <- function(
             f.log_block("filter, impute, and test", config=config3)
             rslt_i <- f.tune2(state3, config3)
             rslt <- rbind(rslt, rslt_i)
-            f.log_obj(rslt, config=config3)
+            f.log_obj(rslt_i, config=config3)
           }
         } else if(impute_method %in% c("knn", "lls")) {
           for(impute_k in impute_ks) {
@@ -523,7 +532,7 @@ tune <- function(
             f.log_block("filter, impute, and test", config=config3)
             rslt_i <- f.tune2(state3, config3)
             rslt <- rbind(rslt, rslt_i)
-            f.log_obj(rslt, config=config3)
+            f.log_obj(rslt_i, config=config3)
           }
         } else if(impute_method %in% c("sample_lod", "glm_binom", "glmnet", 
             "rf", "missforest", "none")) {
@@ -535,7 +544,7 @@ tune <- function(
           f.log_block("filter, impute, and test", config=config3)
           rslt_i <- f.tune2(state3, config3)
           rslt <- rbind(rslt, rslt_i)
-          f.log_obj(rslt, config=config3)
+          f.log_obj(rslt_i, config=config3)
         } else {
           f.err("tune: unexpected impute_method:", 
             impute_method, config=config3)
@@ -552,7 +561,11 @@ tune <- function(
     rslt <- f.tune2_na_row(config)[0, , drop=F]
   }
 
+  ## the loop logs each new row as it comes; the assembled table is logged once,
+  ##   here, so log size stays linear in the number of combinations:
+
   f.log_block("returning result", config=config)
+  f.log_obj(rslt, config=config)
   return(rslt)
 }
 
@@ -599,8 +612,9 @@ tune <- function(
 #'   \tabular{ll}{
 #'     \code{nhits}      \cr \tab Number of significant hits. \cr
 #'     \code{ntests}     \cr \tab Number of features tested; \code{0} if the combination did not run. \cr
-#'     \code{fdr}        \cr \tab False discovery rate; \code{NA} where \code{ntests}
-#'       is \code{0}, or where there is no permuted counterpart. \cr
+#'     \code{fdr}        \cr \tab False discovery rate, \code{max1} divided by \code{nhits}
+#'       and capped at \code{1}; \code{NA} where \code{ntests} is \code{0}, or where there
+#'       is no permuted counterpart. \cr
 #'     \code{max1}       \cr \tab Maximum number of hits in any permutation. \cr
 #'     \code{mid1}       \cr \tab Median number of hits across permutations. \cr
 #'     \code{avg1}       \cr \tab Average number of hits across permutations. \cr
@@ -733,7 +747,8 @@ tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05) {
       "and are ignored; first few:", utils::head(miss1, 3), config=config)
   }
 
-  ## permuted results in dat1; take max, median, mean, and sd of 10 permutation results:
+  ## permuted results in dat1; summarize hits per combination over however many
+  ##   permuted files were read:
   perm_max <- tapply(dat1$nhits, k1, max, na.rm=T)
   perm_mid <- tapply(dat1$nhits, k1, stats::median, na.rm=T)
   perm_avg <- tapply(dat1$nhits, k1, mean, na.rm=T)
@@ -746,12 +761,13 @@ tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05) {
   dat0$sd1  <- perm_sd[k0]    ## sd(nhits) in permutations
   dat0$perm <- NULL
 
-  ## average number of false positives == average number of hits across 10 sets of permutation results;
-  ##   false positive rate: (average number of false positives) / (total number of positives)
-  
+  ## worst case false positive rate: the most hits any single permutation gave,
+  ##   over the observed hits, capped at 1:
+
+
   nhits <- dat0$nhits
   nhits[nhits %in% 0] <- 1
-  dat0$fdr <- dat0$max1 / nhits   ## used to be $avg
+  dat0$fdr <- dat0$max1 / nhits
   dat0$fdr[dat0$fdr > 1] <- 1.0
 
   ## a combination f.tune2() skipped, or that lost every feature to filtering, has
