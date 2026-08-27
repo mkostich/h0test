@@ -73,7 +73,9 @@ A list with the following elements: \cr
     \code{expr}      \cr \tab Average feature expression. \cr
     \code{logfc}     \cr \tab Estimated effect size; see below. \cr
     \code{stat}      \cr \tab Value of test statistic. \cr
-    \code{lod}       \cr \tab Log-odds of differential expression. \cr
+    \code{lod}       \cr \tab Log-odds of differential expression, which only
+                             \code{trend} and \code{voom} report, from limma's
+                             \code{B}; \code{NA} for every other method. \cr
     \code{pval}      \cr \tab Raw p-value resulting from test. \cr
     \code{adj_pval}  \cr \tab Adjusted (for multiple testing) p-value. \cr
   }

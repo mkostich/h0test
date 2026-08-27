@@ -180,7 +180,9 @@ f.note_trend <- function(method, trend, given, config) {
 #'     \code{expr}      \cr \tab Average feature expression. \cr
 #'     \code{logfc}     \cr \tab Estimated effect size; see below. \cr
 #'     \code{stat}      \cr \tab Value of test statistic. \cr
-#'     \code{lod}       \cr \tab Log-odds of differential expression. \cr
+#'     \code{lod}       \cr \tab Log-odds of differential expression, which only
+#'                              \code{trend} and \code{voom} report, from limma's
+#'                              \code{B}; \code{NA} for every other method. \cr
 #'     \code{pval}      \cr \tab Raw p-value resulting from test. \cr
 #'     \code{adj_pval}  \cr \tab Adjusted (for multiple testing) p-value. \cr
 #'   }
@@ -397,7 +399,32 @@ test <- function(state, config, method=NULL,
 
   tbl <- cbind(feats[tbl2$feature, , drop=F], result$hits[o, , drop=F])
   rownames(tbl) <- NULL
-  
+
+  ## a method that attaches state$features itself, as test_lm() does, leaves the
+  ##   metadata here twice, which makes the saved header ambiguous; the copy from
+  ##   feats is kept, and a dropped column that disagrees with it is reported:
+
+  i_dup <- duplicated(names(tbl))
+
+  if(any(i_dup)) {
+    noms <- unique(names(tbl)[i_dup])
+    bad <- noms[!sapply(noms, function(nom) {
+      j <- which(names(tbl) %in% nom)
+      all(sapply(j[-1], function(k) isTRUE(all.equal(tbl[[j[1]]], tbl[[k]]))))
+    })]
+
+    if(length(bad)) {
+      f.msg("WARNING: test: method", method, "returned", length(bad),
+        if(length(bad) > 1) "columns" else "a column", "named for feature metadata",
+        "but holding different values, and the metadata copy is the one kept;", "\n",
+        " columns:", bad, config=config)
+    }
+
+    f.log("dropping", sum(i_dup), "duplicated result columns:",
+      paste(unique(names(tbl)[i_dup]), collapse=", "), config=config)
+    tbl <- tbl[, !i_dup, drop=FALSE]
+  }
+
   if((!is.null(config$save_state)) && config$save_state) {
     
     file_out <- paste0(config$dir_out, "/", length(config$run_order) + 3, 
