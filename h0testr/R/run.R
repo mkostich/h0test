@@ -105,20 +105,30 @@ run <- function(config) {
     original=result$original, standard=result$standard, fit=result$fit))
 }
 
-## helper for tune(); normalize and combine reps:
+## helper for tune(); not every name the grid sweeps is a config value:
 
-f.tune1 <- function(state, config, normalization_method) {
-  
+f.tune_norm <- function(config, normalization_method) {
+
   if(normalization_method %in% "q50") {
     config$normalization_method <- "quantile"
     config$normalization_quantile <- 0.5
-  } else if(normalization_method %in% c("q75")) {
+  } else if(normalization_method %in% "q75") {
     config$normalization_method <- "quantile"
     config$normalization_quantile <- 0.75
-  } else if(normalization_method %in% "upperquartile") {
-    config$normalization_quantile <- 0.75
+  } else {
+    config$normalization_method <- normalization_method
+    if(normalization_method %in% "upperquartile") config$normalization_quantile <- 0.75
   }
-  
+
+  return(config)
+}
+
+## helper for tune(); normalize and combine reps:
+
+f.tune1 <- function(state, config, normalization_method) {
+
+  config <- f.tune_norm(config, normalization_method)
+
   ## normalize and combine reps:
   f.log_block("f.tune:1: normalize", config=config)
   out <- normalize(state, config)
@@ -429,13 +439,25 @@ tune <- function(
 
   for(normalization_method in normalization_methods) {
     
-    config1$normalization_method <- normalization_method
-    f.msg("normalization_method:", normalization_method, config=config1)
-    
-    f.log_block("normalize and combine reps", config=config1)
-    out <- f.tune1(state1, config1, normalization_method=normalization_method)
-    state2 <- out$state                 ## save for subsequent iterations
-    config2 <- out$config               ## save for subsequent iterations
+    config_n <- f.tune_norm(config1, normalization_method)
+    f.msg("normalization_method:", normalization_method, config=config_n)
+
+    norm_ok <- TRUE
+    f.log_block("normalize and combine reps", config=config_n)
+    out <- try(f.tune1(state1, config_n, normalization_method=normalization_method),
+      silent=T)
+
+    if(inherits(out, "try-error")) {
+      f.msg("WARNING: tune: normalization_method", normalization_method,
+        "failed; every combination under it returns NA;", "\n", "  ",
+        as.character(out), config=config_n)
+      norm_ok <- FALSE
+      state2 <- state1
+      config2 <- config_n
+    } else {
+      state2 <- out$state               ## save for subsequent iterations
+      config2 <- out$config             ## save for subsequent iterations
+    }
 
     ## normalize(), called by f.tune1(), records the scale in config2:
 
@@ -446,7 +468,11 @@ tune <- function(
       
       agg_ok <- TRUE
 
-      if(!f.gene_level_method(test_method)) {
+      if(!norm_ok) {
+        agg_ok <- FALSE
+        state3 <- state2
+        config3 <- config2
+      } else if(!f.gene_level_method(test_method)) {
         ## for methods that do not use peptides for gene testing:
         f.log_block("combine_features", config=config2)
         out <- try(combine_features(state2, config2), silent=T)
@@ -589,6 +615,11 @@ tune <- function(
     f.msg("WARNING: tune: no parameter combination was tested; returning an empty",
       "result table", config=config)
     rslt <- f.tune2_na_row(config)[0, , drop=F]
+  }
+
+  if(nrow(rslt) && all(is.na(rslt$ntests))) {
+    f.err("tune: no parameter combination could be tested; see the log for the",
+      "first failure", config=config)
   }
 
   ## the loop logs each new row as it comes; the assembled table is logged once,
