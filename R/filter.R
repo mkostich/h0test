@@ -951,7 +951,7 @@ filter_state <- function(state, config, remove_constant=TRUE, filter_by_formula=
 
   check_config(config)
 
-  f.msg("filter: remove_constant:", remove_constant,
+  f.msg("filter_state: remove_constant:", remove_constant,
     "; filter_by_formula:", filter_by_formula,
     "; filter_by_estimability:", filter_by_estimability, config=config)
 
@@ -977,7 +977,7 @@ filter_state <- function(state, config, remove_constant=TRUE, filter_by_formula=
     nom <- state$features[[config$feat_col]][i_none]
     if(is.null(nom)) nom <- rownames(state$expression)[i_none]
 
-    f.err("filter:", sum(i_none), "of", length(n_obs), "features have no",
+    f.err("filter_state:", sum(i_none), "of", length(n_obs), "features have no",
       "measured values after filtering, so nothing downstream can model or",
       "impute them;", "\n",
       "  check the filtering criteria (remove_constant, filter_by_formula,",
@@ -990,7 +990,7 @@ filter_state <- function(state, config, remove_constant=TRUE, filter_by_formula=
   
   prfx <- "filtered"
   if(!is.null(config$run_order)) {
-    i <- config$run_order %in% "filter"
+    i <- config$run_order %in% "filter_state"
     if(any(i)) {
       prfx <- paste0(which(i)[1] + 2, ".filtered")
     }

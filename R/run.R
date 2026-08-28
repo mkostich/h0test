@@ -2,7 +2,7 @@
 
 f.run_order_steps <- function() {
   return(
-    c("normalize", "combine_replicates", "combine_features", "filter", "impute")
+    c("normalize", "combine_replicates", "combine_features", "filter_state", "impute")
   )
 }
 
@@ -14,7 +14,7 @@ f.run_order_steps <- function() {
 #'     where \code{config$run_order} is vector of functions which are run in
 #'     the specified order.
 #'   Each name in \code{config$run_order} must be one of \code{"normalize"},
-#'     \code{"combine_replicates"}, \code{"combine_features"}, \code{"filter"} and
+#'     \code{"combine_replicates"}, \code{"combine_features"}, \code{"filter_state"} and
 #'     \code{"impute"}; \code{h0testr::check_config()} refuses anything else before the
 #'     workflow starts. A zero length \code{config$run_order} runs
 #'     \code{h0testr::load_data()} and then \code{h0testr::test_h0()}. Naming a step twice
@@ -59,7 +59,7 @@ f.run_order_steps <- function() {
 #' config$test_method <- "trend"
 #' config$reference_levels <- c(condition="placebo")
 #' config$n_features_min <- 10     ## default 1000 too big for small demo dataset
-#' config$run_order <- c("normalize", "combine_replicates", "filter", "impute")
+#' config$run_order <- c("normalize", "combine_replicates", "filter_state", "impute")
 #'
 #' print(config$run_order)
 #'

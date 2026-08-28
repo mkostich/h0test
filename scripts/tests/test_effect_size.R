@@ -195,7 +195,7 @@ run <- function(method, cfg) {
   }
   args <- list(st, cf, method=method)
   if(method %in% c("proda", "prolfqua")) args$is_log_transformed <- TRUE
-  return(try(suppressMessages(do.call(test, args)), silent=TRUE))
+  return(try(suppressMessages(do.call(test_h0, args)), silent=TRUE))
 }
 
 ## independent reference: ordinary least squares on the same design, per gene, from the

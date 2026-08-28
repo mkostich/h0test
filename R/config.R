@@ -153,8 +153,8 @@ new_config <- function() {
     test_random_obs=TRUE,                ## whether the feature level mixed model paths, test_method %in% c("prolfqua_lmer", "msqrob_agg"), add a random observation effect to the random feature effect; TRUE is the calibrated model; FALSE gives the feature-only structure both packages document, which is anti-conservative; see test_prolfqua() and test_msqrob()
     test_ridge=FALSE,                    ## whether test_method="msqrob_agg" penalizes the fixed effects, msqrob2::msqrobAggregate(ridge=TRUE); FALSE is msqrob2's own default throughout; TRUE shrinks the coefficients toward zero, so the reported logFC is not comparable to what the other methods report, renames the fitted parameters, and refuses a mean model with fewer than two non-intercept columns; see test_msqrob()
 
-    ## run_order character vector with elements from f.run_order_steps(), which is {"normalize", "combine_replicates", "combine_features", "filter", "impute"}; check_config() refuses any other name, and run() warns about a repeat:
-    run_order=c("normalize", "combine_replicates", "combine_features", "filter", "impute"),   ## order of workflow operations
+    ## run_order character vector with elements from f.run_order_steps(), which is {"normalize", "combine_replicates", "combine_features", "filter_state", "impute"}; check_config() refuses any other name, and run() warns about a repeat:
+    run_order=c("normalize", "combine_replicates", "combine_features", "filter_state", "impute"),   ## order of workflow operations
     
     ## misc; 
     save_state=TRUE,                     ## whether to save output files; might set to FALSE for tuning/testing
@@ -264,7 +264,7 @@ f.frm_min_noint_cols <- function(config) {
 #' ## invalid: a step h0testr::run() has no function for; throws an error before the
 #' ##   workflow starts rather than after the steps before it have run:
 #' config <- h0testr::new_config()
-#' config$run_order <- c("normalize", "combine_featurez", "filter")
+#' config$run_order <- c("normalize", "combine_featurez", "filter_state")
 #' try(h0testr::check_config(config))
 #'
 #' ## ok: no steps at all, meaning load_data() and then test_h0(), for data that arrives

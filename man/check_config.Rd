@@ -80,7 +80,7 @@ h0testr::check_config(config)
 ## invalid: a step h0testr::run() has no function for; throws an error before the
 ##   workflow starts rather than after the steps before it have run:
 config <- h0testr::new_config()
-config$run_order <- c("normalize", "combine_featurez", "filter")
+config$run_order <- c("normalize", "combine_featurez", "filter_state")
 try(h0testr::check_config(config))
 
 ## ok: no steps at all, meaning load_data() and then test_h0(), for data that arrives

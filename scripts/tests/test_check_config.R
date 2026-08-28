@@ -399,7 +399,7 @@ cfg <- base_cfg()
 report(isTRUE(check_config(cfg)), "the default run_order passes")
 
 report(setequal(f.run_order_steps(),
-  c("normalize", "combine_replicates", "combine_features", "filter", "impute")),
+  c("normalize", "combine_replicates", "combine_features", "filter_state", "impute")),
   "five steps are on offer")
 report(all(new_config()$run_order %in% f.run_order_steps()),
   "and the default run_order is drawn from them")
@@ -414,7 +414,7 @@ for(step in f.run_order_steps()) {
 report(ok, "each one passes on its own, and each names a function that exists")
 
 cfg <- base_cfg()
-cfg$run_order <- c("normalize", "combine_featurez", "filter")
+cfg$run_order <- c("normalize", "combine_featurez", "filter_state")
 m0 <- mark()
 report(threw(check_config(cfg)), "a step that is not one of them is refused")
 report(logged("combine_featurez", m0), "and the message names the offending step")
@@ -472,7 +472,7 @@ cfg_r$test_term <- "condition"
 cfg_r$test_method <- "trend"
 cfg_r$reference_levels <- c(condition="placebo")
 cfg_r$n_features_min <- 10
-cfg_r$run_order <- c("normalize", "combine_replicates", "filter", "impute")
+cfg_r$run_order <- c("normalize", "combine_replicates", "filter_state", "impute")
 
 report(dir.exists(cfg_r$dir_in) && file.exists(file.path(cfg_r$dir_in, "expression.tsv")),
   "the package ships the demo data this section needs")
@@ -484,7 +484,7 @@ report(!inherits(res_r, "try-error") && nrow(res_r$standard) > 0,
 report(!logged("more than once", m0), "with nothing said about repeats")
 
 cfg_r2 <- cfg_r
-cfg_r2$run_order <- c("normalize", "combine_replicates", "filter", "impute", "filter")
+cfg_r2$run_order <- c("normalize", "combine_replicates", "filter_state", "impute", "filter_state")
 m0 <- mark()
 res_r2 <- try(suppressMessages(run(cfg_r2)), silent=TRUE)
 report(!inherits(res_r2, "try-error"), "a repeated step runs rather than being refused")

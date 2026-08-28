@@ -443,7 +443,7 @@ init_state <- function(state, config, initialized=F, minimal=F) {
   } else if(!isTRUE(config$is_log_transformed)) {
 
     if(is.null(config$is_log_transformed)) {
-      f.msg("initialize: initialized=TRUE, so state$expression is left as it",
+      f.msg("init_state: initialized=TRUE, so state$expression is left as it",
         "is: no zeros converted to NA and no check for negative values;", "\n",
         "config$is_log_transformed was unset, and is recorded as FALSE (raw),",
         "matching the h0testr::new_config() default;", "\n",
@@ -460,7 +460,7 @@ init_state <- function(state, config, initialized=F, minimal=F) {
   parsed <- f.parse_frm(config$frm, config)
   if(parsed$two_sided) {
     f.msg(
-      "initialize:",
+      "init_state:",
       "ignoring dependent variable on left-hand side of config$frm;", "\n",
       "the dependent is always the expression values of one feature.", "\n",
       "Setting config$frm to:", parsed$frm,
@@ -484,7 +484,7 @@ init_state <- function(state, config, initialized=F, minimal=F) {
   
   if(!any(duplicated(state$features[[config$gene_id_col]]))) {
     f.msg(
-      "initialize:",
+      "init_state:",
       "config$gene_id_col has no duplicates in state$features", "\n", 
       "No point in aggregating features", "\n",
       "Setting config$gene_id_col to config$feat_id_col:", 

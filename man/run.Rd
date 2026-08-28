@@ -29,7 +29,7 @@ Run a basic workflow: \code{load_data() -> config$run_order -> test_h0()},
     where \code{config$run_order} is vector of functions which are run in
     the specified order.
   Each name in \code{config$run_order} must be one of \code{"normalize"},
-    \code{"combine_replicates"}, \code{"combine_features"}, \code{"filter"} and
+    \code{"combine_replicates"}, \code{"combine_features"}, \code{"filter_state"} and
     \code{"impute"}; \code{h0testr::check_config()} refuses anything else before the
     workflow starts. A zero length \code{config$run_order} runs
     \code{h0testr::load_data()} and then \code{h0testr::test_h0()}. Naming a step twice
@@ -64,7 +64,7 @@ config$test_term <- "condition"
 config$test_method <- "trend"
 config$reference_levels <- c(condition="placebo")
 config$n_features_min <- 10     ## default 1000 too big for small demo dataset
-config$run_order <- c("normalize", "combine_replicates", "filter", "impute")
+config$run_order <- c("normalize", "combine_replicates", "filter_state", "impute")
 
 print(config$run_order)
 

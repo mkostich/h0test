@@ -142,7 +142,7 @@ config$test_method <- opts$method
 ## gene level methods report per gene from feature level input, so they must not
 ##   see the features already aggregated:
 config$run_order <- c("normalize", "combine_replicates",
-  if(!gene_level) "combine_features", "filter", "impute")
+  if(!gene_level) "combine_features", "filter_state", "impute")
 
 say("method ", opts$method, " (", if(gene_level) "gene" else "observation",
   " level), frm ", deparse(frm), ", test_term ", opts$test_term)
