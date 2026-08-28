@@ -359,7 +359,7 @@ cfg_gb <- cfg_raw
 cfg_gb$impute_n_pts <- 1e5
 
 engine("impute_glm_binom", "glm_binom", s_raw, cfg_gb, raw=TRUE, seed=67,
-  function() impute_glm_binom(s_raw, cfg_gb, n_pts=1e5))
+  function() impute_glm_binom(s_raw, cfg_gb, n_pts=1e5), tol=1e-10)
 refuses_df("impute_glm_binom",
   function(s, cfg) impute_glm_binom(s, cfg, n_pts=1e3), cfg_raw)
 
