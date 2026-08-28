@@ -120,6 +120,7 @@ f.pos_mat <- function(mat, config, is_log_transformed=NULL, fn_name="f.pos_mat")
 #' summary(c(state2$expression))  ## note number of NAs
 #' head(state$expression)
 #' round(head(state2$expression))
+#' @export
 
 impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
 
@@ -228,6 +229,7 @@ impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
 #' summary(c(state2$expression))  ## note number of NAs
 #' head(state$expression)
 #' round(head(state2$expression))
+#' @export
 
 impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
 
@@ -346,6 +348,7 @@ impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
 #' summary(c(state2$expression))  ## note number of NAs
 #' head(state$expression)
 #' round(head(state2$expression))
+#' @export
 
 impute_sample_lod <- function(state, config) {
 
@@ -443,6 +446,7 @@ impute_sample_lod <- function(state, config) {
 #' config$is_log_transformed <- FALSE   ## argument and config must agree
 #' state2 <- h0testr::impute_rnorm_feature(state, config, is_log_transformed=FALSE)
 #' summary(c(state2$expression))    ## note number of NAs
+#' @export
 
 impute_rnorm_feature <- function(state, config, is_log_transformed=NULL,
     scale.=NULL) {
@@ -584,6 +588,7 @@ impute_rnorm_feature <- function(state, config, is_log_transformed=NULL,
 #' summary(c(state2$expression))   ## Note number of NAs
 #' head(state$expression)
 #' round(head(state2$expression))
+#' @export
 
 impute_glm_binom <- function(state, config, is_log_transformed=NULL,
     n_pts=NULL, off=1, f_mid=stats::median, min_fit_pts=10) {
@@ -696,6 +701,7 @@ impute_glm_binom <- function(state, config, is_log_transformed=NULL,
 #' summary(c(state2$expression))    ## note number of NAs
 #' head(state$expression)
 #' round(head(state2$expression))
+#' @export
 
 impute_loess_logit <- function(state, config, span=NULL, n_pts=NULL,
     off=0.1, f_mid=stats::median, degree=1, fam="symmetric", min_fit_pts=10) {
@@ -836,32 +842,35 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
 #'       \tab A data.frame logging statistics for each fit. \cr
 #'   } 
 #' @examples
-#' set.seed(101)
-#' exprs <- h0testr::sim1(n_obs=20, n_feats=30)$mat
-#' exprs <- log2(exprs + 1)
-#' feats <- data.frame(feature_id=rownames(exprs))
-#' samps <- data.frame(observation_id=colnames(exprs))
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list()
+#' if(requireNamespace("randomForest", quietly=TRUE)) {
+#'   set.seed(101)
+#'   exprs <- h0testr::sim1(n_obs=20, n_feats=30)$mat
+#'   exprs <- log2(exprs + 1)
+#'   feats <- data.frame(feature_id=rownames(exprs))
+#'   samps <- data.frame(observation_id=colnames(exprs))
+#'   state <- list(expression=exprs, features=feats, samples=samps)
+#'   config <- list()
 #'
-#' ## untransformed example:
-#' out <- h0testr::impute_rf(state, config, is_log_transformed=FALSE, verbose=FALSE)
-#' state2 <- out$state
-#' summary(c(state$expression))    ## Note number of NAs
-#' summary(c(state2$expression))   ## Note number of NAs
-#' head(state$expression)
-#' round(head(state2$expression))
-#' print(out$log)
+#'   ## untransformed example:
+#'   out <- h0testr::impute_rf(state, config, is_log_transformed=FALSE, verbose=FALSE)
+#'   state2 <- out$state
+#'   summary(c(state$expression))    ## Note number of NAs
+#'   summary(c(state2$expression))   ## Note number of NAs
+#'   head(state$expression)
+#'   round(head(state2$expression))
+#'   print(out$log)
 #' 
-#' ## log-transformed example:
-#' state$expression <- log2(state$expression + 1)
-#' out <- h0testr::impute_rf(state, config, is_log_transformed=TRUE, verbose=FALSE)
-#' state2 <- out$state
-#' summary(c(state$expression))    ## Note number of NAs
-#' summary(c(state2$expression))   ## Note number of NAs
-#' head(state$expression)
-#' round(head(state2$expression))
-#' print(out$log)
+#'   ## log-transformed example:
+#'   state$expression <- log2(state$expression + 1)
+#'   out <- h0testr::impute_rf(state, config, is_log_transformed=TRUE, verbose=FALSE)
+#'   state2 <- out$state
+#'   summary(c(state$expression))    ## Note number of NAs
+#'   summary(c(state2$expression))   ## Note number of NAs
+#'   head(state$expression)
+#'   round(head(state2$expression))
+#'   print(out$log)
+#' }
+#' @export
 
 impute_rf <- function(state, config, is_log_transformed=NULL, 
     f_imp=impute_sample_lod, ntree=100, mtry=NULL, aug_mult=0.33, 
@@ -1000,31 +1009,34 @@ impute_rf <- function(state, config, is_log_transformed=NULL,
 #'       \tab A data.frame logging statistics for each fit. \cr
 #'   } 
 #' @examples
-#' set.seed(101)
-#' exprs <- h0testr::sim1(n_obs=20, n_feats=30)$mat
-#' feats <- data.frame(feature_id=rownames(exprs))
-#' samps <- data.frame(observation_id=colnames(exprs))
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list()
+#' if(requireNamespace("glmnet", quietly=TRUE)) {
+#'   set.seed(101)
+#'   exprs <- h0testr::sim1(n_obs=20, n_feats=30)$mat
+#'   feats <- data.frame(feature_id=rownames(exprs))
+#'   samps <- data.frame(observation_id=colnames(exprs))
+#'   state <- list(expression=exprs, features=feats, samples=samps)
+#'   config <- list()
 #'
-#' ## example with untransformed data:
-#' out <- h0testr::impute_glmnet(state, config, is_log_transformed=FALSE, verbose=FALSE)
-#' state2 <- out$state
-#' summary(c(state$expression))    ## Note number of NAs
-#' summary(c(state2$expression))   ## Note number of NAs
-#' head(state$expression)
-#' round(head(state2$expression))
-#' print(out$log)
+#'   ## example with untransformed data:
+#'   out <- h0testr::impute_glmnet(state, config, is_log_transformed=FALSE, verbose=FALSE)
+#'   state2 <- out$state
+#'   summary(c(state$expression))    ## Note number of NAs
+#'   summary(c(state2$expression))   ## Note number of NAs
+#'   head(state$expression)
+#'   round(head(state2$expression))
+#'   print(out$log)
 #' 
-#' ## example with log-transformed data:
-#' state$expression <- log2(state$expression + 1)
-#' out <- h0testr::impute_glmnet(state, config, is_log_transformed=TRUE, verbose=FALSE)
-#' state2 <- out$state
-#' summary(c(state$expression))    ## Note number of NAs
-#' summary(c(state2$expression))   ## Note number of NAs
-#' head(state$expression)
-#' round(head(state2$expression))
-#' print(out$log)
+#'   ## example with log-transformed data:
+#'   state$expression <- log2(state$expression + 1)
+#'   out <- h0testr::impute_glmnet(state, config, is_log_transformed=TRUE, verbose=FALSE)
+#'   state2 <- out$state
+#'   summary(c(state$expression))    ## Note number of NAs
+#'   summary(c(state2$expression))   ## Note number of NAs
+#'   head(state$expression)
+#'   round(head(state2$expression))
+#'   print(out$log)
+#' }
+#' @export
 
 impute_glmnet <- function(state, config, is_log_transformed=NULL,
     f_imp=impute_unif_sample_lod, nfolds=5, alpha=NULL, measure="mae", 
@@ -1149,24 +1161,27 @@ impute_glmnet <- function(state, config, is_log_transformed=NULL,
 #'       corresponding to columns of \code{expression}. \cr
 #'   } 
 #' @examples
-#' ## setup state and config, including prefiltering. No effects are planted, these
-#' ##   examples being about missing values rather than about testing:
-#' set.seed(101)
-#' samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
-#'   n_per_cell=3)
-#' sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
-#' state <- sim$state
-#' config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
-#' rm(samps, sim)
-#' state <- h0testr::filter_features(state, config, n_samples_min=3)
-#' state <- h0testr::filter_observations(state, config, n_features_min=30)
+#' if(requireNamespace("impute", quietly=TRUE)) {
+#'   ## setup state and config, including prefiltering. No effects are planted, these
+#'   ##   examples being about missing values rather than about testing:
+#'   set.seed(101)
+#'   samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+#'     n_per_cell=3)
+#'   sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
+#'   state <- sim$state
+#'   config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
+#'   rm(samps, sim)
+#'   state <- h0testr::filter_features(state, config, n_samples_min=3)
+#'   state <- h0testr::filter_observations(state, config, n_features_min=30)
 #'
-#' ## impute:
-#' state2 <- h0testr::impute_knn(state, config)
-#' summary(c(state$expression))    ## Note number of NAs
-#' summary(c(state2$expression))   ## Note number of NAs
-#' head(state$expression)
-#' round(head(state2$expression))
+#'   ## impute:
+#'   state2 <- h0testr::impute_knn(state, config)
+#'   summary(c(state$expression))    ## Note number of NAs
+#'   summary(c(state2$expression))   ## Note number of NAs
+#'   head(state$expression)
+#'   round(head(state2$expression))
+#' }
+#' @export
 
 impute_knn <- function(state, config, k=NULL, rowmax=0.5, colmax=0.8, maxp=1500) {
   
@@ -1227,24 +1242,27 @@ impute_knn <- function(state, config, k=NULL, rowmax=0.5, colmax=0.8, maxp=1500)
 #'       corresponding to columns of \code{expression}. \cr
 #'   } 
 #' @examples
-#' ## setup state and config, including prefiltering. No effects are planted, these
-#' ##   examples being about missing values rather than about testing:
-#' set.seed(101)
-#' samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
-#'   n_per_cell=3)
-#' sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
-#' state <- sim$state
-#' config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
-#' rm(samps, sim)
-#' state <- h0testr::filter_features(state, config, n_samples_min=3)
-#' state <- h0testr::filter_observations(state, config, n_features_min=30)
+#' if(requireNamespace("imputeLCMD", quietly=TRUE)) {
+#'   ## setup state and config, including prefiltering. No effects are planted, these
+#'   ##   examples being about missing values rather than about testing:
+#'   set.seed(101)
+#'   samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+#'     n_per_cell=3)
+#'   sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
+#'   state <- sim$state
+#'   config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
+#'   rm(samps, sim)
+#'   state <- h0testr::filter_features(state, config, n_samples_min=3)
+#'   state <- h0testr::filter_observations(state, config, n_features_min=30)
 #'
-#' ## impute:
-#' state2 <- h0testr::impute_min_det(state, config)
-#' summary(c(state$expression))    ## Note number of NAs
-#' summary(c(state2$expression))   ## Note number of NAs
-#' head(state$expression)
-#' round(head(state2$expression))
+#'   ## impute:
+#'   state2 <- h0testr::impute_min_det(state, config)
+#'   summary(c(state$expression))    ## Note number of NAs
+#'   summary(c(state2$expression))   ## Note number of NAs
+#'   head(state$expression)
+#'   round(head(state2$expression))
+#' }
+#' @export
 
 impute_min_det <- function(state, config, impute_quantile=NULL) {
   
@@ -1301,33 +1319,36 @@ impute_min_det <- function(state, config, impute_quantile=NULL) {
 #'       corresponding to columns of \code{expression}. \cr
 #'   } 
 #' @examples
-#' ## setup state and config, including prefiltering. No effects are planted, these
-#' ##   examples being about missing values rather than about testing:
-#' set.seed(101)
-#' samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
-#'   n_per_cell=3)
-#' sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
-#' state <- sim$state
-#' config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
-#' rm(samps, sim)
-#' state <- h0testr::filter_features(state, config, n_samples_min=3)
-#' state <- h0testr::filter_observations(state, config, n_features_min=30)
+#' if(requireNamespace("imputeLCMD", quietly=TRUE)) {
+#'   ## setup state and config, including prefiltering. No effects are planted, these
+#'   ##   examples being about missing values rather than about testing:
+#'   set.seed(101)
+#'   samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+#'     n_per_cell=3)
+#'   sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
+#'   state <- sim$state
+#'   config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
+#'   rm(samps, sim)
+#'   state <- h0testr::filter_features(state, config, n_samples_min=3)
+#'   state <- h0testr::filter_observations(state, config, n_features_min=30)
 #'
-#' ## untransformed example:
-#' state2 <- h0testr::impute_min_prob(state, config, is_log_transformed=FALSE)
-#' summary(c(state$expression))    ## Note number of NAs
-#' summary(c(state2$expression))   ## Note number of NAs
-#' head(state$expression)
-#' round(head(state2$expression))
+#'   ## untransformed example:
+#'   state2 <- h0testr::impute_min_prob(state, config, is_log_transformed=FALSE)
+#'   summary(c(state$expression))    ## Note number of NAs
+#'   summary(c(state2$expression))   ## Note number of NAs
+#'   head(state$expression)
+#'   round(head(state2$expression))
 #' 
-#' ## log-transformed example:
-#' state$expression <- log2(state$expression + 1)
-#' config$is_log_transformed <- TRUE   ## normalize() would; argument and config must agree
-#' state2 <- h0testr::impute_min_prob(state, config, is_log_transformed=TRUE)
-#' summary(c(state$expression))    ## Note number of NAs
-#' summary(c(state2$expression))   ## Note number of NAs
-#' head(state$expression)
-#' round(head(state2$expression))
+#'   ## log-transformed example:
+#'   state$expression <- log2(state$expression + 1)
+#'   config$is_log_transformed <- TRUE   ## normalize() would; argument and config must agree
+#'   state2 <- h0testr::impute_min_prob(state, config, is_log_transformed=TRUE)
+#'   summary(c(state$expression))    ## Note number of NAs
+#'   summary(c(state2$expression))   ## Note number of NAs
+#'   head(state$expression)
+#'   round(head(state2$expression))
+#' }
+#' @export
 
 impute_min_prob <- function(state, config, is_log_transformed=NULL, 
     impute_quantile=NULL, scale.=NULL) {
@@ -1394,33 +1415,36 @@ impute_min_prob <- function(state, config, is_log_transformed=NULL,
 #'       corresponding to columns of \code{expression}. \cr
 #'   } 
 #' @examples
-#' ## setup state and config, including prefiltering. No effects are planted, these
-#' ##   examples being about missing values rather than about testing:
-#' set.seed(101)
-#' samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
-#'   n_per_cell=3)
-#' sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
-#' state <- sim$state
-#' config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
-#' rm(samps, sim)
-#' state <- h0testr::filter_features(state, config, n_samples_min=3)
-#' state <- h0testr::filter_observations(state, config, n_features_min=30)
+#' if(requireNamespace("imputeLCMD", quietly=TRUE)) {
+#'   ## setup state and config, including prefiltering. No effects are planted, these
+#'   ##   examples being about missing values rather than about testing:
+#'   set.seed(101)
+#'   samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+#'     n_per_cell=3)
+#'   sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
+#'   state <- sim$state
+#'   config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
+#'   rm(samps, sim)
+#'   state <- h0testr::filter_features(state, config, n_samples_min=3)
+#'   state <- h0testr::filter_observations(state, config, n_features_min=30)
 #' 
-#' ## untransformed example. QRILC draws from a truncated distribution fitted in
-#' ##   log space, and a draw below zero there back-transforms to a raw value
-#' ##   below zero, which cannot be a measurement, so wrap in try(). 
-#' state2 <- try(h0testr::impute_qrilc(state, config, is_log_transformed=FALSE))
-#' summary(c(state$expression))    ## Note number of NAs
-#' if(!inherits(state2, "try-error")) summary(c(state2$expression))
+#'   ## untransformed example. QRILC draws from a truncated distribution fitted in
+#'   ##   log space, and a draw below zero there back-transforms to a raw value
+#'   ##   below zero, which cannot be a measurement, so wrap in try(). 
+#'   state2 <- try(h0testr::impute_qrilc(state, config, is_log_transformed=FALSE))
+#'   summary(c(state$expression))    ## Note number of NAs
+#'   if(!inherits(state2, "try-error")) summary(c(state2$expression))
 #' 
-#' ## log-transformed example:
-#' state$expression <- log2(state$expression + 1)
-#' config$is_log_transformed <- TRUE   ## normalize() would; argument and config must agree
-#' state2 <- h0testr::impute_qrilc(state, config, is_log_transformed=TRUE)
-#' summary(c(state$expression))    ## Note number of NAs
-#' summary(c(state2$expression))   ## Note number of NAs
-#' head(state$expression)
-#' round(head(state2$expression))
+#'   ## log-transformed example:
+#'   state$expression <- log2(state$expression + 1)
+#'   config$is_log_transformed <- TRUE   ## normalize() would; argument and config must agree
+#'   state2 <- h0testr::impute_qrilc(state, config, is_log_transformed=TRUE)
+#'   summary(c(state$expression))    ## Note number of NAs
+#'   summary(c(state2$expression))   ## Note number of NAs
+#'   head(state$expression)
+#'   round(head(state2$expression))
+#' }
+#' @export
 
 impute_qrilc <- function(state, config, is_log_transformed=NULL, scale.=NULL) {
   
@@ -1490,46 +1514,49 @@ impute_qrilc <- function(state, config, is_log_transformed=NULL, scale.=NULL) {
 #'       corresponding to columns of \code{expression}. \cr
 #'   } 
 #' @examples
-#' ## setup state and config, including prefiltering:
-#' set.seed(101)
-#' samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
-#'   n_per_cell=3)
-#' sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
-#' state <- sim$state
-#' config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
-#' rm(samps, sim)
-#' state <- h0testr::filter_features(state, config, n_samples_min=3)
-#' state <- h0testr::filter_observations(state, config, n_features_min=30)
+#' if(requireNamespace("pcaMethods", quietly=TRUE)) {
+#'   ## setup state and config, including prefiltering:
+#'   set.seed(101)
+#'   samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+#'     n_per_cell=3)
+#'   sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
+#'   state <- sim$state
+#'   config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
+#'   rm(samps, sim)
+#'   state <- h0testr::filter_features(state, config, n_samples_min=3)
+#'   state <- h0testr::filter_observations(state, config, n_features_min=30)
 #'
-#' summary(c(state$expression))    ## Note number of NAs
-#' head(state$expression)
+#'   summary(c(state$expression))    ## Note number of NAs
+#'   head(state$expression)
 #'
-#' ## impute using bayesian pca:
-#' state2 <- h0testr::impute_pca(state, config, method="bpca", 
-#'   is_log_transformed=FALSE)
-#' summary(c(state2$expression))   ## Note number of NAs
-#' round(head(state2$expression))
+#'   ## impute using bayesian pca:
+#'   state2 <- h0testr::impute_pca(state, config, method="bpca", 
+#'     is_log_transformed=FALSE)
+#'   summary(c(state2$expression))   ## Note number of NAs
+#'   round(head(state2$expression))
 #'
-#' ## impute using probabilistic pca:
-#' state2 <- h0testr::impute_pca(state, config, method="ppca", 
-#'   is_log_transformed=FALSE)
-#' summary(c(state2$expression))   ## Note number of NAs
-#' round(head(state2$expression))
+#'   ## impute using probabilistic pca:
+#'   state2 <- h0testr::impute_pca(state, config, method="ppca", 
+#'     is_log_transformed=FALSE)
+#'   summary(c(state2$expression))   ## Note number of NAs
+#'   round(head(state2$expression))
 #'
-#' ## raw example impute as linear combo of n_pcs eigengenes,
-#' ##   which can yield below 0 measurements so wrap in try():
-#' try(h0testr::impute_pca(state, config, method="svdImpute",
-#'   is_log_transformed=FALSE))
+#'   ## raw example impute as linear combo of n_pcs eigengenes,
+#'   ##   which can yield below 0 measurements so wrap in try():
+#'   try(h0testr::impute_pca(state, config, method="svdImpute",
+#'     is_log_transformed=FALSE))
 #'
-#' ## the same method on the log scale, where the reconstruction has no floor to
-#' ##   fall below and every imputed value is an ordinary log intensity:
-#' state_log <- state
-#' state_log$expression <- log2(state_log$expression + 1)
-#' config$is_log_transformed <- TRUE   ## normalize() would; argument and config must agree
-#' state2 <- h0testr::impute_pca(state_log, config, method="svdImpute",
-#'   is_log_transformed=TRUE)
-#' summary(c(state2$expression))   ## Note number of NAs
-#' round(head(state2$expression), 2)
+#'   ## the same method on the log scale, where the reconstruction has no floor to
+#'   ##   fall below and every imputed value is an ordinary log intensity:
+#'   state_log <- state
+#'   state_log$expression <- log2(state_log$expression + 1)
+#'   config$is_log_transformed <- TRUE   ## normalize() would; argument and config must agree
+#'   state2 <- h0testr::impute_pca(state_log, config, method="svdImpute",
+#'     is_log_transformed=TRUE)
+#'   summary(c(state2$expression))   ## Note number of NAs
+#'   round(head(state2$expression), 2)
+#' }
+#' @export
 
 impute_pca <- function(state, config, is_log_transformed=NULL,
     n_pcs=NULL, method="bpca") {
@@ -1612,34 +1639,37 @@ impute_pca <- function(state, config, is_log_transformed=NULL,
 #'       corresponding to columns of \code{expression}. \cr
 #'   } 
 #' @examples
-#' ## setup state and config, including prefiltering. No effects are planted, these
-#' ##   examples being about missing values rather than about testing:
-#' set.seed(101)
-#' samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
-#'   n_per_cell=3)
-#' sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
-#' state <- sim$state
-#' config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
-#' rm(samps, sim)
-#' state <- h0testr::filter_features(state, config, n_samples_min=3)
-#' state <- h0testr::filter_observations(state, config, n_features_min=30)
+#' if(requireNamespace("pcaMethods", quietly=TRUE)) {
+#'   ## setup state and config, including prefiltering. No effects are planted, these
+#'   ##   examples being about missing values rather than about testing:
+#'   set.seed(101)
+#'   samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+#'     n_per_cell=3)
+#'   sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
+#'   state <- sim$state
+#'   config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
+#'   rm(samps, sim)
+#'   state <- h0testr::filter_features(state, config, n_samples_min=3)
+#'   state <- h0testr::filter_observations(state, config, n_features_min=30)
 #'
-#' ## example with untransformed data. LLS regresses a feature on its correlated
-#' ##   neighbors, and a reconstruction can land below zero, so this is wrapped
-#' ##   in try().
-#' summary(c(state$expression))    ## Note number of NAs
-#' state2 <- try(h0testr::impute_lls(state, config, is_log_transformed=FALSE))
-#' if(!inherits(state2, "try-error")) summary(c(state2$expression))
+#'   ## example with untransformed data. LLS regresses a feature on its correlated
+#'   ##   neighbors, and a reconstruction can land below zero, so this is wrapped
+#'   ##   in try().
+#'   summary(c(state$expression))    ## Note number of NAs
+#'   state2 <- try(h0testr::impute_lls(state, config, is_log_transformed=FALSE))
+#'   if(!inherits(state2, "try-error")) summary(c(state2$expression))
 #'
-#' ## example with log-transformed data, where the reconstruction has no floor to
-#' ##   fall below and every imputed value is an ordinary log intensity:
-#' state$expression <- log2(state$expression + 1)
-#' config$is_log_transformed <- TRUE   ## normalize() would; argument and config must agree
-#' state2 <- h0testr::impute_lls(state, config, is_log_transformed=TRUE)
-#' summary(c(state$expression))    ## Note number of NAs
-#' summary(c(state2$expression))   ## Note number of NAs
-#' head(state$expression)
-#' round(head(state2$expression))
+#'   ## example with log-transformed data, where the reconstruction has no floor to
+#'   ##   fall below and every imputed value is an ordinary log intensity:
+#'   state$expression <- log2(state$expression + 1)
+#'   config$is_log_transformed <- TRUE   ## normalize() would; argument and config must agree
+#'   state2 <- h0testr::impute_lls(state, config, is_log_transformed=TRUE)
+#'   summary(c(state$expression))    ## Note number of NAs
+#'   summary(c(state2$expression))   ## Note number of NAs
+#'   head(state$expression)
+#'   round(head(state2$expression))
+#' }
+#' @export
 
 impute_lls <- function(state, config, is_log_transformed=NULL, 
     k=NULL, method="pearson", maxit=100) {
@@ -1708,24 +1738,27 @@ impute_lls <- function(state, config, is_log_transformed=NULL,
 #'       corresponding to columns of \code{expression}. \cr
 #'   } 
 #' @examples
-#' ## setup state and config, including prefiltering. No effects are planted, these
-#' ##   examples being about missing values rather than about testing:
-#' set.seed(101)
-#' samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
-#'   n_per_cell=3)
-#' sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
-#' state <- sim$state
-#' config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
-#' rm(samps, sim)
-#' state <- h0testr::filter_features(state, config, n_samples_min=3)
-#' state <- h0testr::filter_observations(state, config, n_features_min=30)
+#' if(requireNamespace("missForest", quietly=TRUE)) {
+#'   ## setup state and config, including prefiltering. No effects are planted, these
+#'   ##   examples being about missing values rather than about testing:
+#'   set.seed(101)
+#'   samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+#'     n_per_cell=3)
+#'   sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
+#'   state <- sim$state
+#'   config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
+#'   rm(samps, sim)
+#'   state <- h0testr::filter_features(state, config, n_samples_min=3)
+#'   state <- h0testr::filter_observations(state, config, n_features_min=30)
 #'
-#' ## impute:
-#' state2 <- h0testr::impute_missforest(state, config)
-#' summary(state$expression)     ## Note number of NAs
-#' summary(state2$expression)    ## Note number of NAs
-#' head(state$expression)
-#' round(head(state2$expression))
+#'   ## impute:
+#'   state2 <- h0testr::impute_missforest(state, config)
+#'   summary(state$expression)     ## Note number of NAs
+#'   summary(state2$expression)    ## Note number of NAs
+#'   head(state$expression)
+#'   round(head(state2$expression))
+#' }
+#' @export
 
 impute_missforest <- function(state, config, maxit=10, ntree=100) {
 
@@ -1758,6 +1791,7 @@ impute_missforest <- function(state, config, maxit=10, ntree=100) {
 #' for(method in impute_methods) {
 #'   cat("method:", method, "\n")
 #' }
+#' @export
 
 impute_methods <- function() {
   return(
@@ -1863,6 +1897,7 @@ impute_methods <- function() {
 #' summary(c(out$state$expression))    ## note number of NAs
 #' head(state$expression)
 #' round(head(out$state$expression))
+#' @export
 
 impute <- function(state, config, method=NULL, is_log_transformed=NULL, 
     k=NULL, span=NULL, n_pcs=NULL, impute_quantile=NULL, scale.=NULL, 

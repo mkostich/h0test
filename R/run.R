@@ -47,7 +47,6 @@ f.run_order_steps <- function() {
 #'   The last three are \code{NULL} when \code{config$test_method} is \code{"none"}.
 #' @examples
 #' config <- h0testr::new_config()          ## defaults
-#' config$save_state <- FALSE               ## default is TRUE
 #' config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
 #' config$feature_file_in <- "features.tsv"
 #' config$sample_file_in <- "samples.tsv"
@@ -67,6 +66,7 @@ f.run_order_steps <- function() {
 #' head(result$original)              ## hit table as returned by underlying software
 #' head(result$standard)              ## hit table in a standardized format
 #' print(result$fit)                ## model fit by selected testing procedure
+#' @export
 
 run <- function(config) {
 
@@ -129,13 +129,19 @@ f.tune1 <- function(state, config, normalization_method) {
 
   config <- f.tune_norm(config, normalization_method)
 
-  ## normalize and combine reps:
+  ## on failure return $step/$err, so the caller can name the stage that broke:
   f.log_block("f.tune:1: normalize", config=config)
-  out <- normalize(state, config)
-  
+  out <- try(normalize(state, config), silent=T)
+  if(inherits(out, "try-error")) {
+    return(list(step="normalize", err=as.character(out)))
+  }
+
   f.log_block("f.tune:1: combine_replicates", config=config)
-  out <- combine_replicates(out$state, out$config)
-  
+  out <- try(combine_replicates(out$state, out$config), silent=T)
+  if(inherits(out, "try-error")) {
+    return(list(step="combine_replicates", err=as.character(out)))
+  }
+
   f.log_block("f.tune:1: return", config=config)
   return(out)
 }
@@ -374,7 +380,6 @@ f.tune2 <- function(state, config) {
 #' @examples
 #' ## set up configuration:
 #' config <- h0testr::new_config()     ## defaults
-#' config$save_state <- FALSE          ## default is TRUE
 #' config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
 #' config$feature_file_in <- "features.tsv"
 #' config$sample_file_in <- "samples.tsv"
@@ -408,6 +413,7 @@ f.tune2 <- function(state, config) {
 #'   test_methods=c("trend", "msqrob", "proda", "prolfqua")
 #' )
 #' ## write.table(out2, "1.condition.tune.tsv", quote=F, sep="\t", row.names=F)
+#' @export
 
 tune <- function(
     config,  
@@ -468,18 +474,25 @@ tune <- function(
     config_n <- f.tune_norm(config1, normalization_method)
     f.msg("normalization_method:", normalization_method, config=config_n)
 
-    norm_ok <- TRUE
-    norm_err <- NA
     f.log_block("normalize and combine reps", config=config_n)
     out <- try(f.tune1(state1, config_n, normalization_method=normalization_method),
       silent=T)
 
-    if(inherits(out, "try-error")) {
-      f.msg("WARNING: tune: normalization_method", normalization_method,
-        "failed; every combination under it returns NA;", "\n", "  ",
-        as.character(out), config=config_n)
-      norm_ok <- FALSE
+    norm_step <- NA
+    norm_err <- NA
+    if(inherits(out, "try-error")) {        ## f.tune1() itself broke, outside its own try()s
+      norm_step <- "normalize"
       norm_err <- as.character(out)
+    } else if(!is.null(out$err)) {
+      norm_step <- out$step
+      norm_err <- out$err
+    }
+    norm_ok <- is.na(norm_step)
+
+    if(!norm_ok) {
+      f.msg("WARNING: tune: normalization_method", normalization_method, "failed at",
+        paste0(norm_step, ";"), "every combination under it returns NA;", "\n", "  ",
+        norm_err, config=config_n)
       state2 <- state1
       config2 <- config_n
     } else {
@@ -500,7 +513,7 @@ tune <- function(
 
       if(!norm_ok) {
         agg_ok <- FALSE
-        bad_step <- "normalize"
+        bad_step <- norm_step
         bad_reason <- norm_err
         state3 <- state2
         config3 <- config2
@@ -731,6 +744,7 @@ tune <- function(
 #' config <- list()
 #' tbl <- h0testr::tune_check(dir_in, prefix, suffix, config)
 #' print(tbl)
+#' @export
 
 tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05) {
 

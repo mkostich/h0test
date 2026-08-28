@@ -76,6 +76,7 @@
 #' 
 #' str(config)
 #' report_config(config)
+#' @export
 
 new_config <- function() {
 
@@ -117,7 +118,7 @@ new_config <- function() {
     df_resid_col="df_resid",             ## new col (scalar character) for feature metadata; residual df of model fitted to feature
 
     ## output file naming:
-    log_file="",                         ## log file path (character); or "" for log to console                 
+    log_file="",                         ## log file path; "" sends messages to stderr
     feature_mid_out=".features",         ## midfix for output feature files
     sample_mid_out=".samples",           ## midfix for output samples file
     data_mid_out=".expression",          ## midfix for output expression files
@@ -157,7 +158,7 @@ new_config <- function() {
     run_order=c("normalize", "combine_replicates", "combine_features", "filter_state", "impute"),   ## order of workflow operations
     
     ## misc; 
-    save_state=TRUE,                     ## whether to save output files; might set to FALSE for tuning/testing
+    save_state=FALSE,                    ## whether to write state files to config$dir_out
     probs=c(0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0),
     width=110,
     verbose=T
@@ -271,6 +272,7 @@ f.frm_min_noint_cols <- function(config) {
 #' ##   already normalized, aggregated and complete:
 #' config$run_order <- character(0)
 #' h0testr::check_config(config)
+#' @export
 
 check_config <- function(config) {
 
@@ -621,7 +623,8 @@ check_config <- function(config) {
 #' Reports configuration settings used for run, and checks if
 #'   \code{config$test_term} is compatible with \code{config$frm}.
 #' @details Report written to \code{config$log_file}; if \code{config$log_file == ""},
-#'   written to standard out (console or terminal). Only supports non-lists
+#'   issued as a message on standard error, which \code{suppressMessages()} silences.
+#'   Only supports non-lists
 #'     and lists of non-lists (not lists of lists) as \code{config} values.
 #'   Throws error if \code{config$test_term} is not compatible with \code{config$frm}.
 #'   See documentation for \code{h0testr::new_config()} 
@@ -643,6 +646,7 @@ check_config <- function(config) {
 #' config$obs_id_col <- "observation"
 #'
 #' report_config(config)
+#' @export
 
 report_config <- function(config) {
 

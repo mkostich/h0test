@@ -113,6 +113,7 @@ f.test_lm_feat <- function(y, X, X_red, cols_report) {
 #' 
 #' tbl <- h0testr::test_lm(out$state, out$config)
 #' print(tbl)
+#' @export
 
 test_lm <- function(state, config, fdr.method="BH") {
 

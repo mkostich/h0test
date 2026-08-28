@@ -111,6 +111,7 @@ f.one_feature <- function(state, config, method, fn) {
 #' state2 <- h0testr::normalize_edger(state, config, method="RLE")
 #' print(state$expression)
 #' print(state2$expression)
+#' @export
 
 normalize_edger <- function(state, config, method=NULL, normalization_quantile=NULL) {
 
@@ -232,6 +233,7 @@ normalize_edger <- function(state, config, method=NULL, normalization_quantile=N
 #' print(state2$expression)
 #' apply(state$expression, 2, quantile, probs=c(0.5, 0.75, 0.9), na.rm=TRUE)
 #' apply(state2$expression, 2, quantile, probs=c(0.5, 0.75, 0.9), na.rm=TRUE)
+#' @export
 
 normalize_quantile <- function(state, config, normalization_quantile=NULL, multiplier=1e3) {
   
@@ -313,6 +315,7 @@ normalize_quantile <- function(state, config, normalization_quantile=NULL, multi
 #' print(state2$expression)
 #' apply(state$expression, 2, function(v) sum(v, na.rm=TRUE))
 #' apply(state2$expression, 2, function(v) sum(v, na.rm=TRUE))
+#' @export
 
 normalize_cpm <- function(state, config, multiplier=1e6) {
 
@@ -365,21 +368,24 @@ normalize_cpm <- function(state, config, multiplier=1e6) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#' set.seed(101)
-#' exprs <- h0testr::sim1(n_obs=6, n_feats=50, mnar_c0=-Inf)$mat
-#' feats <- data.frame(feature_id=rownames(exprs))
-#' samps <- data.frame(observation_id=colnames(exprs))
-#' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list()
-#' state2 <- h0testr::normalize_vsn(state, config)
-#' head(state$expression)
-#' head(state2$expression)
-#' summary(apply(state$expression, 2, sd, na.rm=TRUE))
-#' summary(apply(log2(state$expression+1), 2, sd, na.rm=TRUE))
-#' summary(apply(state2$expression, 2, sd, na.rm=TRUE))
-#' summary(apply(state$expression, 1, sd, na.rm=TRUE))
-#' summary(apply(log2(state$expression+1), 1, sd, na.rm=TRUE))
-#' summary(apply(state2$expression, 1, sd, na.rm=TRUE))
+#' if(requireNamespace("vsn", quietly=TRUE)) {
+#'   set.seed(101)
+#'   exprs <- h0testr::sim1(n_obs=6, n_feats=50, mnar_c0=-Inf)$mat
+#'   feats <- data.frame(feature_id=rownames(exprs))
+#'   samps <- data.frame(observation_id=colnames(exprs))
+#'   state <- list(expression=exprs, features=feats, samples=samps)
+#'   config <- list()
+#'   state2 <- h0testr::normalize_vsn(state, config)
+#'   head(state$expression)
+#'   head(state2$expression)
+#'   summary(apply(state$expression, 2, sd, na.rm=TRUE))
+#'   summary(apply(log2(state$expression+1), 2, sd, na.rm=TRUE))
+#'   summary(apply(state2$expression, 2, sd, na.rm=TRUE))
+#'   summary(apply(state$expression, 1, sd, na.rm=TRUE))
+#'   summary(apply(log2(state$expression+1), 1, sd, na.rm=TRUE))
+#'   summary(apply(state2$expression, 1, sd, na.rm=TRUE))
+#' }
+#' @export
 
 normalize_vsn <- function(state, config, n_pts=42L) {
 
@@ -483,6 +489,7 @@ normalize_vsn <- function(state, config, n_pts=42L) {
 #' summary(apply(state2$expression, 2, sd, na.rm=TRUE))
 #' summary(apply(state$expression, 1, sd, na.rm=TRUE))
 #' summary(apply(state2$expression, 1, sd, na.rm=TRUE))
+#' @export
 
 normalize_loess <- function(state, config, span=NULL, method="fast") {
 
@@ -583,6 +590,7 @@ normalize_loess <- function(state, config, span=NULL, method="fast") {
 #' ## afterwards, all quantiles line up:
 #' apply(state$expression, 2, quantile, probs=c(0.1, 0.25, 0.5, 0.75, 0.9), na.rm=TRUE)
 #' apply(state2$expression, 2, quantile, probs=c(0.1, 0.25, 0.5, 0.75, 0.9), na.rm=TRUE)
+#' @export
 
 normalize_qquantile <- function(state, config) {
 
@@ -677,6 +685,7 @@ normalize_qquantile <- function(state, config) {
 #' ## afterwards, quantiles more similar across observations:
 #' apply(state$expression, 2, quantile, probs=c(0.1, 0.25, 0.5, 0.75, 0.9), na.rm=TRUE)
 #' apply(state2$expression, 2, quantile, probs=c(0.1, 0.25, 0.5, 0.75, 0.9), na.rm=TRUE)
+#' @export
 
 normalize_mscoreutils <- function(state, config, method=NULL) {
 
@@ -745,6 +754,7 @@ normalize_mscoreutils <- function(state, config, method=NULL) {
 #' for(method in normalization_methods) {
 #'   cat("method:", method, "\n")
 #' }
+#' @export
 
 normalize_methods <- function() {
   return(
@@ -866,6 +876,7 @@ normalize_methods <- function() {
 #' summary(apply(out$state$expression, 2, sd, na.rm=TRUE))
 #' summary(apply(state$expression, 1, sd, na.rm=TRUE))
 #' summary(apply(out$state$expression, 1, sd, na.rm=TRUE))
+#' @export
 
 normalize <- function(state, config, method=NULL, 
     normalization_quantile=NULL, span=NULL) {

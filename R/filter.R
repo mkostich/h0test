@@ -105,6 +105,7 @@ f.filter_features_by_term <- function(term, state, config, type="factor",
 #' state2 <- h0testr::filter_features_by_formula(state, config)
 #' print(state)
 #' print(state2)
+#' @export
 
 filter_features_by_formula <- function(state, config, 
     n_non_na_min=2, n_distinct_min=2, 
@@ -229,6 +230,7 @@ filter_features_by_formula <- function(state, config,
 #' state2 <- h0testr::filter_features_by_estimability(state, config)
 #' print(nrow(state$expression))
 #' print(state2$features)
+#' @export
 
 filter_features_by_estimability <- function(state, config, estimability=NULL,
     df_resid_min=NULL) {
@@ -426,6 +428,7 @@ filter_features_by_estimability <- function(state, config, estimability=NULL,
 #' state2 <- h0testr::filter_features(state, config)
 #' print(state)
 #' print(state2)
+#' @export
 
 filter_features <- function(state, config, 
     n_samples_min=NULL, remove_constant=TRUE, filter_by_formula=TRUE) {
@@ -517,6 +520,7 @@ filter_features <- function(state, config,
 #' state2 <- h0testr::filter_observations(state, config)
 #' print(state)
 #' print(state2)
+#' @export
 
 filter_observations <- function(state, config, 
     n_features_min=NULL, remove_constant=TRUE) {
@@ -587,6 +591,7 @@ filter_observations <- function(state, config,
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list()
 #' h0testr::samples_per_feature(state, config)
+#' @export
 
 samples_per_feature <- function(state, config) {
   
@@ -626,6 +631,7 @@ samples_per_feature <- function(state, config) {
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list()
 #' h0testr::feature_median_expression(state, config)
+#' @export
 
 feature_median_expression <- function(state, config) {
   
@@ -665,6 +671,7 @@ feature_median_expression <- function(state, config) {
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- list()
 #' h0testr::features_per_sample(state, config)
+#' @export
 
 features_per_sample <- function(state, config) {
   
@@ -739,14 +746,28 @@ f.prefilter_features <- function(state, min1=3, min2=4) {
 #'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
-#' set.seed(101)
-#' exprs <- h0testr::sim1(n_obs=6, n_feats=12, mcar_p=0.75)$mat
-#' feats <- data.frame(feature_id=rownames(exprs))
-#' samps <- data.frame(observation_id=colnames(exprs))
-#' state <- list(expression=exprs, features=feats, samples=samps)
+#' mk_state <- function(exprs) {
+#'   list(expression=exprs,
+#'     features=data.frame(feature_id=rownames(exprs)),
+#'     samples=data.frame(observation_id=colnames(exprs)))
+#' }
 #' config <- list(feat_col="feature_id", obs_col="observation_id")
-#' state2 <- h0testr::prefilter(state, config)
+#'
+#' ## features measured in too few observations go; here 12 become 6:
+#' set.seed(101)
+#' exprs <- h0testr::sim1(n_obs=6, n_feats=12, mcar_p=0.25)$mat
+#' state2 <- h0testr::prefilter(mk_state(exprs), config)
+#' print(dim(state2$expression))
 #' print(state2)
+#'
+#' ## observations expressing too few features go too; blanking all but one
+#' ##   value of obs_1 puts it under n_features_min:
+#' set.seed(101)
+#' exprs <- h0testr::sim1(n_obs=6, n_feats=12, mcar_p=0.1)$mat
+#' exprs[-3, 1] <- NA
+#' state3 <- h0testr::prefilter(mk_state(exprs), config)
+#' print(colnames(state3$expression))
+#' @export
 
 prefilter <- function(state, config, n_features_min=2) {
 
@@ -844,11 +865,11 @@ f.check_stat_ids <- function(nms, ids, stat, key, config) {
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' config <- h0testr::new_config()      ## defaults
-#' config$save_state <- FALSE             ## default is TRUE
 #' config$feat_col <- config$feat_id_col
 #' config$obs_col <- config$obs_id_col
 #' state <- h0testr::add_filter_stats(state, config)
 #' print(state)
+#' @export
 
 add_filter_stats <- function(state, config) {
   
@@ -932,7 +953,6 @@ add_filter_stats <- function(state, config) {
 #'
 #' ## assume default median_raw_col, n_samples_expr_col, and n_features_expr_col are ok:
 #' config <- h0testr::new_config()        ## defaults
-#' config$save_state <- FALSE             ## default is TRUE
 #' config$feat_col <- config$feat_id_col
 #' config$obs_col <- config$obs_id_col
 #' config$n_features_min <- 3
@@ -945,6 +965,7 @@ add_filter_stats <- function(state, config) {
 #' out <- h0testr::filter_state(state, config)
 #' print(out$state)
 #' str(out$config)
+#' @export
 
 filter_state <- function(state, config, remove_constant=TRUE, filter_by_formula=TRUE,
     filter_by_estimability=TRUE) {

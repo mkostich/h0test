@@ -26,7 +26,6 @@
 #'   }
 #' @examples
 #' config <- h0testr::new_config()
-#' config$save_state <- FALSE
 #' config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
 #' config$feature_file_in <- "features.tsv"
 #' config$sample_file_in <- "samples.tsv"
@@ -40,6 +39,7 @@
 #' print(state$features)
 #' print(state$samples)
 #' print(state$expression[1:6, 1:6])
+#' @export
 
 read_data <- function(config) {
 
@@ -427,6 +427,7 @@ f.set_covariate_factor_levels <- function(state, config, types=NULL) {
 #' out <- h0testr::init_state(state, config)
 #' print(out$state)
 #' str(out$config)
+#' @export
 
 init_state <- function(state, config, initialized=F, minimal=F) {
   
@@ -556,6 +557,7 @@ init_state <- function(state, config, initialized=F, minimal=F) {
 #' config <- list(feat_col="feature_id", obs_col="observation_id", sample_id_col="observation_id", permute_var="age")
 #' state2 <- h0testr::permute(state, config)
 #' print(state2)
+#' @export
 
 permute <- function(state, config, variable=NULL) {
 
@@ -615,7 +617,6 @@ permute <- function(state, config, variable=NULL) {
 #'   } 
 #' @examples
 #' config <- h0testr::new_config()     ## defaults
-#' config$save_state <- FALSE            ## default is TRUE
 #' config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
 #' config$feature_file_in <- "features.tsv"
 #' config$sample_file_in <- "samples.tsv"
@@ -636,6 +637,7 @@ permute <- function(state, config, variable=NULL) {
 #' output$state$expression
 #' output$state$samples
 #' output$state$features
+#' @export
 
 load_data <- function(config) {
   

@@ -73,6 +73,7 @@
 #' 
 #' result <- h0testr::test_voom(out$state, out$config)
 #' head(result$hits)
+#' @export
 
 test_voom <- function(state, config, normalize.method="none") {
 

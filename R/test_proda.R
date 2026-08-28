@@ -63,24 +63,28 @@
 #'     effect size at all, having no single contrast to report, and \code{h0testr::test_h0()}
 #'     reports the total swing instead. See \code{h0testr::test_h0()}.
 #' @examples
-#' ## setup of expression data: ten peptides per gene, a third of them dropped, and no
-#' ##   missing values, so that the example is about the test rather than about missingness:
-#' set.seed(101)
-#' samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
-#'   n_per_cell=3)
-#' sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100,
-#'   peps_per_gene=10, p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
-#' state <- sim$state
-#' config <- sim$config
-#' rm(samps, sim)
+#' pkgs <- c("proDA", "SummarizedExperiment")
+#' if(all(vapply(pkgs, requireNamespace, logical(1), quietly=TRUE))) {
+#'   ## setup of expression data: ten peptides per gene, a third of them dropped, and no
+#'   ##   missing values, so that the example is about the test rather than about missingness:
+#'   set.seed(101)
+#'   samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+#'     n_per_cell=3)
+#'   sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100,
+#'     peps_per_gene=10, p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+#'   state <- sim$state
+#'   config <- sim$config
+#'   rm(samps, sim)
 #'
-#' ## no grp:sex term here, so testing "grp" is the single coefficient grptrt, and a
-#' ##   fold change is reported:
-#' out <- h0testr::init_state(state, config, minimal=TRUE)
+#'   ## no grp:sex term here, so testing "grp" is the single coefficient grptrt, and a
+#'   ##   fold change is reported:
+#'   out <- h0testr::init_state(state, config, minimal=TRUE)
 #'
-#' ## actual test:
-#' result <- h0testr::test_proda(out$state, out$config, is_log_transformed=FALSE)
-#' head(result$hits)
+#'   ## actual test:
+#'   result <- h0testr::test_proda(out$state, out$config, is_log_transformed=FALSE)
+#'   head(result$hits)
+#' }
+#' @export
 
 test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit=20) {
 

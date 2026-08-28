@@ -496,67 +496,71 @@ f.prolfqua_mixed_f <- function(mods, design, config, caller="f.prolfqua_mixed_f"
 #'     \strong{continuous} covariate is a change \strong{per unit} of it rather than a fold
 #'     change between groups, and the total swing when several do. See \code{h0testr::test_h0()}.
 #' @examples
-#' ## setup of expression data: ten peptides per gene, a third of them dropped, and no
-#' ##   missing values, so that the example is about the test rather than about missingness:
-#' set.seed(101)
-#' samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
-#'   n_per_cell=3)
-#' sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100,
-#'   peps_per_gene=10, p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
-#' state <- sim$state
-#' config <- sim$config
-#' rm(samps, sim)
+#' pkgs <- c("prolfqua", "lme4", "lmerTest")
+#' if(all(vapply(pkgs, requireNamespace, logical(1), quietly=TRUE))) {
+#'   ## setup of expression data: ten peptides per gene, a third of them dropped, and no
+#'   ##   missing values, so that the example is about the test rather than about missingness:
+#'   set.seed(101)
+#'   samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+#'     n_per_cell=3)
+#'   sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100,
+#'     peps_per_gene=10, p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+#'   state <- sim$state
+#'   config <- sim$config
+#'   rm(samps, sim)
 #'
-#' out <- h0testr::init_state(state, config, minimal=TRUE)
+#'   out <- h0testr::init_state(state, config, minimal=TRUE)
 #'
-#' ## actual test:
-#' result <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
-#' head(result$hits)
+#'   ## actual test:
+#'   result <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
+#'   head(result$hits)
 #'
-#' ## an interaction is fine too:
-#' config$frm <- ~grp*sex
-#' out <- h0testr::init_state(state, config, minimal=TRUE)
-#' result <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
-#' colnames(result$design$X)
-#' colnames(result$design$X)[result$design$cols_test]
-#' head(result$hits)
+#'   ## an interaction is fine too:
+#'   config$frm <- ~grp*sex
+#'   out <- h0testr::init_state(state, config, minimal=TRUE)
+#'   result <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
+#'   colnames(result$design$X)
+#'   colnames(result$design$X)[result$design$cols_test]
+#'   head(result$hits)
 #'
-#' ## the same 2 df test with the error variance moderated across features:
-#' head(result$hits[, c("Df", "p.value", "p.value.unmod", "df.denom", "df.prior")])
-#' config$test_moderate <- FALSE
-#' out <- h0testr::init_state(state, config, minimal=TRUE)
-#' plain <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
-#' head(plain$hits[, c("Df", "p.value", "p.value.unmod", "df.denom", "df.prior")])
+#'   ## the same 2 df test with the error variance moderated across features:
+#'   head(result$hits[, c("Df", "p.value", "p.value.unmod", "df.denom", "df.prior")])
+#'   config$test_moderate <- FALSE
+#'   out <- h0testr::init_state(state, config, minimal=TRUE)
+#'   plain <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
+#'   head(plain$hits[, c("Df", "p.value", "p.value.unmod", "df.denom", "df.prior")])
 #'
-#' ## the prior can be fitted against mean feature intensity instead of being one
-#' ##   number, which is the prior test_trend() uses:
-#' config$test_moderate <- TRUE
-#' config$test_trend <- TRUE
-#' out <- h0testr::init_state(state, config, minimal=TRUE)
-#' trended <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
-#' head(trended$hits[, c("Df", "p.value", "moderated", "trend", "s2.prior")])
-#' range(trended$hits$s2.prior)
-#' range(result$hits$s2.prior)                     ## one value, the flat prior
+#'   ## the prior can be fitted against mean feature intensity instead of being one
+#'   ##   number, which is the prior test_trend() uses:
+#'   config$test_moderate <- TRUE
+#'   config$test_trend <- TRUE
+#'   out <- h0testr::init_state(state, config, minimal=TRUE)
+#'   trended <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
+#'   head(trended$hits[, c("Df", "p.value", "moderated", "trend", "s2.prior")])
+#'   range(trended$hits$s2.prior)
+#'   range(result$hits$s2.prior)                     ## one value, the flat prior
 #'
-#' ## mixed path, which test_method="prolfqua_lmer" selects: 
-#' config$test_moderate <- NULL
-#' config$test_trend <- NULL
-#' keep <- state$features$gene_id %in% unique(state$features$gene_id)[1:8]
-#' small <- list(expression=state$expression[keep, , drop=FALSE],
-#'   features=state$features[keep, , drop=FALSE], samples=state$samples)
-#' out <- h0testr::init_state(small, config, minimal=TRUE)
-#' mix <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE,
-#'   mixed=TRUE)
-#' nrow(mix$hits)                                  ## one row per gene, not per peptide
-#' head(mix$hits[, c("gene_id", "Df", "F.value", "p.value", "df.denom", "fit_type")])
+#'   ## mixed path, which test_method="prolfqua_lmer" selects: 
+#'   config$test_moderate <- NULL
+#'   config$test_trend <- NULL
+#'   keep <- state$features$gene_id %in% unique(state$features$gene_id)[1:8]
+#'   small <- list(expression=state$expression[keep, , drop=FALSE],
+#'     features=state$features[keep, , drop=FALSE], samples=state$samples)
+#'   out <- h0testr::init_state(small, config, minimal=TRUE)
+#'   mix <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE,
+#'     mixed=TRUE)
+#'   nrow(mix$hits)                                  ## one row per gene, not per peptide
+#'   head(mix$hits[, c("gene_id", "Df", "F.value", "p.value", "df.denom", "fit_type")])
 #'
-#' ## df.denom is the Satterthwaite denominator, which the random observation effect
-#' ##   pulls down toward the number of observations:
-#' out$config$test_random_obs <- FALSE
-#' peponly <- h0testr::test_prolfqua(out$state, out$config,
-#'   is_log_transformed=FALSE, mixed=TRUE)
-#' range(mix$hits$df.denom)
-#' range(peponly$hits$df.denom)
+#'   ## df.denom is the Satterthwaite denominator, which the random observation effect
+#'   ##   pulls down toward the number of observations:
+#'   out$config$test_random_obs <- FALSE
+#'   peponly <- h0testr::test_prolfqua(out$state, out$config,
+#'     is_log_transformed=FALSE, mixed=TRUE)
+#'   range(mix$hits$df.denom)
+#'   range(peponly$hits$df.denom)
+#' }
+#' @export
 
 test_prolfqua <- function(state, config, is_log_transformed=NULL, mixed=FALSE,
     trend=NULL) {

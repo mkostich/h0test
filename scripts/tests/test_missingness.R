@@ -604,6 +604,34 @@ out <- try(impute_lls(st, cfg, is_log_transformed=TRUE), silent=TRUE)
 report(!inherits(out, "try-error") && identical(out$expression, e),
   "impute_lls() returns a zero-containing NA-free matrix unchanged")
 
+section("filtering everything away is reported as such")
+
+## f.check_state() used to reach its dimnames check on an emptied matrix and
+##   complain that rownames were missing, which names the wrong problem: R drops
+##   rownames when a matrix is subset to zero rows.
+
+set.seed(101)
+e_sparse <- sim1(n_obs=6, n_feats=12, mcar_p=0.75)$mat
+st_sparse <- list(
+  expression=e_sparse,
+  features=data.frame(feature_id=rownames(e_sparse)),
+  samples=data.frame(observation_id=colnames(e_sparse))
+)
+cfg_sparse <- list(feat_col="feature_id", obs_col="observation_id",
+  log_file=log_file)
+
+n0 <- length(readLines(log_file))
+report(threw(prefilter(st_sparse, cfg_sparse)),
+  "prefilter() errors when its filters remove every feature and observation")
+txt <- readLines(log_file)
+txt <- txt[(n0 + 1):length(txt)]
+report(any(grepl("nothing is left to work with", txt, fixed=TRUE)),
+  "the error says nothing is left rather than blaming missing rownames")
+report(!any(grepl("has no rownames", txt, fixed=TRUE)),
+  "the misleading rownames message is not what fires")
+report(any(grepl("0 features and 0 observations", txt, fixed=TRUE)),
+  "the error reports both remaining dimensions")
+
 ## regression guard: the sentinel idiom must not come back. NA is the only
 ##   indicator of a missing value, so an expression value is never tested
 ##   against 0 to decide whether it is missing:

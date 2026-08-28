@@ -55,6 +55,7 @@
 #' print(out$state)
 #' str(config)
 #' str(out$config)
+#' @export
 
 combine_replicates <- function(state, config, fn=stats::median) {
   
@@ -476,6 +477,7 @@ f.combine_features_robust_summary <- function(state, config, maxit=30) {
 #' out <- h0testr::combine_features(state, config, method="none")
 #' print(out$state)
 #' str(out$config)
+#' @export
 
 combine_features <- function(state, config, method=NULL, rescale=FALSE) {
   

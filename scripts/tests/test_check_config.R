@@ -100,9 +100,8 @@ log_count <- function(pat, since=0) sum(grepl(pat, log_since(since), fixed=TRUE)
 ##   read back rather than only its having stopped:
 
 ## save_state FALSE and dir_out a temporary directory for every fixture here, not just the
-##   ones that run a workflow: new_config() ships save_state TRUE and dir_out ".", so a
-##   fixture that reaches test_h0() writes its results table into the working directory, named
-##   after length(config$run_order) + 3 and so easy to mistake for a real run's output:
+##   ones that run a workflow: stated explicitly so a fixture that reaches test_h0() cannot
+##   write its results table into the working directory if the default ever changes back:
 
 base_cfg <- function() {
   cfg <- new_config()

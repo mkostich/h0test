@@ -13,14 +13,19 @@ f.cat_args <- function(...) {
   return(unlist(out))
 }
 
+f.console <- function(...) {
+  txt <- paste(unlist(list(...)), collapse=" ")
+  message(sub("[\r\n]+$", "", txt))
+  invisible(NULL)
+}
+
 f.log_notice <- local({
   seen <- character(0)
   function(file) {
     if(file %in% seen) return(invisible(NULL))
     seen <<- c(seen, file)
-    cat("WARNING: h0testr: cannot write to config$log_file '", file,
-      "'; the messages below are going to the console instead\n", sep="")
-    utils::flush.console()
+    warning("h0testr: cannot write to config$log_file '", file,
+      "'; the messages below are going to the console instead", call.=FALSE)
     invisible(NULL)
   }
 })
@@ -33,9 +38,7 @@ f.cat_log <- function(..., config) {
   if(is.null(config$log_file)) config$log_file <- ""
 
   if(config$log_file %in% "") {
-    cat(...)
-    utils::flush.console()
-    return(invisible(NULL))
+    return(f.console(...))
   }
 
   ok <- tryCatch({
@@ -48,7 +51,7 @@ f.cat_log <- function(..., config) {
 
   if(!ok) {
     f.log_notice(config$log_file)
-    cat(...)
+    return(f.console(...))
   }
 
   utils::flush.console()
@@ -75,7 +78,7 @@ f.err <- function(..., config) {
   stop("Stopping", call.=F)
 }
 
-f.pkg_install_cmd <- function(pkg) {
+f.pkg_install_cmd <- function(pkg) {       ## map pkg to its repo-appropriate install command
 
   bioc <- c("DEqMS", "edgeR", "impute", "limma", "MsCoreUtils", "msqrob2",
     "pcaMethods", "proDA", "QFeatures", "SummarizedExperiment", "vsn")
@@ -88,7 +91,7 @@ f.pkg_install_cmd <- function(pkg) {
   return(paste0('install.packages("', pkg, '")'))
 }
 
-f.need_pkgs <- function(pkgs, who, config) {
+f.need_pkgs <- function(pkgs, who, config) {   ## stop w/ instructions if any pkgs unloadable
 
   if(length(pkgs) < 1) return(invisible(TRUE))
   i <- !vapply(pkgs, requireNamespace, logical(1), quietly=TRUE)
@@ -105,9 +108,7 @@ f.log_obj <- function(obj, config) {
   if(is.null(config$log_file)) config$log_file <- ""
 
   if(config$log_file %in% "") {
-    print(obj)
-    utils::flush.console()
-    return(invisible(NULL))
+    return(f.console(paste(utils::capture.output(print(obj)), collapse="\n")))
   }
 
   ## same fallback as f.cat_log() for printed objects (quantiles, tables):
@@ -122,7 +123,7 @@ f.log_obj <- function(obj, config) {
 
   if(!ok) {
     f.log_notice(config$log_file)
-    print(obj)
+    return(f.console(paste(utils::capture.output(print(obj)), collapse="\n")))
   }
 
   utils::flush.console()
@@ -1354,6 +1355,16 @@ f.check_state <- function(state, config) {
   ## before either check below reads its dimnames:
 
   f.check_expr_matrix(state, config, "f.check_state")
+
+  if(nrow(state$expression) < 1 || ncol(state$expression) < 1) {
+    f.err("f.check_state: state$expression has", nrow(state$expression),
+      "features and", ncol(state$expression), "observations, so nothing is left",
+      "to work with;", "\n",
+      "  filtering removed everything: loosen the thresholds",
+      "(config$n_samples_min, config$n_features_min) or start from data with",
+      "less missingness; prefilter()'s own feature minimums are fixed",
+      config=config)
+  }
 
   if(is.null(config$feat_col) || config$feat_col %in% "") {
     f.err("f.check_state: config$feat_col unset", config=config)

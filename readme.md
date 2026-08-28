@@ -28,6 +28,25 @@ documentation for individual methods to see how to use them on their own.
 
 ## Install
 
+The default workflow needs only `limma`, `edgeR` and `MsCoreUtils` beyond base R, so that
+is all the install pulls in. Every alternative normalization, imputation and testing engine
+is optional: ask for one whose package is missing, and the run stops with the install command
+for that package.
+
+```
+## in R: some dependencies are on Bioconductor, so add its repositories first:
+
+install.packages(c("BiocManager", "remotes"))
+options(repos=BiocManager::repositories())
+
+## install h0testr and its required dependencies:
+
+remotes::install_github("mkostich/h0test")
+help(package="h0testr")
+```
+
+To install from a local clone instead:
+
 ```
 ## in bash: download under ~/opt/h0test:
 mkdir -p ~/opt
@@ -35,19 +54,32 @@ cd ~/opt
 git clone https://github.com/mkostich/h0test
 R
 
-## in R: install dependencies: 
+## in R, with repos set as above:
+install.packages("~/opt/h0test", repos=NULL, type="source")
+```
 
-install.packages(c("BiocManager", "glmnet", "imputeLCMD", "lmtest", 
-  "missForest", "randomForest", "remotes"), dependencies=TRUE)
+### Optional engines
 
-BiocManager::install(c("DEqMS", "edgeR", "limma", "impute", "MsCoreUtils", 
-  "msqrob2", "pcaMethods", "proDA", "QFeatures", "SummarizedExperiment"))
+Install only the ones you plan to use. With `options(repos=BiocManager::repositories())`
+set as above, `install.packages()` finds the Bioconductor ones too:
 
-remotes::install_github('fgcz/prolfqua', dependencies=TRUE)
+```
+install.packages(c(
+  "glmnet",                        ## impute_method "glmnet"
+  "imputeLCMD",                    ## impute_method "min_det", "min_prob", "qrilc"
+  "missForest",                    ## impute_method "missforest"
+  "randomForest",                  ## impute_method "rf"
+  "DEqMS",                         ## test_method "deqms"
+  "impute",                        ## impute_method "knn"
+  "pcaMethods",                    ## impute_method "bpca", "ppca", "svdImpute", "lls"
+  "vsn",                           ## normalization_method "vsn"
+  "proDA", "SummarizedExperiment", ## test_method "proda"
+  "msqrob2", "QFeatures",          ## test_method "msqrob", "msqrob_agg"
+  "lme4", "lmerTest"               ## test_method "msqrob_agg", "prolfqua_lmer"
+))
 
-## install h0testr package and view documentation:
-install.packages("~/opt/h0test/h0testr", repo=NULL, type="source")
-help(package="h0testr")
+## test_method "prolfqua" and "prolfqua_lmer"; github only:
+remotes::install_github("wolski/prolfqua")
 ```
 
 ---
@@ -90,10 +122,12 @@ head(result$standard)
 
 ## Dependencies
 
-- R, with standard packages: utils, stats, methods; and add on packages: 
-  DEqMS, edgeR, glmnet, impute, imputeLCMD, limma, missForest, MsCoreUtils, 
-  msqrob2, pcaMethods, proDA, prolfqua, QFeatures, randomForest, and 
-  SummarizedExperiment.
+- R, with standard packages utils and stats, plus add on packages limma, edgeR and 
+  MsCoreUtils. These are what the default workflow uses, and are the only hard 
+  requirements.
+- Optional, one per engine: DEqMS, glmnet, impute, imputeLCMD, lme4, lmerTest, 
+  missForest, msqrob2, pcaMethods, proDA, prolfqua, QFeatures, randomForest, 
+  SummarizedExperiment and vsn. See Install above for which method needs which.
 - Developed and tested with R 4.3.1.
 - Expected to work on Linux, Mac, or Windows; tested on Rocky Linux 9.5 and 
   Windows 11.
@@ -215,7 +249,7 @@ df_test_col="df_test"               ## new col (scalar character) for feature me
 df_resid_col="df_resid"             ## new col (scalar character) for feature metadata; residual df of model fitted to feature
 
 ## output file naming:
-log_file=""                         ## log file path (character); or "" for log to console                 
+log_file=""                         ## log file path; "" sends messages to stderr
 feature_mid_out=".features"         ## midfix for output feature files
 sample_mid_out=".samples"           ## midfix for output samples file
 data_mid_out=".expression"          ## midfix for output expression files
@@ -254,7 +288,7 @@ test_ridge=FALSE                    ## whether test_method="msqrob_agg" penalize
 run_order=c("normalize", "combine_replicates", "combine_features", "filter", "impute")   ## order of workflow operations
 
 ## misc; 
-save_state=TRUE                     ## whether to save output files; recommend FALSE for tuning/testing
+save_state=FALSE                    ## whether to write state files to dir_out; set TRUE to save
 probs=c(0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0)
 width=110                           ## controls print width
 verbose=T                           ## controls how much gets printed out during progress
@@ -575,7 +609,6 @@ rm(list=ls())
 
 ## set up configuration:
 config <- h0testr::new_config()   ## defaults
-config$save_state <- FALSE          ## default is TRUE
 config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
 config$feature_file_in <- "features2.tsv"
 config$sample_file_in <- "samples2.tsv"

@@ -9,6 +9,7 @@
 #' for(method in test_methods) {
 #'   cat("method:", method, "\n")
 #' }
+#' @export
 
 test_methods <- function() {
   return(
@@ -263,6 +264,7 @@ f.note_trend <- function(method, trend, given, config) {
 #' head(out$original)
 #' head(out$standard)
 #' summary(out$fit)
+#' @export
 
 test_h0 <- function(state, config, method=NULL,
     is_log_transformed=NULL, prior_df=NULL, trend=NULL) {

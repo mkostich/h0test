@@ -317,6 +317,7 @@ f.pep_drop <- function(mat, peps_per_gene, p_drop, genes=NULL) {
 #' print(rslt$mat)
 #' print(rslt$feat_mean)
 #' print(rslt$feat_cv)
+#' @export
 
 sim1 <- function(n_obs, n_feats, log_m_mean=11, log_m_sd=2.7,
     log_cv_mean=-0.75, log_cv_sd=0.5, mnar_c0=4.65, mnar_c1=-0.5,
@@ -411,6 +412,7 @@ sim1 <- function(n_obs, n_feats, log_m_mean=11, log_m_sd=2.7,
 #' ## no factors, so n is required; the covariate is drawn by a function of n:
 #' samps <- h0testr::sim_samples(covariates=list(age=function(n) stats::rnorm(n, 50, 10)), n=8)
 #' print(samps)
+#' @export
 
 sim_samples <- function(factors=NULL, covariates=NULL, n_per_cell=3, n=NULL) {
 
@@ -662,6 +664,7 @@ sim_samples <- function(factors=NULL, covariates=NULL, n_per_cell=3, n=NULL) {
 #' samps <- h0testr::sim_samples(covariates=list(age=c(20, 60)), n=10)
 #' sim <- h0testr::sim_design(samps, frm=~age, test_term="age", n_genes=6, n_genes_signif=2)
 #' print(sim$truth)
+#' @export
 
 sim_design <- function(samps, frm, test_term, n_genes, n_genes_signif=0, effects=0.5,
     peps_per_gene=1, reps_per_sample=1, cv_reps=0.1,

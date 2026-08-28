@@ -75,6 +75,7 @@
 #' 
 #' tbl <- h0testr::test_trend(out$state, out$config)
 #' print(tbl)
+#' @export
 
 test_trend <- function(state, config) {
 
