@@ -85,7 +85,7 @@ exprs <- log2(exprs + 1)
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(impute_n_pts=1e7, impute_span=0.5)
+config <- list(impute_n_pts=1e5, impute_span=0.5)
 state2 <- h0testr::impute_loess_logit(state, config)
 summary(c(state$expression))     ## note number of NAs
 summary(c(state2$expression))    ## note number of NAs

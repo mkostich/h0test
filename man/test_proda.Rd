@@ -86,7 +86,7 @@ if(all(vapply(pkgs, requireNamespace, logical(1), quietly=TRUE))) {
   set.seed(101)
   samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
     n_per_cell=3)
-  sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100,
+  sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=50,
     peps_per_gene=10, p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
   state <- sim$state
   config <- sim$config

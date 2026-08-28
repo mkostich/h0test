@@ -76,7 +76,7 @@ exprs <- h0testr::sim1(n_obs=6, n_feats=12)$mat
 feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(impute_n_pts=1e7)
+config <- list(impute_n_pts=1e5)
 
 ## untransformed example:
 state2 <- h0testr::impute_glm_binom(state, config, is_log_transformed=FALSE)
