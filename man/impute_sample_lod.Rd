@@ -9,14 +9,14 @@ impute_sample_lod(state, config)
 \arguments{
 \item{state}{A list with elements like that returned by \code{read_data()}:
 \tabular{ll}{
-  \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-  \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-  \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+  \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+  \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+  \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
 \item{config}{List with configuration values. Uses the following key:
 \tabular{ll}{
-  \code{is_log_transformed} \cr \tab Whether the data are on a log-like scale; decides whether an imputed value at or below zero is an error. \cr
+  \code{is_log_transformed} \tab Whether the data are on a log-like scale; decides whether an imputed value at or below zero is an error. \cr
 }
 This function has no \code{is_log_transformed} argument of its own, the
   minimum of an observation being its minimum on either scale, so the key
@@ -27,9 +27,9 @@ This function has no \code{is_log_transformed} argument of its own, the
 \value{
 An updated \code{state} list with the following elements:
   \tabular{ll}{
-    \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-    \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-    \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+    \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+    \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+    \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
   }
 }
 \description{

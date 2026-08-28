@@ -9,28 +9,28 @@ init_state(state, config, initialized = F, minimal = F)
 \arguments{
 \item{state}{List with elements formatted like the list returned by \code{f.read_data()}:
 \tabular{ll}{
-  \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-  \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-  \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+  \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+  \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+  \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
 \item{config}{List with configuration values. Keys 
 \code{c("n_samples_expr_col", "median_raw_col", "n_features_expr_col")} 
   not needed if \code{minimal=TRUE}:
 \tabular{ll}{
-  \code{obs_id_col}           \cr \tab Column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
-  \code{sample_id_col}        \cr \tab Column in \code{state$samples} with unique sample labels. \cr
-  \code{feat_id_col}          \cr \tab Column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
-  \code{gene_id_col}          \cr \tab Column in \code{state$features} with unique gene/protein group ids. \cr
-  \code{frm}                  \cr \tab Formula object specifying formula to be fit. \cr
-  \code{test_term}            \cr \tab Term (character) in \code{config$frm} to test for significance. \cr
-  \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
-  \code{reference_levels}     \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
-  \code{n_distinct_numeric_warn} \cr \tab Warn if continuous variable in \code{config$frm} has this few distinct values. \cr
-  \code{is_log_transformed}   \cr \tab Optional logical; whether the input is already on a log-like scale. Default \code{FALSE}, meaning raw, so zeros become \code{NA} and negative values are an error. \cr
-  \code{n_samples_expr_col}   \cr \tab Column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
-  \code{median_raw_col}       \cr \tab Column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
-  \code{n_features_expr_col}  \cr \tab Column in \code{state$samples} that corresponds to columns of \code{data_file_in}. \cr
+  \code{obs_id_col}           \tab Column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
+  \code{sample_id_col}        \tab Column in \code{state$samples} with unique sample labels. \cr
+  \code{feat_id_col}          \tab Column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
+  \code{gene_id_col}          \tab Column in \code{state$features} with unique gene/protein group ids. \cr
+  \code{frm}                  \tab Formula object specifying formula to be fit. \cr
+  \code{test_term}            \tab Term (character) in \code{config$frm} to test for significance. \cr
+  \code{contrast}      \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
+  \code{reference_levels}     \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
+  \code{n_distinct_numeric_warn} \tab Warn if continuous variable in \code{config$frm} has this few distinct values. \cr
+  \code{is_log_transformed}   \tab Optional logical; whether the input is already on a log-like scale. Default \code{FALSE}, meaning raw, so zeros become \code{NA} and negative values are an error. \cr
+  \code{n_samples_expr_col}   \tab Column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
+  \code{median_raw_col}       \tab Column in \code{state$features} that corresponds to columns of \code{data_file_in}. \cr
+  \code{n_features_expr_col}  \tab Column in \code{state$samples} that corresponds to columns of \code{data_file_in}. \cr
 }}
 
 \item{initialized}{Logical scalar indicating if \code{state} has already
@@ -47,14 +47,14 @@ parameters needed for formula processing should be required.}
 \value{
 A list with the following two elements:
   \tabular{ll}{
-    \code{state}   \cr \tab List with elements \code{c("expression", "features", "samples")}.
-    \code{config}  \cr \tab List with configuration settings.
+    \code{state}   \tab List with elements \code{c("expression", "features", "samples")}. \cr
+    \code{config}  \tab List with configuration settings. \cr
   }
   The element \code{state} is a list with the following three elements:
   \tabular{ll}{
-    \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-    \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-    \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+    \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+    \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+    \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
   }
 }
 \description{

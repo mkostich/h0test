@@ -19,16 +19,16 @@ impute_loess_logit(
 \arguments{
 \item{state}{A list with elements like that returned by \code{read_data()}:
   \tabular{ll}{
-    \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-    \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-    \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+    \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+    \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+    \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
   } 
 It is assumed that state$expression has been previously \code{log2(x+1)} transformed.}
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{impute_n_pts}  \cr \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain.
-  \code{impute_span}   \cr \tab Span (numeric between zero and 1) for \code{loess} fit.
+  \code{impute_n_pts}  \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain. \cr
+  \code{impute_span}   \tab Span (numeric between zero and 1) for \code{loess} fit. \cr
 }}
 
 \item{span}{Span for loess fit. Scalar with \code{0 < span < 1}. Default: \code{0.5}.}
@@ -59,9 +59,9 @@ intensity range and imputed values are drawn from it. Default: \code{10}.}
 \value{
 An updated \code{state} list with the following elements:
   \tabular{ll}{
-    \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-    \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-    \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+    \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+    \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+    \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
   }
 }
 \description{

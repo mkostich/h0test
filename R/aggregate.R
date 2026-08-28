@@ -49,7 +49,8 @@
 #' samps <- data.frame(observation_id=colnames(exprs))
 #' samps$sample_id=c("samp1", "samp1", "samp2", "samp2", "samp3", "samp3")
 #' state <- list(expression=exprs, features=feats, samples=samps)
-#' config <- list(feat_col="feature_id", obs_id_col="observation_id", sample_id_col="sample_id", save_state=FALSE)
+#' config <- list(feat_col="feature_id", obs_id_col="observation_id",
+#'   sample_id_col="sample_id", save_state=FALSE)
 #' out <- h0testr::combine_replicates(state, config)
 #' print(state)
 #' print(out$state)

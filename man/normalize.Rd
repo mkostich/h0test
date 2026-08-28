@@ -15,18 +15,18 @@ normalize(
 \arguments{
 \item{state}{List with elements formatted like the list returned by \code{read_data()}:
 \tabular{ll}{
-  \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-  \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-  \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+  \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+  \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+  \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{normalization_method}   \cr \tab Character scalar naming one of the methods \code{h0testr::normalize_methods()} returns. \cr
-  \code{normalization_quantile} \cr \tab Quantile (numeric between 0 and 1) for \code{normalization_method \%in\% c("quantile", "upperquartile")}. \cr
-  \code{is_log_transformed} \cr \tab Optional logical; if \code{TRUE}, any method other than \code{"none"} is an error, since it would transform the data a second time. \cr
-  \code{feat_col}      \cr \tab Column of \code{state$features} matching \code{rownames(state$expression)}. \cr
-  \code{obs_col}       \cr \tab Column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
+  \code{normalization_method}   \tab Character scalar naming one of the methods \code{h0testr::normalize_methods()} returns. \cr
+  \code{normalization_quantile} \tab Quantile (numeric between 0 and 1) for \code{normalization_method \%in\% c("quantile", "upperquartile")}. \cr
+  \code{is_log_transformed} \tab Optional logical; if \code{TRUE}, any method other than \code{"none"} is an error, since it would transform the data a second time. \cr
+  \code{feat_col}      \tab Column of \code{state$features} matching \code{rownames(state$expression)}. \cr
+  \code{obs_col}       \tab Column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
 }}
 
 \item{method}{Name of method to use, where scalar \code{method \%in\% h0testr::normalize_methods()}.
@@ -40,14 +40,14 @@ refused without the data having been touched.}
 \value{
 A list with the following two elements:
   \tabular{ll}{
-    \code{state}  \cr \tab The processed state; see below. \cr
-    \code{config} \cr \tab The configuration, with \code{is_log_transformed} set to \code{TRUE} unless the method was \code{"none"}. \cr
+    \code{state}  \tab The processed state; see below. \cr
+    \code{config} \tab The configuration, with \code{is_log_transformed} set to \code{TRUE} unless the method was \code{"none"}. \cr
   }
   The element \code{state} is a list with the following three elements:
   \tabular{ll}{
-    \code{expression} \cr \tab Numeric matrix with normalized expression values. \cr
-    \code{features}   \cr \tab Feature meta-data \code{data.frame} corresponding to rows of \code{expression}. \cr
-    \code{samples}    \cr \tab Observation meta-data \code{data.frame} corresponding to columns of \code{expression}. \cr
+    \code{expression} \tab Numeric matrix with normalized expression values. \cr
+    \code{features}   \tab Feature meta-data \code{data.frame} corresponding to rows of \code{expression}. \cr
+    \code{samples}    \tab Observation meta-data \code{data.frame} corresponding to columns of \code{expression}. \cr
   }
 }
 \description{

@@ -13,11 +13,11 @@ run(config)
 \value{
 A list with the following elements: 
   \tabular{ll}{
-    \code{state}    \cr \tab List with elements \code{$expression}, \code{$features}, and \code{$samples}. \cr
-    \code{config}   \cr \tab List with configuration settings. \cr
-    \code{original} \cr \tab A \code{data.frame} with native results of test. \cr
-    \code{standard} \cr \tab A \code{data.frame} with results in standardized format. \cr
-    \code{fit}      \cr \tab Fitted model from selected testing procedure.
+    \code{state}    \tab List with elements \code{$expression}, \code{$features}, and \code{$samples}. \cr
+    \code{config}   \tab List with configuration settings. \cr
+    \code{original} \tab A \code{data.frame} with native results of test. \cr
+    \code{standard} \tab A \code{data.frame} with results in standardized format. \cr
+    \code{fit}      \tab Fitted model from selected testing procedure.
   }
   The last three are \code{NULL} when \code{config$test_method} is \code{"none"}.
 }

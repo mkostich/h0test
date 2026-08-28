@@ -9,15 +9,15 @@ normalize_edger(state, config, method = NULL, normalization_quantile = NULL)
 \arguments{
 \item{state}{List with elements formatted like the list returned by \code{read_data()}:
 \tabular{ll}{
-  \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-  \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-  \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+  \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+  \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+  \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
 \item{config}{List with configuration values. None required. Uses the following keys:
 \tabular{ll}{
-  \code{normalization_method}     \cr \tab Used if \code{is.null(method)}. \cr
-  \code{normalization_quantile}   \cr \tab Used if \code{is.null(normalization_quantile)}. \cr
+  \code{normalization_method}     \tab Used if \code{is.null(method)}. \cr
+  \code{normalization_quantile}   \tab Used if \code{is.null(normalization_quantile)}. \cr
 }}
 
 \item{method}{Character scalar in set
@@ -30,9 +30,9 @@ normalize_edger(state, config, method = NULL, normalization_quantile = NULL)
 \value{
 A list (the processed state) with the following elements:
   \tabular{ll}{
-    \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-    \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-    \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+    \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+    \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+    \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
   }
 }
 \description{

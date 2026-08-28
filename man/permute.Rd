@@ -10,15 +10,15 @@ permute(state, config, variable = NULL)
 \item{state}{List with elements formatted like the list returned by 
 \code{read_data()}:
 \tabular{ll}{
-  \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-  \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-  \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+  \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+  \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+  \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
 \item{config}{List with configuration values. Requires the following keys:
 \tabular{ll}{
-  \code{obs_col}        \cr \tab Name of column in \code{feature_file_in} that corresponds to columns of \code{data_file_in}. \cr
-  \code{sample_id_col}  \cr \tab Name of column in \code{sample_file_in} with unique sample identifiers. \cr
+  \code{obs_col}        \tab Name of column in \code{feature_file_in} that corresponds to columns of \code{data_file_in}. \cr
+  \code{sample_id_col}  \tab Name of column in \code{sample_file_in} with unique sample identifiers. \cr
 }}
 
 \item{variable}{Character name of variable (column in samples) to permute.}
@@ -26,9 +26,9 @@ permute(state, config, variable = NULL)
 \value{
 A list (the permuted state) with the following elements:
   \tabular{ll}{
-    \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-    \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-    \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+    \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+    \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+    \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
   }
 }
 \description{
@@ -48,7 +48,8 @@ feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs), age=c(rep("young", 3), rep("old", 3)))
 state <- list(expression=exprs, features=feats, samples=samps)
 print(state)
-config <- list(feat_col="feature_id", obs_col="observation_id", sample_id_col="observation_id", permute_var="age")
+config <- list(feat_col="feature_id", obs_col="observation_id",
+  sample_id_col="observation_id", permute_var="age")
 state2 <- h0testr::permute(state, config)
 print(state2)
 }

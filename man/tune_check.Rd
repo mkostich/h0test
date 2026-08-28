@@ -26,24 +26,24 @@ bottom of the output \code{data.frame}.}
 \value{
 A \code{data.frame} with the following columns:
   \tabular{ll}{
-    \code{nhits}      \cr \tab Number of significant hits. \cr
-    \code{ntests}     \cr \tab Number of features tested; \code{0} if the combination did not run. \cr
-    \code{fdr}        \cr \tab False discovery rate, \code{max1} divided by \code{nhits}
+    \code{nhits}      \tab Number of significant hits. \cr
+    \code{ntests}     \tab Number of features tested; \code{0} if the combination did not run. \cr
+    \code{fdr}        \tab False discovery rate, \code{max1} divided by \code{nhits}
       and capped at \code{1}; \code{NA} where \code{ntests} is \code{0}, or where there
       is no permuted counterpart. \cr
-    \code{max1}       \cr \tab Maximum number of hits in any permutation. \cr
-    \code{mid1}       \cr \tab Median number of hits across permutations. \cr
-    \code{avg1}       \cr \tab Average number of hits across permutations. \cr
-    \code{sd1}        \cr \tab Standard deviation of number of hits across permutations. \cr
-    \code{norm}       \cr \tab Normalization method. \cr
-    \code{nquant}     \cr \tab Normalization quantile. \cr
-    \code{impute}     \cr \tab Imputation method. \cr
-    \code{iquant}     \cr \tab Imputation quantile. \cr
-    \code{scale}      \cr \tab Scale for imputation. \cr
-    \code{span}       \cr \tab Span for loess-based imputation. \cr
-    \code{npcs}       \cr \tab Number of principle components for imputation. \cr
-    \code{k}          \cr \tab Number of nearest neighbors or groups for imputation. \cr
-    \code{test}       \cr \tab Test method. \cr
+    \code{max1}       \tab Maximum number of hits in any permutation. \cr
+    \code{mid1}       \tab Median number of hits across permutations. \cr
+    \code{avg1}       \tab Average number of hits across permutations. \cr
+    \code{sd1}        \tab Standard deviation of number of hits across permutations. \cr
+    \code{norm}       \tab Normalization method. \cr
+    \code{nquant}     \tab Normalization quantile. \cr
+    \code{impute}     \tab Imputation method. \cr
+    \code{iquant}     \tab Imputation quantile. \cr
+    \code{scale}      \tab Scale for imputation. \cr
+    \code{span}       \tab Span for loess-based imputation. \cr
+    \code{npcs}       \tab Number of principle components for imputation. \cr
+    \code{k}          \tab Number of nearest neighbors or groups for imputation. \cr
+    \code{test}       \tab Test method. \cr
   }
 }
 \description{

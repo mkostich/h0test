@@ -16,16 +16,16 @@ filter_features_by_formula(
 \arguments{
 \item{state}{A list with elements like that returned by \code{read_data()}:
 \tabular{ll}{
-  \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-  \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-  \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+  \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+  \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+  \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{frm}             \cr \tab Formula object specifying model to be fitted. \cr
-  \code{reference_levels} \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
-  \code{covariate_types} \cr \tab Optional; classification of variables in \code{config$frm}, as set by \code{init_state()}. \cr
+  \code{frm}             \tab Formula object specifying model to be fitted. \cr
+  \code{reference_levels} \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
+  \code{covariate_types} \tab Optional; classification of variables in \code{config$frm}, as set by \code{init_state()}. \cr
 }}
 
 \item{n_non_na_min}{Minimum number of non-NA values per feature. Non-negative integer.}
@@ -39,9 +39,9 @@ filter_features_by_formula(
 \value{
 An updated \code{state} list with the following elements:
   \tabular{ll}{
-    \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-    \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-    \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+    \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+    \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+    \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
   }
 }
 \description{

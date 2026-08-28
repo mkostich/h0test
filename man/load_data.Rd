@@ -9,22 +9,22 @@ load_data(config)
 \arguments{
 \item{config}{List with configuration values. Requires the following keys:
 \tabular{ll}{
-  \code{dir_in}          \cr \tab Path to directory where input files located (character). \cr
-  \code{feature_file_in} \cr \tab Name of file with feature metadata; assumed in \code{dir_in}. \cr
-  \code{sample_file_in}  \cr \tab Name of file with observation metadata; assumed in \code{dir_in}. \cr
-  \code{data_file_in}    \cr \tab Name of file with signal data; assumed in \code{dir_in}. \cr
-  \code{feat_id_col}     \cr \tab Name of column in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
-  \code{gene_id_col}     \cr \tab Name of column in \code{feature_file_in} with unique gene group or protein group labels. \cr
-  \code{obs_id_col}      \cr \tab Name of column in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
-  \code{sample_id_col}   \cr \tab Name of column in \code{sample_file_in} with unique sample labels. \cr
+  \code{dir_in}          \tab Path to directory where input files located (character). \cr
+  \code{feature_file_in} \tab Name of file with feature metadata; assumed in \code{dir_in}. \cr
+  \code{sample_file_in}  \tab Name of file with observation metadata; assumed in \code{dir_in}. \cr
+  \code{data_file_in}    \tab Name of file with signal data; assumed in \code{dir_in}. \cr
+  \code{feat_id_col}     \tab Name of column in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+  \code{gene_id_col}     \tab Name of column in \code{feature_file_in} with unique gene group or protein group labels. \cr
+  \code{obs_id_col}      \tab Name of column in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
+  \code{sample_id_col}   \tab Name of column in \code{sample_file_in} with unique sample labels. \cr
 }}
 }
 \value{
 A list (the initial state) with the following elements:
   \tabular{ll}{
-    \code{expression} \cr \tab Numeric matrix with expression values. \cr
-    \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-    \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+    \code{expression} \tab Numeric matrix with expression values. \cr
+    \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+    \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
   }
 }
 \description{

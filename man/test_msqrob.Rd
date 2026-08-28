@@ -9,25 +9,25 @@ test_msqrob(state, config, maxit = 100, aggregate = FALSE)
 \arguments{
 \item{state}{List with elements like those returned by \code{read_data()}:
 \tabular{ll}{
-  \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-  \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-  \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+  \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+  \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+  \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
 \item{config}{List with configuration values. Requires the following keys:
 \tabular{ll}{
-  \code{gene_id_col}      \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
-  \code{feat_col}         \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
-  \code{obs_col}          \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
-  \code{frm}              \cr \tab Formula (formula) to be fit. \cr
-  \code{test_term}        \cr \tab Term (character) to be tested for non-zero coefficient. \cr
-  \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
-  \code{reference_levels} \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
-  \code{covariate_types}  \cr \tab Optional; classification of variables in \code{config$frm}, as set by \code{init_state()}. \cr
-  \code{factor_levels}    \cr \tab Optional; resolved levels of each factor variable, as set by \code{init_state()}. \cr
-  \code{feat_id_col}      \cr \tab Name of column in \code{state$features} with unique feature ids; must differ from \code{config$gene_id_col} when \code{aggregate=TRUE}. \cr
-  \code{test_random_obs}  \cr \tab Optional logical; whether the \code{aggregate=TRUE} fit includes a random observation effect alongside the random feature effect. Defaults to \code{TRUE} when absent, which is the calibrated model; see Details. Ignored when \code{aggregate=FALSE}. \cr
-  \code{test_ridge}       \cr \tab Optional logical; whether the \code{aggregate=TRUE} fit penalizes the fixed effects. Defaults to \code{FALSE} when absent, which is \code{msqrob2}'s own default; see Details. Ignored when \code{aggregate=FALSE}. \cr
+  \code{gene_id_col}      \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
+  \code{feat_col}         \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
+  \code{obs_col}          \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
+  \code{frm}              \tab Formula (formula) to be fit. \cr
+  \code{test_term}        \tab Term (character) to be tested for non-zero coefficient. \cr
+  \code{contrast}      \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
+  \code{reference_levels} \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
+  \code{covariate_types}  \tab Optional; classification of variables in \code{config$frm}, as set by \code{init_state()}. \cr
+  \code{factor_levels}    \tab Optional; resolved levels of each factor variable, as set by \code{init_state()}. \cr
+  \code{feat_id_col}      \tab Name of column in \code{state$features} with unique feature ids; must differ from \code{config$gene_id_col} when \code{aggregate=TRUE}. \cr
+  \code{test_random_obs}  \tab Optional logical; whether the \code{aggregate=TRUE} fit includes a random observation effect alongside the random feature effect. Defaults to \code{TRUE} when absent, which is the calibrated model; see Details. Ignored when \code{aggregate=FALSE}. \cr
+  \code{test_ridge}       \tab Optional logical; whether the \code{aggregate=TRUE} fit penalizes the fixed effects. Defaults to \code{FALSE} when absent, which is \code{msqrob2}'s own default; see Details. Ignored when \code{aggregate=FALSE}. \cr
 }}
 
 \item{maxit}{Integer scalar >= 1. How many iterations to use for \code{rlm} fitting.}
@@ -41,13 +41,13 @@ one mixed model per gene over the rows of its features instead,
 \value{
 A list with components:
   \tabular{ll}{
-    \code{hits}  \cr \tab \code{data.frame} of results; columns \code{config$gene_id_col},
+    \code{hits}  \tab \code{data.frame} of results; columns \code{config$gene_id_col},
       \code{c("nNonZero", ".n")}, \code{fit_type} when \code{aggregate=TRUE}, and then
       either
       \code{c("logFC", "se", "df", "t", "pval", "adjPval")} when one design matrix
       column carries the test, or
       \code{c("f_statistic", "df1", "df2", "pval", "adjPval")} when several do. \cr
-    \code{fit}   \cr \tab Model returned by \code{msqrob2::hypothesisTest()}, or by
+    \code{fit}   \tab Model returned by \code{msqrob2::hypothesisTest()}, or by
       \code{msqrob2::msqrob()} for a joint test, which does not go through
       \code{msqrob2::hypothesisTest()}. With \code{aggregate=TRUE} it is what
       \code{msqrob2::msqrobAggregate()} returned, with the same two possibilities on

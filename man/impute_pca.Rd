@@ -15,9 +15,9 @@ impute_pca(
 \arguments{
 \item{state}{A list with elements like that returned by \code{read_data()}:
 \tabular{ll}{
-  \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-  \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-  \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+  \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+  \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+  \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
 \item{config}{List with configuration values. Does not use any keys so can pass empty list.}
@@ -34,11 +34,11 @@ passing both is an error unless they agree.}
 \value{
 An updated \code{state} list with the following elements:
   \tabular{ll}{
-    \code{expression} \cr \tab Numeric matrix with non-negative imputed 
+    \code{expression} \tab Numeric matrix with non-negative imputed 
       expression values. \cr
-    \code{features}   \cr \tab Feature meta-data \code{data.frame} 
+    \code{features}   \tab Feature meta-data \code{data.frame} 
       corresponding to rows of \code{expression}. \cr
-    \code{samples}    \cr \tab Observation meta-data \code{data.frame} 
+    \code{samples}    \tab Observation meta-data \code{data.frame} 
       corresponding to columns of \code{expression}. \cr
   }
 }
@@ -52,9 +52,9 @@ Only \code{NAs} considered missing. If you want \code{0} to be considered
   Options for parameter \code{method} are described more fully in 
     the \code{pcaMethods} package documentation. Acceptable values include:
   \tabular{ll}{
-    \code{bpca}      \cr \tab Bayesian PCA (https://doi.org/10.1093/bioinformatics/btg287). \cr
-    \code{ppca}      \cr \tab Probabilistic PCA (https://dl.acm.org/doi/10.5555/3008904.3008993). \cr
-    \code{svdImpute} \cr \tab Use svdImpute (https://doi.org/10.1093/bioinformatics/17.6.520). \cr
+    \code{bpca}      \tab Bayesian PCA (https://doi.org/10.1093/bioinformatics/btg287). \cr
+    \code{ppca}      \tab Probabilistic PCA (https://dl.acm.org/doi/10.5555/3008904.3008993). \cr
+    \code{svdImpute} \tab Use svdImpute (https://doi.org/10.1093/bioinformatics/17.6.520). \cr
   }
 }
 \examples{

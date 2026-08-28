@@ -10,22 +10,22 @@ combine_replicates(state, config, fn = stats::median)
 \item{state}{List with elements formatted like the list returned by 
 \code{read_data()}:
 \tabular{ll}{
-  \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-  \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-  \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+  \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+  \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+  \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{feat_col}        \cr \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}. \cr
-  \code{obs_id_col}      \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
-  \code{sample_id_col}   \cr \tab Name of column in \code{state$samples} with unique sample (case) ids. \cr
-  \code{save_state}      \cr \tab Logical scalar indicating whether to save new state to disk. \cr
-  \code{dir_out}         \cr \tab Output directory path (scalar character); only needed if \code{save_state == TRUE}. \cr
-  \code{data_mid_out}    \cr \tab Midfix of expression matrix filename; only needed if \code{save_state == TRUE}.\cr
-  \code{feature_mid_out} \cr \tab Midfix of feature metadata filename; only needed if \code{save_state == TRUE}.\cr
-  \code{sample_mid_out}  \cr \tab Midfix of sample metadata filename; only needed if \code{save_state == TRUE}.\cr
-  \code{suffix_out}      \cr \tab Suffix of output files; only needed if \code{save_state == TRUE}.\cr
+  \code{feat_col}        \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}. \cr
+  \code{obs_id_col}      \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
+  \code{sample_id_col}   \tab Name of column in \code{state$samples} with unique sample (case) ids. \cr
+  \code{save_state}      \tab Logical scalar indicating whether to save new state to disk. \cr
+  \code{dir_out}         \tab Output directory path (scalar character); only needed if \code{save_state == TRUE}. \cr
+  \code{data_mid_out}    \tab Midfix of expression matrix filename; only needed if \code{save_state == TRUE}.\cr
+  \code{feature_mid_out} \tab Midfix of feature metadata filename; only needed if \code{save_state == TRUE}.\cr
+  \code{sample_mid_out}  \tab Midfix of sample metadata filename; only needed if \code{save_state == TRUE}.\cr
+  \code{suffix_out}      \tab Suffix of output files; only needed if \code{save_state == TRUE}.\cr
 }}
 
 \item{fn}{Function for combining replicated measurements.}
@@ -33,9 +33,9 @@ combine_replicates(state, config, fn = stats::median)
 \value{
 A list (the processed state) with the following elements:
   \tabular{ll}{
-    \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-    \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-    \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+    \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+    \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+    \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
   }
 }
 \description{
@@ -65,7 +65,8 @@ feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 samps$sample_id=c("samp1", "samp1", "samp2", "samp2", "samp3", "samp3")
 state <- list(expression=exprs, features=feats, samples=samps)
-config <- list(feat_col="feature_id", obs_id_col="observation_id", sample_id_col="sample_id", save_state=FALSE)
+config <- list(feat_col="feature_id", obs_id_col="observation_id",
+  sample_id_col="sample_id", save_state=FALSE)
 out <- h0testr::combine_replicates(state, config)
 print(state)
 print(out$state)

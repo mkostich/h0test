@@ -9,17 +9,17 @@ test_lm(state, config, fdr.method = "BH")
 \arguments{
 \item{state}{List with elements like those returned by \code{read_data()}:
 \tabular{ll}{
-  \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-  \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-  \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+  \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+  \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+  \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{feat_col}       \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
-  \code{frm}            \cr \tab Formula (formula object) to be fit \cr
-  \code{test_term}      \cr \tab Term (character scalar) to be tested for non-zero coefficient. \cr
-  \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
+  \code{feat_col}       \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
+  \code{frm}            \tab Formula (formula object) to be fit \cr
+  \code{test_term}      \tab Term (character scalar) to be tested for non-zero coefficient. \cr
+  \code{contrast}      \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
 }}
 
 \item{fdr.method}{Character scalar specifying method to use for multiple

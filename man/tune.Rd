@@ -65,25 +65,25 @@ sweep over not testing has nothing to compare.}
 \value{
 A data.frame with the following columns:
   \tabular{ll}{
-    \code{norm}   \cr \tab Normalization method (character). \cr
-    \code{nquant} \cr \tab Normalization quantile (numeric). \cr
-    \code{impute} \cr \tab Imputation method (character). \cr
-    \code{iquant} \cr \tab Imputation quantile (numeric). \cr
-    \code{scale}  \cr \tab Imputation scale, for \code{impute_rnorm_feature} and
+    \code{norm}   \tab Normalization method (character). \cr
+    \code{nquant} \tab Normalization quantile (numeric). \cr
+    \code{impute} \tab Imputation method (character). \cr
+    \code{iquant} \tab Imputation quantile (numeric). \cr
+    \code{scale}  \tab Imputation scale, for \code{impute_rnorm_feature} and
       \code{impute_qrilc} (numeric). \cr
-    \code{span}   \cr \tab Imputation span, for \code{impute_loess_logit} (numeric). \cr
-    \code{npcs}   \cr \tab Number of PCs, for \code{"bpca"}, \code{"ppca"} and
+    \code{span}   \tab Imputation span, for \code{impute_loess_logit} (numeric). \cr
+    \code{npcs}   \tab Number of PCs, for \code{"bpca"}, \code{"ppca"} and
       \code{"svdImpute"} (numeric). \cr
-    \code{k}      \cr \tab Number of neighbors, for \code{"knn"} and \code{"lls"}
+    \code{k}      \tab Number of neighbors, for \code{"knn"} and \code{"lls"}
       (numeric). \cr
-    \code{test}   \cr \tab Test method (character). \cr
-    \code{perm}   \cr \tab Permuted variable (character). \cr
-    \code{nhits}  \cr \tab Number of hits (numeric); \code{NA} if not tested. \cr
-    \code{ntests} \cr \tab Number of tests (numeric); \code{NA} if not tested. \cr
-    \code{time}   \cr \tab Timestamp. \cr
-    \code{step}   \cr \tab Pipeline step that stopped this combination (character);
+    \code{test}   \tab Test method (character). \cr
+    \code{perm}   \tab Permuted variable (character). \cr
+    \code{nhits}  \tab Number of hits (numeric); \code{NA} if not tested. \cr
+    \code{ntests} \tab Number of tests (numeric); \code{NA} if not tested. \cr
+    \code{time}   \tab Timestamp. \cr
+    \code{step}   \tab Pipeline step that stopped this combination (character);
       \code{NA} if it was tested. \cr
-    \code{reason} \cr \tab Why that step stopped it (character), truncated to 200
+    \code{reason} \tab Why that step stopped it (character), truncated to 200
       characters and stripped of newlines; \code{NA} if it was tested. \cr
   }
   A column for a parameter that this combination does not use is still filled in, from
@@ -164,10 +164,10 @@ config$reference_levels <- c(condition="placebo")
 config$permute_var <- ""            ## no permutation
 set.seed(101)
 out1 <- h0testr::tune(config,
-  normalization_methods=c("RLE", "q75", "cpm", "log2"),
-  impute_methods=c("sample_lod", "unif_sample_lod", "none"),
-  impute_quantiles=c(0, 0.05, 0.1),
-  test_methods=c("trend", "msqrob", "proda", "prolfqua")
+  normalization_methods=c("RLE", "log2"),
+  impute_methods=c("unif_sample_lod", "none"),
+  impute_quantiles=0,
+  test_methods="trend"
 )
 ## write.table(out1, "0.condition.tune.tsv", quote=F, sep="\t", row.names=F)
 
@@ -175,10 +175,10 @@ out1 <- h0testr::tune(config,
 config$permute_var <- "condition"   ## permute variable in test_term
 set.seed(101)
 out2 <- h0testr::tune(config,
-  normalization_methods=c("RLE", "q75", "cpm", "log2"),
-  impute_methods=c("sample_lod", "unif_sample_lod", "none"),
-  impute_quantiles=c(0, 0.05, 0.1),
-  test_methods=c("trend", "msqrob", "proda", "prolfqua")
+  normalization_methods=c("RLE", "log2"),
+  impute_methods=c("unif_sample_lod", "none"),
+  impute_quantiles=0,
+  test_methods="trend"
 )
 ## write.table(out2, "1.condition.tune.tsv", quote=F, sep="\t", row.names=F)
 }

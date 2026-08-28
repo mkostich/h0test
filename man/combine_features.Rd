@@ -9,25 +9,25 @@ combine_features(state, config, method = NULL, rescale = FALSE)
 \arguments{
 \item{state}{List with elements formatted like the list returned by \code{read_data()}:
 \tabular{ll}{
-  \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-  \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-  \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+  \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+  \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+  \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{obs_col}         \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
-  \code{feat_col}        \cr \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}. \cr
-  \code{gene_id_col}     \cr \tab Name of column in \code{state$features} specifying high-level feature for aggregation. \cr
-  \code{n_feats_col}     \cr \tab Name of new column in \code{state$features} for the number of features aggregated into each gene; preserved if already present. \cr
-  \code{combine_method_col} \cr \tab Name of new column in \code{state$features} for the aggregator that summarized each gene; preserved if already present. \cr
-  \code{is_log_transformed} \cr \tab Logical scalar; must be \code{TRUE} unless \code{method} is \code{"none"}, since both aggregators fit an additive model. \cr
-  \code{save_state}      \cr \tab Logical scalar indicating whether to save new state to disk. \cr
-  \code{dir_out}         \cr \tab Output directory path (scalar character); only needed if \code{save_state == TRUE}. \cr
-  \code{data_mid_out}    \cr \tab Midfix of expression matrix filename; only needed if \code{save_state == TRUE}.\cr
-  \code{feature_mid_out} \cr \tab Midfix of feature metadata filename; only needed if \code{save_state == TRUE}.\cr
-  \code{sample_mid_out}  \cr \tab Midfix of sample metadata filename; only needed if \code{save_state == TRUE}.\cr
-  \code{suffix_out}      \cr \tab Suffix of output files; only needed if \code{save_state == TRUE}.\cr
+  \code{obs_col}         \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
+  \code{feat_col}        \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}. \cr
+  \code{gene_id_col}     \tab Name of column in \code{state$features} specifying high-level feature for aggregation. \cr
+  \code{n_feats_col}     \tab Name of new column in \code{state$features} for the number of features aggregated into each gene; preserved if already present. \cr
+  \code{combine_method_col} \tab Name of new column in \code{state$features} for the aggregator that summarized each gene; preserved if already present. \cr
+  \code{is_log_transformed} \tab Logical scalar; must be \code{TRUE} unless \code{method} is \code{"none"}, since both aggregators fit an additive model. \cr
+  \code{save_state}      \tab Logical scalar indicating whether to save new state to disk. \cr
+  \code{dir_out}         \tab Output directory path (scalar character); only needed if \code{save_state == TRUE}. \cr
+  \code{data_mid_out}    \tab Midfix of expression matrix filename; only needed if \code{save_state == TRUE}.\cr
+  \code{feature_mid_out} \tab Midfix of feature metadata filename; only needed if \code{save_state == TRUE}.\cr
+  \code{sample_mid_out}  \tab Midfix of sample metadata filename; only needed if \code{save_state == TRUE}.\cr
+  \code{suffix_out}      \tab Suffix of output files; only needed if \code{save_state == TRUE}.\cr
 }}
 
 \item{method}{Name (character scalar) of method to use for combining, 
@@ -39,9 +39,9 @@ where \code{method \%in\% c("medianPolish", "robustSummary", "none")}. Default: 
 \value{
 A list (the processed state) with the following elements:
   \tabular{ll}{
-    \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-    \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression; one row per gene unless \code{method} is \code{"none"}, and carrying \code{config$n_feats_col} and \code{config$combine_method_col}. \cr
-    \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+    \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+    \code{features}   \tab A data.frame with feature meta-data for rows of expression; one row per gene unless \code{method} is \code{"none"}, and carrying \code{config$n_feats_col} and \code{config$combine_method_col}. \cr
+    \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
   }
 }
 \description{

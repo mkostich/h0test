@@ -9,14 +9,14 @@ normalize_loess(state, config, span = NULL, method = "fast")
 \arguments{
 \item{state}{List with elements formatted like the list returned by `read_data()`:
 \tabular{ll}{
-  \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-  \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-  \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+  \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+  \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+  \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
 \item{config}{List with configuration values, checked with \code{h0testr::check_config()}. Uses the following key:
 \tabular{ll}{
-  \code{normalization_span} \cr \tab Span (numeric between 0 and 1) for the loess fit; read when \code{span} is \code{NULL}. \cr
+  \code{normalization_span} \tab Span (numeric between 0 and 1) for the loess fit; read when \code{span} is \code{NULL}. \cr
 }}
 
 \item{span}{Single number between 0 and 1 specifying span for loess fit.
@@ -29,9 +29,9 @@ Higher numbers result in smoother (less localized) fit. Defaults to
 \value{
 A list (the processed state) with the following elements:
   \tabular{ll}{
-    \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-    \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-    \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+    \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+    \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+    \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
   }
 }
 \description{

@@ -9,21 +9,21 @@ test_proda(state, config, is_log_transformed = NULL, prior_df = 3, maxit = 20)
 \arguments{
 \item{state}{List with elements like those returned by \code{read_data()}:
 \tabular{ll}{
-  \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-  \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-  \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+  \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+  \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+  \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{gene_id_col}          \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
-  \code{feat_col}             \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
-  \code{obs_col}              \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
-  \code{frm}                  \cr \tab Formula (formula) to be fit. \cr
-  \code{test_term}            \cr \tab Term (character) to be tested for non-zero coefficient. \cr
-  \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
-  \code{reference_levels}     \cr \tab Reference level of each factor variable in \code{frm}; sets the direction of \code{diff}. \cr
-  \code{normalization_method} \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
+  \code{gene_id_col}          \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
+  \code{feat_col}             \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
+  \code{obs_col}              \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
+  \code{frm}                  \tab Formula (formula) to be fit. \cr
+  \code{test_term}            \tab Term (character) to be tested for non-zero coefficient. \cr
+  \code{contrast}      \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
+  \code{reference_levels}     \tab Reference level of each factor variable in \code{frm}; sets the direction of \code{diff}. \cr
+  \code{normalization_method} \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
 }}
 
 \item{is_log_transformed}{Logical scalar: whether \code{state$expression} has
@@ -40,12 +40,12 @@ value for it and no \code{config} key carries one.}
 \value{
 A list with components:
   \tabular{ll}{
-    \code{hits}  \cr \tab \code{data.frame} of results from \code{proDA::test_diff()}, sorted by
+    \code{hits}  \tab \code{data.frame} of results from \code{proDA::test_diff()}, sorted by
       p-value; columns \code{c("name", "pval", "adj_pval", "diff", "t_statistic", "se", "df",
       "avg_abundance", "n_approx", "n_obs")} for the single contrast test, and
       \code{c("name", "pval", "adj_pval", "f_statistic", "df1", "df2", "avg_abundance",
       "n_approx", "n_obs")} for the likelihood ratio test. \cr
-    \code{fit}   \cr \tab Model returned by \code{proDA::proDA()}. \cr
+    \code{fit}   \tab Model returned by \code{proDA::proDA()}. \cr
   }
   \code{diff} is an effect size on the scale of \code{state$expression}: for a two level
     factor, the difference between its levels, so a log fold change when the input is log

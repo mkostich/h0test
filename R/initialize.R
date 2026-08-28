@@ -554,7 +554,8 @@ init_state <- function(state, config, initialized=F, minimal=F) {
 #' samps <- data.frame(observation_id=colnames(exprs), age=c(rep("young", 3), rep("old", 3)))
 #' state <- list(expression=exprs, features=feats, samples=samps)
 #' print(state)
-#' config <- list(feat_col="feature_id", obs_col="observation_id", sample_id_col="observation_id", permute_var="age")
+#' config <- list(feat_col="feature_id", obs_col="observation_id",
+#'   sample_id_col="observation_id", permute_var="age")
 #' state2 <- h0testr::permute(state, config)
 #' print(state2)
 #' @export

@@ -173,7 +173,7 @@ f.note_trend <- function(method, trend, given, config) {
 #'     \code{original} \cr \tab A \code{data.frame} with results in native format returned by test. \cr
 #'     \code{standard} \cr \tab A \code{data.frame} with results in a standardized format. \cr
 #'     \code{fit}      \cr \tab Fitted model returned by the selected testing procedure. \cr
-#'   } \cr
+#'   }
 #'   Or \code{NULL} for \code{method="none"}, which skips the test step. \cr
 #'   The \code{standard} \code{data.frame} has the following fields: \cr
 #'   \tabular{ll}{

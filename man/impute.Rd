@@ -23,24 +23,24 @@ impute(
 \arguments{
 \item{state}{A list with elements like that returned by \code{read_data()}:
 \tabular{ll}{
-  \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-  \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-  \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+  \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+  \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+  \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
 \item{config}{List with configuration values. Required keys are 
 \code{feat_col} and \code{obs_col}. Recognizes the following keys:
 \tabular{ll}{
-  \code{feat_col}          \cr \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}. \cr
-  \code{obs_col}           \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
-  \code{impute_method}     \cr \tab Name of a method in list returned by \code{h0testr::impute_methods()}. \cr
-  \code{impute_quantile}   \cr \tab Used if parameter \code{impute_quantile} is unset. \cr
-  \code{impute_scale}      \cr \tab Used if parameter \code{scale.} is unset. \cr
-  \code{impute_span}       \cr \tab Used if parameter \code{span} is unset. \cr
-  \code{impute_k}          \cr \tab Used if parameter \code{k} is unset. \cr
-  \code{impute_npcs}       \cr \tab Used if parameter \code{n_pcs} is unset. \cr
-  \code{impute_aug_steps}  \cr \tab Used if parameter \code{aug_steps} is unset. \cr
-  \code{impute_n_pts}      \cr \tab Used if parameter \code{n_pts} is unset. \cr
+  \code{feat_col}          \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}. \cr
+  \code{obs_col}           \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
+  \code{impute_method}     \tab Name of a method in list returned by \code{h0testr::impute_methods()}. \cr
+  \code{impute_quantile}   \tab Used if parameter \code{impute_quantile} is unset. \cr
+  \code{impute_scale}      \tab Used if parameter \code{scale.} is unset. \cr
+  \code{impute_span}       \tab Used if parameter \code{span} is unset. \cr
+  \code{impute_k}          \tab Used if parameter \code{k} is unset. \cr
+  \code{impute_npcs}       \tab Used if parameter \code{n_pcs} is unset. \cr
+  \code{impute_aug_steps}  \tab Used if parameter \code{aug_steps} is unset. \cr
+  \code{impute_n_pts}      \tab Used if parameter \code{n_pts} is unset. \cr
 }}
 
 \item{method}{Method to use (required). A character scalar from the list 
@@ -80,9 +80,9 @@ unset.}
 \value{
 Updated \code{state} list with the following elements:
   \tabular{ll}{
-    \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-    \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-    \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+    \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+    \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+    \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
   }
 }
 \description{

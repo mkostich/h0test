@@ -15,24 +15,24 @@ filter_state(
 \arguments{
 \item{state}{A list with elements like that returned by `read_data()`:
 \tabular{ll}{
-  \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-  \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-  \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+  \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+  \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+  \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{feat_col}            \cr \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}.
-  \code{obs_col}             \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}.
-  \code{n_features_min}      \cr \tab Minimum number (non-negative numeric) of features with a non-NA value in the observation to keep observation. \cr
-  \code{n_samples_min}       \cr \tab Minimum number (non-negative numeric) of samples with a non-NA value for the feature to keep feature. \cr
-  \code{median_raw_col}      \cr \tab Name (character) of new column in feature metadata to hold median expression in expressing samples. \cr
-  \code{n_samples_expr_col}  \cr \tab Name (character) of new column in feature metadata to hold number of expressing samples. \cr
-  \code{n_features_expr_col} \cr \tab Name (character) of new column in sample metadata to hold number of measured features. \cr
-  \code{estimability}        \cr \tab Requirement placed on \code{config$test_term}; scalar character in \code{c("test", "term", "full")}. \cr
-  \code{df_resid_min}        \cr \tab Minimum residual degrees of freedom (non-negative numeric) to keep feature. \cr
-  \code{df_test_col}         \cr \tab Name (character) of new column in feature metadata to hold \code{df_test}. \cr
-  \code{df_resid_col}        \cr \tab Name (character) of new column in feature metadata to hold \code{df_resid}. \cr
+  \code{feat_col}            \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}. \cr
+  \code{obs_col}             \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
+  \code{n_features_min}      \tab Minimum number (non-negative numeric) of features with a non-NA value in the observation to keep observation. \cr
+  \code{n_samples_min}       \tab Minimum number (non-negative numeric) of samples with a non-NA value for the feature to keep feature. \cr
+  \code{median_raw_col}      \tab Name (character) of new column in feature metadata to hold median expression in expressing samples. \cr
+  \code{n_samples_expr_col}  \tab Name (character) of new column in feature metadata to hold number of expressing samples. \cr
+  \code{n_features_expr_col} \tab Name (character) of new column in sample metadata to hold number of measured features. \cr
+  \code{estimability}        \tab Requirement placed on \code{config$test_term}; scalar character in \code{c("test", "term", "full")}. \cr
+  \code{df_resid_min}        \tab Minimum residual degrees of freedom (non-negative numeric) to keep feature. \cr
+  \code{df_test_col}         \tab Name (character) of new column in feature metadata to hold \code{df_test}. \cr
+  \code{df_resid_col}        \tab Name (character) of new column in feature metadata to hold \code{df_resid}. \cr
 }}
 
 \item{remove_constant}{Logical scalar: if constant rows and columns of \code{state$expression} should be removed.}
@@ -44,9 +44,9 @@ filter_state(
 \value{
 A list with elements like that returned by \code{read_data()}:
   \tabular{ll}{
-    \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-    \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-    \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+    \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+    \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+    \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
   }
 }
 \description{

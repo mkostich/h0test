@@ -14,21 +14,21 @@ filter_features_by_estimability(
 \arguments{
 \item{state}{A list with elements like that returned by \code{read_data()}:
 \tabular{ll}{
-  \code{expression} \cr \tab Numeric matrix with expression values. \cr
-  \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-  \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+  \code{expression} \tab Numeric matrix with expression values. \cr
+  \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+  \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{frm}           \cr \tab Formula object specifying model to be fitted. \cr
-  \code{test_term}     \cr \tab Term (character) in \code{config$frm} to test for significance. \cr
-  \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
-  \code{estimability}  \cr \tab Requirement placed on \code{config$test_term}; scalar character in \code{c("test", "term", "full")}. \cr
-  \code{df_resid_min}  \cr \tab Minimum residual degrees of freedom (non-negative numeric) to keep feature. \cr
-  \code{df_test_col}   \cr \tab Name (character) of new column in feature metadata to hold \code{df_test}. \cr
-  \code{df_resid_col}  \cr \tab Name (character) of new column in feature metadata to hold \code{df_resid}. \cr
-  \code{n_samples_min} \cr \tab Optional; only used to warn when it is inconsistent with \code{df_resid_min}. \cr
+  \code{frm}           \tab Formula object specifying model to be fitted. \cr
+  \code{test_term}     \tab Term (character) in \code{config$frm} to test for significance. \cr
+  \code{contrast}      \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
+  \code{estimability}  \tab Requirement placed on \code{config$test_term}; scalar character in \code{c("test", "term", "full")}. \cr
+  \code{df_resid_min}  \tab Minimum residual degrees of freedom (non-negative numeric) to keep feature. \cr
+  \code{df_test_col}   \tab Name (character) of new column in feature metadata to hold \code{df_test}. \cr
+  \code{df_resid_col}  \tab Name (character) of new column in feature metadata to hold \code{df_resid}. \cr
+  \code{n_samples_min} \tab Optional; only used to warn when it is inconsistent with \code{df_resid_min}. \cr
 }}
 
 \item{estimability}{Requirement placed on \code{config$test_term}; scalar character in \code{c("test", "term", "full")}. Overrides \code{config$estimability}.}
@@ -38,9 +38,9 @@ filter_features_by_estimability(
 \value{
 An updated \code{state} list with the following elements:
   \tabular{ll}{
-    \code{expression} \cr \tab Numeric matrix with expression values. \cr
-    \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression, with \code{df_test} and \code{df_resid} added. \cr
-    \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+    \code{expression} \tab Numeric matrix with expression values. \cr
+    \code{features}   \tab A data.frame with feature meta-data for rows of expression, with \code{df_test} and \code{df_resid} added. \cr
+    \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
   }
 }
 \description{
@@ -57,10 +57,10 @@ This is the last and most expensive of three filtering tiers. This function
     from \code{config$frm}, and \code{X_red} the same matrix with the columns
     of \code{config$test_term} removed. Then:
     \tabular{ll}{
-      \code{df_test}   \cr \tab \code{rank(X[S, ]) - rank(X_red[S, ])}; estimable degrees of freedom for \code{config$test_term}. \cr
-      \code{df_resid}  \cr \tab \code{length(S) - rank(X[S, ])}; residual degrees of freedom. \cr
-      \code{df_intend} \cr \tab \code{df_test} recomputed over all observations; the test that was asked for. \cr
-      \code{df_deficit} \cr \tab \code{ncol(X) - rank(X[S, ])}; coefficients of the requested model that are not estimable. \cr
+      \code{df_test}   \tab \code{rank(X[S, ]) - rank(X_red[S, ])}; estimable degrees of freedom for \code{config$test_term}. \cr
+      \code{df_resid}  \tab \code{length(S) - rank(X[S, ])}; residual degrees of freedom. \cr
+      \code{df_intend} \tab \code{df_test} recomputed over all observations; the test that was asked for. \cr
+      \code{df_deficit} \tab \code{ncol(X) - rank(X[S, ])}; coefficients of the requested model that are not estimable. \cr
     }
   \code{X} is built once over all observations and then subset by row, so 
     factor level ordering set by \code{init_state()} is preserved.
@@ -71,9 +71,9 @@ This is the last and most expensive of three filtering tiers. This function
     the nuisance-side deficit and \code{df_intend - df_test}, so requiring
     \code{"full"} entails \code{"term"}, which entails \code{"test"}:
     \tabular{ll}{
-      \code{"test"} \cr \tab \code{df_test >= 1}; the term is testable. The hypothesis tested, and the covariate adjustment applied, may differ between features. \cr
-      \code{"term"} \cr \tab \code{df_test == df_intend}; every feature is tested against the same hypothesis, but the covariate adjustment may still differ. \cr
-      \code{"full"} \cr \tab \code{df_deficit == 0}; every coefficient of the requested model is estimable for every feature. \cr
+      \code{"test"} \tab \code{df_test >= 1}; the term is testable. The hypothesis tested, and the covariate adjustment applied, may differ between features. \cr
+      \code{"term"} \tab \code{df_test == df_intend}; every feature is tested against the same hypothesis, but the covariate adjustment may still differ. \cr
+      \code{"full"} \tab \code{df_deficit == 0}; every coefficient of the requested model is estimable for every feature. \cr
     }
   A feature is dropped when \code{df_resid < df_resid_min}, which is a question of 
     residual precision rather than of estimability.

@@ -50,12 +50,12 @@ Scalar numeric, with \code{0 <= mcar_p <= 1}.}
 \value{
 List with elements:
   \tabular{ll}{
-    \code{mat}       \cr \tab Numeric matrix with \code{n_feats} rows and \code{n_obs} columns,
+    \code{mat}       \tab Numeric matrix with \code{n_feats} rows and \code{n_obs} columns,
       of positive whole numbers, with \code{NA} wherever MNAR or MCAR made a value
       missing. \cr
-    \code{feat_mean} \cr \tab Numeric vector of strictly positive parameter means for each
+    \code{feat_mean} \tab Numeric vector of strictly positive parameter means for each
       feature in \code{mat}. \cr
-    \code{feat_cv}   \cr \tab Numeric vector of strictly positive parameter CVs for each
+    \code{feat_cv}   \tab Numeric vector of strictly positive parameter CVs for each
       feature in \code{mat}. \cr
   }
 }

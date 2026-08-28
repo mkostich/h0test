@@ -9,16 +9,16 @@ impute_unif_global_lod(state, config, impute_quantile = NULL)
 \arguments{
 \item{state}{A list with elements like that returned by \code{read_data()}:
 \tabular{ll}{
-  \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-  \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-  \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+  \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+  \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+  \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 }}
 
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
-  \code{impute_quantile}     \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD). \cr
-  \code{is_log_transformed}  \cr \tab Whether the data are on a log-like scale; sets the lower bound of the draw. \cr
-  \code{impute_floor_offset} \cr \tab Offset from the smallest measured value giving that lower bound, for log data. \cr
+  \code{impute_quantile}     \tab Quantile of signal distribution to use as estimated limit of detection (LOD). \cr
+  \code{is_log_transformed}  \tab Whether the data are on a log-like scale; sets the lower bound of the draw. \cr
+  \code{impute_floor_offset} \tab Offset from the smallest measured value giving that lower bound, for log data. \cr
 }}
 
 \item{impute_quantile}{Numeric between 0 and 1 specifying
@@ -29,9 +29,9 @@ Default: \code{0}.}
 \value{
 An updated `state` list with the following elements:
   \tabular{ll}{
-    \code{expression} \cr \tab Numeric matrix with expression values. \cr
-    \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-    \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+    \code{expression} \tab Numeric matrix with expression values. \cr
+    \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+    \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
   }
 Returned \code{state$expression} matrix contains strictly positive values for
   raw input, and may contain values at or below zero for log input, where such

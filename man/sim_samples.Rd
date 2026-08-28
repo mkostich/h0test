@@ -28,9 +28,9 @@ left out entirely, which is one way to reach an empty cell. Ignored when \code{f
 \value{
 A \code{data.frame} with one row per sample and columns:
   \tabular{ll}{
-    \code{sample_id} \cr \tab Character sample identifier, \code{samp1} onwards. \cr
-    one per factor \cr \tab Factor, with levels in the order given, reference level first. \cr
-    one per covariate \cr \tab Numeric, on whatever scale it was drawn. \cr
+    \code{sample_id} \tab Character sample identifier, \code{samp1} onwards. \cr
+    one per factor \tab Factor, with levels in the order given, reference level first. \cr
+    one per covariate \tab Numeric, on whatever scale it was drawn. \cr
   }
 }
 \description{
@@ -43,9 +43,9 @@ Rows are one biological sample each; \code{\link{sim_design}} expands technical 
   and that is the order \code{n_per_cell} is read in. The result is an ordinary
   \code{data.frame}, so anything not offered here can be done to it directly:
   \tabular{ll}{
-    unbalance \cr \tab \code{samps <- samps[-c(3, 7), ]} \cr
-    shuffle   \cr \tab \code{samps <- samps[sample(nrow(samps)), ]} \cr
-    confound  \cr \tab \code{samps$age <- samps$age + 10 * (samps$sex == "M")} \cr
+    unbalance \tab \code{samps <- samps[-c(3, 7), ]} \cr
+    shuffle   \tab \code{samps <- samps[sample(nrow(samps)), ]} \cr
+    confound  \tab \code{samps$age <- samps$age + 10 * (samps$sex == "M")} \cr
   }
   The default covariate draw is standard normal rather than uniform because a uniform
   covariate has no tails and so never presents a high-leverage observation.
