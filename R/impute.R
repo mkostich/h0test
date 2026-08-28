@@ -868,6 +868,8 @@ impute_rf <- function(state, config, is_log_transformed=NULL,
     aug_add=0, aug_steps=NULL, verbose=T) {
   
   check_config(config)
+
+  f.need_pkgs("randomForest", "impute_rf", config)
   
   is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
     "impute_rf")
@@ -1029,6 +1031,8 @@ impute_glmnet <- function(state, config, is_log_transformed=NULL,
     aug_mult=0.33, aug_add=0, aug_steps=NULL, verbose=T) {
   
   check_config(config)
+
+  f.need_pkgs("glmnet", "impute_glmnet", config)
   
   is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
     "impute_glmnet")
@@ -1167,6 +1171,8 @@ impute_glmnet <- function(state, config, is_log_transformed=NULL,
 impute_knn <- function(state, config, k=NULL, rowmax=0.5, colmax=0.8, maxp=1500) {
   
   check_config(config)
+
+  f.need_pkgs("impute", "impute_knn", config)
   
   if(!is.matrix(state$expression)) {
     f.err("impute_knn: !is.matrix(state$expression)", "\n",
@@ -1243,6 +1249,8 @@ impute_knn <- function(state, config, k=NULL, rowmax=0.5, colmax=0.8, maxp=1500)
 impute_min_det <- function(state, config, impute_quantile=NULL) {
   
   check_config(config)
+
+  f.need_pkgs("imputeLCMD", "impute_min_det", config)
   
   if(!is.matrix(state$expression)) {
     f.err("impute_min_det: !is.matrix(state$expression)", "\n",
@@ -1325,6 +1333,8 @@ impute_min_prob <- function(state, config, is_log_transformed=NULL,
     impute_quantile=NULL, scale.=NULL) {
     
   check_config(config)
+
+  f.need_pkgs("imputeLCMD", "impute_min_prob", config)
   
   is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
     "impute_min_prob")
@@ -1415,6 +1425,8 @@ impute_min_prob <- function(state, config, is_log_transformed=NULL,
 impute_qrilc <- function(state, config, is_log_transformed=NULL, scale.=NULL) {
   
   check_config(config)
+
+  f.need_pkgs("imputeLCMD", "impute_qrilc", config)
   
   is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
     "impute_qrilc")
@@ -1523,6 +1535,8 @@ impute_pca <- function(state, config, is_log_transformed=NULL,
     n_pcs=NULL, method="bpca") {
   
   check_config(config)
+
+  f.need_pkgs("pcaMethods", "impute_pca", config)
   
   is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
     "impute_pca")
@@ -1631,6 +1645,8 @@ impute_lls <- function(state, config, is_log_transformed=NULL,
     k=NULL, method="pearson", maxit=100) {
   
   check_config(config)
+
+  f.need_pkgs("pcaMethods", "impute_lls", config)
   
   is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
     "impute_lls")
@@ -1712,6 +1728,8 @@ impute_lls <- function(state, config, is_log_transformed=NULL,
 #' round(head(state2$expression))
 
 impute_missforest <- function(state, config, maxit=10, ntree=100) {
+
+  f.need_pkgs("missForest", "impute_missforest", config)
     
   if(!is.matrix(state$expression)) {
     f.err("impute_missforest: !is.matrix(state$expression)", "\n",

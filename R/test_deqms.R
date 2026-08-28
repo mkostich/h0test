@@ -365,6 +365,8 @@ test_deqms <- function(state, config, trend=NULL) {
   trend <- f.is_trend(trend, config, "test_deqms")
 
   check_config(config)
+
+  f.need_pkgs("DEqMS", "test_deqms", config)
   f.check_state(state, config)
 
   state <- f.relevel_state_covariates(state, config, caller="test_deqms")

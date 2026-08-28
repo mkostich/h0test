@@ -5,10 +5,11 @@ Title: Hypothesis testing for proteomics
 Author: Mitch Kostich
 Maintainer: Mitch Kostich <mitch.kostich@jax.org>
 Depends: R (>= 3.1)
-Imports: utils, stats, glmnet, randomForest, limma, edgeR,
-  MsCoreUtils, DEqMS, QFeatures, SummarizedExperiment, msqrob2,
-  proDA, prolfqua, impute, pcaMethods, missForest, imputeLCMD,
-  lme4, lmerTest
+Imports: utils, stats, limma, edgeR, MsCoreUtils
+Suggests: DEqMS, glmnet, impute, imputeLCMD, lme4, lmerTest, missForest,
+  msqrob2, pcaMethods, proDA, prolfqua, QFeatures, randomForest,
+  SummarizedExperiment, vsn
+Remotes: wolski/prolfqua
 Description: Toolkit providing R-based functionality for analyzing 
   non-negative numeric expression matrices. Provides functions to normalize, 
   transform, combine technical replicates, impute and perform hypothesis 

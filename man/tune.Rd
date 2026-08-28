@@ -76,7 +76,7 @@ A data.frame with the following columns:
       \code{"svdImpute"} (numeric). \cr
     \code{k}      \cr \tab Number of neighbors, for \code{"knn"} and \code{"lls"}
       (numeric). \cr
-    \code{test_h0}   \cr \tab Test method (character). \cr
+    \code{test}   \cr \tab Test method (character). \cr
     \code{perm}   \cr \tab Permuted variable (character). \cr
     \code{nhits}  \cr \tab Number of hits (numeric); \code{NA} if not tested. \cr
     \code{ntests} \cr \tab Number of tests (numeric); \code{NA} if not tested. \cr
@@ -89,7 +89,7 @@ A data.frame with the following columns:
   A column for a parameter that this combination does not use is still filled in, from
     \code{config}, rather than left \code{NA}: \code{iquant} carries
     \code{config$impute_quantile} even where \code{impute} is \code{"rf"}. The nine
-    columns from \code{norm} through \code{test_h0} are what identify a combination, and
+    columns from \code{norm} through \code{test} are what identify a combination, and
     \code{h0testr::tune_check()} joins the permuted results to the unpermuted ones on
     those nine by name, so renaming or dropping one of them there is refused rather
     than silently changing what is being compared.

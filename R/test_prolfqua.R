@@ -348,7 +348,7 @@ f.prolfqua_mixed_f <- function(mods, design, config, caller="f.prolfqua_mixed_f"
 
 #' Hypothesis testing using the \code{prolfq} package
 #' @description
-#'   Tests for differential expression using the \code{prolfq::build_model()} function.
+#'   Tests for differential expression using the \code{prolfqua::build_model()} function.
 #' @details
 #'   Uses the \code{prolfqua::build_model()} function. Returns results sorted by p-value.
 #'   Test is a comparison of nested models: \code{prolfqua::build_model()} fits
@@ -560,6 +560,9 @@ f.prolfqua_mixed_f <- function(mods, design, config, caller="f.prolfqua_mixed_f"
 
 test_prolfqua <- function(state, config, is_log_transformed=NULL, mixed=FALSE,
     trend=NULL) {
+
+  f.need_pkgs(c("prolfqua", if(mixed) c("lme4", "lmerTest")),
+    "test_prolfqua", config)
 
   ## mixed path models the features of a gene instead of aggregating them;
   ##   needs both levels:

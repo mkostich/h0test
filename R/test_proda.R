@@ -85,6 +85,8 @@
 test_proda <- function(state, config, is_log_transformed=NULL, prior_df=3, maxit=20) {
 
   check_config(config)
+
+  f.need_pkgs(c("proDA", "SummarizedExperiment"), "test_proda", config)
   f.check_state(state, config)
 
   is_log_transformed <- f.is_log_transformed(is_log_transformed, config,

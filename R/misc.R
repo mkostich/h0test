@@ -75,6 +75,31 @@ f.err <- function(..., config) {
   stop("Stopping", call.=F)
 }
 
+f.pkg_install_cmd <- function(pkg) {
+
+  bioc <- c("DEqMS", "edgeR", "impute", "limma", "MsCoreUtils", "msqrob2",
+    "pcaMethods", "proDA", "QFeatures", "SummarizedExperiment", "vsn")
+  gh <- c(prolfqua="wolski/prolfqua")
+
+  if(pkg %in% names(gh)) {
+    return(paste0('remotes::install_github("', gh[[pkg]], '")'))
+  }
+  if(pkg %in% bioc) return(paste0('BiocManager::install("', pkg, '")'))
+  return(paste0('install.packages("', pkg, '")'))
+}
+
+f.need_pkgs <- function(pkgs, who, config) {
+
+  if(length(pkgs) < 1) return(invisible(TRUE))
+  i <- !vapply(pkgs, requireNamespace, logical(1), quietly=TRUE)
+  if(!any(i)) return(invisible(TRUE))
+
+  cmds <- vapply(pkgs[i], f.pkg_install_cmd, character(1))
+  f.err(who, "needs the package", paste(pkgs[i], collapse=", "),
+    "which could not be loaded; install with:", "\n  ",
+    paste(cmds, collapse="\n   "), config=config)
+}
+
 f.log_obj <- function(obj, config) {
 
   if(is.null(config$log_file)) config$log_file <- ""

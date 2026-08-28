@@ -384,6 +384,8 @@ normalize_cpm <- function(state, config, multiplier=1e6) {
 normalize_vsn <- function(state, config, n_pts=42L) {
 
   check_config(config)
+
+  f.need_pkgs("vsn", "normalize_vsn", config)
   
   if(!is.matrix(state$expression)) {
     f.err("normalize_vsn: !is.matrix(state$expression)", "\n",

@@ -131,6 +131,9 @@
 
 test_msqrob <- function(state, config, maxit=100, aggregate=FALSE) {
 
+  f.need_pkgs(c("msqrob2", "QFeatures", "SummarizedExperiment",
+    if(aggregate) c("lme4", "lmerTest")), "test_msqrob", config)
+
   ## the aggregate path models the feature level. With one feature per gene the random 
   ##   feature effect is a single unknown confounded with the intercept, its variance 
   ##   is not identified, and the model reduces to the one aggregate=FALSE fits:

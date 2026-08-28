@@ -43,7 +43,7 @@ A \code{data.frame} with the following columns:
     \code{span}       \cr \tab Span for loess-based imputation. \cr
     \code{npcs}       \cr \tab Number of principle components for imputation. \cr
     \code{k}          \cr \tab Number of nearest neighbors or groups for imputation. \cr
-    \code{test_h0}       \cr \tab Test method. \cr
+    \code{test}       \cr \tab Test method. \cr
   }
 }
 \description{

@@ -108,7 +108,7 @@ A list with components:
     change between groups, and the total swing when several do. See \code{h0testr::test_h0()}.
 }
 \description{
-Tests for differential expression using the \code{prolfq::build_model()} function.
+Tests for differential expression using the \code{prolfqua::build_model()} function.
 }
 \details{
 Uses the \code{prolfqua::build_model()} function. Returns results sorted by p-value.
