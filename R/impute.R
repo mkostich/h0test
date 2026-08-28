@@ -82,15 +82,15 @@ f.pos_mat <- function(mat, config, is_log_transformed=NULL, fn_name="f.pos_mat")
 #'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{impute_quantile}     \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD). \cr
-#'     \code{is_log_transformed}  \cr \tab Whether the data are on a log-like scale; sets the lower bound of the draw. \cr
-#'     \code{impute_floor_offset} \cr \tab Offset from the smallest measured value giving that lower bound, for log data. \cr
+#'     \code{impute_quantile}     \tab Quantile of signal distribution to use as estimated limit of detection (LOD). \cr
+#'     \code{is_log_transformed}  \tab Whether the data are on a log-like scale; sets the lower bound of the draw. \cr
+#'     \code{impute_floor_offset} \tab Offset from the smallest measured value giving that lower bound, for log data. \cr
 #'   }
 #' @param impute_quantile Numeric between 0 and 1 specifying
 #'   minimum non-zero/\code{NA} expression value for each feature to use as global
@@ -98,9 +98,9 @@ f.pos_mat <- function(mat, config, is_log_transformed=NULL, fn_name="f.pos_mat")
 #'   Default: \code{0}.
 #' @return An updated `state` list with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   }
 #' Returned \code{state$expression} matrix contains strictly positive values for
 #'   raw input, and may contain values at or below zero for log input, where such
@@ -195,24 +195,24 @@ impute_unif_global_lod <- function(state, config, impute_quantile=NULL) {
 #'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{impute_quantile}     \cr \tab Quantile of signal distribution to use as estimated limit of detection (LOD). \cr
-#'     \code{is_log_transformed}  \cr \tab Whether the data are on a log-like scale; sets the lower bound of the draw. \cr
-#'     \code{impute_floor_offset} \cr \tab Offset from the smallest measured value giving that lower bound, for log data. \cr
+#'     \code{impute_quantile}     \tab Quantile of signal distribution to use as estimated limit of detection (LOD). \cr
+#'     \code{is_log_transformed}  \tab Whether the data are on a log-like scale; sets the lower bound of the draw. \cr
+#'     \code{impute_floor_offset} \tab Offset from the smallest measured value giving that lower bound, for log data. \cr
 #'   }
 #' @param impute_quantile Numeric between 0 and 1 specifying
 #'   minimum non-zero/\code{NA} expression value in each observation to use as the
 #'   observation-specific LOD (limit of detection). Default: \code{0}.
 #' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
 #' set.seed(101)
@@ -314,13 +314,13 @@ impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
 #'     arises when the imputer is called on its own.
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   }
 #' @param config List with configuration values. Uses the following key:
 #'   \tabular{ll}{
-#'     \code{is_log_transformed} \cr \tab Whether the data are on a log-like scale; decides whether an imputed value at or below zero is an error. \cr
+#'     \code{is_log_transformed} \tab Whether the data are on a log-like scale; decides whether an imputed value at or below zero is an error. \cr
 #'   }
 #'   This function has no \code{is_log_transformed} argument of its own, the
 #'     minimum of an observation being its minimum on either scale, so the key
@@ -329,9 +329,9 @@ impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
 #'     updates it.
 #' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
 #' set.seed(101)
@@ -392,14 +392,14 @@ impute_sample_lod <- function(state, config) {
 #'     for more detailed description of configuration parameters.
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{impute_scale}  \cr \tab Factor (numeric) rescaling variance of normal distribution from which draws are made. See details.
-#'     \code{is_log_transformed} \cr \tab Whether the data are on a log-like scale; sets the dispersion floor and whether a value below zero is allowed. See details.
+#'     \code{impute_scale}  \tab Factor (numeric) rescaling variance of normal distribution from which draws are made. See details. \cr
+#'     \code{is_log_transformed} \tab Whether the data are on a log-like scale; sets the dispersion floor and whether a value below zero is allowed. See details. \cr
 #'   }
 #' @param is_log_transformed Logical scalar: whether \code{state$expression} has
 #'   been log transformed. Defaults to \code{config$is_log_transformed}, which
@@ -409,9 +409,9 @@ impute_sample_lod <- function(state, config) {
 #'   dispersion around the feature mean. Default: \code{1.0}.
 #' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
 #' set.seed(101)
@@ -536,14 +536,14 @@ impute_rnorm_feature <- function(state, config, is_log_transformed=NULL,
 #'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' It is assumed that state$expression has been previously \code{log2(x+1)} transformed.
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{impute_n_pts}  \cr \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain.
+#'     \code{impute_n_pts}  \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain.
 #'   }
 #' @param is_log_transformed Logical scalar: whether \code{state$expression} has
 #'   been log transformed. Defaults to \code{config$is_log_transformed}, which
@@ -562,9 +562,9 @@ impute_rnorm_feature <- function(state, config, is_log_transformed=NULL,
 #'   error when too few distinct intensities remain. Default: \code{10}.
 #' @return An updated `state` list with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   }
 #' @examples
 #' set.seed(101)
@@ -654,15 +654,15 @@ impute_glm_binom <- function(state, config, is_log_transformed=NULL,
 #'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' It is assumed that state$expression has been previously \code{log2(x+1)} transformed.
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{impute_n_pts}  \cr \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain.
-#'     \code{impute_span}   \cr \tab Span (numeric between zero and 1) for \code{loess} fit.
+#'     \code{impute_n_pts}  \tab Numeric greater than one. Determines granularity of imputation. Larger values lead to finer grain. \cr
+#'     \code{impute_span}   \tab Span (numeric between zero and 1) for \code{loess} fit. \cr
 #'   }
 #' @param span Span for loess fit. Scalar with \code{0 < span < 1}. Default: \code{0.5}.
 #' @param n_pts Numeric greater than one. Granularity of prediction 
@@ -684,9 +684,9 @@ impute_glm_binom <- function(state, config, is_log_transformed=NULL,
 #'   intensity range and imputed values are drawn from it. Default: \code{10}.
 #' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
 #' set.seed(101)
@@ -808,9 +808,9 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
 #'   Augmentation uses \code{f.augment_affine()}.
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' It is assumed that state$expression has been previously \code{log2(x+1)} transformed.
 #' @param config List with configuration values. Does not use any keys, so can pass empty list.
@@ -973,9 +973,9 @@ impute_rf <- function(state, config, is_log_transformed=NULL,
 #'     \code{f.aug_mult()}. 
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   }
 #' It is assumed that state$expression has been previously \code{log2(x+1)} transformed.
 #' @param config List with configuration values. Does not use any keys so can pass empty list.
@@ -1137,9 +1137,9 @@ impute_glmnet <- function(state, config, is_log_transformed=NULL,
 #'     sub-blocks prior to imputation.
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Does not use any keys so can pass empty list.
 #' @param k Number of nearest neighbor features to average, \code{k >= 1}.
@@ -1153,11 +1153,11 @@ impute_glmnet <- function(state, config, is_log_transformed=NULL,
 #' @return 
 #'   An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative imputed 
+#'     \code{expression} \tab Numeric matrix with non-negative imputed 
 #'       expression values. \cr
-#'     \code{features}   \cr \tab Feature meta-data \code{data.frame} 
+#'     \code{features}   \tab Feature meta-data \code{data.frame} 
 #'       corresponding to rows of \code{expression}. \cr
-#'     \code{samples}    \cr \tab Observation meta-data \code{data.frame} 
+#'     \code{samples}    \tab Observation meta-data \code{data.frame} 
 #'       corresponding to columns of \code{expression}. \cr
 #'   } 
 #' @examples
@@ -1223,9 +1223,9 @@ impute_knn <- function(state, config, k=NULL, rowmax=0.5, colmax=0.8, maxp=1500)
 #'     imputing. 
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Does not require any keys so 
 #'   can pass empty list.
@@ -1234,11 +1234,11 @@ impute_knn <- function(state, config, k=NULL, rowmax=0.5, colmax=0.8, maxp=1500)
 #' @return 
 #'   An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative imputed 
+#'     \code{expression} \tab Numeric matrix with non-negative imputed 
 #'       expression values. \cr
-#'     \code{features}   \cr \tab Feature meta-data \code{data.frame} 
+#'     \code{features}   \tab Feature meta-data \code{data.frame} 
 #'       corresponding to rows of \code{expression}. \cr
-#'     \code{samples}    \cr \tab Observation meta-data \code{data.frame} 
+#'     \code{samples}    \tab Observation meta-data \code{data.frame} 
 #'       corresponding to columns of \code{expression}. \cr
 #'   } 
 #' @examples
@@ -1294,9 +1294,9 @@ impute_min_det <- function(state, config, impute_quantile=NULL) {
 #'     imputing. 
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Does not use any keys so 
 #'   can pass empty list.
@@ -1311,11 +1311,11 @@ impute_min_det <- function(state, config, impute_quantile=NULL) {
 #' @return 
 #'   An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative imputed 
+#'     \code{expression} \tab Numeric matrix with non-negative imputed 
 #'       expression values. \cr
-#'     \code{features}   \cr \tab Feature meta-data \code{data.frame} 
+#'     \code{features}   \tab Feature meta-data \code{data.frame} 
 #'       corresponding to rows of \code{expression}. \cr
-#'     \code{samples}    \cr \tab Observation meta-data \code{data.frame} 
+#'     \code{samples}    \tab Observation meta-data \code{data.frame} 
 #'       corresponding to columns of \code{expression}. \cr
 #'   } 
 #' @examples
@@ -1392,9 +1392,9 @@ impute_min_prob <- function(state, config, is_log_transformed=NULL,
 #'     imputing. 
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Does not use any keys so can 
 #'   pass empty list.
@@ -1407,11 +1407,11 @@ impute_min_prob <- function(state, config, is_log_transformed=NULL,
 #' @return 
 #'   An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative imputed 
+#'     \code{expression} \tab Numeric matrix with non-negative imputed 
 #'       expression values. \cr
-#'     \code{features}   \cr \tab Feature meta-data \code{data.frame} 
+#'     \code{features}   \tab Feature meta-data \code{data.frame} 
 #'       corresponding to rows of \code{expression}. \cr
-#'     \code{samples}    \cr \tab Observation meta-data \code{data.frame} 
+#'     \code{samples}    \tab Observation meta-data \code{data.frame} 
 #'       corresponding to columns of \code{expression}. \cr
 #'   } 
 #' @examples
@@ -1486,15 +1486,15 @@ impute_qrilc <- function(state, config, is_log_transformed=NULL, scale.=NULL) {
 #'   Options for parameter \code{method} are described more fully in 
 #'     the \code{pcaMethods} package documentation. Acceptable values include:
 #'   \tabular{ll}{
-#'     \code{bpca}      \cr \tab Bayesian PCA (https://doi.org/10.1093/bioinformatics/btg287). \cr
-#'     \code{ppca}      \cr \tab Probabilistic PCA (https://dl.acm.org/doi/10.5555/3008904.3008993). \cr
-#'     \code{svdImpute} \cr \tab Use svdImpute (https://doi.org/10.1093/bioinformatics/17.6.520). \cr
+#'     \code{bpca}      \tab Bayesian PCA (https://doi.org/10.1093/bioinformatics/btg287). \cr
+#'     \code{ppca}      \tab Probabilistic PCA (https://dl.acm.org/doi/10.5555/3008904.3008993). \cr
+#'     \code{svdImpute} \tab Use svdImpute (https://doi.org/10.1093/bioinformatics/17.6.520). \cr
 #'   }
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Does not use any keys so can pass empty list.
 #' @param is_log_transformed Logical scalar: whether \code{state$expression} has
@@ -1506,11 +1506,11 @@ impute_qrilc <- function(state, config, is_log_transformed=NULL, scale.=NULL) {
 #' @return 
 #'   An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative imputed 
+#'     \code{expression} \tab Numeric matrix with non-negative imputed 
 #'       expression values. \cr
-#'     \code{features}   \cr \tab Feature meta-data \code{data.frame} 
+#'     \code{features}   \tab Feature meta-data \code{data.frame} 
 #'       corresponding to rows of \code{expression}. \cr
-#'     \code{samples}    \cr \tab Observation meta-data \code{data.frame} 
+#'     \code{samples}    \tab Observation meta-data \code{data.frame} 
 #'       corresponding to columns of \code{expression}. \cr
 #'   } 
 #' @examples
@@ -1614,9 +1614,9 @@ impute_pca <- function(state, config, is_log_transformed=NULL,
 #'     imputing. 
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Does not use any keys so can 
 #'   pass empty list.
@@ -1631,11 +1631,11 @@ impute_pca <- function(state, config, is_log_transformed=NULL,
 #' @return 
 #'   An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative imputed 
+#'     \code{expression} \tab Numeric matrix with non-negative imputed 
 #'       expression values. \cr
-#'     \code{features}   \cr \tab Feature meta-data \code{data.frame} 
+#'     \code{features}   \tab Feature meta-data \code{data.frame} 
 #'       corresponding to rows of \code{expression}. \cr
-#'     \code{samples}    \cr \tab Observation meta-data \code{data.frame} 
+#'     \code{samples}    \tab Observation meta-data \code{data.frame} 
 #'       corresponding to columns of \code{expression}. \cr
 #'   } 
 #' @examples
@@ -1720,9 +1720,9 @@ impute_lls <- function(state, config, is_log_transformed=NULL,
 #'     imputing. 
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Does not use any keys so can pass empty list.
 #' @param maxit Maximum number of iterations used during fitting.
@@ -1730,11 +1730,11 @@ impute_lls <- function(state, config, is_log_transformed=NULL,
 #' @return 
 #'   An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative imputed 
+#'     \code{expression} \tab Numeric matrix with non-negative imputed 
 #'       expression values. \cr
-#'     \code{features}   \cr \tab Feature meta-data \code{data.frame} 
+#'     \code{features}   \tab Feature meta-data \code{data.frame} 
 #'       corresponding to rows of \code{expression}. \cr
-#'     \code{samples}    \cr \tab Observation meta-data \code{data.frame} 
+#'     \code{samples}    \tab Observation meta-data \code{data.frame} 
 #'       corresponding to columns of \code{expression}. \cr
 #'   } 
 #' @examples
@@ -1823,23 +1823,23 @@ impute_methods <- function() {
 #'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   }
 #' @param config List with configuration values. Required keys are 
 #'   \code{feat_col} and \code{obs_col}. Recognizes the following keys:
 #'   \tabular{ll}{
-#'     \code{feat_col}          \cr \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}. \cr
-#'     \code{obs_col}           \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
-#'     \code{impute_method}     \cr \tab Name of a method in list returned by \code{h0testr::impute_methods()}. \cr
-#'     \code{impute_quantile}   \cr \tab Used if parameter \code{impute_quantile} is unset. \cr
-#'     \code{impute_scale}      \cr \tab Used if parameter \code{scale.} is unset. \cr
-#'     \code{impute_span}       \cr \tab Used if parameter \code{span} is unset. \cr
-#'     \code{impute_k}          \cr \tab Used if parameter \code{k} is unset. \cr
-#'     \code{impute_npcs}       \cr \tab Used if parameter \code{n_pcs} is unset. \cr
-#'     \code{impute_aug_steps}  \cr \tab Used if parameter \code{aug_steps} is unset. \cr
-#'     \code{impute_n_pts}      \cr \tab Used if parameter \code{n_pts} is unset. \cr
+#'     \code{feat_col}          \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}. \cr
+#'     \code{obs_col}           \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
+#'     \code{impute_method}     \tab Name of a method in list returned by \code{h0testr::impute_methods()}. \cr
+#'     \code{impute_quantile}   \tab Used if parameter \code{impute_quantile} is unset. \cr
+#'     \code{impute_scale}      \tab Used if parameter \code{scale.} is unset. \cr
+#'     \code{impute_span}       \tab Used if parameter \code{span} is unset. \cr
+#'     \code{impute_k}          \tab Used if parameter \code{k} is unset. \cr
+#'     \code{impute_npcs}       \tab Used if parameter \code{n_pcs} is unset. \cr
+#'     \code{impute_aug_steps}  \tab Used if parameter \code{aug_steps} is unset. \cr
+#'     \code{impute_n_pts}      \tab Used if parameter \code{n_pts} is unset. \cr
 #'   }
 #' @param method Method to use (required). A character scalar from the list 
 #'   returned by \code{h0testr::impute_methods()}.
@@ -1866,9 +1866,9 @@ impute_methods <- function() {
 #'   \code{c("glmnet", "rf")}.
 #' @return Updated \code{state} list with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
 #' set.seed(101)

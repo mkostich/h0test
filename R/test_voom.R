@@ -22,18 +22,18 @@
 #'     configuration parameters.
 #' @param state List with elements like those returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{feat_col}       \cr \tab Name of column in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
-#'     \code{obs_col}        \cr \tab Name of column in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
-#'     \code{frm}            \cr \tab Formula (formula) to be fit. \cr
-#'     \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
-#'     \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
-#'     \code{reference_levels} \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm} (see examples). \cr
+#'     \code{feat_col}       \tab Name of column in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+#'     \code{obs_col}        \tab Name of column in \code{sample_file_in} that corresponds to columns of \code{data_file_in}. \cr
+#'     \code{frm}            \tab Formula (formula) to be fit. \cr
+#'     \code{test_term}      \tab Term (character) to be tested for non-zero coefficient. \cr
+#'     \code{contrast}      \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
+#'     \code{reference_levels} \tab Named character vector with the reference level of each factor variable in \code{config$frm} (see examples). \cr
 #'   }
 #' @param normalize.method Character in
 #'   \code{c("TMM", "TMMwsp", "RLE", "upperquartile", "none")}. Reachable only by calling
@@ -43,8 +43,8 @@
 #' @return 
 #'   A list with components:
 #'   \tabular{ll}{
-#'     \code{hits}  \cr \tab \code{data.frame} of results from \code{limma::topTable()}. \cr
-#'     \code{fit}   \cr \tab Model returned by \code{limma::eBayes()}. \cr
+#'     \code{hits}  \tab \code{data.frame} of results from \code{limma::topTable()}. \cr
+#'     \code{fit}   \tab Model returned by \code{limma::eBayes()}. \cr
 #'   } 
 #'   \code{logFC} is an effect size on the scale of \code{state$expression}: for a two level
 #'     factor, the difference between its levels, so a log fold change when the input is log

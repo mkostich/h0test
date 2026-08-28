@@ -67,14 +67,14 @@ f.one_feature <- function(state, config, method, fn) {
 #'     for more detailed description of configuration parameters.
 #' @param state List with elements formatted like the list returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. None required. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{normalization_method}     \cr \tab Used if \code{is.null(method)}. \cr
-#'     \code{normalization_quantile}   \cr \tab Used if \code{is.null(normalization_quantile)}. \cr
+#'     \code{normalization_method}     \tab Used if \code{is.null(method)}. \cr
+#'     \code{normalization_quantile}   \tab Used if \code{is.null(normalization_quantile)}. \cr
 #'   }
 #' @param method Character scalar in set
 #'   \code{c("RLE", "upperquartile", "TMM", "TMMwsp", "none")}. Can be set with
@@ -83,9 +83,9 @@ f.one_feature <- function(state, config, method, fn) {
 #'   \code{upperquartile}. Can set with \code{config$normalization_quantile}.
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
 #' set.seed(101)
@@ -204,22 +204,22 @@ normalize_edger <- function(state, config, method=NULL, normalization_quantile=N
 #'     for more detailed description of configuration parameters. 
 #' @param state List with elements formatted like the list returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{normalization_quantile}   \cr \tab Quantile to use where \code{normalization_method \%in\% c("quantile", "upperquartile")}. \cr
+#'     \code{normalization_quantile}   \tab Quantile to use where \code{normalization_method \%in\% c("quantile", "upperquartile")}. \cr
 #'   }
 #' @param normalization_quantile Single number in closed interval \code{[0, 1]} specifying quantile to use.
 #' @param multiplier Single finite number greater than zero, used to scale returned values after 
 #'   dividing by selected quantile. 
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
 #' set.seed(101)
@@ -289,9 +289,9 @@ normalize_quantile <- function(state, config, normalization_quantile=NULL, multi
 #'     (excluding missing values) equal in each observation.
 #' @param state List with elements formatted like the list returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Does not use any keys, so can pass an empty list; checked with \code{h0testr::check_config()}.
 #' @param multiplier Single finite number greater than zero, used to scale returned values 
@@ -299,9 +299,9 @@ normalize_quantile <- function(state, config, normalization_quantile=NULL, multi
 #'   \code{multiplier=1e6} yields normalized expression as CPM (counts per million). 
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
 #' set.seed(101)
@@ -353,9 +353,9 @@ normalize_cpm <- function(state, config, multiplier=1e6) {
 #'     stratum; one feature is not enough to fit, so is refused.
 #' @param state List formatted like the list returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Does not use any keys, so can pass an empty list; checked with \code{h0testr::check_config()}.
 #' @param n_pts Scalar minimum number of data points per stratum, as a whole number of 1 or more.
@@ -363,9 +363,9 @@ normalize_cpm <- function(state, config, multiplier=1e6) {
 #'   See \code{vsn::vsn2}. Default: 42L.
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
 #' if(requireNamespace("vsn", quietly=TRUE)) {
@@ -456,13 +456,13 @@ normalize_vsn <- function(state, config, n_pts=42L) {
 #'     expected on a log scale, but raw intensities are not refused.
 #' @param state List with elements formatted like the list returned by `read_data()`:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values, checked with \code{h0testr::check_config()}. Uses the following key:
 #'   \tabular{ll}{
-#'     \code{normalization_span} \cr \tab Span (numeric between 0 and 1) for the loess fit; read when \code{span} is \code{NULL}. \cr
+#'     \code{normalization_span} \tab Span (numeric between 0 and 1) for the loess fit; read when \code{span} is \code{NULL}. \cr
 #'   }
 #' @param span Single number between 0 and 1 specifying span for loess fit.
 #'   Higher numbers result in smoother (less localized) fit. Defaults to
@@ -471,9 +471,9 @@ normalize_vsn <- function(state, config, n_pts=42L) {
 #'   \code{"fast"}, the only one usable on data with missing values; see details.
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
 #' set.seed(101)
@@ -562,16 +562,16 @@ normalize_loess <- function(state, config, span=NULL, method="fast") {
 #'     as \code{"need at least two non-NA values to interpolate"}.
 #' @param state List with elements formatted like the list returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Does not use any keys, so can pass an empty list; checked with \code{h0testr::check_config()}.
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
 #' set.seed(101)
@@ -656,9 +656,9 @@ normalize_qquantile <- function(state, config) {
 #'     for more detailed description of configuration parameters. 
 #' @param state List with elements like those returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values, checked with \code{h0testr::check_config()}. The only optional setting used is
 #'   \code{normalization_method}, which is used to set \code{method} if \code{is.null(method)}.
@@ -667,9 +667,9 @@ normalize_qquantile <- function(state, config) {
 #'   See details.
 #' @return A list with elements: 
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with normalized expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with normalized expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   }
 #' @examples
 #' set.seed(101)
@@ -817,17 +817,17 @@ normalize_methods <- function() {
 #'     for more detailed description of configuration parameters.
 #' @param state List with elements formatted like the list returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{normalization_method}   \cr \tab Character scalar naming one of the methods \code{h0testr::normalize_methods()} returns. \cr
-#'     \code{normalization_quantile} \cr \tab Quantile (numeric between 0 and 1) for \code{normalization_method \%in\% c("quantile", "upperquartile")}. \cr
-#'     \code{is_log_transformed} \cr \tab Optional logical; if \code{TRUE}, any method other than \code{"none"} is an error, since it would transform the data a second time. \cr
-#'     \code{feat_col}      \cr \tab Column of \code{state$features} matching \code{rownames(state$expression)}. \cr
-#'     \code{obs_col}       \cr \tab Column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
+#'     \code{normalization_method}   \tab Character scalar naming one of the methods \code{h0testr::normalize_methods()} returns. \cr
+#'     \code{normalization_quantile} \tab Quantile (numeric between 0 and 1) for \code{normalization_method \%in\% c("quantile", "upperquartile")}. \cr
+#'     \code{is_log_transformed} \tab Optional logical; if \code{TRUE}, any method other than \code{"none"} is an error, since it would transform the data a second time. \cr
+#'     \code{feat_col}      \tab Column of \code{state$features} matching \code{rownames(state$expression)}. \cr
+#'     \code{obs_col}       \tab Column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
 #'   }
 #' @param method Name of method to use, where scalar \code{method \%in\% h0testr::normalize_methods()}.
 #'   Checked before anything else happens, so a name no method goes by is
@@ -836,14 +836,14 @@ normalize_methods <- function() {
 #' @param span Span for method \code{"loess"}, where \code{0 < span < 1}.
 #' @return A list with the following two elements:
 #'   \tabular{ll}{
-#'     \code{state}  \cr \tab The processed state; see below. \cr
-#'     \code{config} \cr \tab The configuration, with \code{is_log_transformed} set to \code{TRUE} unless the method was \code{"none"}. \cr
+#'     \code{state}  \tab The processed state; see below. \cr
+#'     \code{config} \tab The configuration, with \code{is_log_transformed} set to \code{TRUE} unless the method was \code{"none"}. \cr
 #'   }
 #'   The element \code{state} is a list with the following three elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with normalized expression values. \cr
-#'     \code{features}   \cr \tab Feature meta-data \code{data.frame} corresponding to rows of \code{expression}. \cr
-#'     \code{samples}    \cr \tab Observation meta-data \code{data.frame} corresponding to columns of \code{expression}. \cr
+#'     \code{expression} \tab Numeric matrix with normalized expression values. \cr
+#'     \code{features}   \tab Feature meta-data \code{data.frame} corresponding to rows of \code{expression}. \cr
+#'     \code{samples}    \tab Observation meta-data \code{data.frame} corresponding to columns of \code{expression}. \cr
 #'   }
 #' @examples
 #' ## some toy data:

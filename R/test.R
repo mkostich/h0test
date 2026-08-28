@@ -109,15 +109,15 @@ f.note_trend <- function(method, trend, given, config) {
 #'   See invididual \code{test_*} methods for more details. 
 #'   The \code{method} setting meanings are: 
 #'   \tabular{ll}{
-#'     \code{lm}     \cr \tab Use \code{stats::lm()} on each feature. \cr
-#'     \code{trend}  \cr \tab Use \code{limma::eBayes(trend=TRUE)}. \cr
-#'     \code{deqms}  \cr \tab Use \code{DEqMS::spectraCounteBayes()}. \cr
-#'     \code{msqrob} \cr \tab Use \code{msqrob2::msqrob()}. \cr
-#'     \code{msqrob_agg} \cr \tab Use \code{msqrob2::msqrobAggregate()}: one mixed model per gene over the rows of its features, with the feature and the observation as random effects. \cr
-#'     \code{proda}  \cr \tab Use \code{proDA::proDA()}. \cr
-#'     \code{prolfqua} \cr \tab Use \code{prolfqua::strategy_lm()} on each feature. \cr
-#'     \code{prolfqua_lmer} \cr \tab Use \code{prolfqua::strategy_lmer()}: one mixed model per gene over the rows of its features, with the feature and the observation as random effects. \cr
-#'     \code{voom}   \cr \tab Use \code{limma::voom()}. \cr
+#'     \code{lm}     \tab Use \code{stats::lm()} on each feature. \cr
+#'     \code{trend}  \tab Use \code{limma::eBayes(trend=TRUE)}. \cr
+#'     \code{deqms}  \tab Use \code{DEqMS::spectraCounteBayes()}. \cr
+#'     \code{msqrob} \tab Use \code{msqrob2::msqrob()}. \cr
+#'     \code{msqrob_agg} \tab Use \code{msqrob2::msqrobAggregate()}: one mixed model per gene over the rows of its features, with the feature and the observation as random effects. \cr
+#'     \code{proda}  \tab Use \code{proDA::proDA()}. \cr
+#'     \code{prolfqua} \tab Use \code{prolfqua::strategy_lm()} on each feature. \cr
+#'     \code{prolfqua_lmer} \tab Use \code{prolfqua::strategy_lmer()}: one mixed model per gene over the rows of its features, with the feature and the observation as random effects. \cr
+#'     \code{voom}   \tab Use \code{limma::voom()}. \cr
 #'   }
 #'   Two feature level mixed model paths fit the same random structure by different
 #'     engines. \code{"prolfqua_lmer"} takes Satterthwaite degrees of freedom for the
@@ -131,20 +131,20 @@ f.note_trend <- function(method, trend, given, config) {
 #'     for more detailed description of configuration parameters.
 #' @param state List with elements formatted like the list returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{feat_col}       \cr \tab Name of column in \code{state$fetaures} matching \code{rownames(state$expression)}. \cr
-#'     \code{obs_col}        \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
-#'     \code{gene_id_col}    \cr \tab Name of column in \code{state$fetaures} with gene/protein-group ids. \cr
-#'     \code{frm}            \cr \tab Formula (formula) to be fit. \cr
-#'     \code{test_term}      \cr \tab Term (character scalar) to be tested for non-zero coefficient. \cr
-#'     \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
-#'     \code{reference_levels} \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm} (see examples). \cr
-#'     \code{test_method}    \cr \tab Character scalar in \code{h0testr::test_methods()}. \cr
+#'     \code{feat_col}       \tab Name of column in \code{state$fetaures} matching \code{rownames(state$expression)}. \cr
+#'     \code{obs_col}        \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
+#'     \code{gene_id_col}    \tab Name of column in \code{state$fetaures} with gene/protein-group ids. \cr
+#'     \code{frm}            \tab Formula (formula) to be fit. \cr
+#'     \code{test_term}      \tab Term (character scalar) to be tested for non-zero coefficient. \cr
+#'     \code{contrast}      \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
+#'     \code{reference_levels} \tab Named character vector with the reference level of each factor variable in \code{config$frm} (see examples). \cr
+#'     \code{test_method}    \tab Character scalar in \code{h0testr::test_methods()}. \cr
 #'   }
 #' @param method Name of test method where
 #'   \code{method \%in\% h0testr::test_methods()}. Defaults to
@@ -170,22 +170,22 @@ f.note_trend <- function(method, trend, given, config) {
 #'   p-value is the one a \code{FALSE} gives; and the rest cannot trend at all. 
 #' @return A list with the following elements: \cr
 #'   \tabular{ll}{
-#'     \code{original} \cr \tab A \code{data.frame} with results in native format returned by test. \cr
-#'     \code{standard} \cr \tab A \code{data.frame} with results in a standardized format. \cr
-#'     \code{fit}      \cr \tab Fitted model returned by the selected testing procedure. \cr
+#'     \code{original} \tab A \code{data.frame} with results in native format returned by test. \cr
+#'     \code{standard} \tab A \code{data.frame} with results in a standardized format. \cr
+#'     \code{fit}      \tab Fitted model returned by the selected testing procedure. \cr
 #'   }
 #'   Or \code{NULL} for \code{method="none"}, which skips the test step. \cr
 #'   The \code{standard} \code{data.frame} has the following fields: \cr
 #'   \tabular{ll}{
-#'     \code{feature}   \cr \tab Name of feature tested. \cr
-#'     \code{expr}      \cr \tab Average feature expression. \cr
-#'     \code{logfc}     \cr \tab Estimated effect size; see below. \cr
-#'     \code{stat}      \cr \tab Value of test statistic. \cr
-#'     \code{lod}       \cr \tab Log-odds of differential expression, which only
+#'     \code{feature}   \tab Name of feature tested. \cr
+#'     \code{expr}      \tab Average feature expression. \cr
+#'     \code{logfc}     \tab Estimated effect size; see below. \cr
+#'     \code{stat}      \tab Value of test statistic. \cr
+#'     \code{lod}       \tab Log-odds of differential expression, which only
 #'                              \code{trend} and \code{voom} report, from limma's
 #'                              \code{B}; \code{NA} for every other method. \cr
-#'     \code{pval}      \cr \tab Raw p-value resulting from test. \cr
-#'     \code{adj_pval}  \cr \tab Adjusted (for multiple testing) p-value. \cr
+#'     \code{pval}      \tab Raw p-value resulting from test. \cr
+#'     \code{adj_pval}  \tab Adjusted (for multiple testing) p-value. \cr
 #'   }
 #'   What \code{logfc} holds depends on how many design matrix columns
 #'     \code{config$test_term} resolves to, which is a property of

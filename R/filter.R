@@ -75,15 +75,15 @@ f.filter_features_by_term <- function(term, state, config, type="factor",
 #'     \code{h0testr::init_state()}.
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{frm}             \cr \tab Formula object specifying model to be fitted. \cr
-#'     \code{reference_levels} \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
-#'     \code{covariate_types} \cr \tab Optional; classification of variables in \code{config$frm}, as set by \code{init_state()}. \cr
+#'     \code{frm}             \tab Formula object specifying model to be fitted. \cr
+#'     \code{reference_levels} \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
+#'     \code{covariate_types} \tab Optional; classification of variables in \code{config$frm}, as set by \code{init_state()}. \cr
 #'   }
 #' @param n_non_na_min Minimum number of non-NA values per feature. Non-negative integer.
 #' @param n_distinct_min Minimum number of distinct non-NA values per feature. Non-negative integer.
@@ -91,9 +91,9 @@ f.filter_features_by_term <- function(term, state, config, type="factor",
 #' @param n_groups_distinct_min Minimum number of factor levels meeting \code{n_distinct_min}. Non-negative integer. Ignored for numeric variables.
 #' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
 #' set.seed(101)
@@ -164,10 +164,10 @@ filter_features_by_formula <- function(state, config,
 #'     from \code{config$frm}, and \code{X_red} the same matrix with the columns
 #'     of \code{config$test_term} removed. Then:
 #'     \tabular{ll}{
-#'       \code{df_test}   \cr \tab \code{rank(X[S, ]) - rank(X_red[S, ])}; estimable degrees of freedom for \code{config$test_term}. \cr
-#'       \code{df_resid}  \cr \tab \code{length(S) - rank(X[S, ])}; residual degrees of freedom. \cr
-#'       \code{df_intend} \cr \tab \code{df_test} recomputed over all observations; the test that was asked for. \cr
-#'       \code{df_deficit} \cr \tab \code{ncol(X) - rank(X[S, ])}; coefficients of the requested model that are not estimable. \cr
+#'       \code{df_test}   \tab \code{rank(X[S, ]) - rank(X_red[S, ])}; estimable degrees of freedom for \code{config$test_term}. \cr
+#'       \code{df_resid}  \tab \code{length(S) - rank(X[S, ])}; residual degrees of freedom. \cr
+#'       \code{df_intend} \tab \code{df_test} recomputed over all observations; the test that was asked for. \cr
+#'       \code{df_deficit} \tab \code{ncol(X) - rank(X[S, ])}; coefficients of the requested model that are not estimable. \cr
 #'     }
 #'   \code{X} is built once over all observations and then subset by row, so 
 #'     factor level ordering set by \code{init_state()} is preserved.
@@ -178,9 +178,9 @@ filter_features_by_formula <- function(state, config,
 #'     the nuisance-side deficit and \code{df_intend - df_test}, so requiring
 #'     \code{"full"} entails \code{"term"}, which entails \code{"test"}:
 #'     \tabular{ll}{
-#'       \code{"test"} \cr \tab \code{df_test >= 1}; the term is testable. The hypothesis tested, and the covariate adjustment applied, may differ between features. \cr
-#'       \code{"term"} \cr \tab \code{df_test == df_intend}; every feature is tested against the same hypothesis, but the covariate adjustment may still differ. \cr
-#'       \code{"full"} \cr \tab \code{df_deficit == 0}; every coefficient of the requested model is estimable for every feature. \cr
+#'       \code{"test"} \tab \code{df_test >= 1}; the term is testable. The hypothesis tested, and the covariate adjustment applied, may differ between features. \cr
+#'       \code{"term"} \tab \code{df_test == df_intend}; every feature is tested against the same hypothesis, but the covariate adjustment may still differ. \cr
+#'       \code{"full"} \tab \code{df_deficit == 0}; every coefficient of the requested model is estimable for every feature. \cr
 #'     }
 #'   A feature is dropped when \code{df_resid < df_resid_min}, which is a question of 
 #'     residual precision rather than of estimability.
@@ -195,28 +195,28 @@ filter_features_by_formula <- function(state, config,
 #'     for more detailed description of configuration parameters.
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   }
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{frm}           \cr \tab Formula object specifying model to be fitted. \cr
-#'     \code{test_term}     \cr \tab Term (character) in \code{config$frm} to test for significance. \cr
-#'     \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
-#'     \code{estimability}  \cr \tab Requirement placed on \code{config$test_term}; scalar character in \code{c("test", "term", "full")}. \cr
-#'     \code{df_resid_min}  \cr \tab Minimum residual degrees of freedom (non-negative numeric) to keep feature. \cr
-#'     \code{df_test_col}   \cr \tab Name (character) of new column in feature metadata to hold \code{df_test}. \cr
-#'     \code{df_resid_col}  \cr \tab Name (character) of new column in feature metadata to hold \code{df_resid}. \cr
-#'     \code{n_samples_min} \cr \tab Optional; only used to warn when it is inconsistent with \code{df_resid_min}. \cr
+#'     \code{frm}           \tab Formula object specifying model to be fitted. \cr
+#'     \code{test_term}     \tab Term (character) in \code{config$frm} to test for significance. \cr
+#'     \code{contrast}      \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
+#'     \code{estimability}  \tab Requirement placed on \code{config$test_term}; scalar character in \code{c("test", "term", "full")}. \cr
+#'     \code{df_resid_min}  \tab Minimum residual degrees of freedom (non-negative numeric) to keep feature. \cr
+#'     \code{df_test_col}   \tab Name (character) of new column in feature metadata to hold \code{df_test}. \cr
+#'     \code{df_resid_col}  \tab Name (character) of new column in feature metadata to hold \code{df_resid}. \cr
+#'     \code{n_samples_min} \tab Optional; only used to warn when it is inconsistent with \code{df_resid_min}. \cr
 #'   }
 #' @param estimability Requirement placed on \code{config$test_term}; scalar character in \code{c("test", "term", "full")}. Overrides \code{config$estimability}.
 #' @param df_resid_min Minimum residual degrees of freedom to keep feature. Non-negative numeric. Overrides \code{config$df_resid_min}.
 #' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression, with \code{df_test} and \code{df_resid} added. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression, with \code{df_test} and \code{df_resid} added. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   }
 #' @examples
 #' set.seed(101)
@@ -400,22 +400,22 @@ filter_features_by_estimability <- function(state, config, estimability=NULL,
 #'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{n_samples_min} \cr \tab Minimum number (non-negative numeric) of samples with a non-NA value for the feature to keep feature. \cr
+#'     \code{n_samples_min} \tab Minimum number (non-negative numeric) of samples with a non-NA value for the feature to keep feature. \cr
 #'   }
 #' @param n_samples_min Minimum number of samples with a non-NA value for the feature. Non-negative numeric.
 #' @param remove_constant Logical scalar: if constant features of \code{state$expression} should be removed.
 #' @param filter_by_formula Logical scalar: if \code{filter_features_by_formula()} should be run after other filters.
 #' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
 #' set.seed(101)
@@ -494,21 +494,21 @@ filter_features <- function(state, config,
 #'     for more detailed description of configuration parameters. 
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{n_features_min} \cr \tab Minimum number (non-negative numeric) of features with a non-NA value in the observation to keep observation. \cr
+#'     \code{n_features_min} \tab Minimum number (non-negative numeric) of features with a non-NA value in the observation to keep observation. \cr
 #'   }
 #' @param n_features_min Minimum number of features with a non-NA value per sample. Non-negative numeric.
 #' @param remove_constant Logical scalar: if constant observations of \code{state$expression} should be removed.
 #' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
 #' set.seed(101)
@@ -576,9 +576,9 @@ filter_observations <- function(state, config,
 #'   not \code{NA}; raw zeros are converted to \code{NA} by \code{h0testr::init_state()}.
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Does not use any params, so can pass empty list.
 #' @return A numeric vector of length \code{nrow(state$expression)} with non-negative sample 
@@ -615,9 +615,9 @@ samples_per_feature <- function(state, config) {
 #'     sample has no median, and gets \code{NA}.
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Does not use any params, so can pass empty list.
 #' @return A numeric vector of length \code{nrow(state$expression)} with median
@@ -655,9 +655,9 @@ feature_median_expression <- function(state, config) {
 #'     \code{h0testr::init_state()}.
 #' @param state A list with elements like that returned by `read_data()`:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   }
 #' @param config List with configuration values. Does not use any params, 
 #'   so can pass empty list.
@@ -726,14 +726,14 @@ f.prefilter_features <- function(state, min1=3, min2=4) {
 #'     for more detailed description of configuration parameters.
 #' @param state List with elements formatted like the list returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Requires the following keys:
 #'   \tabular{ll}{
-#'     \code{feat_col}  \cr \tab Name of column (character) in \code{state$features} matching \code{rownames(state$expression)}. \cr
-#'     \code{obs_col}   \cr \tab Name of column (character) in \code{state$samples} matching \code{colnames(state$expression)}. \cr
+#'     \code{feat_col}  \tab Name of column (character) in \code{state$features} matching \code{rownames(state$expression)}. \cr
+#'     \code{obs_col}   \tab Name of column (character) in \code{state$samples} matching \code{colnames(state$expression)}. \cr
 #'   }
 #' @param n_features_min Minimum number of features with a non-NA value per observation;
 #'   numeric >= 2. This function's own threshold; \code{config$n_features_min} is not
@@ -741,9 +741,9 @@ f.prefilter_features <- function(state, min1=3, min2=4) {
 #'   corresponding argument for the feature screen, whose thresholds are fixed.
 #' @return A list (the filtered state) with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
 #' mk_state <- function(exprs) {
@@ -844,20 +844,20 @@ f.check_stat_ids <- function(nms, ids, stat, key, config) {
 #'     for more detailed description of configuration parameters.
 #' @param state List with elements formatted like the list returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Requires the following keys:
 #'   \tabular{ll}{
-#'     \code{feat_col}  \cr \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
-#'     \code{obs_col}   \cr \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{expression}. \cr
+#'     \code{feat_col}  \tab Name of column (character) in \code{feature_file_in} that corresponds to rows of \code{data_file_in}. \cr
+#'     \code{obs_col}   \tab Name of column (character) in \code{sample_file_in} that corresponds to columns of \code{expression}. \cr
 #'   }
 #' @return A list (the processed state) with the following elements:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @examples
 #' exprs <- h0testr::sim1(n_obs=6, n_feats=8)$mat
@@ -917,32 +917,32 @@ add_filter_stats <- function(state, config) {
 #'     for more detailed description of configuration parameters.
 #' @param state A list with elements like that returned by `read_data()`:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   }
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{feat_col}            \cr \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}.
-#'     \code{obs_col}             \cr \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}.
-#'     \code{n_features_min}      \cr \tab Minimum number (non-negative numeric) of features with a non-NA value in the observation to keep observation. \cr
-#'     \code{n_samples_min}       \cr \tab Minimum number (non-negative numeric) of samples with a non-NA value for the feature to keep feature. \cr
-#'     \code{median_raw_col}      \cr \tab Name (character) of new column in feature metadata to hold median expression in expressing samples. \cr
-#'     \code{n_samples_expr_col}  \cr \tab Name (character) of new column in feature metadata to hold number of expressing samples. \cr
-#'     \code{n_features_expr_col} \cr \tab Name (character) of new column in sample metadata to hold number of measured features. \cr
-#'     \code{estimability}        \cr \tab Requirement placed on \code{config$test_term}; scalar character in \code{c("test", "term", "full")}. \cr
-#'     \code{df_resid_min}        \cr \tab Minimum residual degrees of freedom (non-negative numeric) to keep feature. \cr
-#'     \code{df_test_col}         \cr \tab Name (character) of new column in feature metadata to hold \code{df_test}. \cr
-#'     \code{df_resid_col}        \cr \tab Name (character) of new column in feature metadata to hold \code{df_resid}. \cr
+#'     \code{feat_col}            \tab Name of column in \code{state$features} matching \code{rownames(state$expression)}. \cr
+#'     \code{obs_col}             \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
+#'     \code{n_features_min}      \tab Minimum number (non-negative numeric) of features with a non-NA value in the observation to keep observation. \cr
+#'     \code{n_samples_min}       \tab Minimum number (non-negative numeric) of samples with a non-NA value for the feature to keep feature. \cr
+#'     \code{median_raw_col}      \tab Name (character) of new column in feature metadata to hold median expression in expressing samples. \cr
+#'     \code{n_samples_expr_col}  \tab Name (character) of new column in feature metadata to hold number of expressing samples. \cr
+#'     \code{n_features_expr_col} \tab Name (character) of new column in sample metadata to hold number of measured features. \cr
+#'     \code{estimability}        \tab Requirement placed on \code{config$test_term}; scalar character in \code{c("test", "term", "full")}. \cr
+#'     \code{df_resid_min}        \tab Minimum residual degrees of freedom (non-negative numeric) to keep feature. \cr
+#'     \code{df_test_col}         \tab Name (character) of new column in feature metadata to hold \code{df_test}. \cr
+#'     \code{df_resid_col}        \tab Name (character) of new column in feature metadata to hold \code{df_resid}. \cr
 #'   }
 #' @param remove_constant Logical scalar: if constant rows and columns of \code{state$expression} should be removed.
 #' @param filter_by_formula Logical scalar: if \code{filter_features_by_formula()} should be run after other feature filters.
 #' @param filter_by_estimability Logical scalar: if \code{filter_features_by_estimability()} should be run after features and observations have been filtered.
 #' @return A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   }
 #' @examples
 #' set.seed(101)

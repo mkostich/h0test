@@ -295,12 +295,12 @@ f.pep_drop <- function(mat, peps_per_gene, p_drop, genes=NULL) {
 #'   Scalar numeric, with \code{0 <= mcar_p <= 1}.
 #' @return List with elements:
 #'   \tabular{ll}{
-#'     \code{mat}       \cr \tab Numeric matrix with \code{n_feats} rows and \code{n_obs} columns,
+#'     \code{mat}       \tab Numeric matrix with \code{n_feats} rows and \code{n_obs} columns,
 #'       of positive whole numbers, with \code{NA} wherever MNAR or MCAR made a value
 #'       missing. \cr
-#'     \code{feat_mean} \cr \tab Numeric vector of strictly positive parameter means for each
+#'     \code{feat_mean} \tab Numeric vector of strictly positive parameter means for each
 #'       feature in \code{mat}. \cr
-#'     \code{feat_cv}   \cr \tab Numeric vector of strictly positive parameter CVs for each
+#'     \code{feat_cv}   \tab Numeric vector of strictly positive parameter CVs for each
 #'       feature in \code{mat}. \cr
 #'   }
 #' @seealso \code{\link{sim_design}}, for a matrix with a design imposed on it, of any number of
@@ -367,9 +367,9 @@ sim1 <- function(n_obs, n_feats, log_m_mean=11, log_m_sd=2.7,
 #'   and that is the order \code{n_per_cell} is read in. The result is an ordinary
 #'   \code{data.frame}, so anything not offered here can be done to it directly:
 #'   \tabular{ll}{
-#'     unbalance \cr \tab \code{samps <- samps[-c(3, 7), ]} \cr
-#'     shuffle   \cr \tab \code{samps <- samps[sample(nrow(samps)), ]} \cr
-#'     confound  \cr \tab \code{samps$age <- samps$age + 10 * (samps$sex == "M")} \cr
+#'     unbalance \tab \code{samps <- samps[-c(3, 7), ]} \cr
+#'     shuffle   \tab \code{samps <- samps[sample(nrow(samps)), ]} \cr
+#'     confound  \tab \code{samps$age <- samps$age + 10 * (samps$sex == "M")} \cr
 #'   }
 #'   The default covariate draw is standard normal rather than uniform because a uniform
 #'   covariate has no tails and so never presents a high-leverage observation.
@@ -389,9 +389,9 @@ sim1 <- function(n_obs, n_feats, log_m_mean=11, log_m_sd=2.7,
 #'   \code{NULL}, and refused otherwise, \code{n_per_cell} determining the count in that case.
 #' @return A \code{data.frame} with one row per sample and columns:
 #'   \tabular{ll}{
-#'     \code{sample_id} \cr \tab Character sample identifier, \code{samp1} onwards. \cr
-#'     one per factor \cr \tab Factor, with levels in the order given, reference level first. \cr
-#'     one per covariate \cr \tab Numeric, on whatever scale it was drawn. \cr
+#'     \code{sample_id} \tab Character sample identifier, \code{samp1} onwards. \cr
+#'     one per factor \tab Factor, with levels in the order given, reference level first. \cr
+#'     one per covariate \tab Numeric, on whatever scale it was drawn. \cr
 #'   }
 #' @seealso \code{\link{sim_design}}, which consumes this.
 #' @examples
@@ -622,23 +622,23 @@ sim_samples <- function(factors=NULL, covariates=NULL, n_per_cell=3, n=NULL) {
 #'   \code{0 <= mcar_p <= 1}.
 #' @return List with elements:
 #'   \tabular{ll}{
-#'     \code{state} \cr \tab List of \code{expression} (numeric matrix of positive whole numbers,
+#'     \code{state} \tab List of \code{expression} (numeric matrix of positive whole numbers,
 #'       features by observations, with \code{NA} wherever MNAR or MCAR made a value missing),
 #'       \code{features} and \code{samples}, ready for \code{\link{init_state}}. \cr
-#'     \code{config} \cr \tab \code{\link{new_config}} with \code{frm}, \code{test_term}, the
+#'     \code{config} \tab \code{\link{new_config}} with \code{frm}, \code{test_term}, the
 #'       four id columns and \code{reference_levels} set to match; \code{save_state} set
 #'       \code{FALSE}, so that a simulation writes no files; and \code{n_features_min} set to 1,
 #'       its default of 1000 being meant for a real dataset and otherwise filtering away every
 #'       observation of a simulation of fewer than 1000 genes. \code{covariate_types} and
 #'       \code{factor_levels} are left for \code{\link{init_state}} to derive. \cr
-#'     \code{truth} \cr \tab Numeric matrix of true coefficients on the log2 scale, one row per
+#'     \code{truth} \tab Numeric matrix of true coefficients on the log2 scale, one row per
 #'       surviving gene and one column per column of the model matrix, the intercept excluded. \cr
-#'     \code{feat_gene} \cr \tab Character vector naming the gene of each feature in
+#'     \code{feat_gene} \tab Character vector naming the gene of each feature in
 #'       \code{expression}, named by feature. \cr
-#'     \code{feat_mean} \cr \tab Numeric vector of reference-level parameter means for each
+#'     \code{feat_mean} \tab Numeric vector of reference-level parameter means for each
 #'       feature. \cr
-#'     \code{feat_cv} \cr \tab Numeric vector of within-group parameter CVs for each feature. \cr
-#'     \code{x} \cr \tab The model matrix \code{truth} multiplies: one row per sample and the
+#'     \code{feat_cv} \tab Numeric vector of within-group parameter CVs for each feature. \cr
+#'     \code{x} \tab The model matrix \code{truth} multiplies: one row per sample and the
 #'       same columns as \code{truth}, with continuous variables centered and scaled. \cr
 #'   }
 #' @seealso \code{\link{sim_samples}}, which builds \code{samps}; \code{\link{sim1}} for a

@@ -409,26 +409,26 @@ f.prolfqua_mixed_f <- function(mods, design, config, caller="f.prolfqua_mixed_f"
 #'     for more detailed description of configuration parameters. 
 #' @param state List with elements like those returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   }
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{gene_id_col}           \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
-#'     \code{feat_col}              \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
-#'     \code{obs_col}               \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
-#'     \code{frm}                   \cr \tab Formula (formula) to be fit. \cr
-#'     \code{test_term}             \cr \tab Term (character) to be tested for non-zero coefficient. \cr
-#'     \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
-#'     \code{reference_levels}      \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
-#'     \code{covariate_types}       \cr \tab Optional; classification of variables in \code{config$frm}, as set by \code{init_state()}. \cr
-#'     \code{factor_levels}         \cr \tab Optional; resolved levels of each factor variable, as set by \code{init_state()}. \cr
-#'     \code{test_moderate}         \cr \tab Optional logical; whether to shrink the error variance across features. Defaults to \code{TRUE} when absent. \cr
-#'     \code{test_trend}            \cr \tab Optional logical; whether the prior of that shrinkage is fitted against mean feature intensity rather than flat. Answers when the \code{trend} argument is not given; defaults to \code{FALSE} when both are absent. Unrelated to \code{config$test_method="trend"}. \cr
-#'     \code{test_random_obs}       \cr \tab Optional logical; whether the \code{mixed=TRUE} fit includes a random observation effect alongside the random feature effect. Defaults to \code{TRUE} when absent, which is the calibrated model; see Details. Ignored when \code{mixed=FALSE}. \cr
-#'     \code{feat_id_col}           \cr \tab Name of column in \code{state$features} with unique feature ids; must differ from \code{config$gene_id_col} when \code{mixed=TRUE}. \cr
-#'     \code{normalization_method}  \cr \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
+#'     \code{gene_id_col}           \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
+#'     \code{feat_col}              \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
+#'     \code{obs_col}               \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
+#'     \code{frm}                   \tab Formula (formula) to be fit. \cr
+#'     \code{test_term}             \tab Term (character) to be tested for non-zero coefficient. \cr
+#'     \code{contrast}      \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
+#'     \code{reference_levels}      \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
+#'     \code{covariate_types}       \tab Optional; classification of variables in \code{config$frm}, as set by \code{init_state()}. \cr
+#'     \code{factor_levels}         \tab Optional; resolved levels of each factor variable, as set by \code{init_state()}. \cr
+#'     \code{test_moderate}         \tab Optional logical; whether to shrink the error variance across features. Defaults to \code{TRUE} when absent. \cr
+#'     \code{test_trend}            \tab Optional logical; whether the prior of that shrinkage is fitted against mean feature intensity rather than flat. Answers when the \code{trend} argument is not given; defaults to \code{FALSE} when both are absent. Unrelated to \code{config$test_method="trend"}. \cr
+#'     \code{test_random_obs}       \tab Optional logical; whether the \code{mixed=TRUE} fit includes a random observation effect alongside the random feature effect. Defaults to \code{TRUE} when absent, which is the calibrated model; see Details. Ignored when \code{mixed=FALSE}. \cr
+#'     \code{feat_id_col}           \tab Name of column in \code{state$features} with unique feature ids; must differ from \code{config$gene_id_col} when \code{mixed=TRUE}. \cr
+#'     \code{normalization_method}  \tab If present and \code{is_log_transformed} unset, used to infer it. \cr
 #'   }
 #' @param is_log_transformed Logical scalar: whether \code{state$expression} has
 #'   been log transformed. Defaults to \code{config$is_log_transformed}, which
@@ -444,7 +444,7 @@ f.prolfqua_mixed_f <- function(mods, design, config, caller="f.prolfqua_mixed_f"
 #' @return
 #'   A list with components:
 #'   \tabular{ll}{
-#'     \code{hits}  \cr \tab \code{data.frame} of the per-feature F-tests of
+#'     \code{hits}  \tab \code{data.frame} of the per-feature F-tests of
 #'       \code{config$test_term}: the feature id columns
 #'       (\code{config$gene_id_col} and \code{config$feat_id_col}, which are the same
 #'       column once \code{combine_features()} has run) and:
@@ -463,11 +463,11 @@ f.prolfqua_mixed_f <- function(mods, design, config, caller="f.prolfqua_mixed_f"
 #'       varies by feature, and \code{F.value.unmod} and \code{p.value.unmod} the same
 #'       test without moderation. Features for which the test is
 #'       not estimable are absent; see Details. \cr
-#'     \code{fit}   \cr \tab Model returned by \code{prolfqua::build_model()} for the
+#'     \code{fit}   \tab Model returned by \code{prolfqua::build_model()} for the
 #'       full design. \cr
-#'     \code{fit_reduced} \cr \tab Model returned by \code{prolfqua::build_model()}
+#'     \code{fit_reduced} \tab Model returned by \code{prolfqua::build_model()}
 #'       for the design without the columns carrying \code{config$test_term}. \cr
-#'     \code{design} \cr \tab The design used, as returned by
+#'     \code{design} \tab The design used, as returned by
 #'       \code{f.design_test_cols()}: \code{X} is the full design matrix, whose
 #'       column names are the coefficient names of \code{fit}, \code{cols_test}
 #'       indexes the columns carrying the test, and \code{df_intend} is the numerator

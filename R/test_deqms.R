@@ -280,19 +280,19 @@ f.deqms_moderated_f <- function(fit, cols, config, who="f.deqms_moderated_f") {
 #'     for more detailed description of configuration parameters. 
 #' @param state List with elements like those returned by \code{read_data()}:
 #'   \tabular{ll}{
-#'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
-#'     \code{features}   \cr \tab A data.frame with feature meta-data for rows of expression. \cr
-#'     \code{samples}    \cr \tab A data.frame with observation meta-data for columns of expression. \cr
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
 #'   } 
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
-#'     \code{gene_id_col}    \cr \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
-#'     \code{feat_col}       \cr \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
-#'     \code{obs_col}        \cr \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
-#'     \code{frm}            \cr \tab Formula (formula) to be fit. \cr
-#'     \code{test_term}      \cr \tab Term (character) to be tested for non-zero coefficient. \cr
-#'     \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
-#'     \code{test_trend}    \cr \tab Optional logical; answers the \code{trend} argument when that is not given. Defaults to \code{FALSE} when both are absent. Unrelated to \code{config$test_method="trend"}. \cr
+#'     \code{gene_id_col}    \tab Name of column in \code{state$features} with unique gene/protein group ids. \cr
+#'     \code{feat_col}       \tab Name of column in \code{state$features} corresponding to \code{rownames(state$expression)}. \cr
+#'     \code{obs_col}        \tab Name of column in \code{state$samples} corresponding to \code{colnames(state$expression)}. \cr
+#'     \code{frm}            \tab Formula (formula) to be fit. \cr
+#'     \code{test_term}      \tab Term (character) to be tested for non-zero coefficient. \cr
+#'     \code{contrast}      \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
+#'     \code{test_trend}    \tab Optional logical; answers the \code{trend} argument when that is not given. Defaults to \code{FALSE} when both are absent. Unrelated to \code{config$test_method="trend"}. \cr
 #'   }
 #' @param trend Logical scalar. Whether \code{limma::eBayes()} fits its variance prior
 #'   against mean gene intensity rather than shrinking every gene toward one number.
@@ -300,7 +300,7 @@ f.deqms_moderated_f <- function(fit, cols, config, who="f.deqms_moderated_f") {
 #' @return
 #'   A list with components:
 #'   \tabular{ll}{
-#'     \code{hits}  \cr \tab \code{data.frame} of results; columns:
+#'     \code{hits}  \tab \code{data.frame} of results; columns:
 #'       \code{c("logFC", "AveExpr", "t", "P.Value", "adj.P.Val", "B", "gene", "count", "sca.t", "sca.F", "sca.df.num", "sca.df.den", "sca.P.Value", "sca.adj.pval")}.
 #'       Initial statistics from \code{limma}. Columns beginning with \code{sca.} come from
 #'       \code{DEqMS}'s variance prior, and are the ones reported by \code{h0testr::test_h0()}.
@@ -309,7 +309,7 @@ f.deqms_moderated_f <- function(fit, cols, config, who="f.deqms_moderated_f") {
 #'       coefficient, as \code{limma::topTable()} reports them. They are also \code{NA}
 #'       for a gene with no residual degrees of freedom, which has no prior fitted for
 #'       it. \cr
-#'     \code{fit}   \cr \tab Model returned by \code{DEqMS::spectraCounteBayes}, whose
+#'     \code{fit}   \tab Model returned by \code{DEqMS::spectraCounteBayes}, whose
 #'       \code{sca.} components were fitted from the genes with residual degrees of
 #'       freedom and are \code{NA} for the rest; \code{fit$model} is the
 #'       \code{stats::loess()} of those genes. \cr
