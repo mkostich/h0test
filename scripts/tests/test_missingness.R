@@ -237,6 +237,30 @@ report(identical(unname(samples_per_feature(st, cfg)), c(3L, 1L)),
 report(identical(unname(features_per_sample(st, cfg)), c(2L, 1L, 1L)),
   "features_per_sample() counts non-NA values regardless of sign")
 
+## p1 is (-1, 0, 5) and p2 is (2, NA, NA), so the medians are 0 and 2: the
+##   median is over the measured values, and a zero among them is one of them:
+
+m <- feature_median_expression(st, cfg)
+report(identical(unname(m), c(0, 2)),
+  "feature_median_expression() takes the median over the measured values only")
+report(identical(names(m), rownames(st$expression)),
+  "and names the result by feature")
+report(length(m) == nrow(st$expression) && is.numeric(m),
+  "returning one number per feature")
+
+e_na <- rbind(st$expression, p3=c(NA, NA, NA))
+st_na <- st
+st_na$expression <- e_na
+st_na$features <- rbind(st$features, data.frame(pep="p3", gene="p3"))
+m_na <- feature_median_expression(st_na, cfg)
+report(is.na(m_na[["p3"]]) && identical(unname(m_na[1:2]), c(0, 2)),
+  "a feature measured in no sample gets NA rather than zero")
+
+st_df <- st
+st_df$expression <- as.data.frame(st$expression)
+report(threw(feature_median_expression(st_df, cfg)),
+  "feature_median_expression() refuses an expression that is not a matrix")
+
 st2 <- filter_features(st, cfg, n_samples_min=2, remove_constant=FALSE,
   filter_by_formula=FALSE)
 report(identical(st2$features$pep, "p1"),

@@ -9,6 +9,9 @@ report_config(config)
 \arguments{
 \item{config}{List with configuration values.}
 }
+\value{
+\code{NULL}, invisibly; called for the report it writes.
+}
 \description{
 Reports configuration settings used for run, and checks if
   \code{config$test_term} is compatible with \code{config$frm}.

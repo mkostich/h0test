@@ -630,7 +630,7 @@ check_config <- function(config) {
 #'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
 #' @param config List with configuration values.
-#' @return NULL
+#' @return \code{NULL}, invisibly; called for the report it writes.
 #' @examples
 #' config <- new_config()
 #' 
@@ -669,4 +669,6 @@ report_config <- function(config) {
   }
 
   if(!f.contrast_set(config)) f.normalize_terms(config)
+
+  invisible(NULL)
 }
