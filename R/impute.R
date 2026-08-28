@@ -632,7 +632,7 @@ impute_glm_binom <- function(state, config, is_log_transformed=NULL,
   i_na <- is.na(c(mat))
   mat[i_na] <- sample(m_new, sum(i_na), replace=T, prob=p_hat)
   
-  if(!is_log_transformed) mat <- 2^mat
+  if(!is_log_transformed) mat <- (2^mat) - 1
   mat <- f.pos_mat(mat, config, is_log_transformed, "impute_glm_binom")
   state$expression <- mat
   
