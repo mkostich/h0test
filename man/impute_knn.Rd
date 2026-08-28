@@ -47,22 +47,24 @@ Blocks larger than \code{maxp} are recursively divided into smaller
     sub-blocks prior to imputation.
 }
 \examples{
-## setup state and config, including prefiltering. No effects are planted, these
-##   examples being about missing values rather than about testing:
-set.seed(101)
-samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
-  n_per_cell=3)
-sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
-state <- sim$state
-config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
-rm(samps, sim)
-state <- h0testr::filter_features(state, config, n_samples_min=3)
-state <- h0testr::filter_observations(state, config, n_features_min=30)
+if(requireNamespace("impute", quietly=TRUE)) {
+  ## setup state and config, including prefiltering. No effects are planted, these
+  ##   examples being about missing values rather than about testing:
+  set.seed(101)
+  samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+    n_per_cell=3)
+  sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
+  state <- sim$state
+  config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
+  rm(samps, sim)
+  state <- h0testr::filter_features(state, config, n_samples_min=3)
+  state <- h0testr::filter_observations(state, config, n_features_min=30)
 
-## impute:
-state2 <- h0testr::impute_knn(state, config)
-summary(c(state$expression))    ## Note number of NAs
-summary(c(state2$expression))   ## Note number of NAs
-head(state$expression)
-round(head(state2$expression))
+  ## impute:
+  state2 <- h0testr::impute_knn(state, config)
+  summary(c(state$expression))    ## Note number of NAs
+  summary(c(state2$expression))   ## Note number of NAs
+  head(state$expression)
+  round(head(state2$expression))
+}
 }

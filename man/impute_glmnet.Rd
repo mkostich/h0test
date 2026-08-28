@@ -85,29 +85,31 @@ Imputes missing values using a \code{glmnet::cv.glmnet} model trained
     \code{f.aug_mult()}.
 }
 \examples{
-set.seed(101)
-exprs <- h0testr::sim1(n_obs=20, n_feats=30)$mat
-feats <- data.frame(feature_id=rownames(exprs))
-samps <- data.frame(observation_id=colnames(exprs))
-state <- list(expression=exprs, features=feats, samples=samps)
-config <- list()
+if(requireNamespace("glmnet", quietly=TRUE)) {
+  set.seed(101)
+  exprs <- h0testr::sim1(n_obs=20, n_feats=30)$mat
+  feats <- data.frame(feature_id=rownames(exprs))
+  samps <- data.frame(observation_id=colnames(exprs))
+  state <- list(expression=exprs, features=feats, samples=samps)
+  config <- list()
 
-## example with untransformed data:
-out <- h0testr::impute_glmnet(state, config, is_log_transformed=FALSE, verbose=FALSE)
-state2 <- out$state
-summary(c(state$expression))    ## Note number of NAs
-summary(c(state2$expression))   ## Note number of NAs
-head(state$expression)
-round(head(state2$expression))
-print(out$log)
+  ## example with untransformed data:
+  out <- h0testr::impute_glmnet(state, config, is_log_transformed=FALSE, verbose=FALSE)
+  state2 <- out$state
+  summary(c(state$expression))    ## Note number of NAs
+  summary(c(state2$expression))   ## Note number of NAs
+  head(state$expression)
+  round(head(state2$expression))
+  print(out$log)
 
-## example with log-transformed data:
-state$expression <- log2(state$expression + 1)
-out <- h0testr::impute_glmnet(state, config, is_log_transformed=TRUE, verbose=FALSE)
-state2 <- out$state
-summary(c(state$expression))    ## Note number of NAs
-summary(c(state2$expression))   ## Note number of NAs
-head(state$expression)
-round(head(state2$expression))
-print(out$log)
+  ## example with log-transformed data:
+  state$expression <- log2(state$expression + 1)
+  out <- h0testr::impute_glmnet(state, config, is_log_transformed=TRUE, verbose=FALSE)
+  state2 <- out$state
+  summary(c(state$expression))    ## Note number of NAs
+  summary(c(state2$expression))   ## Note number of NAs
+  head(state$expression)
+  round(head(state2$expression))
+  print(out$log)
+}
 }

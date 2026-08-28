@@ -38,7 +38,6 @@ Loads data from files specified in \code{config}. Prefilter uninformative rows
 }
 \examples{
 config <- h0testr::new_config()     ## defaults
-config$save_state <- FALSE            ## default is TRUE
 config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
 config$feature_file_in <- "features.tsv"
 config$sample_file_in <- "samples.tsv"

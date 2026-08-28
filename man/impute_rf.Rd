@@ -81,30 +81,32 @@ Imputes missing values using a \code{randomForest::randomForest}
   Augmentation uses \code{f.augment_affine()}.
 }
 \examples{
-set.seed(101)
-exprs <- h0testr::sim1(n_obs=20, n_feats=30)$mat
-exprs <- log2(exprs + 1)
-feats <- data.frame(feature_id=rownames(exprs))
-samps <- data.frame(observation_id=colnames(exprs))
-state <- list(expression=exprs, features=feats, samples=samps)
-config <- list()
+if(requireNamespace("randomForest", quietly=TRUE)) {
+  set.seed(101)
+  exprs <- h0testr::sim1(n_obs=20, n_feats=30)$mat
+  exprs <- log2(exprs + 1)
+  feats <- data.frame(feature_id=rownames(exprs))
+  samps <- data.frame(observation_id=colnames(exprs))
+  state <- list(expression=exprs, features=feats, samples=samps)
+  config <- list()
 
-## untransformed example:
-out <- h0testr::impute_rf(state, config, is_log_transformed=FALSE, verbose=FALSE)
-state2 <- out$state
-summary(c(state$expression))    ## Note number of NAs
-summary(c(state2$expression))   ## Note number of NAs
-head(state$expression)
-round(head(state2$expression))
-print(out$log)
+  ## untransformed example:
+  out <- h0testr::impute_rf(state, config, is_log_transformed=FALSE, verbose=FALSE)
+  state2 <- out$state
+  summary(c(state$expression))    ## Note number of NAs
+  summary(c(state2$expression))   ## Note number of NAs
+  head(state$expression)
+  round(head(state2$expression))
+  print(out$log)
 
-## log-transformed example:
-state$expression <- log2(state$expression + 1)
-out <- h0testr::impute_rf(state, config, is_log_transformed=TRUE, verbose=FALSE)
-state2 <- out$state
-summary(c(state$expression))    ## Note number of NAs
-summary(c(state2$expression))   ## Note number of NAs
-head(state$expression)
-round(head(state2$expression))
-print(out$log)
+  ## log-transformed example:
+  state$expression <- log2(state$expression + 1)
+  out <- h0testr::impute_rf(state, config, is_log_transformed=TRUE, verbose=FALSE)
+  state2 <- out$state
+  summary(c(state$expression))    ## Note number of NAs
+  summary(c(state2$expression))   ## Note number of NAs
+  head(state$expression)
+  round(head(state2$expression))
+  print(out$log)
+}
 }

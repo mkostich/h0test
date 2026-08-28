@@ -54,12 +54,25 @@ A cheap first pass, meant to run before anything has been normalized. Removes
     for more detailed description of configuration parameters.
 }
 \examples{
-set.seed(101)
-exprs <- h0testr::sim1(n_obs=6, n_feats=12, mcar_p=0.75)$mat
-feats <- data.frame(feature_id=rownames(exprs))
-samps <- data.frame(observation_id=colnames(exprs))
-state <- list(expression=exprs, features=feats, samples=samps)
+mk_state <- function(exprs) {
+  list(expression=exprs,
+    features=data.frame(feature_id=rownames(exprs)),
+    samples=data.frame(observation_id=colnames(exprs)))
+}
 config <- list(feat_col="feature_id", obs_col="observation_id")
-state2 <- h0testr::prefilter(state, config)
+
+## features measured in too few observations go; here 12 become 6:
+set.seed(101)
+exprs <- h0testr::sim1(n_obs=6, n_feats=12, mcar_p=0.25)$mat
+state2 <- h0testr::prefilter(mk_state(exprs), config)
+print(dim(state2$expression))
 print(state2)
+
+## observations expressing too few features go too; blanking all but one
+##   value of obs_1 puts it under n_features_min:
+set.seed(101)
+exprs <- h0testr::sim1(n_obs=6, n_feats=12, mcar_p=0.1)$mat
+exprs[-3, 1] <- NA
+state3 <- h0testr::prefilter(mk_state(exprs), config)
+print(colnames(state3$expression))
 }

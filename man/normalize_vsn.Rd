@@ -40,19 +40,21 @@ Inter-observation normalization. Uses \code{limma::normalizeVSN()}, which
     stratum; one feature is not enough to fit, so is refused.
 }
 \examples{
-set.seed(101)
-exprs <- h0testr::sim1(n_obs=6, n_feats=50, mnar_c0=-Inf)$mat
-feats <- data.frame(feature_id=rownames(exprs))
-samps <- data.frame(observation_id=colnames(exprs))
-state <- list(expression=exprs, features=feats, samples=samps)
-config <- list()
-state2 <- h0testr::normalize_vsn(state, config)
-head(state$expression)
-head(state2$expression)
-summary(apply(state$expression, 2, sd, na.rm=TRUE))
-summary(apply(log2(state$expression+1), 2, sd, na.rm=TRUE))
-summary(apply(state2$expression, 2, sd, na.rm=TRUE))
-summary(apply(state$expression, 1, sd, na.rm=TRUE))
-summary(apply(log2(state$expression+1), 1, sd, na.rm=TRUE))
-summary(apply(state2$expression, 1, sd, na.rm=TRUE))
+if(requireNamespace("vsn", quietly=TRUE)) {
+  set.seed(101)
+  exprs <- h0testr::sim1(n_obs=6, n_feats=50, mnar_c0=-Inf)$mat
+  feats <- data.frame(feature_id=rownames(exprs))
+  samps <- data.frame(observation_id=colnames(exprs))
+  state <- list(expression=exprs, features=feats, samples=samps)
+  config <- list()
+  state2 <- h0testr::normalize_vsn(state, config)
+  head(state$expression)
+  head(state2$expression)
+  summary(apply(state$expression, 2, sd, na.rm=TRUE))
+  summary(apply(log2(state$expression+1), 2, sd, na.rm=TRUE))
+  summary(apply(state2$expression, 2, sd, na.rm=TRUE))
+  summary(apply(state$expression, 1, sd, na.rm=TRUE))
+  summary(apply(log2(state$expression+1), 1, sd, na.rm=TRUE))
+  summary(apply(state2$expression, 1, sd, na.rm=TRUE))
+}
 }

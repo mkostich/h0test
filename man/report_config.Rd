@@ -15,7 +15,8 @@ Reports configuration settings used for run, and checks if
 }
 \details{
 Report written to \code{config$log_file}; if \code{config$log_file == ""},
-  written to standard out (console or terminal). Only supports non-lists
+  issued as a message on standard error, which \code{suppressMessages()} silences.
+  Only supports non-lists
     and lists of non-lists (not lists of lists) as \code{config} values.
   Throws error if \code{config$test_term} is not compatible with \code{config$frm}.
   See documentation for \code{h0testr::new_config()} 

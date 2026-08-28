@@ -51,7 +51,6 @@ feats <- data.frame(feature_id=rownames(exprs))
 samps <- data.frame(observation_id=colnames(exprs))
 state <- list(expression=exprs, features=feats, samples=samps)
 config <- h0testr::new_config()      ## defaults
-config$save_state <- FALSE             ## default is TRUE
 config$feat_col <- config$feat_id_col
 config$obs_col <- config$obs_id_col
 state <- h0testr::add_filter_stats(state, config)

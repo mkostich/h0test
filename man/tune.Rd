@@ -148,7 +148,6 @@ Run a basic tuning loop that iterates over parameter combinations,
 \examples{
 ## set up configuration:
 config <- h0testr::new_config()     ## defaults
-config$save_state <- FALSE          ## default is TRUE
 config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
 config$feature_file_in <- "features.tsv"
 config$sample_file_in <- "samples.tsv"

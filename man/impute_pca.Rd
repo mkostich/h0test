@@ -58,44 +58,46 @@ Only \code{NAs} considered missing. If you want \code{0} to be considered
   }
 }
 \examples{
-## setup state and config, including prefiltering:
-set.seed(101)
-samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
-  n_per_cell=3)
-sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
-state <- sim$state
-config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
-rm(samps, sim)
-state <- h0testr::filter_features(state, config, n_samples_min=3)
-state <- h0testr::filter_observations(state, config, n_features_min=30)
+if(requireNamespace("pcaMethods", quietly=TRUE)) {
+  ## setup state and config, including prefiltering:
+  set.seed(101)
+  samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+    n_per_cell=3)
+  sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100)
+  state <- sim$state
+  config <- sim$config    ## frm, the id columns, and is_log_transformed=FALSE (raw data)
+  rm(samps, sim)
+  state <- h0testr::filter_features(state, config, n_samples_min=3)
+  state <- h0testr::filter_observations(state, config, n_features_min=30)
 
-summary(c(state$expression))    ## Note number of NAs
-head(state$expression)
+  summary(c(state$expression))    ## Note number of NAs
+  head(state$expression)
 
-## impute using bayesian pca:
-state2 <- h0testr::impute_pca(state, config, method="bpca", 
-  is_log_transformed=FALSE)
-summary(c(state2$expression))   ## Note number of NAs
-round(head(state2$expression))
+  ## impute using bayesian pca:
+  state2 <- h0testr::impute_pca(state, config, method="bpca", 
+    is_log_transformed=FALSE)
+  summary(c(state2$expression))   ## Note number of NAs
+  round(head(state2$expression))
 
-## impute using probabilistic pca:
-state2 <- h0testr::impute_pca(state, config, method="ppca", 
-  is_log_transformed=FALSE)
-summary(c(state2$expression))   ## Note number of NAs
-round(head(state2$expression))
+  ## impute using probabilistic pca:
+  state2 <- h0testr::impute_pca(state, config, method="ppca", 
+    is_log_transformed=FALSE)
+  summary(c(state2$expression))   ## Note number of NAs
+  round(head(state2$expression))
 
-## raw example impute as linear combo of n_pcs eigengenes,
-##   which can yield below 0 measurements so wrap in try():
-try(h0testr::impute_pca(state, config, method="svdImpute",
-  is_log_transformed=FALSE))
+  ## raw example impute as linear combo of n_pcs eigengenes,
+  ##   which can yield below 0 measurements so wrap in try():
+  try(h0testr::impute_pca(state, config, method="svdImpute",
+    is_log_transformed=FALSE))
 
-## the same method on the log scale, where the reconstruction has no floor to
-##   fall below and every imputed value is an ordinary log intensity:
-state_log <- state
-state_log$expression <- log2(state_log$expression + 1)
-config$is_log_transformed <- TRUE   ## normalize() would; argument and config must agree
-state2 <- h0testr::impute_pca(state_log, config, method="svdImpute",
-  is_log_transformed=TRUE)
-summary(c(state2$expression))   ## Note number of NAs
-round(head(state2$expression), 2)
+  ## the same method on the log scale, where the reconstruction has no floor to
+  ##   fall below and every imputed value is an ordinary log intensity:
+  state_log <- state
+  state_log$expression <- log2(state_log$expression + 1)
+  config$is_log_transformed <- TRUE   ## normalize() would; argument and config must agree
+  state2 <- h0testr::impute_pca(state_log, config, method="svdImpute",
+    is_log_transformed=TRUE)
+  summary(c(state2$expression))   ## Note number of NAs
+  round(head(state2$expression), 2)
+}
 }

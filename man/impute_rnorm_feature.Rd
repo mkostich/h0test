@@ -40,10 +40,10 @@ An updated \code{state} list with the following elements:
 Impute missing values normally distributed around the feature mean.
 }
 \details{
-Missing values are draws from
-  \code{normal(mean=mean(exprs[feature, ]), sd=(scale. * sd(exprs[feature, ])))}.
-  Only non-\code{NA} values are used in calculation of \code{mean} and
-  \code{sd}. If you want \code{0} to be considered missing, and have
+Missing values are draws from 
+  \code{normal(mean=mean(exprs[feature, ]), sd=(scale. * sd(exprs[feature, ])))}. 
+  Only non-\code{NA} values are used in calculation of \code{mean} and 
+  \code{sd}. If you want \code{0} to be considered missing, and have 
   \code{0} in the data, do something like \code{exprs[exprs \%in\% 0] <- NA}
   prior to imputing.
   The dispersion has a lower bound, for a feature with fewer than two observed

@@ -117,30 +117,33 @@ Returns gene-level hypothesis testing results based on peptide/precursor-level i
     for more detailed description of configuration parameters.
 }
 \examples{
-set.seed(101)
-samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
-  n_per_cell=3)
-sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100,
-  peps_per_gene=10, p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
-state <- sim$state
-config <- sim$config
-rm(samps, sim)
+pkgs <- c("msqrob2", "QFeatures", "SummarizedExperiment", "lme4", "lmerTest")
+if(all(vapply(pkgs, requireNamespace, logical(1), quietly=TRUE))) {
+  set.seed(101)
+  samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
+    n_per_cell=3)
+  sim <- h0testr::sim_design(samps, frm=~grp + sex, test_term="grp", n_genes=100,
+    peps_per_gene=10, p_drop=0.33, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+  state <- sim$state
+  config <- sim$config
+  rm(samps, sim)
 
-out <- h0testr::init_state(state, config, minimal=TRUE)
+  out <- h0testr::init_state(state, config, minimal=TRUE)
 
-## actual test:
-result <- h0testr::test_msqrob(out$state, out$config)
-head(result$hits)
+  ## actual test:
+  result <- h0testr::test_msqrob(out$state, out$config)
+  head(result$hits)
 
-## the same genes tested from their peptides instead, one mixed model each, which
-##   test_method="msqrob_agg" selects. A few genes are enough to show the shape:
-keep <- out$state$features$gene_id \%in\% unique(out$state$features$gene_id)[1:8]
-small <- list(expression=out$state$expression[keep, , drop=FALSE],
-  features=out$state$features[keep, , drop=FALSE], samples=out$state$samples)
-mixed <- h0testr::test_msqrob(small, out$config, aggregate=TRUE)
-head(mixed$hits[, c("gene_id", "nNonZero", ".n", "fit_type", "logFC", "df", "pval")])
+  ## the same genes tested from their peptides instead, one mixed model each, which
+  ##   test_method="msqrob_agg" selects. A few genes are enough to show the shape:
+  keep <- out$state$features$gene_id \%in\% unique(out$state$features$gene_id)[1:8]
+  small <- list(expression=out$state$expression[keep, , drop=FALSE],
+    features=out$state$features[keep, , drop=FALSE], samples=out$state$samples)
+  mixed <- h0testr::test_msqrob(small, out$config, aggregate=TRUE)
+  head(mixed$hits[, c("gene_id", "nNonZero", ".n", "fit_type", "logFC", "df", "pval")])
 
-## fit_type says which genes could not carry a random feature effect and were fitted
-##   at the gene level instead, and the formula used is in the log:
-table(mixed$hits$fit_type)
+  ## fit_type says which genes could not carry a random feature effect and were fitted
+  ##   at the gene level instead, and the formula used is in the log:
+  table(mixed$hits$fit_type)
+}
 }

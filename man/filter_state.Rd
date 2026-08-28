@@ -73,7 +73,6 @@ state <- list(expression=exprs, features=feats, samples=samps)
 
 ## assume default median_raw_col, n_samples_expr_col, and n_features_expr_col are ok:
 config <- h0testr::new_config()        ## defaults
-config$save_state <- FALSE             ## default is TRUE
 config$feat_col <- config$feat_id_col
 config$obs_col <- config$obs_id_col
 config$n_features_min <- 3
