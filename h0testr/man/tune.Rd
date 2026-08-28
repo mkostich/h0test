@@ -16,7 +16,7 @@ tune(
   impute_spans = 0.5,
   impute_npcs = c(3, 10),
   impute_ks = c(5, 20),
-  test_methods = c("lm", "trend", "deqms", "msqrob", "proda", "prolfqua", "voom")
+  test_methods = c("lm", "trend", "deqms", "msqrob", "proda", "prolfqua")
 )
 }
 \arguments{
@@ -55,7 +55,9 @@ c("rnorm_feature", "qrilc", "min_prob")}. See the \code{scale} parameter of
 \code{h0testr::test_methods()}. Defaults to every method except
 \code{"prolfqua_lmer"} and \code{"msqrob_agg"}, each of which fits a mixed model
 per gene and so costs orders of magnitude more time per cell than the rest of the
-sweep put together; name explicitly to include. A name not returned by
+sweep put together, and \code{"voom"}, which models a count mean-variance
+relationship that no default \code{normalization_methods} entry leaves in the
+data. Name any of the three explicitly to include. A name not returned by
 \code{h0testr::test_methods()} is refused. That includes
 \code{"none"}, which is interpreted as "skip the test step": a
 sweep over not testing has nothing to compare.}
@@ -79,6 +81,10 @@ A data.frame with the following columns:
     \code{nhits}  \cr \tab Number of hits (numeric); \code{NA} if not tested. \cr
     \code{ntests} \cr \tab Number of tests (numeric); \code{NA} if not tested. \cr
     \code{time}   \cr \tab Timestamp. \cr
+    \code{step}   \cr \tab Pipeline step that stopped this combination (character);
+      \code{NA} if it was tested. \cr
+    \code{reason} \cr \tab Why that step stopped it (character), truncated to 200
+      characters and stripped of newlines; \code{NA} if it was tested. \cr
   }
   A column for a parameter that this combination does not use is still filled in, from
     \code{config}, rather than left \code{NA}: \code{iquant} carries

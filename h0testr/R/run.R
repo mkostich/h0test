@@ -145,14 +145,29 @@ f.tune1 <- function(state, config, normalization_method) {
 ## helper for f.tune2(); the result row for a parameter combination that was not
 ##   tested, so that one unusable combination does not abort a whole sweep:
 
-f.tune2_na_row <- function(config) {
+## a reason is written to a tsv, so it has to stay one line:
+
+f.tune2_reason <- function(reason, n_max=200) {
+
+  if(length(reason) < 1) return(NA_character_)
+  if(length(reason) %in% 1 && is.na(reason)) return(NA_character_)
+
+  reason <- paste(as.character(reason), collapse=" ")
+  reason <- trimws(gsub("[[:space:]]+", " ", reason))
+  if(nchar(reason) > n_max) reason <- paste0(substr(reason, 1, n_max), "...")
+
+  return(reason)
+}
+
+f.tune2_na_row <- function(config, step=NA, reason=NA) {
   return(
     data.frame(norm=config$normalization_method, nquant=config$normalization_quantile,
       impute=config$impute_method, iquant=config$impute_quantile,
       scale=config$impute_scale, span=config$impute_span,
       npcs=config$impute_npcs, k=config$impute_k, test=config$test_method,
       perm=config$permute_var, nhits=NA, ntests=NA,
-      time=format(Sys.time(), "%H:%M:%S"), stringsAsFactors=F
+      time=format(Sys.time(), "%H:%M:%S"), step=f.tune2_reason(step),
+      reason=f.tune2_reason(reason), stringsAsFactors=F
     )
   )
 }
@@ -162,7 +177,7 @@ f.tune2_na_row <- function(config) {
 f.tune2_bad <- function(config, step, err) {
   f.msg("WARNING: f.tune2:", step, "failed on this combination; returning NA;", "\n",
     "  ", as.character(err), config=config)
-  return(f.tune2_na_row(config))
+  return(f.tune2_na_row(config, step, as.character(err)))
 }
 
 f.tune2 <- function(state, config) {
@@ -181,13 +196,13 @@ f.tune2 <- function(state, config) {
   if(length(unique(out$state$samples[[out$config$sample_id_col]])) < 4) {
     f.msg("WARNING: f.tune2: post-filter <4 samples left; return NA",
       config=config)
-    return(f.tune2_na_row(config))
+    return(f.tune2_na_row(config, "filter", "post-filter <4 samples left"))
   }
 
   if(length(unique(out$state$features[[out$config$gene_id_col]])) < 20) {
     f.msg("WARNING: f.tune2: post-filter <20 genes left; return NA",
       config=config)
-    return(f.tune2_na_row(config))
+    return(f.tune2_na_row(config, "filter", "post-filter <20 genes left"))
   }
 
   f.log_block("f.tune:2: impute", config=config)
@@ -202,7 +217,9 @@ f.tune2 <- function(state, config) {
       f.msg("WARNING: f.tune2: test_method deqms needs the number of features per",
         "gene to vary, and every one of", length(counts), "genes has",
         unique(counts), "; skipping and returning NA", config=config)
-      return(f.tune2_na_row(config))
+      return(f.tune2_na_row(config, "test",
+        paste("deqms needs the number of features per gene to vary, and all",
+          length(counts), "genes have", unique(counts))))
     }
   }
 
@@ -216,7 +233,9 @@ f.tune2 <- function(state, config) {
       "input, and config$feat_id_col and config$gene_id_col both name '",
       out$config$feat_id_col, "', so there is no feature level to model;",
       "skipping and returning NA", config=config)
-    return(f.tune2_na_row(config))
+    return(f.tune2_na_row(config, "test",
+      paste(config$test_method, "needs feature level input, and feat_id_col and",
+        "gene_id_col both name", out$config$feat_id_col)))
   }
 
   f.log_block("f.tune:2: test", config=config)
@@ -232,7 +251,8 @@ f.tune2 <- function(state, config) {
     ## na.rm, so that a single feature with an undefined adjusted p-value, from a
     ##   singular or non-converged per-feature fit, counts as no hit:
     perm=config$permute_var, nhits=sum(tbl$adj_pval < 0.05, na.rm=T), ntests=nrow(tbl),
-    time=format(Sys.time(), "%H:%M:%S"), stringsAsFactors=F)
+    time=format(Sys.time(), "%H:%M:%S"), step=NA_character_, reason=NA_character_,
+    stringsAsFactors=F)
   
   f.log_block("f.tune:2: return", config=config)
   return(result)
@@ -298,7 +318,9 @@ f.tune2 <- function(state, config) {
 #'   \code{h0testr::test_methods()}. Defaults to every method except
 #'   \code{"prolfqua_lmer"} and \code{"msqrob_agg"}, each of which fits a mixed model
 #'   per gene and so costs orders of magnitude more time per cell than the rest of the
-#'   sweep put together; name explicitly to include. A name not returned by
+#'   sweep put together, and \code{"voom"}, which models a count mean-variance
+#'   relationship that no default \code{normalization_methods} entry leaves in the
+#'   data. Name any of the three explicitly to include. A name not returned by
 #'   \code{h0testr::test_methods()} is refused. That includes
 #'   \code{"none"}, which is interpreted as "skip the test step": a
 #'   sweep over not testing has nothing to compare.
@@ -320,6 +342,10 @@ f.tune2 <- function(state, config) {
 #'     \code{nhits}  \cr \tab Number of hits (numeric); \code{NA} if not tested. \cr
 #'     \code{ntests} \cr \tab Number of tests (numeric); \code{NA} if not tested. \cr
 #'     \code{time}   \cr \tab Timestamp. \cr
+#'     \code{step}   \cr \tab Pipeline step that stopped this combination (character);
+#'       \code{NA} if it was tested. \cr
+#'     \code{reason} \cr \tab Why that step stopped it (character), truncated to 200
+#'       characters and stripped of newlines; \code{NA} if it was tested. \cr
 #'   }
 #'   A column for a parameter that this combination does not use is still filled in, from
 #'     \code{config}, rather than left \code{NA}: \code{iquant} carries
@@ -396,7 +422,7 @@ tune <- function(
     impute_spans=0.5,
     impute_npcs=c(3, 10),
     impute_ks=c(5, 20),
-    test_methods=c("lm", "trend", "deqms", "msqrob", "proda", "prolfqua", "voom")) {
+    test_methods=c("lm", "trend", "deqms", "msqrob", "proda", "prolfqua")) {
 
   ## the sweep assigns each of these to config$test_method in turn:
   bad <- setdiff(test_methods, test_methods())
@@ -443,6 +469,7 @@ tune <- function(
     f.msg("normalization_method:", normalization_method, config=config_n)
 
     norm_ok <- TRUE
+    norm_err <- NA
     f.log_block("normalize and combine reps", config=config_n)
     out <- try(f.tune1(state1, config_n, normalization_method=normalization_method),
       silent=T)
@@ -452,6 +479,7 @@ tune <- function(
         "failed; every combination under it returns NA;", "\n", "  ",
         as.character(out), config=config_n)
       norm_ok <- FALSE
+      norm_err <- as.character(out)
       state2 <- state1
       config2 <- config_n
     } else {
@@ -467,9 +495,13 @@ tune <- function(
       f.msg("test_method:", test_method, config=config2)
       
       agg_ok <- TRUE
+      bad_step <- NA
+      bad_reason <- NA
 
       if(!norm_ok) {
         agg_ok <- FALSE
+        bad_step <- "normalize"
+        bad_reason <- norm_err
         state3 <- state2
         config3 <- config2
       } else if(!f.gene_level_method(test_method)) {
@@ -482,6 +514,8 @@ tune <- function(
             normalization_method, "; every combination below it returns NA;", "\n",
             "  ", as.character(out), config=config2)
           agg_ok <- FALSE
+          bad_step <- "aggregate"
+          bad_reason <- as.character(out)
           state3 <- state2
           config3 <- config2
         } else {
@@ -499,7 +533,7 @@ tune <- function(
       ##   costs each of them a row rather than emptying the grid:
 
       f.cell <- function(state, config) {
-        if(!agg_ok) return(f.tune2_na_row(config))
+        if(!agg_ok) return(f.tune2_na_row(config, bad_step, bad_reason))
         return(f.tune2(state, config))
       }
 
@@ -837,8 +871,12 @@ tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05) {
 
   dat0$fdr[dat0$ntests %in% 0] <- NA
 
-  dat0 <- dat0[, c("nhits", "ntests", "fdr", "max1", "mid1", "avg1", "sd1", "norm",
-    "nquant", "impute", "iquant", "scale", "span", "npcs", "k", "test")]
+  keep <- c("nhits", "ntests", "fdr", "max1", "mid1", "avg1", "sd1", "norm",
+    "nquant", "impute", "iquant", "scale", "span", "npcs", "k", "test")
+
+  ## step and reason are absent from tsv files written before they existed:
+
+  dat0 <- dat0[, c(keep, intersect(c("step", "reason"), names(dat0)))]
 
   i <- dat0$fdr < fdr_cutoff
   i[is.na(i)] <- FALSE

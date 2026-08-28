@@ -4,7 +4,7 @@
 \alias{impute_rnorm_feature}
 \title{Impute missing values near the feature mean}
 \usage{
-impute_rnorm_feature(state, config, scale. = NULL)
+impute_rnorm_feature(state, config, is_log_transformed = NULL, scale. = NULL)
 }
 \arguments{
 \item{state}{A list with elements like that returned by \code{read_data()}:
@@ -17,7 +17,13 @@ impute_rnorm_feature(state, config, scale. = NULL)
 \item{config}{List with configuration values. Uses the following keys:
 \tabular{ll}{
   \code{impute_scale}  \cr \tab Factor (numeric) rescaling variance of normal distribution from which draws are made. See details.
+  \code{is_log_transformed} \cr \tab Whether the data are on a log-like scale; sets the dispersion floor and whether a value below zero is allowed. See details.
 }}
+
+\item{is_log_transformed}{Logical scalar: whether \code{state$expression} has
+been log transformed. Defaults to \code{config$is_log_transformed}, which
+\code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+passing both is an error unless they agree.}
 
 \item{scale.}{Numeric greater than zero, linearly scaling the
 dispersion around the feature mean. Default: \code{1.0}.}
@@ -34,13 +40,17 @@ An updated \code{state} list with the following elements:
 Impute missing values normally distributed around the feature mean.
 }
 \details{
-Missing values are draws from 
-  \code{normal(mean=mean(exprs[feature, ]), sd=(scale. * sd(exprs[feature, ])))}. 
-  Only non-\code{NA} values are used in calculation of \code{mean} and 
-  \code{sd}. If you want \code{0} to be considered missing, and have 
-  \code{0} in the data, do something like \code{exprs[exprs \%in\% 0] <- NA} 
-  prior to imputing. All values are gauranteed non-negative.
-  See documentation for \code{h0testr::new_config()} 
+Missing values are draws from
+  \code{normal(mean=mean(exprs[feature, ]), sd=(scale. * sd(exprs[feature, ])))}.
+  Only non-\code{NA} values are used in calculation of \code{mean} and
+  \code{sd}. If you want \code{0} to be considered missing, and have
+  \code{0} in the data, do something like \code{exprs[exprs \%in\% 0] <- NA}
+  prior to imputing.
+  The dispersion has a lower bound, for a feature with fewer than two observed
+    values: \code{sqrt(mean)} on the raw scale, a tenth of the whole matrix
+    standard deviation on the log scale. Raw scale draws are resampled until
+    non-negative; log scale draws are kept, a value below zero being ordinary there.
+  See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.
 }
 \examples{
@@ -55,20 +65,25 @@ summary(c(state$expression))     ## note number of NAs
 head(state$expression)
 
 ## impute using default scale. parameter:
-config <- list()    
+config <- list(is_log_transformed=TRUE)   ## the data were log transformed above
 state2 <- h0testr::impute_rnorm_feature(state, config)
 summary(c(state2$expression))    ## note number of NAs
 round(head(state2$expression))
 
 ## impute using passed scale. parameter:
-config <- list()    
 state2 <- h0testr::impute_rnorm_feature(state, config, scale.=2)
 summary(c(state2$expression))    ## note number of NAs
 round(head(state2$expression))
 
 ## impute using impute_scale parameter from config:
-config <- list(impute_scale=0.5)    
+config <- list(impute_scale=0.5, is_log_transformed=TRUE)
 state2 <- h0testr::impute_rnorm_feature(state, config)
 summary(c(state2$expression))    ## note number of NAs
 round(head(state2$expression))
+
+## raw scale input; here a value below zero would be an error:
+state$expression <- 2^state$expression - 1
+config$is_log_transformed <- FALSE   ## argument and config must agree
+state2 <- h0testr::impute_rnorm_feature(state, config, is_log_transformed=FALSE)
+summary(c(state2$expression))    ## note number of NAs
 }

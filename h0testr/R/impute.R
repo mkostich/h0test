@@ -379,10 +379,14 @@ impute_sample_lod <- function(state, config) {
 #'   \code{normal(mean=mean(exprs[feature, ]), sd=(scale. * sd(exprs[feature, ])))}. 
 #'   Only non-\code{NA} values are used in calculation of \code{mean} and 
 #'   \code{sd}. If you want \code{0} to be considered missing, and have 
-#'   \code{0} in the data, do something like \code{exprs[exprs \%in\% 0] <- NA} 
-#'   prior to imputing. All values are gauranteed non-negative.
-#'   See documentation for \code{h0testr::new_config()} 
-#'     for more detailed description of configuration parameters. 
+#'   \code{0} in the data, do something like \code{exprs[exprs \%in\% 0] <- NA}
+#'   prior to imputing.
+#'   The dispersion has a lower bound, for a feature with fewer than two observed
+#'     values: \code{sqrt(mean)} on the raw scale, a tenth of the whole matrix
+#'     standard deviation on the log scale. Raw scale draws are resampled until
+#'     non-negative; log scale draws are kept, a value below zero being ordinary there.
+#'   See documentation for \code{h0testr::new_config()}
+#'     for more detailed description of configuration parameters.
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -392,7 +396,12 @@ impute_sample_lod <- function(state, config) {
 #' @param config List with configuration values. Uses the following keys:
 #'   \tabular{ll}{
 #'     \code{impute_scale}  \cr \tab Factor (numeric) rescaling variance of normal distribution from which draws are made. See details.
+#'     \code{is_log_transformed} \cr \tab Whether the data are on a log-like scale; sets the dispersion floor and whether a value below zero is allowed. See details.
 #'   }
+#' @param is_log_transformed Logical scalar: whether \code{state$expression} has
+#'   been log transformed. Defaults to \code{config$is_log_transformed}, which
+#'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+#'   passing both is an error unless they agree.
 #' @param scale. Numeric greater than zero, linearly scaling the
 #'   dispersion around the feature mean. Default: \code{1.0}.
 #' @return An updated \code{state} list with the following elements:
@@ -411,42 +420,60 @@ impute_sample_lod <- function(state, config) {
 #' 
 #' summary(c(state$expression))     ## note number of NAs
 #' head(state$expression)
-#' 
+#'
 #' ## impute using default scale. parameter:
-#' config <- list()    
+#' config <- list(is_log_transformed=TRUE)   ## the data were log transformed above
 #' state2 <- h0testr::impute_rnorm_feature(state, config)
 #' summary(c(state2$expression))    ## note number of NAs
 #' round(head(state2$expression))
 #'
 #' ## impute using passed scale. parameter:
-#' config <- list()    
 #' state2 <- h0testr::impute_rnorm_feature(state, config, scale.=2)
 #' summary(c(state2$expression))    ## note number of NAs
 #' round(head(state2$expression))
 #'
 #' ## impute using impute_scale parameter from config:
-#' config <- list(impute_scale=0.5)    
+#' config <- list(impute_scale=0.5, is_log_transformed=TRUE)
 #' state2 <- h0testr::impute_rnorm_feature(state, config)
 #' summary(c(state2$expression))    ## note number of NAs
 #' round(head(state2$expression))
+#'
+#' ## raw scale input; here a value below zero would be an error:
+#' state$expression <- 2^state$expression - 1
+#' config$is_log_transformed <- FALSE   ## argument and config must agree
+#' state2 <- h0testr::impute_rnorm_feature(state, config, is_log_transformed=FALSE)
+#' summary(c(state2$expression))    ## note number of NAs
 
-impute_rnorm_feature <- function(state, config, scale.=NULL) {
+impute_rnorm_feature <- function(state, config, is_log_transformed=NULL,
+    scale.=NULL) {
 
   check_config(config)
 
   if(!is.matrix(state$expression)) {
     f.err("impute_rnorm_feature: !is.matrix(state$expression)", "\n",
       "class(state$expression):", class(state$expression), config=config)
-  } 
-  i <- c(state$expression) < 0
-  i[is.na(i)] <- F
-  if(any(i)) {
-    f.err("impute_rnorm_feature: state$expression contains negative values", 
-      config=config)
   }
+
+  is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
+    "impute_rnorm_feature")
+
+  if(!is_log_transformed) {
+    i <- c(state$expression) < 0
+    i[is.na(i)] <- F
+    if(any(i)) {
+      f.err("impute_rnorm_feature: state$expression contains negative values on the",
+        "raw scale, where a value below zero cannot be a measurement;", "\n",
+        "  min:", min(c(state$expression), na.rm=T), "; if these are log scale",
+        "values, set config$is_log_transformed to TRUE", config=config)
+    }
+  }
+
   if(is.null(scale.)) scale. <- config$impute_scale
   if(is.null(scale.)) scale. <- 1.0
-  
+
+  s_all <- stats::sd(c(state$expression), na.rm=T)
+  if(!is.finite(s_all) || s_all <= 0) s_all <- 1
+
   f <- function(v) {
     i <- is.na(v)
     if(all(i)) {
@@ -455,7 +482,12 @@ impute_rnorm_feature <- function(state, config, scale.=NULL) {
     }
     if(any(i)) {
       m <- mean(v[!i])
-      s_min <- sqrt(m)
+      ## sqrt(mean) is the raw scale dispersion and means nothing on the log scale:
+      if(is_log_transformed) {
+        s_min <- 0.1 * s_all
+      } else {
+        s_min <- sqrt(m)
+      }
       if(sum(!i) >= 2) {
         s <- stats::sd(v[!i]) * scale.
       } else {
@@ -464,18 +496,24 @@ impute_rnorm_feature <- function(state, config, scale.=NULL) {
       if(s < s_min) s <- s_min
 
       v[i] <- stats::rnorm(sum(i), mean=m, sd=s)
-      i <- v < 0
-      i[is.na(i)] <- F
-      while(any(i)) {
-        v[i] <- stats::rnorm(sum(i), mean=m, sd=s)
+
+      ## resampling on the log scale would bias the imputed values upward:
+      if(!is_log_transformed) {
         i <- v < 0
         i[is.na(i)] <- F
+        while(any(i)) {
+          v[i] <- stats::rnorm(sum(i), mean=m, sd=s)
+          i <- v < 0
+          i[is.na(i)] <- F
+        }
       }
     }
     return(v)
   }
   state$expression <- t(apply(state$expression, 1, f))
-  
+  state$expression <- f.pos_mat(state$expression, config, is_log_transformed,
+    "impute_rnorm_feature")
+
   return(state)
 }
 
@@ -1857,7 +1895,8 @@ impute <- function(state, config, method=NULL, is_log_transformed=NULL,
     state <- impute_unif_sample_lod(state, config, 
       impute_quantile=impute_quantile)
   } else if(method %in% "rnorm_feature") {
-    state <- impute_rnorm_feature(state, config, scale.=scale.)
+    state <- impute_rnorm_feature(state, config,
+      is_log_transformed=is_log_transformed, scale.=scale.)
   } else if(method %in% "glm_binom") {
     state <- impute_glm_binom(state, config, 
       is_log_transformed=is_log_transformed, n_pts=n_pts)
