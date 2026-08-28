@@ -1,5 +1,5 @@
 ## Tabulate which of the formula/test_term combinations that h0testr accepts upstream
-##   (f.parse_frm(), initialize(), the filters) each test_*() method can actually run,
+##   (f.parse_frm(), init_state(), the filters) each test_*() method can actually run,
 ##   with both categorical and continuous covariates. One row per (frm, test_term) case,
 ##   one column per method.
 
@@ -235,7 +235,7 @@ for(k in seq_along(cases)) {
   cfg$frm <- cs$frm
   cfg$test_term <- cs$term
 
-  ## only the factor variables that this formula actually uses: initialize() rejects
+  ## only the factor variables that this formula actually uses: init_state() rejects
   ##   a reference level declared for a variable that is not in config$frm:
 
   vars <- all.vars(cs$frm)
@@ -243,15 +243,15 @@ for(k in seq_along(cases)) {
 
   progress("case", k, "of", length(cases), ":", deparse(cs$frm), "/", cs$term)
 
-  ## upstream: initialize() classifies the covariates and resolves factor levels,
+  ## upstream: init_state() classifies the covariates and resolves factor levels,
   ##   the two filters screen features against this same formula, and
   ##   f.design_test_cols() is the shared derivation of the tested columns:
 
   n0 <- log_len()
-  ini <- try(suppressMessages(initialize(state_raw, cfg, minimal=TRUE)), silent=TRUE)
+  ini <- try(suppressMessages(init_state(state_raw, cfg, minimal=TRUE)), silent=TRUE)
 
   if(inherits(ini, "try-error")) {
-    notes <- c(notes, paste(k, "initialize()", why(ini, n0), sep="\t"))
+    notes <- c(notes, paste(k, "init_state()", why(ini, n0), sep="\t"))
     next
   }
 
@@ -360,10 +360,10 @@ out <- c(
   "cols = design matrix columns carrying the test of test_term, which is also the",
   "         numerator df of the test in every case below.",
   if(up_all_ok) c(
-    "Every case below runs initialize(), filter_features_by_formula() and",
+    "Every case below runs init_state(), filter_features_by_formula() and",
     "  filter_features_by_estimability() without error, so all of them are formulas",
     "  h0testr accepts upstream of the test.") else
-    "up   = whether initialize() and the two formula-aware filters ran (ok) or not.",
+    "up   = whether init_state() and the two formula-aware filters ran (ok) or not.",
   "",
   "Cells: t  = single-coefficient test (moderated t or Wald);",
   "       F  = joint test over all the columns carrying the test;",

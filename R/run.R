@@ -10,14 +10,14 @@ f.run_order_steps <- function() {
 #' @description
 #'   Run basic workflow according to: \code{config$run_order}.
 #' @details
-#'   Run a basic workflow: \code{load_data() -> config$run_order -> test()},
+#'   Run a basic workflow: \code{load_data() -> config$run_order -> test_h0()},
 #'     where \code{config$run_order} is vector of functions which are run in
 #'     the specified order.
 #'   Each name in \code{config$run_order} must be one of \code{"normalize"},
 #'     \code{"combine_replicates"}, \code{"combine_features"}, \code{"filter"} and
 #'     \code{"impute"}; \code{h0testr::check_config()} refuses anything else before the
 #'     workflow starts. A zero length \code{config$run_order} runs
-#'     \code{h0testr::load_data()} and then \code{h0testr::test()}. Naming a step twice
+#'     \code{h0testr::load_data()} and then \code{h0testr::test_h0()}. Naming a step twice
 #'     runs it twice, which is allowed but warned about, since \code{f.save_state()} names
 #'     its output files after the first occurrence of a step and the later one overwrites
 #'     them.
@@ -89,7 +89,7 @@ run <- function(config) {
   }
 
   ## the scale of the data lives in out$config$is_log_transformed, put there by
-  ##   initialize() and updated by normalize():
+  ##   init_state() and updated by normalize():
 
   for(f_name in config$run_order) {
 
@@ -99,7 +99,7 @@ run <- function(config) {
   }
 
   f.log_block("starting test", config=out$config)
-  result <- test(out$state, out$config)
+  result <- test_h0(out$state, out$config)
   
   return(list(state=out$state, config=out$config, 
     original=result$original, standard=result$standard, fit=result$fit))
@@ -190,7 +190,7 @@ f.tune2 <- function(state, config) {
   check_config(config)
 
   f.log_block("f.tune:2: filter", config=config)
-  out <- try(filter(state, config), silent=T)
+  out <- try(filter_state(state, config), silent=T)
   if(inherits(out, "try-error")) return(f.tune2_bad(config, "filter", out))
 
   if(length(unique(out$state$samples[[out$config$sample_id_col]])) < 4) {
@@ -239,7 +239,7 @@ f.tune2 <- function(state, config) {
   }
 
   f.log_block("f.tune:2: test", config=config)
-  result <- try(test(out$state, out$config), silent=T)
+  result <- try(test_h0(out$state, out$config), silent=T)
   if(inherits(result, "try-error")) return(f.tune2_bad(config, "test", result))
 
   tbl <- result$standard
@@ -269,9 +269,9 @@ f.tune2 <- function(state, config) {
 #'       1. Inter-observation normalization with \code{normalize()}. \cr
 #'       2. Combine replicate observations wtih \code{combine_replicates()}. \cr
 #'       3. Combine peptides into gene/protein groups with \code{combine_features()}. \cr
-#'       4. Filter uninformative features and observations with \code{filter()}. \cr
+#'       4. Filter uninformative features and observations with \code{filter_state()}. \cr
 #'       5. Impute missing values with \code{impute()}. \cr
-#'       6. Hypothesis testing with \code{test()}. \cr
+#'       6. Hypothesis testing with \code{test_h0()}. \cr
 #'     }
 #'   Normally, one does one run with \code{config$permute_var=""}, and 
 #'     \code{N} runs (we recommend \code{N >= 20}) with 
@@ -337,7 +337,7 @@ f.tune2 <- function(state, config) {
 #'       \code{"svdImpute"} (numeric). \cr
 #'     \code{k}      \cr \tab Number of neighbors, for \code{"knn"} and \code{"lls"}
 #'       (numeric). \cr
-#'     \code{test}   \cr \tab Test method (character). \cr
+#'     \code{test_h0}   \cr \tab Test method (character). \cr
 #'     \code{perm}   \cr \tab Permuted variable (character). \cr
 #'     \code{nhits}  \cr \tab Number of hits (numeric); \code{NA} if not tested. \cr
 #'     \code{ntests} \cr \tab Number of tests (numeric); \code{NA} if not tested. \cr
@@ -350,7 +350,7 @@ f.tune2 <- function(state, config) {
 #'   A column for a parameter that this combination does not use is still filled in, from
 #'     \code{config}, rather than left \code{NA}: \code{iquant} carries
 #'     \code{config$impute_quantile} even where \code{impute} is \code{"rf"}. The nine
-#'     columns from \code{norm} through \code{test} are what identify a combination, and
+#'     columns from \code{norm} through \code{test_h0} are what identify a combination, and
 #'     \code{h0testr::tune_check()} joins the permuted results to the unpermuted ones on
 #'     those nine by name, so renaming or dropping one of them there is refused rather
 #'     than silently changing what is being compared.
@@ -722,7 +722,7 @@ tune <- function(
 #'     \code{span}       \cr \tab Span for loess-based imputation. \cr
 #'     \code{npcs}       \cr \tab Number of principle components for imputation. \cr
 #'     \code{k}          \cr \tab Number of nearest neighbors or groups for imputation. \cr
-#'     \code{test}       \cr \tab Test method. \cr
+#'     \code{test_h0}       \cr \tab Test method. \cr
 #'   }
 #' @examples
 #' dir_in <- system.file("extdata/tune", package="h0testr")

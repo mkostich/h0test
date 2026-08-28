@@ -16,5 +16,5 @@ Description: Toolkit providing R-based functionality for analyzing
   as function to tune workflow configuration and parameterization.
 Encoding: UTF-8
 License: GPL-3
-URL: https://github.com/TheJacksonLaboratory/h0testr
+URL: https://github.com/mkostich/h0test
 RoxygenNote: 7.3.3

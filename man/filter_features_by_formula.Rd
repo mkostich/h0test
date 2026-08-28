@@ -25,7 +25,7 @@ filter_features_by_formula(
 \tabular{ll}{
   \code{frm}             \cr \tab Formula object specifying model to be fitted. \cr
   \code{reference_levels} \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
-  \code{covariate_types} \cr \tab Optional; classification of variables in \code{config$frm}, as set by \code{initialize()}. \cr
+  \code{covariate_types} \cr \tab Optional; classification of variables in \code{config$frm}, as set by \code{init_state()}. \cr
 }}
 
 \item{n_non_na_min}{Minimum number of non-NA values per feature. Non-negative integer.}
@@ -61,7 +61,7 @@ Every variable in \code{config$frm} checked, including variables that
     the variable takes at least two distinct values across the observations
     where the feature was measured.
   Variables are classified as factor or numeric and checked as described for
-    \code{h0testr::initialize()}.
+    \code{h0testr::init_state()}.
 }
 \examples{
 set.seed(101)

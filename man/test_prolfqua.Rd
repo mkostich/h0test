@@ -29,8 +29,8 @@ test_prolfqua(
   \code{test_term}             \cr \tab Term (character) to be tested for non-zero coefficient. \cr
   \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
   \code{reference_levels}      \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
-  \code{covariate_types}       \cr \tab Optional; classification of variables in \code{config$frm}, as set by \code{initialize()}. \cr
-  \code{factor_levels}         \cr \tab Optional; resolved levels of each factor variable, as set by \code{initialize()}. \cr
+  \code{covariate_types}       \cr \tab Optional; classification of variables in \code{config$frm}, as set by \code{init_state()}. \cr
+  \code{factor_levels}         \cr \tab Optional; resolved levels of each factor variable, as set by \code{init_state()}. \cr
   \code{test_moderate}         \cr \tab Optional logical; whether to shrink the error variance across features. Defaults to \code{TRUE} when absent. \cr
   \code{test_trend}            \cr \tab Optional logical; whether the prior of that shrinkage is fitted against mean feature intensity rather than flat. Answers when the \code{trend} argument is not given; defaults to \code{FALSE} when both are absent. Unrelated to \code{config$test_method="trend"}. \cr
   \code{test_random_obs}       \cr \tab Optional logical; whether the \code{mixed=TRUE} fit includes a random observation effect alongside the random feature effect. Defaults to \code{TRUE} when absent, which is the calibrated model; see Details. Ignored when \code{mixed=FALSE}. \cr
@@ -40,7 +40,7 @@ test_prolfqua(
 
 \item{is_log_transformed}{Logical scalar: whether \code{state$expression} has
 been log transformed. Defaults to \code{config$is_log_transformed}, which
-\code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+\code{h0testr::init_state()} and \code{h0testr::normalize()} maintain;
 passing both is an error unless they agree.}
 
 \item{mixed}{Logical scalar: whether to fit one mixed model per gene over the rows
@@ -101,11 +101,11 @@ A list with components:
     gene level whatever the input, that being the point of the mixed model.
   No effect size is reported here: the test is an F test of the columns carrying
     \code{config$test_term}, whatever their number, so there is no coefficient to report
-    alongside it. \code{h0testr::test()} fills its \code{logfc} column from the fitted
+    alongside it. \code{h0testr::test_h0()} fills its \code{logfc} column from the fitted
     coefficients instead, taken from \code{fit$modelDF} or, with \code{mixed=TRUE}, from
     \code{coefs}: the signed coefficient when one column carries the test, which for a
     \strong{continuous} covariate is a change \strong{per unit} of it rather than a fold
-    change between groups, and the total swing when several do. See \code{h0testr::test()}.
+    change between groups, and the total swing when several do. See \code{h0testr::test_h0()}.
 }
 \description{
 Tests for differential expression using the \code{prolfq::build_model()} function.
@@ -181,7 +181,7 @@ state <- sim$state
 config <- sim$config
 rm(samps, sim)
 
-out <- h0testr::initialize(state, config, minimal=TRUE)
+out <- h0testr::init_state(state, config, minimal=TRUE)
 
 ## actual test:
 result <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
@@ -189,7 +189,7 @@ head(result$hits)
 
 ## an interaction is fine too:
 config$frm <- ~grp*sex
-out <- h0testr::initialize(state, config, minimal=TRUE)
+out <- h0testr::init_state(state, config, minimal=TRUE)
 result <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
 colnames(result$design$X)
 colnames(result$design$X)[result$design$cols_test]
@@ -198,7 +198,7 @@ head(result$hits)
 ## the same 2 df test with the error variance moderated across features:
 head(result$hits[, c("Df", "p.value", "p.value.unmod", "df.denom", "df.prior")])
 config$test_moderate <- FALSE
-out <- h0testr::initialize(state, config, minimal=TRUE)
+out <- h0testr::init_state(state, config, minimal=TRUE)
 plain <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
 head(plain$hits[, c("Df", "p.value", "p.value.unmod", "df.denom", "df.prior")])
 
@@ -206,7 +206,7 @@ head(plain$hits[, c("Df", "p.value", "p.value.unmod", "df.denom", "df.prior")])
 ##   number, which is the prior test_trend() uses:
 config$test_moderate <- TRUE
 config$test_trend <- TRUE
-out <- h0testr::initialize(state, config, minimal=TRUE)
+out <- h0testr::init_state(state, config, minimal=TRUE)
 trended <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
 head(trended$hits[, c("Df", "p.value", "moderated", "trend", "s2.prior")])
 range(trended$hits$s2.prior)
@@ -218,7 +218,7 @@ config$test_trend <- NULL
 keep <- state$features$gene_id \%in\% unique(state$features$gene_id)[1:8]
 small <- list(expression=state$expression[keep, , drop=FALSE],
   features=state$features[keep, , drop=FALSE], samples=state$samples)
-out <- h0testr::initialize(small, config, minimal=TRUE)
+out <- h0testr::init_state(small, config, minimal=TRUE)
 mix <- h0testr::test_prolfqua(out$state, out$config, is_log_transformed=FALSE,
   mixed=TRUE)
 nrow(mix$hits)                                  ## one row per gene, not per peptide

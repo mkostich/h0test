@@ -3,10 +3,10 @@
 ##   stats::model.matrix() drops observations with missing covariate values by default,
 ##   which would leave the design with fewer rows than state$expression has columns and
 ##   silently pair observations with the wrong covariates, so every path that builds a
-##   design has to refuse such a covariate rather than fit it. Covers initialize(), the
+##   design has to refuse such a covariate rather than fit it. Covers init_state(), the
 ##   two formula-aware filters, f.design_test_cols() and all seven test_*() methods,
 ##   both for a state that arrives with missing values and for a state whose covariates
-##   are edited after initialize() has already checked them.
+##   are edited after init_state() has already checked them.
 ##   Blank values are covered as well: utils::read.table() reads an empty field in a
 ##   character column as "" rather than as NA, so an empty cell in the samples file
 ##   would otherwise become a factor level of its own.
@@ -16,9 +16,9 @@ usage <- function(msg=NULL) {
   cat(
     "Test that missing (NA, NaN), non-finite (Inf) and blank ('') covariate values",
     "are refused rather than silently changing which observations are fit. Checks",
-    "that initialize() rejects them up front, naming the covariate and the",
+    "that init_state() rejects them up front, naming the covariate and the",
     "offending observations; that a covariate edited to contain NA after",
-    "initialize() is still refused by f.design_test_cols(),",
+    "init_state() is still refused by f.design_test_cols(),",
     "filter_features_by_formula(), filter_features_by_estimability() and by each of",
     "test_lm(), test_trend(), test_voom(), test_deqms(), test_msqrob(),",
     "test_proda() and test_prolfqua(); and that blank strings, which",
@@ -167,7 +167,7 @@ cfg0$log_file <- log_file
 
 state_in <- list(expression=exprs, features=feats, samples=samps)
 
-out <- initialize(state_in, cfg0, minimal=TRUE)
+out <- init_state(state_in, cfg0, minimal=TRUE)
 state0 <- out$state
 config0 <- out$config
 
@@ -190,30 +190,30 @@ run_test <- function(nm, st, cfg) {
 methods <- c("lm", "trend", "voom", "deqms", "msqrob", "proda", "prolfqua")
 
 ###############################################################################
-section("initialize(): missing and non-finite covariate values are refused")
+section("init_state(): missing and non-finite covariate values are refused")
 
 ## a missing value in a continuous covariate:
 
 st <- state_in
 st$samples$age[c(2, 5)] <- NA
 n0 <- log_len()
-res <- try(suppressMessages(initialize(st, cfg0, minimal=TRUE)), silent=TRUE)
+res <- try(suppressMessages(init_state(st, cfg0, minimal=TRUE)), silent=TRUE)
 report(inherits(res, "try-error"),
-  "initialize(): NA in a continuous covariate is an error")
+  "init_state(): NA in a continuous covariate is an error")
 report(log_has(n0, "f.check_covariate_values", "age", "n missing: 2"),
-  "initialize(): the error names the covariate and how many values are missing")
+  "init_state(): the error names the covariate and how many values are missing")
 report(log_has(n0, "o02", "o05"),
-  "initialize(): the error names the offending observations")
+  "init_state(): the error names the offending observations")
 
 ## a missing value in a factor covariate declared in config$reference_levels:
 
 st <- state_in
 st$samples$sex[4] <- NA
 n0 <- log_len()
-res <- try(suppressMessages(initialize(st, cfg0, minimal=TRUE)), silent=TRUE)
+res <- try(suppressMessages(init_state(st, cfg0, minimal=TRUE)), silent=TRUE)
 report(inherits(res, "try-error") &&
     log_has(n0, "f.check_covariate_values", "sex", "n missing: 1", "o04"),
-  "initialize(): NA in a declared factor covariate is an error naming it")
+  "init_state(): NA in a declared factor covariate is an error naming it")
 
 ## a missing value in a covariate that is already a factor, so is classified without
 ##   any declaration in config$reference_levels:
@@ -224,10 +224,10 @@ st$samples$batch[6] <- NA
 cfg <- cfg0
 cfg$reference_levels <- cfg0$reference_levels["sex"]
 n0 <- log_len()
-res <- try(suppressMessages(initialize(st, cfg, minimal=TRUE)), silent=TRUE)
+res <- try(suppressMessages(init_state(st, cfg, minimal=TRUE)), silent=TRUE)
 report(inherits(res, "try-error") &&
     log_has(n0, "f.check_covariate_values", "batch", "n missing: 1", "o06"),
-  "initialize(): NA in an undeclared factor covariate is an error naming it")
+  "init_state(): NA in an undeclared factor covariate is an error naming it")
 
 ## NaN is missing; Inf is not missing but is not fittable either, and is reported
 ##   separately so that the message matches what is actually in the column:
@@ -235,17 +235,17 @@ report(inherits(res, "try-error") &&
 st <- state_in
 st$samples$age[3] <- NaN
 n0 <- log_len()
-res <- try(suppressMessages(initialize(st, cfg0, minimal=TRUE)), silent=TRUE)
+res <- try(suppressMessages(init_state(st, cfg0, minimal=TRUE)), silent=TRUE)
 report(inherits(res, "try-error") && log_has(n0, "has missing values", "age", "o03"),
-  "initialize(): NaN in a continuous covariate is reported as missing")
+  "init_state(): NaN in a continuous covariate is reported as missing")
 
 st <- state_in
 st$samples$age[3] <- Inf
 n0 <- log_len()
-res <- try(suppressMessages(initialize(st, cfg0, minimal=TRUE)), silent=TRUE)
+res <- try(suppressMessages(init_state(st, cfg0, minimal=TRUE)), silent=TRUE)
 report(inherits(res, "try-error") &&
     log_has(n0, "has non-finite", "age", "n non-finite: 1", "o03"),
-  "initialize(): Inf in a continuous covariate is reported as non-finite")
+  "init_state(): Inf in a continuous covariate is reported as non-finite")
 
 ## an undeclared character covariate is refused for its class before its missing
 ##   values are reached, since the reference level has to be settled first; once it is
@@ -256,16 +256,16 @@ st$samples$batch[2] <- NA
 cfg <- cfg0
 cfg$reference_levels <- cfg0$reference_levels["sex"]
 n0 <- log_len()
-res <- try(suppressMessages(initialize(st, cfg, minimal=TRUE)), silent=TRUE)
+res <- try(suppressMessages(init_state(st, cfg, minimal=TRUE)), silent=TRUE)
 report(inherits(res, "try-error") &&
     log_has(n0, "f.covariate_types", "batch", "config$reference_levels"),
-  "initialize(): an undeclared character covariate is refused for its class first")
+  "init_state(): an undeclared character covariate is refused for its class first")
 
 n0 <- log_len()
-res <- try(suppressMessages(initialize(st, cfg0, minimal=TRUE)), silent=TRUE)
+res <- try(suppressMessages(init_state(st, cfg0, minimal=TRUE)), silent=TRUE)
 report(inherits(res, "try-error") &&
     log_has(n0, "f.check_covariate_values", "batch", "n missing: 1"),
-  "initialize(): once declared, its missing values are what stops it")
+  "init_state(): once declared, its missing values are what stops it")
 
 ###############################################################################
 section("control: every method runs on the same fixture with no missing covariates")
@@ -277,9 +277,9 @@ for(nm in methods) {
 }
 
 ###############################################################################
-section("covariates edited after initialize(): every design-building path refuses")
+section("covariates edited after init_state(): every design-building path refuses")
 
-## initialize() checks the covariates once, so a state edited afterwards (by hand, or
+## init_state() checks the covariates once, so a state edited afterwards (by hand, or
 ##   by a script that merges in more sample annotation) can still reach the fits with
 ##   missing values in it. Each of the paths below builds a design, and each has to
 ##   refuse rather than fit the observations model.matrix() leaves:
@@ -336,7 +336,7 @@ report(inherits(res, "try-error") &&
     log_has(n0, "filter_features_by_formula", "batch", "is constant"),
   "filter_features_by_formula(): refuses a constant covariate")
 
-## initialize() has already warned about a continuous covariate with few distinct
+## init_state() has already warned about a continuous covariate with few distinct
 ##   values, so this filter does not repeat that warning:
 
 st <- state0
@@ -365,13 +365,13 @@ report(identical(tmp$sex[2], "") && is.na(tmp$age[3]),
 st <- state_in
 st$samples$sex[4] <- ""
 n0 <- log_len()
-res <- try(suppressMessages(initialize(st, cfg0, minimal=TRUE)), silent=TRUE)
+res <- try(suppressMessages(init_state(st, cfg0, minimal=TRUE)), silent=TRUE)
 report(inherits(res, "try-error") &&
     log_has(n0, "f.check_covariate_values", "sex", "has blank values", "n blank: 1",
       "o04"),
-  "initialize(): a blank factor value is refused, not made a level")
+  "init_state(): a blank factor value is refused, not made a level")
 report(log_has(n0, "empty cell in the samples file"),
-  "initialize(): the error explains where a blank value comes from")
+  "init_state(): the error explains where a blank value comes from")
 
 ## whitespace only is a blank as well; a value that only looks empty is the harder
 ##   one to notice by eye in the samples file:
@@ -379,9 +379,9 @@ report(log_has(n0, "empty cell in the samples file"),
 st <- state_in
 st$samples$sex[4] <- "  "
 n0 <- log_len()
-res <- try(suppressMessages(initialize(st, cfg0, minimal=TRUE)), silent=TRUE)
+res <- try(suppressMessages(init_state(st, cfg0, minimal=TRUE)), silent=TRUE)
 report(inherits(res, "try-error") && log_has(n0, "has blank values", "sex"),
-  "initialize(): a whitespace-only factor value is refused too")
+  "init_state(): a whitespace-only factor value is refused too")
 
 ## a blank in a continuous covariate cannot arise from read.table(), which reads an
 ##   empty numeric field as NA; if one is constructed anyway the column is character,
@@ -391,10 +391,10 @@ st <- state_in
 st$samples$age <- as.character(st$samples$age)
 st$samples$age[4] <- ""
 n0 <- log_len()
-res <- try(suppressMessages(initialize(st, cfg0, minimal=TRUE)), silent=TRUE)
+res <- try(suppressMessages(init_state(st, cfg0, minimal=TRUE)), silent=TRUE)
 report(inherits(res, "try-error") &&
     log_has(n0, "f.covariate_types", "age", "config$reference_levels"),
-  "initialize(): a blank in a character-valued numeric covariate is refused")
+  "init_state(): a blank in a character-valued numeric covariate is refused")
 
 ###############################################################################
 cat("\n## passes:", n_pass, "; failures:", n_fail, "; elapsed:",

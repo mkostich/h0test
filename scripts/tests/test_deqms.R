@@ -180,7 +180,7 @@ cfg0$frm <- ~grp + sex + batch + age
 cfg0$test_term <- "sex"
 cfg0$test_method <- "deqms"
 
-out <- initialize(list(expression=exprs, features=feats, samples=samps), cfg0,
+out <- init_state(list(expression=exprs, features=feats, samples=samps), cfg0,
   minimal=TRUE)
 state0 <- out$state
 config0 <- out$config
@@ -261,7 +261,7 @@ report(all(is.finite(res_1$fit$sca.postvar)) &&
 ###############################################################################
 section("the standardized table reports DEqMS, not limma")
 
-std_1 <- suppressMessages(test(state0, cfg_1))$standard
+std_1 <- suppressMessages(test_h0(state0, cfg_1))$standard
 i <- match(std_1$feature, res_1$hits$gene)
 
 report(close_enough(std_1$pval, res_1$hits$sca.P.Value[i], tol=1e-12),
@@ -360,7 +360,7 @@ report(sum(utils::head(res_i$hits$gene, 10) %in% up_int) >= 8,
 ###############################################################################
 section("the effect size of a joint test")
 
-std_g <- suppressMessages(test(state0, cfg_g))$standard
+std_g <- suppressMessages(test_h0(state0, cfg_g))$standard
 
 ## f.logfc_effect()'s total swing: the range, over the observations, of the fitted
 ##   contribution of the tested columns. For grp that is the largest difference between
@@ -394,7 +394,7 @@ report(all(res_c$hits$sca.df.num %in% 1) && !any(is.na(res_c$hits$sca.t)),
 report("logFC" %in% names(res_c$hits),
   "and limma::contrasts.fit() leaves a single coefficient with a logFC")
 
-std_c <- suppressMessages(test(state0, cfg_c))$standard
+std_c <- suppressMessages(test_h0(state0, cfg_c))$standard
 report(close_enough(std_c$stat, res_c$hits$sca.t[match(std_c$feature,
   res_c$hits$gene)], tol=1e-10),
   "the standardized table reports that t")
@@ -507,7 +507,7 @@ state_ct$expression <- log2(state_ct$expression + 1)
 cfg_ct <- sim_ct$config
 cfg_ct$is_log_transformed <- TRUE          ## simulated raw; normalize() is not called here
 cfg_ct$log_file <- log_file
-out_ct <- suppressMessages(initialize(state_ct, cfg_ct, minimal=TRUE))
+out_ct <- suppressMessages(init_state(state_ct, cfg_ct, minimal=TRUE))
 
 tru_ct <- sim_ct$truth[, "age"]            ## dropout can cost a gene all of its peptides
 slope_ct <- 1 / stats::sd(out_ct$state$samples$age)      ## the expected logFC, per year
@@ -548,9 +548,9 @@ report(length(unique(res_ct$hits$count)) > 2 && !any(is.na(res_ct$hits$sca.t)),
 
 cfg_std_ct <- out_ct$config
 cfg_std_ct$test_method <- "deqms"
-std_ct <- suppressMessages(test(out_ct$state, cfg_std_ct))$standard
+std_ct <- suppressMessages(test_h0(out_ct$state, cfg_std_ct))$standard
 report(close_enough(std_ct$logfc, fc_ct[match(std_ct$feature, res_ct$hits$gene)]),
-  "test() reports that same slope as logfc")
+  "test_h0() reports that same slope as logfc")
 
 ###############################################################################
 section("the genes DEqMS's variance prior is fitted from")

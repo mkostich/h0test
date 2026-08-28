@@ -1,4 +1,4 @@
-## Tests for the missingness contract established by h0testr::initialize():
+## Tests for the missingness contract established by h0testr::init_state():
 ##   NA is the only indicator of a missing value. Raw zeros are converted to NA
 ##   and negative raw values are an error, unless the input is declared to be
 ##   already transformed.
@@ -6,7 +6,7 @@
 usage <- function(msg=NULL) {
   if(!is.null(msg)) cat("ERROR:", msg, "\n\n", file=stderr())
   cat(
-    "Test the missingness contract established by h0testr::initialize():",
+    "Test the missingness contract established by h0testr::init_state():",
     "conversion of raw zeros to NA, rejection of negative raw values, the",
     "config$is_log_transformed escape, and the cross-check in",
     "h0testr::normalize() against a contradictory method argument.",
@@ -92,7 +92,7 @@ e[1, 1] <- 0
 e[2, 2] <- 0
 n_na0 <- sum(is.na(e))
 
-out <- initialize(mk_state(e), cfg0, minimal=TRUE)
+out <- init_state(mk_state(e), cfg0, minimal=TRUE)
 report(sum(is.na(out$state$expression)) == n_na0 + 2,
   "raw zeros converted to NA")
 report(!any(out$state$expression == 0, na.rm=TRUE), "no zeros left")
@@ -102,7 +102,7 @@ report(identical(dim(out$state$expression), dim(e)),
   "conversion does not change the shape of the matrix")
 
 e <- exprs
-report(!threw(initialize(mk_state(e), cfg0, minimal=TRUE)),
+report(!threw(init_state(mk_state(e), cfg0, minimal=TRUE)),
   "input with no zeros passes unchanged")
 
 ###############################################################################
@@ -110,7 +110,7 @@ section("negative raw values are an error")
 
 e <- exprs
 e[3, 3] <- -1.5
-report(threw(initialize(mk_state(e), cfg0, minimal=TRUE)),
+report(threw(init_state(mk_state(e), cfg0, minimal=TRUE)),
   "negative raw value is an error")
 
 ## f.err() stops with "Stopping" and writes the detail to the log:
@@ -131,7 +131,7 @@ e[1, 1] <- 0
 
 cfg <- cfg0
 cfg$is_log_transformed <- TRUE
-out <- try(initialize(mk_state(e), cfg, minimal=TRUE), silent=TRUE)
+out <- try(init_state(mk_state(e), cfg, minimal=TRUE), silent=TRUE)
 report(!inherits(out, "try-error"),
   "is_log_transformed=TRUE accepts negative values")
 if(!inherits(out, "try-error")) {
@@ -149,7 +149,7 @@ if(!inherits(out, "try-error")) {
 
 cfg <- cfg0
 cfg$normalization_method <- "none"
-report(threw(initialize(mk_state(e), cfg, minimal=TRUE)),
+report(threw(init_state(mk_state(e), cfg, minimal=TRUE)),
   "normalization_method 'none' alone does not exempt negative values")
 txt <- readLines(log_file)
 report(any(grepl("set config$is_log_transformed", txt, fixed=TRUE)),
@@ -185,7 +185,7 @@ cfg <- cfg0
 cfg$n_samples_expr_col <- "n_samps_expr"
 cfg$median_raw_col <- "median_raw"
 cfg$n_features_expr_col <- "n_feats_expr"
-report(!threw(initialize(mk_state(e), cfg, initialized=TRUE)),
+report(!threw(init_state(mk_state(e), cfg, initialized=TRUE)),
   "initialized=TRUE skips the negative value check")
 
 ###############################################################################
@@ -197,7 +197,7 @@ cfg$normalization_method <- "none"
 cfg$feat_col <- "pep"
 cfg$obs_col <- "obs"
 cfg$save_state <- FALSE
-out <- initialize(mk_state(exprs), cfg, minimal=TRUE)
+out <- init_state(mk_state(exprs), cfg, minimal=TRUE)
 
 report(threw(normalize(out$state, out$config, method="RLE")),
   "normalize() rejects a method that would transform log data again")
@@ -208,7 +208,7 @@ report(!threw(normalize(out$state, out$config, method="none")),
   "normalize() allows method 'none' when is_log_transformed is TRUE")
 
 ## the ordinary case: raw input, so any method is fine:
-out <- initialize(mk_state(exprs), cfg0, minimal=TRUE)
+out <- init_state(mk_state(exprs), cfg0, minimal=TRUE)
 cfg <- out$config
 cfg$feat_col <- "pep"
 cfg$obs_col <- "obs"

@@ -21,7 +21,7 @@ Simplifies generation of configurations for
     simpler config as a list containing only the needed parameters. See 
     documentation of the function of interest for the minimal 
     configuration needed and relevant examples.
-  For hypothesis testing or calls to \code{h0testr::initialize()},
+  For hypothesis testing or calls to \code{h0testr::init_state()},
     customize \code{frm}, \code{test_term}, and \code{reference_levels}.
   \code{contrast} is the alternative to \code{test_term}: it names a weighted
     sum of the coefficients of \code{frm} to test within the full model, written
@@ -37,7 +37,7 @@ Simplifies generation of configurations for
     using \code{test_method="deqms"}, which cannot run a joint test at all.
   When using the config to load data from files (e.g. by calling 
     \code{h0testr::load_data(config)}), calling 
-    \code{h0testr::initialize()}, or for aggregating multiple 
+    \code{h0testr::init_state()}, or for aggregating multiple 
     observations per sample (e.g. by calling \code{h0testr::combine_replicates()}),
     or for aggregating precursors into gene/protein groups (e.g. by calling 
     \code{h0testr::combine_precursors()}), you should customize 
@@ -49,7 +49,7 @@ Simplifies generation of configurations for
     see examples in documentation of the function of interest.
   \code{is_log_transformed} declares the scale of \code{state$expression} and
     is the single place the rest of the package looks to find it out. The
-    default \code{FALSE} says the input is raw, so \code{h0testr::initialize()}
+    default \code{FALSE} says the input is raw, so \code{h0testr::init_state()}
     converts zeros to \code{NA} and rejects negative values. Set it to \code{TRUE} for
     input that has already been log transformed or otherwise put on a log-like
     scale: zeros and negative values are then left alone, \code{h0testr::normalize()} 

@@ -22,7 +22,7 @@ Only checks parameters in the configuration. Does not complain about
     \code{NaN} are refused. An infinite proportion is refused as out of
     range rather than as not finite, which says more about a proportion.
   A setting that the chosen method does not consult is not refused and is not
-    reported here: it is a \code{NOTE} from \code{h0testr::test()}, which every
+    reported here: it is a \code{NOTE} from \code{h0testr::test_h0()}, which every
     workflow calls once, this function being called once per step.
   See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.
@@ -56,7 +56,7 @@ config$feature_aggregation_scaled <- TRUE
 try(h0testr::check_config(config))
 
 ## invalid: the penalty needs at least two non-intercept columns, and a two level
-##   factor with an intercept gives one; throws an error once initialize() has
+##   factor with an intercept gives one; throws an error once init_state() has
 ##   resolved the levels:
 config <- h0testr::new_config()
 config$test_method <- "msqrob_agg"
@@ -71,7 +71,7 @@ config$frm <- ~0 + grp
 h0testr::check_config(config)
 
 ## ok: a setting the chosen method does not consult is not this function's business;
-##   h0testr::test() notes it instead:
+##   h0testr::test_h0() notes it instead:
 config <- h0testr::new_config()
 config$test_method <- "trend"
 config$test_ridge <- TRUE
@@ -83,7 +83,7 @@ config <- h0testr::new_config()
 config$run_order <- c("normalize", "combine_featurez", "filter")
 try(h0testr::check_config(config))
 
-## ok: no steps at all, meaning load_data() and then test(), for data that arrives
+## ok: no steps at all, meaning load_data() and then test_h0(), for data that arrives
 ##   already normalized, aggregated and complete:
 config$run_order <- character(0)
 h0testr::check_config(config)

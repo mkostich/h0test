@@ -195,7 +195,7 @@ f.fill_standard <- function(tbl2, result, state, design, method, config) {
   return(tbl2)
 }
 
-## helper for test():
+## helper for test_h0():
 
 f.format_lm <- function(tbl, id_col, config) {
 
@@ -227,7 +227,7 @@ f.format_lm <- function(tbl, id_col, config) {
   return(tbl)
 }
 
-## helper for test():
+## helper for test_h0():
 
 f.format_msqrob <- function(tbl, id_col, config) {
 
@@ -269,7 +269,7 @@ f.format_msqrob <- function(tbl, id_col, config) {
   return(tbl)
 }
 
-## helper for test():
+## helper for test_h0():
 
 f.format_proda <- function(tbl, config) {
   
@@ -308,7 +308,7 @@ f.format_proda <- function(tbl, config) {
   return(tbl)
 }
 
-## helper for test():
+## helper for test_h0():
 
 f.format_prolfqua <- function(tbl, id_col, config) {
 
@@ -338,7 +338,7 @@ f.format_prolfqua <- function(tbl, id_col, config) {
   return(tbl)
 }
 
-## helper for test(). Separate from f.format_limma() because DEqMS's table carries two
+## helper for test_h0(). Separate from f.format_limma() because DEqMS's table carries two
 ##   sets of statistics: the limma columns of the moderated fit, and the sca.*
 ##   columns DEqMS's count-based prior produced:
 
@@ -391,7 +391,7 @@ f.format_deqms <- function(tbl, config) {
   return(tbl)
 }
 
-## helper for test():
+## helper for test_h0():
 
 f.format_limma <- function(tbl, config) {
 

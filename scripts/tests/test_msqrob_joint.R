@@ -157,7 +157,7 @@ cfg0$n_features_min <- 5
 cfg0$test_prior_df <- 5
 cfg0$log_file <- log_file
 
-out <- initialize(list(expression=exprs, features=feats, samples=samps), cfg0,
+out <- init_state(list(expression=exprs, features=feats, samples=samps), cfg0,
   minimal=TRUE)
 state0 <- out$state
 config0 <- out$config
@@ -253,7 +253,7 @@ report(all(is_effect(res_g$hits$gene[1:10])),
 section("joint test agrees with an independent joint test of the same design")
 
 agg <- suppressMessages(combine_features(state0, cfg_g))
-tr <- suppressMessages(test(agg$state, agg$config, method="trend"))$standard
+tr <- suppressMessages(test_h0(agg$state, agg$config, method="trend"))$standard
 cmp <- merge(res_g$hits[, c("gene", "f_statistic", "pval")],
   tr[, c("feature", "pval")], by.x="gene", by.y="feature", suffixes=c(".m", ".t"))
 
@@ -263,7 +263,7 @@ report(stats::cor(cmp$pval.m, cmp$pval.t, method="spearman") > 0.8,
 ###############################################################################
 section("the standardized table")
 
-std <- suppressMessages(test(state0, cfg_g, method="msqrob"))$standard
+std <- suppressMessages(test_h0(state0, cfg_g, method="msqrob"))$standard
 
 report(all(c("feature", "expr", "logfc", "stat", "pval", "adj_pval") %in% names(std)),
   "standard: the usual seven columns")
@@ -391,7 +391,7 @@ state_ct$expression <- log2(state_ct$expression + 1)
 cfg_ct <- sim_ct$config
 cfg_ct$is_log_transformed <- TRUE          ## simulated raw; normalize() is not called here
 cfg_ct$log_file <- log_file
-out_ct <- suppressMessages(initialize(state_ct, cfg_ct, minimal=TRUE))
+out_ct <- suppressMessages(init_state(state_ct, cfg_ct, minimal=TRUE))
 
 tru_ct <- sim_ct$truth[, "age"]            ## dropout can cost a gene all of its peptides
 slope_ct <- 1 / stats::sd(out_ct$state$samples$age)      ## the expected logFC, per year
@@ -425,9 +425,9 @@ report(sum(q_ct[t_ct != 0] < 0.05) >= 11 && sum(q_ct[t_ct == 0] < 0.05) <= 2,
 
 cfg_std_ct <- out_ct$config
 cfg_std_ct$test_method <- "msqrob"
-std_ct <- suppressMessages(test(out_ct$state, cfg_std_ct))$standard
+std_ct <- suppressMessages(test_h0(out_ct$state, cfg_std_ct))$standard
 report(close_enough(std_ct$logfc, fc_ct[match(std_ct$feature, res_ct$hits$gene_id)]),
-  "test() reports that same slope as logfc, not a total swing")
+  "test_h0() reports that same slope as logfc, not a total swing")
 
 ###############################################################################
 cat("\n#############################################\n")

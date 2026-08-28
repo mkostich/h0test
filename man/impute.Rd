@@ -48,7 +48,7 @@ returned by \code{h0testr::impute_methods()}.}
 
 \item{is_log_transformed}{Logical scalar: whether \code{state$expression} has
 been log transformed. Defaults to \code{config$is_log_transformed}, which
-\code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+\code{h0testr::init_state()} and \code{h0testr::normalize()} maintain;
 passing both is an error unless they agree. It is an error for both to be
 unset.}
 
@@ -93,14 +93,14 @@ Impute missing values in \code{state$expression} according to settings
 Imputes missing values using a method and parameters specified in
     \code{config}. The scale of the data is not assumed: it comes from the
     \code{is_log_transformed} argument or from
-    \code{config$is_log_transformed}, which \code{h0testr::initialize()} sets
+    \code{config$is_log_transformed}, which \code{h0testr::init_state()} sets
     and \code{h0testr::normalize()} updates, and whichever answers is recorded
     in the returned \code{config} and passed to the method, so that methods
     without an \code{is_log_transformed} argument of their own still see it.
   Only \code{NA} is missing. If you want \code{0} to be considered missing,
     and have \code{0} in the data, do something like
     \code{exprs[exprs \%in\% 0] <- NA} prior to imputing;
-    \code{h0testr::initialize()} does this for raw input.
+    \code{h0testr::init_state()} does this for raw input.
   An imputed value that cannot be a measurement is an error.
   See documentation for \code{h0testr::new_config()} 
     for more detailed description of configuration parameters.

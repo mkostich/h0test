@@ -21,7 +21,7 @@ usage <- function(msg=NULL) {
     "Test the model comparison h0testr::test_lm() reports: that the p-value and the",
     "statistic are those of the exact F test of the two nested fits rather than of the",
     "likelihood ratio chi-square; that the statistic reaches the standardized table",
-    "h0testr::test() returns; that a feature the design cannot support is left NA",
+    "h0testr::test_h0() returns; that a feature the design cannot support is left NA",
     "rather than reported as a p-value of 1.0, for exactly the features the",
     "estimability filter drops, and that such a feature does not count against the",
     "features that were tested; and that fdr.method defaults to \"BH\".",
@@ -153,7 +153,7 @@ ref_all <- function(state, config) {
 ##   second covariate, so the design for ~grp + sex has three columns and rank three.
 ##   The first eight features carry a group effect, so real p-values as well as null
 ##   ones are compared. Feature ids say what each is for; the missingness that makes the
-##   last four untestable is put in below, after initialize(), so that nothing it does
+##   last four untestable is put in below, after init_state(), so that nothing it does
 ##   can quietly repair the fixture:
 
 set.seed(seed)
@@ -195,7 +195,7 @@ cfg0$log_file <- log_file
 cfg0$frm <- ~grp + sex
 cfg0$test_term <- "grp"
 
-out <- suppressMessages(initialize(list(expression=exprs, features=feats,
+out <- suppressMessages(init_state(list(expression=exprs, features=feats,
   samples=samps), cfg0, minimal=TRUE))
 state0 <- out$state
 config0 <- out$config
@@ -327,14 +327,14 @@ report(!close_enough(hits$p.adj[ok2],
   stats::p.adjust(ifelse(is.na(hits$pval), 1.0, hits$pval), method="BH")[ok2]),
   "which is not what filling the untested ones with 1.0 gave")
 
-## the same features, run through test(), reach the standardized table as NA rather
+## the same features, run through test_h0(), reach the standardized table as NA rather
 ##   than as a hit:
 
-res_t <- suppressMessages(test(state0, config0, method="lm"))
+res_t <- suppressMessages(test_h0(state0, config0, method="lm"))
 std <- res_t$standard
 rownames(std) <- std$feature
 report(all(is.na(std[untestable, "pval"])) && all(is.na(std[untestable, "adj_pval"])),
-  "test(method='lm') carries the NA p-values into the standardized table")
+  "test_h0(method='lm') carries the NA p-values into the standardized table")
 report(!any(untestable %in% std$feature[!is.na(std$adj_pval) & std$adj_pval < 0.05]),
   "so an untested feature is not counted as a hit")
 
@@ -342,7 +342,7 @@ report(!any(untestable %in% std$feature[!is.na(std$adj_pval) & std$adj_pval < 0.
 section("the statistic reaches the standardized table")
 
 report(!all(is.na(std$stat)),
-  "test(method='lm') no longer reports an empty stat column")
+  "test_h0(method='lm') no longer reports an empty stat column")
 report(close_enough(std$stat[!is.na(std$stat)],
   hits[std$feature[!is.na(std$stat)], "stat"]),
   "and the value is the F statistic the engine reported")

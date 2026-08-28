@@ -28,13 +28,13 @@ test_proda(state, config, is_log_transformed = NULL, prior_df = 3, maxit = 20)
 
 \item{is_log_transformed}{Logical scalar: whether \code{state$expression} has
 been log transformed. Defaults to \code{config$is_log_transformed}, which
-\code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+\code{h0testr::init_state()} and \code{h0testr::normalize()} maintain;
 passing both is an error unless they agree.}
 
 \item{prior_df}{Strictly positive count (\code{location_prior_df}) indicating number of dfs for prior.}
 
 \item{maxit}{Strictly positive count indicating maximum number of iterations for \code{proDA::proDA()} algorithm.
-Reachable only by calling this function directly: \code{h0testr::test()} passes no
+Reachable only by calling this function directly: \code{h0testr::test_h0()} passes no
 value for it and no \code{config} key carries one.}
 }
 \value{
@@ -51,9 +51,9 @@ A list with components:
     factor, the difference between its levels, so a log fold change when the input is log
     transformed; for a \strong{continuous} covariate, the change \strong{per unit} of it,
     whose size depends on the units the covariate is recorded in. This is what
-    \code{h0testr::test()} reports as \code{logfc}. The likelihood ratio test reports no
-    effect size at all, having no single contrast to report, and \code{h0testr::test()}
-    reports the total swing instead. See \code{h0testr::test()}.
+    \code{h0testr::test_h0()} reports as \code{logfc}. The likelihood ratio test reports no
+    effect size at all, having no single contrast to report, and \code{h0testr::test_h0()}
+    reports the total swing instead. See \code{h0testr::test_h0()}.
 }
 \description{
 Tests for differential expression using the \code{proDA::proDA()} function.
@@ -92,7 +92,7 @@ rm(samps, sim)
 
 ## no grp:sex term here, so testing "grp" is the single coefficient grptrt, and a
 ##   fold change is reported:
-out <- h0testr::initialize(state, config, minimal=TRUE)
+out <- h0testr::init_state(state, config, minimal=TRUE)
 
 ## actual test:
 result <- h0testr::test_proda(out$state, out$config, is_log_transformed=FALSE)

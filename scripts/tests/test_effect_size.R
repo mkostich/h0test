@@ -1,4 +1,4 @@
-## Tests the logfc and expr columns of the standardized result table h0testr::test()
+## Tests the logfc and expr columns of the standardized result table h0testr::test_h0()
 ##   returns. Every engine leaves logfc empty for a joint test over several
 ##   coefficients, since there is no single contrast to report, and test_lm() and
 ##   test_prolfqua() left it empty for a single coefficient too; expr was empty for
@@ -15,7 +15,7 @@
 usage <- function(msg=NULL) {
   if(!is.null(msg)) cat("ERROR:", msg, "\n\n", file=stderr())
   cat(
-    "Test the logfc and expr columns of the standardized table h0testr::test()",
+    "Test the logfc and expr columns of the standardized table h0testr::test_h0()",
     "returns, for every test method and every shape of test: a single coefficient,",
     "a joint test over the coefficients of a multi-level factor, a continuous",
     "covariate, and a joint test spanning an interaction. Checks logfc against an",
@@ -162,7 +162,7 @@ cfg0$n_features_min <- 5
 cfg0$test_prior_df <- 5
 cfg0$log_file <- log_file
 
-out <- initialize(list(expression=exprs, features=feats, samples=samps), cfg0,
+out <- init_state(list(expression=exprs, features=feats, samples=samps), cfg0,
   minimal=TRUE)
 state0 <- out$state
 config0 <- out$config
@@ -170,7 +170,7 @@ config0 <- out$config
 methods <- c("lm", "trend", "voom", "deqms", "msqrob", "proda", "prolfqua")
 
 ## config for one case, with config$reference_levels cut back to the variables the
-##   formula names, which is what initialize() accepts:
+##   formula names, which is what init_state() accepts:
 
 cfg_for <- function(frm, test_term) {
   cfg <- config0
@@ -181,7 +181,7 @@ cfg_for <- function(frm, test_term) {
   return(cfg)
 }
 
-## deqms and msqrob take peptide level input, the rest gene level; test() is the entry
+## deqms and msqrob take peptide level input, the rest gene level; test_h0() is the entry
 ##   point under test, since it is what builds the standardized table:
 
 run <- function(method, cfg) {
@@ -244,11 +244,11 @@ ref1 <- ref_effect(cfg1)
 for(method in methods) {
   res <- run(method, cfg1)
   if(inherits(res, "try-error")) {
-    report(FALSE, paste0("test(method='", method, "'): runs"))
+    report(FALSE, paste0("test_h0(method='", method, "'): runs"))
     next
   }
   ok <- !any(is.na(res$standard$logfc)) && !any(is.na(res$standard$expr))
-  report(ok, paste0("test(method='", method, "'): logfc and expr are both reported"))
+  report(ok, paste0("test_h0(method='", method, "'): logfc and expr are both reported"))
 }
 
 ## the four engines whose fit is ordinary least squares on this design must all report
@@ -261,7 +261,7 @@ for(method in c("lm", "trend", "deqms", "prolfqua")) {
   res <- run(method, cfg1)
   cmp <- aligned(res, ref1)
   report(close_enough(cmp$got, cmp$want, tol=1e-6),
-    paste0("test(method='", method, "'): logfc is the least squares coefficient"))
+    paste0("test_h0(method='", method, "'): logfc is the least squares coefficient"))
 }
 
 ## a signed quantity: the tested genes carry no sex effect, so both signs occur:
@@ -301,7 +301,7 @@ for(method in c("lm", "trend", "prolfqua")) {
   res <- run(method, cfg2)
   cmp <- aligned(res, ref2)
   report(close_enough(cmp$got, cmp$want, tol=1e-6),
-    paste0("test(method='", method, "'): joint test logfc is the total swing"))
+    paste0("test_h0(method='", method, "'): joint test logfc is the total swing"))
 }
 
 res <- run("trend", cfg2)
@@ -402,30 +402,30 @@ own_effect <- function(coefs, design, cols) {
 res <- run("voom", cfg2)
 cmp <- aligned(res, own_effect(res$fit$coefficients, design2, c("grpb", "grpc")))
 report(close_enough(cmp$got, cmp$want, tol=1e-6),
-  "test(method='voom'): logfc is the swing of voom's own weighted coefficients")
+  "test_h0(method='voom'): logfc is the swing of voom's own weighted coefficients")
 ref_cmp <- aligned(res, ref2)
 report(!close_enough(ref_cmp$got, ref_cmp$want, tol=1e-6),
-  "test(method='voom'): those are not the ordinary least squares coefficients")
+  "test_h0(method='voom'): those are not the ordinary least squares coefficients")
 
 ## proDA fits its own model, so its effect size is its own coefficients rather than the
 ##   least squares ones, and has to match what proDA::proDA() reports:
 
 res <- run("proda", cfg2)
 if(inherits(res, "try-error")) {
-  report(FALSE, "test(method='proda'): runs the joint test")
-  report(FALSE, "test(method='proda'): logfc is the swing of proDA's coefficients")
+  report(FALSE, "test_h0(method='proda'): runs the joint test")
+  report(FALSE, "test_h0(method='proda'): logfc is the swing of proDA's coefficients")
 } else {
   report(!any(is.na(res$standard$logfc)),
-    "test(method='proda'): logfc is reported for the joint test")
+    "test_h0(method='proda'): logfc is reported for the joint test")
   coefs <- stats::coefficients(res$fit)[, c("grpb", "grpc"), drop=FALSE]
   x_test <- design2$X[, design2$cols_test, drop=FALSE]
   want <- apply(x_test %*% t(coefs), 2, function(v) diff(range(v)))
   cmp <- aligned(res, want)
   report(close_enough(cmp$got, cmp$want, tol=1e-6),
-    "test(method='proda'): logfc is the swing of proDA's own coefficients")
+    "test_h0(method='proda'): logfc is the swing of proDA's own coefficients")
   ref_cmp <- aligned(res, ref2)
   report(!close_enough(ref_cmp$got, ref_cmp$want, tol=1e-6),
-    "test(method='proda'): those are not the least squares coefficients")
+    "test_h0(method='proda'): those are not the least squares coefficients")
 }
 
 ## a feature whose coefficient could not be estimated has no effect size, rather than
@@ -452,7 +452,7 @@ section("intercept test with a continuous covariate: warned about")
 cfg6 <- cfg_for(~sex + age, "1")
 n0 <- log_len()
 res <- run("trend", cfg6)
-report(!inherits(res, "try-error"), "test(): the intercept test still runs")
+report(!inherits(res, "try-error"), "test_h0(): the intercept test still runs")
 report(log_has(n0, "config$test_term names the intercept", "age",
     "center the covariate"),
   "f.design_test_cols(): warns that the intercept depends on where zero falls")

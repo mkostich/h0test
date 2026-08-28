@@ -42,8 +42,8 @@ List with a \code{$hits} data.frame of results and a \code{$fit} that is
     two level factor, the difference between its levels, so a log fold change when the input
     is log transformed; for a \strong{continuous} covariate, the change \strong{per unit} of
     it, whose size depends on the units the covariate is recorded in. This is what
-    \code{h0testr::test()} reports as \code{logfc} when one design matrix column carries the
-    test; see \code{h0testr::test()} for what it reports for a joint test or a contrast.
+    \code{h0testr::test_h0()} reports as \code{logfc} when one design matrix column carries the
+    test; see \code{h0testr::test_h0()} for what it reports for a joint test or a contrast.
 }
 \description{
 Tests for differential expression by fitting full and reduced linear
@@ -72,7 +72,7 @@ config$is_log_transformed <- TRUE   ## normalize() would; logged just above
 rm(samps, sim)
 
 ## set up and check covariates and parameters:
-out <- h0testr::initialize(state, config, minimal=TRUE)
+out <- h0testr::init_state(state, config, minimal=TRUE)
 out$state <- h0testr::filter_features_by_formula(out$state, out$config)
 
 tbl <- h0testr::test_lm(out$state, out$config)

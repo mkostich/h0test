@@ -120,12 +120,12 @@ section("covariate classification")
 state <- mk_state(samps0)
 
 cfg <- mk_cfg(~sex, "sex", c(sex="F"))
-out <- try(initialize(state, cfg, minimal=TRUE), silent=TRUE)
+out <- try(init_state(state, cfg, minimal=TRUE), silent=TRUE)
 report(!inherits(out, "try-error"), "0 continuous covariates accepted")
 report(identical(unname(out$config$covariate_types), "factor"), "sex classified factor")
 
 cfg <- mk_cfg(~sex + age, "age", c(sex="F"))
-out <- try(initialize(state, cfg, minimal=TRUE), silent=TRUE)
+out <- try(init_state(state, cfg, minimal=TRUE), silent=TRUE)
 report(!inherits(out, "try-error"), "1 continuous covariate accepted")
 types <- out$config$covariate_types
 report(identical(types[["age"]], "numeric") && identical(types[["sex"]], "factor"),
@@ -133,25 +133,25 @@ report(identical(types[["age"]], "numeric") && identical(types[["sex"]], "factor
 report(is.numeric(out$state$samples$age), "continuous covariate left numeric")
 
 cfg <- mk_cfg(~age + wt, "age", character(0))
-out <- try(initialize(state, cfg, minimal=TRUE), silent=TRUE)
+out <- try(init_state(state, cfg, minimal=TRUE), silent=TRUE)
 report(!inherits(out, "try-error"), "2 continuous covariates, no factors, accepted")
 
 cfg <- mk_cfg(~age * wt, "age:wt", character(0))
-out <- try(initialize(state, cfg, minimal=TRUE), silent=TRUE)
+out <- try(init_state(state, cfg, minimal=TRUE), silent=TRUE)
 report(!inherits(out, "try-error"), "numeric:numeric interaction accepted")
 
 cfg <- mk_cfg(~age * sex, "age:sex", c(sex="M"))
-out <- try(initialize(state, cfg, minimal=TRUE), silent=TRUE)
+out <- try(init_state(state, cfg, minimal=TRUE), silent=TRUE)
 report(!inherits(out, "try-error"), "numeric:factor interaction accepted")
 report(identical(levels(out$state$samples$sex), c("M", "F")),
   "declared non-alphabetical reference level honored")
 
 cfg <- mk_cfg(~sex + bead, "sex", c(sex="F"))
-report(threw(initialize(state, cfg, minimal=TRUE)),
+report(threw(init_state(state, cfg, minimal=TRUE)),
   "undeclared character covariate rejected")
 
 cfg <- mk_cfg(~sex + flag, "sex", c(sex="F"))
-out <- try(initialize(state, cfg, minimal=TRUE), silent=TRUE)
+out <- try(init_state(state, cfg, minimal=TRUE), silent=TRUE)
 report(!inherits(out, "try-error"), "undeclared logical covariate accepted")
 report(identical(levels(out$state$samples$flag), c("FALSE", "TRUE")),
   "logical covariate levels FALSE, TRUE")
@@ -159,7 +159,7 @@ report(identical(levels(out$state$samples$flag), c("FALSE", "TRUE")),
 samps <- samps0
 samps$dose <- rep(c(1, 2), 4)
 cfg <- mk_cfg(~sex + dose, "dose", c(sex="F", dose="2"))
-out <- try(initialize(mk_state(samps), cfg, minimal=TRUE), silent=TRUE)
+out <- try(init_state(mk_state(samps), cfg, minimal=TRUE), silent=TRUE)
 report(!inherits(out, "try-error"), "numeric covariate declared in reference_levels accepted")
 report(identical(levels(out$state$samples$dose), c("2", "1")),
   "declared numeric covariate becomes factor with declared reference")
@@ -167,10 +167,10 @@ report(identical(levels(out$state$samples$dose), c("2", "1")),
 ## a stale cached classification must not win over the current state:
 cfg <- mk_cfg(~sex + age, "age", c(sex="F"))
 cfg$covariate_types <- c(sex="numeric", age="factor")
-out <- try(initialize(state, cfg, minimal=TRUE), silent=TRUE)
+out <- try(init_state(state, cfg, minimal=TRUE), silent=TRUE)
 report(!inherits(out, "try-error") &&
   identical(out$config$covariate_types[["age"]], "numeric"),
-  "stale config$covariate_types discarded by initialize()")
+  "stale config$covariate_types discarded by init_state()")
 
 ###############################################################################
 section("reference levels and reported levels")
@@ -179,7 +179,7 @@ section("reference levels and reported levels")
 samps <- samps0
 samps$grp <- rep(c("ctl", "trt", "xtra", "ctl"), 2)
 cfg <- mk_cfg(~grp, "grp", c(grp="trt"))
-out <- try(initialize(mk_state(samps), cfg, minimal=TRUE), silent=TRUE)
+out <- try(init_state(mk_state(samps), cfg, minimal=TRUE), silent=TRUE)
 report(!inherits(out, "try-error"), "3-level factor with declared reference accepted")
 report(identical(levels(out$state$samples$grp), c("trt", "ctl", "xtra")),
   "declared reference level first, remaining levels sorted")
@@ -191,7 +191,7 @@ report(setequal(names(out$config$factor_levels), "grp"),
 ## the resolved levels are also logged, so they are visible in a run log:
 cfg <- mk_cfg(~grp, "grp", c(grp="trt"))
 n0 <- length(readLines(log_file))
-out <- try(initialize(mk_state(samps), cfg, minimal=TRUE), silent=TRUE)
+out <- try(init_state(mk_state(samps), cfg, minimal=TRUE), silent=TRUE)
 txt <- readLines(log_file)
 txt <- txt[(n0 + 1):length(txt)]
 report(any(grepl("covariate grp : factor; levels: trt ctl xtra ; reference: trt",
@@ -199,25 +199,25 @@ report(any(grepl("covariate grp : factor; levels: trt ctl xtra ; reference: trt"
 
 ## continuous covariates have no levels to report:
 cfg <- mk_cfg(~sex + age, "age", c(sex="F"))
-out <- try(initialize(state, cfg, minimal=TRUE), silent=TRUE)
+out <- try(init_state(state, cfg, minimal=TRUE), silent=TRUE)
 report(setequal(names(out$config$factor_levels), "sex"),
   "continuous covariate absent from config$factor_levels")
 
 ## a typo in the one level the user does type is still caught:
 cfg <- mk_cfg(~grp, "grp", c(grp="Trt"))
-report(threw(initialize(mk_state(samps), cfg, minimal=TRUE)),
+report(threw(init_state(mk_state(samps), cfg, minimal=TRUE)),
   "reference level absent from the data rejected")
 
 ## but a level present in the data need not be declared:
 cfg <- mk_cfg(~grp, "grp", c(grp="ctl"))
-out <- try(initialize(mk_state(samps), cfg, minimal=TRUE), silent=TRUE)
+out <- try(init_state(mk_state(samps), cfg, minimal=TRUE), silent=TRUE)
 report(!inherits(out, "try-error") &&
   identical(levels(out$state$samples$grp), c("ctl", "trt", "xtra")),
   "undeclared non-reference levels accepted")
 
 ## a declared variable that is not in the formula is a misconfiguration:
 cfg <- mk_cfg(~age, "age", c(sex="F"))
-report(threw(initialize(state, cfg, minimal=TRUE)),
+report(threw(init_state(state, cfg, minimal=TRUE)),
   "reference_levels entry absent from config$frm rejected")
 
 ###############################################################################
@@ -226,31 +226,31 @@ section("covariate value checks")
 samps <- samps0
 samps$age[3] <- NA
 cfg <- mk_cfg(~sex + age, "age", c(sex="F"))
-report(threw(initialize(mk_state(samps), cfg, minimal=TRUE)),
+report(threw(init_state(mk_state(samps), cfg, minimal=TRUE)),
   "NA in continuous covariate rejected")
 
 samps <- samps0
 samps$sex[3] <- NA
 cfg <- mk_cfg(~sex + age, "age", c(sex="F"))
-report(threw(initialize(mk_state(samps), cfg, minimal=TRUE)),
+report(threw(init_state(mk_state(samps), cfg, minimal=TRUE)),
   "NA in factor covariate rejected")
 
 samps <- samps0
 samps$age[3] <- Inf
 cfg <- mk_cfg(~sex + age, "age", c(sex="F"))
-report(threw(initialize(mk_state(samps), cfg, minimal=TRUE)),
+report(threw(init_state(mk_state(samps), cfg, minimal=TRUE)),
   "non-finite continuous covariate rejected")
 
 samps <- samps0
 samps$age <- 40
 cfg <- mk_cfg(~sex + age, "sex", c(sex="F"))
-report(threw(initialize(mk_state(samps), cfg, minimal=TRUE)),
+report(threw(init_state(mk_state(samps), cfg, minimal=TRUE)),
   "constant continuous covariate rejected")
 
 samps <- samps0
 samps$sex <- "F"
 cfg <- mk_cfg(~sex + age, "age", c(sex="F"))
-report(threw(initialize(mk_state(samps), cfg, minimal=TRUE)),
+report(threw(init_state(mk_state(samps), cfg, minimal=TRUE)),
   "constant factor covariate rejected")
 
 ## warning, not error, for a continuous covariate with few distinct values:
@@ -258,7 +258,7 @@ samps <- samps0
 samps$age <- rep(c(4, 12), 4)
 cfg <- mk_cfg(~sex + age, "age", c(sex="F"))
 n0 <- length(readLines(log_file))
-out <- try(initialize(mk_state(samps), cfg, minimal=TRUE), silent=TRUE)
+out <- try(init_state(mk_state(samps), cfg, minimal=TRUE), silent=TRUE)
 txt <- readLines(log_file)
 txt <- txt[(n0 + 1):length(txt)]
 report(!inherits(out, "try-error"),
@@ -268,7 +268,7 @@ report(any(grepl("WARNING: numeric", txt)), "few-distinct-values warning logged"
 ## and the warning respects the configured cutoff:
 cfg <- mk_cfg(~sex + age, "age", c(sex="F"), n_distinct_numeric_warn=1)
 n0 <- length(readLines(log_file))
-out <- try(initialize(mk_state(samps), cfg, minimal=TRUE), silent=TRUE)
+out <- try(init_state(mk_state(samps), cfg, minimal=TRUE), silent=TRUE)
 txt <- readLines(log_file)
 txt <- txt[(n0 + 1):length(txt)]
 report(!any(grepl("WARNING: numeric", txt)),
@@ -333,7 +333,7 @@ samps <- data.frame(
   stringsAsFactors=FALSE
 )
 cfg <- mk_cfg(~sex + age, "age", c(sex="F"), sample_id_col="sample_id")
-out <- try(initialize(mk_state(samps), cfg, minimal=TRUE), silent=TRUE)
+out <- try(init_state(mk_state(samps), cfg, minimal=TRUE), silent=TRUE)
 out2 <- try(combine_replicates(out$state, out$config, fn=sum), silent=TRUE)
 report(!inherits(out2, "try-error"), "combine_replicates() ok with constant covariates")
 report(!inherits(out2, "try-error") && ncol(out2$state$expression) %in% 4,
@@ -343,7 +343,7 @@ report(!inherits(out2, "try-error") && ncol(out2$state$expression) %in% 4,
 samps2 <- samps
 samps2$age[2] <- 22
 cfg <- mk_cfg(~sex + age, "age", c(sex="F"), sample_id_col="sample_id")
-out <- try(initialize(mk_state(samps2), cfg, minimal=TRUE), silent=TRUE)
+out <- try(init_state(mk_state(samps2), cfg, minimal=TRUE), silent=TRUE)
 report(threw(combine_replicates(out$state, out$config, fn=sum)),
   "continuous covariate varying within sample rejected")
 
@@ -351,7 +351,7 @@ report(threw(combine_replicates(out$state, out$config, fn=sum)),
 samps3 <- samps
 samps3$sex[2] <- "M"
 cfg <- mk_cfg(~sex + age, "age", c(sex="F"), sample_id_col="sample_id")
-out <- try(initialize(mk_state(samps3), cfg, minimal=TRUE), silent=TRUE)
+out <- try(init_state(mk_state(samps3), cfg, minimal=TRUE), silent=TRUE)
 report(threw(combine_replicates(out$state, out$config, fn=sum)),
   "factor covariate varying within sample rejected")
 
@@ -362,7 +362,7 @@ section("filter_features_by_formula()")
 ##   here every feature is fully observed, so all should be kept:
 state <- mk_state(samps0)
 cfg <- mk_cfg(~sex + age, "age", c(sex="F"))
-out <- try(initialize(state, cfg, minimal=TRUE), silent=TRUE)
+out <- try(init_state(state, cfg, minimal=TRUE), silent=TRUE)
 st <- try(filter_features_by_formula(out$state, out$config), silent=TRUE)
 report(!inherits(st, "try-error") &&
   nrow(st$expression) %in% nrow(out$state$expression),
@@ -372,7 +372,7 @@ report(!inherits(st, "try-error") &&
 ##   Formula has the continuous covariate only, so that the factor screen
 ##   cannot be what drops the feature:
 cfg_age <- mk_cfg(~age, "age", character(0))
-out_age <- try(initialize(mk_state(samps0), cfg_age, minimal=TRUE), silent=TRUE)
+out_age <- try(init_state(mk_state(samps0), cfg_age, minimal=TRUE), silent=TRUE)
 st0 <- out_age$state
 st0$expression[1, 2:8] <- NA
 st0$expression[2, 4:8] <- NA
@@ -387,7 +387,7 @@ samps <- samps0
 samps$age <- rep(c(10, 20, 30, 40), 2)
 state <- mk_state(samps)
 cfg <- mk_cfg(~sex + age, "age", c(sex="F"))
-out <- try(initialize(state, cfg, minimal=TRUE), silent=TRUE)
+out <- try(init_state(state, cfg, minimal=TRUE), silent=TRUE)
 st0 <- out$state
 st0$expression[3, !(samps$age %in% 10)] <- NA
 st <- try(filter_features_by_formula(st0, out$config), silent=TRUE)
@@ -397,7 +397,7 @@ report(!inherits(st, "try-error") && !("f3" %in% rownames(st$expression)),
 ## factor behavior unchanged: feature observed in only one level is dropped:
 state <- mk_state(samps0)
 cfg <- mk_cfg(~sex, "sex", c(sex="F"))
-out <- try(initialize(state, cfg, minimal=TRUE), silent=TRUE)
+out <- try(init_state(state, cfg, minimal=TRUE), silent=TRUE)
 st0 <- out$state
 st0$expression[4, samps0$sex %in% "M"] <- NA
 st <- try(filter_features_by_formula(st0, out$config), silent=TRUE)
@@ -409,7 +409,7 @@ report(!inherits(st, "try-error") && nrow(st$expression) %in%
 ## a variable appearing only inside an interaction is screened too:
 state <- mk_state(samps0)
 cfg <- mk_cfg(~sex + sex:age, "sex:age", c(sex="F"))
-out <- try(initialize(state, cfg, minimal=TRUE), silent=TRUE)
+out <- try(init_state(state, cfg, minimal=TRUE), silent=TRUE)
 st0 <- out$state
 st0$expression[5, 2:8] <- NA
 st <- try(filter_features_by_formula(st0, out$config), silent=TRUE)
@@ -418,7 +418,7 @@ report(!inherits(st, "try-error") && !("f5" %in% rownames(st$expression)),
 
 ## interaction of two continuous covariates:
 cfg <- mk_cfg(~age * wt, "age:wt", character(0))
-out <- try(initialize(mk_state(samps0), cfg, minimal=TRUE), silent=TRUE)
+out <- try(init_state(mk_state(samps0), cfg, minimal=TRUE), silent=TRUE)
 st <- try(filter_features_by_formula(out$state, out$config), silent=TRUE)
 report(!inherits(st, "try-error") &&
   nrow(st$expression) %in% nrow(out$state$expression),
@@ -472,8 +472,8 @@ if(!is.null(data_dir)) {
   cfg$impute_quantile <- 0
   cfg$test_method <- "trend"
 
-  out <- try(initialize(state, cfg), silent=TRUE)
-  report(!inherits(out, "try-error"), "real data: initialize() with continuous covariate")
+  out <- try(init_state(state, cfg), silent=TRUE)
+  report(!inherits(out, "try-error"), "real data: init_state() with continuous covariate")
 
   if(!inherits(out, "try-error")) {
     report(identical(out$config$covariate_types[["age"]], "numeric"),
@@ -495,7 +495,7 @@ if(!is.null(data_dir)) {
   ## an undeclared character covariate in the real metadata is an error:
   cfg$frm <- ~sex + bead
   cfg$test_term <- "sex"
-  report(threw(initialize(state, cfg)), "real data: undeclared bead rejected")
+  report(threw(init_state(state, cfg)), "real data: undeclared bead rejected")
 
   ## run holds values like 001 and 001.2, so read.table() makes it numeric, and
   ##   it is therefore treated as continuous; it has 27 distinct values, so the
@@ -503,7 +503,7 @@ if(!is.null(data_dir)) {
   cfg$frm <- ~sex + run
   cfg$test_term <- "sex"
   n0 <- length(readLines(log_file))
-  out <- try(initialize(state, cfg), silent=TRUE)
+  out <- try(init_state(state, cfg), silent=TRUE)
   txt <- readLines(log_file)
   txt <- txt[(n0 + 1):length(txt)]
   report(!inherits(out, "try-error") &&
@@ -515,7 +515,7 @@ if(!is.null(data_dir)) {
   ## with the cutoff raised above its number of distinct values, it warns:
   cfg$n_distinct_numeric_warn <- 30
   n0 <- length(readLines(log_file))
-  out <- try(initialize(state, cfg), silent=TRUE)
+  out <- try(init_state(state, cfg), silent=TRUE)
   txt <- readLines(log_file)
   txt <- txt[(n0 + 1):length(txt)]
   report(!inherits(out, "try-error") && any(grepl("WARNING: numeric", txt)),

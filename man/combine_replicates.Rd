@@ -50,7 +50,7 @@ Combines signals for each feature across technical replicates by taking median.
     Such groups are therefore identified before \code{fn} runs and set to
     \code{NA} afterwards, whatever \code{fn} returned, so that a missing value
     is never recorded as a measurement of zero. \code{NA} is the only indicator
-    of a missing value; see \code{h0testr::initialize()}.
+    of a missing value; see \code{h0testr::init_state()}.
   Deletes \code{state$samples[, config$obs_id_col} if not same as
     \code{config$sample_id_col}.
   Sets \code{config$obs_col} and \code{config$obs_id_col} to 

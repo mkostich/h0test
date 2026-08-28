@@ -25,7 +25,7 @@ Calculates the number of samples in which each feature was measured
 }
 \details{
 A feature counts as measured in a sample when its value there is
-  not \code{NA}; raw zeros are converted to \code{NA} by \code{h0testr::initialize()}.
+  not \code{NA}; raw zeros are converted to \code{NA} by \code{h0testr::init_state()}.
 }
 \examples{
 set.seed(101)

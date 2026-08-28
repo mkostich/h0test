@@ -44,7 +44,7 @@ Filter features based on number of samples in which feature was measured.
 }
 \details{
 A value is missing if and only if it is \code{NA}. Raw zeros are converted
-    to \code{NA} by \code{h0testr::initialize()}, so a feature is counted as
+    to \code{NA} by \code{h0testr::init_state()}, so a feature is counted as
     measured in a sample whenever its value there is not \code{NA},
     regardless of sign.
   Feature constant if \code{length(unique(expression_values)) \%in\% 1}.

@@ -101,13 +101,13 @@ List with elements:
   \tabular{ll}{
     \code{state} \cr \tab List of \code{expression} (numeric matrix of positive whole numbers,
       features by observations, with \code{NA} wherever MNAR or MCAR made a value missing),
-      \code{features} and \code{samples}, ready for \code{\link{initialize}}. \cr
+      \code{features} and \code{samples}, ready for \code{\link{init_state}}. \cr
     \code{config} \cr \tab \code{\link{new_config}} with \code{frm}, \code{test_term}, the
       four id columns and \code{reference_levels} set to match; \code{save_state} set
       \code{FALSE}, so that a simulation writes no files; and \code{n_features_min} set to 1,
       its default of 1000 being meant for a real dataset and otherwise filtering away every
       observation of a simulation of fewer than 1000 genes. \code{covariate_types} and
-      \code{factor_levels} are left for \code{\link{initialize}} to derive. \cr
+      \code{factor_levels} are left for \code{\link{init_state}} to derive. \cr
     \code{truth} \cr \tab Numeric matrix of true coefficients on the log2 scale, one row per
       surviving gene and one column per column of the model matrix, the intercept excluded. \cr
     \code{feat_gene} \cr \tab Character vector naming the gene of each feature in

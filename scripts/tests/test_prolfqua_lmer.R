@@ -13,9 +13,9 @@ usage <- function(msg=NULL) {
     "config$test_term and config$contrast keep the same meaning as on the least",
     "squares path, that a gene with a single observed feature falls back to a least",
     "squares fit rather than being dropped, that already aggregated input is refused,",
-    "that the moderation keys are reported as unused, that test() and tune() carry the",
+    "that the moderation keys are reported as unused, that test_h0() and tune() carry the",
     "results at gene level, and that a continuous config$test_term is recovered as a",
-    "slope per unit of the covariate, through test() since the engine reports no",
+    "slope per unit of the covariate, through test_h0() since the engine reports no",
     "effect size of its own.",
     "",
     "Usage: Rscript test_prolfqua_lmer.R <r_dir>",
@@ -138,7 +138,7 @@ cfg0 <- list(
   log_file=log_file, is_log_transformed=TRUE
 )
 
-init <- function(state=state0, cfg=cfg0) initialize(state, cfg, minimal=TRUE)
+init <- function(state=state0, cfg=cfg0) init_state(state, cfg, minimal=TRUE)
 mixed <- function(o) test_prolfqua(o$state, o$config, mixed=TRUE)
 
 ###############################################################################
@@ -355,7 +355,7 @@ report(nrow(r5$hits) %in% (n_gene + 1), "the other genes are unaffected in numbe
 ##   match what the least squares path reports for that one feature with moderation off:
 cfg <- cfg0
 cfg$test_moderate <- FALSE
-o6 <- initialize(st_solo, cfg, minimal=TRUE)
+o6 <- init_state(st_solo, cfg, minimal=TRUE)
 plain <- test_prolfqua(o6$state, o6$config)
 p_plain <- plain$hits$p.value[plain$hits$pep %in% f2$pep[1]]
 p_solo <- r5$hits$p.value[r5$hits$gene %in% "solo"]
@@ -363,7 +363,7 @@ report(length(p_plain) %in% 1 && isTRUE(all.equal(p_plain, p_solo)),
   "the fallback p-value equals the unmoderated least squares p-value for that feature")
 
 ## every gene having exactly one feature is the aggregated case by another name, and
-##   initialize() already treats it as one: gene ids with no duplicates mean there is
+##   init_state() already treats it as one: gene ids with no duplicates mean there is
 ##   nothing to aggregate, so it sets config$gene_id_col to config$feat_id_col. The
 ##   mixed path then has no feature level to model and refuses, which is the same
 ##   refusal as for input that has been through combine_features():
@@ -373,7 +373,7 @@ st_all1 <- state0
 st_all1$features <- f3
 o7 <- init(st_all1)
 report(identical(o7$config$gene_id_col, o7$config$feat_id_col),
-  "initialize() collapses the id columns when every gene has one feature")
+  "init_state() collapses the id columns when every gene has one feature")
 m0 <- mark()
 report(threw(mixed(o7)), "so the mixed path refuses that state")
 report(logged("the mixed path needs feature level input", m0),
@@ -522,12 +522,12 @@ report(is.null(f.wald_f(fit_a, Lbad)),
   "f.wald_f() returns NULL when a tested coefficient is not in the fit")
 
 ###############################################################################
-section("through test()")
+section("through test_h0()")
 
 o12 <- init()
-tst <- test(o12$state, o12$config, method="prolfqua_lmer")
+tst <- test_h0(o12$state, o12$config, method="prolfqua_lmer")
 
-report(nrow(tst$standard) %in% n_gene, "test() returns one row per gene")
+report(nrow(tst$standard) %in% n_gene, "test_h0() returns one row per gene")
 report(setequal(tst$standard$feature, unique(gene)),
   "the standardized table is keyed by gene id")
 report(all(c("expr", "logfc", "stat", "pval", "adj_pval") %in% names(tst$standard)),
@@ -559,7 +559,7 @@ report(!f.gene_level_method("prolfqua"),
 ###############################################################################
 section("f.tune2() reports rather than stops")
 
-## a full config, since f.tune2() runs filter() and impute() before the test and those
+## a full config, since f.tune2() runs filter_state() and impute() before the test and those
 ##   read many more keys than the tests above need:
 cfg <- new_config()
 cfg$log_file <- log_file
@@ -579,7 +579,7 @@ cfg$is_log_transformed <- TRUE
 
 st6 <- list(expression=exprs, features=data.frame(gene=rownames(exprs),
   stringsAsFactors=FALSE), samples=samps)
-o13 <- initialize(st6, cfg, minimal=TRUE)
+o13 <- init_state(st6, cfg, minimal=TRUE)
 m0 <- mark()
 row <- try(f.tune2(o13$state, o13$config), silent=TRUE)
 
@@ -618,7 +618,7 @@ state_ct$expression <- log2(state_ct$expression + 1)
 cfg_ct <- sim_ct$config
 cfg_ct$is_log_transformed <- TRUE          ## simulated raw; normalize() is not called here
 cfg_ct$log_file <- log_file
-out_ct <- suppressMessages(initialize(state_ct, cfg_ct, minimal=TRUE))
+out_ct <- suppressMessages(init_state(state_ct, cfg_ct, minimal=TRUE))
 
 tru_ct <- sim_ct$truth[, "age"]            ## dropout can cost a gene all of its peptides
 slope_ct <- 1 / stats::sd(out_ct$state$samples$age)      ## the expected logFC, per year
@@ -632,19 +632,19 @@ report(all(res_ct$hits$Df %in% 1),
 report(!any(c("logFC", "diff") %in% names(res_ct$hits)),
   "the engine reports no effect size of its own here either, only the F test")
 
-## so the slope has to come through test(), which fills logfc from the fitted coefficients.
+## so the slope has to come through test_h0(), which fills logfc from the fitted coefficients.
 ##   One column carries the test, so that is the signed coefficient rather than the total
 ##   swing a joint test would report:
 
 cfg_std_ct <- out_ct$config
 cfg_std_ct$test_method <- "prolfqua_lmer"
-std_ct <- suppressMessages(test(out_ct$state, cfg_std_ct))$standard
+std_ct <- suppressMessages(test_h0(out_ct$state, cfg_std_ct))$standard
 fc_ct <- std_ct$logfc
 t_ct <- tru_ct[as.character(std_ct$feature)]
 q_ct <- stats::p.adjust(std_ct$pval, method="BH")
 
 report(nrow(std_ct) %in% nrow(sim_ct$truth) && !any(is.na(fc_ct)),
-  "test() fills a logfc for every gene from those coefficients")
+  "test_h0() fills a logfc for every gene from those coefficients")
 report(all(sign(fc_ct[t_ct != 0]) == sign(t_ct[t_ct != 0])),
   "the sign of every planted slope is recovered")
 report(abs(mean(abs(fc_ct[t_ct != 0])) - slope_ct) < 0.05 * slope_ct,

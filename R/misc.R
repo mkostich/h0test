@@ -590,7 +590,7 @@ f.design_check_rank <- function(X, rank_all, parsed, config,
       paste("column(s)", paste(empty, collapse=" "), "are all zeros, so no",
         "observation is at the level they code: drop the unused level(s) from",
         "the covariate in state$samples (droplevels()), or drop the term.",
-        "h0testr::test() and the other fitting entry points drop them for you;",
+        "h0testr::test_h0() and the other fitting entry points drop them for you;",
         "a design built directly from state$samples does not")
     } else {
       paste("no column is all zeros, so two terms of config$frm code the same",
@@ -1019,7 +1019,7 @@ f.covariate_types <- function(state, config) {
         paste(bad, cached[bad], sep="=", collapse=" "), "\n",
         " from state$samples and config$reference_levels:",
         paste(bad, out[bad], sep="=", collapse=" "), "\n",
-        "config$covariate_types is set by initialize() for the state it was",
+        "config$covariate_types is set by init_state() for the state it was",
         "run on, so a disagreement means this config is being used with other",
         "data, or was edited by hand;", "\n",
         "set config$covariate_types to NULL to have it derived from",
@@ -1274,7 +1274,7 @@ f.check_dimnames <- function(state, config, key, fn_name="f.check_state") {
       " ", paste0("config$", key, ":"), nom, "\n",
       " ", paste0("names(", meta_lab, "):"), names(meta), "\n",
       "  to fix, name a column of", meta_lab, "there;",
-      "h0testr::initialize() sets config$feat_col and config$obs_col from",
+      "h0testr::init_state() sets config$feat_col and config$obs_col from",
       "config$feat_id_col and config$obs_id_col", config=config)
   }
 

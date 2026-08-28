@@ -166,7 +166,7 @@ cfg0$n_features_min <- 5
 cfg0$test_prior_df <- 5
 cfg0$log_file <- log_file
 
-out <- initialize(list(expression=exprs, features=feats, samples=samps), cfg0,
+out <- init_state(list(expression=exprs, features=feats, samples=samps), cfg0,
   minimal=TRUE)
 state0 <- out$state
 config0 <- out$config
@@ -331,7 +331,7 @@ st2$samples <- samps2
 
 cfg_al <- cfg_con(~grp + dup, "grpb - dupB")
 cfg_al$reference_levels <- c(grp="a", dup="A")
-cfg_al <- initialize(st2, cfg_al, minimal=TRUE)$config
+cfg_al <- init_state(st2, cfg_al, minimal=TRUE)$config
 
 report(errs_with(f.design_test_cols(st2, cfg_al), "is not", "estimable",
   "row space of the design matrix"),
@@ -360,11 +360,11 @@ report(!inherits(try(suppressMessages(report_config(cfg_bc)), silent=TRUE),
   "try-error"),
   "config: report_config() does not look for a test_term in a contrast run")
 
-st_init <- try(suppressMessages(initialize(
+st_init <- try(suppressMessages(init_state(
   list(expression=exprs, features=feats, samples=samps), cfg_bc, minimal=TRUE)),
   silent=TRUE)
 report(!inherits(st_init, "try-error"),
-  "config: initialize() accepts a config testing a contrast")
+  "config: init_state() accepts a config testing a contrast")
 
 ###############################################################################
 section("the marginality warning")
@@ -415,7 +415,7 @@ res <- list()
 
 for(m in methods) {
   cfg <- cfg_con(~grp + sex + batch + age, "grpc - grpb", method=m)
-  out1 <- try(suppressMessages(test(state0, cfg)), silent=TRUE)
+  out1 <- try(suppressMessages(test_h0(state0, cfg)), silent=TRUE)
   res[[m]] <- out1
   ok <- !inherits(out1, "try-error") && is.data.frame(out1$standard) &&
     identical(names(out1$standard), c("feature", "expr", "logfc", "stat", "lod",
@@ -492,7 +492,7 @@ section("the p-values are the test of the contrast")
 cfg_ex <- cfg_con(~grp + sex + batch + age, "grpc - grpb", method="prolfqua")
 cfg_ex$test_moderate <- FALSE
 cfg_ex$test_trend <- FALSE
-res_ex <- suppressMessages(test(state0, cfg_ex))
+res_ex <- suppressMessages(test_h0(state0, cfg_ex))
 p_ind <- ind_nested_p(state0$expression, d_bc$X, d_bc$X_red)
 got <- res_ex$standard$pval[match(names(p_ind), res_ex$standard$feature)]
 
@@ -512,7 +512,7 @@ report(all(tbl_tr$stat[i_tr] > 0) && sum(tbl_tr$pval[i_tr] < 1e-3) >= 15 &&
 ##   which the joint test of grp cannot distinguish from the effect above:
 
 cfg_ab <- cfg_con(~grp + sex + batch + age, "grpb", method="trend")
-res_ab <- suppressMessages(test(state0, cfg_ab))
+res_ab <- suppressMessages(test_h0(state0, cfg_ab))
 report(sum(res_ab$standard$adj_pval < 0.05, na.rm=TRUE) <= 2,
   "trend: a contrast on the level with no simulated effect finds almost nothing")
 
@@ -557,7 +557,7 @@ report(all(c("logFC", "se", "df", "t", "pval", "adjPval") %in% names(hits_msq)) 
 ## and the contrast is a different hypothesis from the term it lives in:
 
 cfg_j <- cfg_trm(~grp + sex + batch + age, "grp", method="trend")
-res_j <- suppressMessages(test(state0, cfg_j))
+res_j <- suppressMessages(test_h0(state0, cfg_j))
 p_j <- res_j$standard$pval[match(tbl_tr$feature, res_j$standard$feature)]
 report(!close_enough(p_j, tbl_tr$pval, tol=1e-6),
   "the contrast and the joint test of the same factor are different hypotheses")

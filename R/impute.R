@@ -52,7 +52,7 @@ f.pos_mat <- function(mat, config, is_log_transformed=NULL, fn_name="f.pos_mat")
       "not supply;", "\n",
       where, "\n",
       "  the usual cause is a feature or observation with no measured value at",
-      "all; drop those with h0testr::filter(), or try a different",
+      "all; drop those with h0testr::filter_state(), or try a different",
       "config$impute_method", config=config)
   }
 
@@ -308,7 +308,7 @@ impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
 #'   something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing.
 #'   An observation with no measured value has no minimum to stand in, so it
 #'     cannot be imputed and is an error rather than a column of \code{Inf}.
-#'     \code{h0testr::filter()} removes such observations, so this normally only
+#'     \code{h0testr::filter_state()} removes such observations, so this normally only
 #'     arises when the imputer is called on its own.
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
@@ -323,7 +323,7 @@ impute_unif_sample_lod <- function(state, config, impute_quantile=NULL) {
 #'   This function has no \code{is_log_transformed} argument of its own, the
 #'     minimum of an observation being its minimum on either scale, so the key
 #'     is the only place the scale can come from and must be set.
-#'     \code{h0testr::initialize()} sets it and \code{h0testr::normalize()}
+#'     \code{h0testr::init_state()} sets it and \code{h0testr::normalize()}
 #'     updates it.
 #' @return An updated \code{state} list with the following elements:
 #'   \tabular{ll}{
@@ -400,7 +400,7 @@ impute_sample_lod <- function(state, config) {
 #'   }
 #' @param is_log_transformed Logical scalar: whether \code{state$expression} has
 #'   been log transformed. Defaults to \code{config$is_log_transformed}, which
-#'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+#'   \code{h0testr::init_state()} and \code{h0testr::normalize()} maintain;
 #'   passing both is an error unless they agree.
 #' @param scale. Numeric greater than zero, linearly scaling the
 #'   dispersion around the feature mean. Default: \code{1.0}.
@@ -543,7 +543,7 @@ impute_rnorm_feature <- function(state, config, is_log_transformed=NULL,
 #'   }
 #' @param is_log_transformed Logical scalar: whether \code{state$expression} has
 #'   been log transformed. Defaults to \code{config$is_log_transformed}, which
-#'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+#'   \code{h0testr::init_state()} and \code{h0testr::normalize()} maintain;
 #'   passing both is an error unless they agree.
 #' @param n_pts Numeric greater than one. Granularity of prediction 
 #'   grid. Larger values lead to less chance of duplicate imputed values.
@@ -810,7 +810,7 @@ f.augment_affine <- function(exprs, mult=1, add=0, steps=1) {
 #' @param config List with configuration values. Does not use any keys, so can pass empty list.
 #' @param is_log_transformed Logical scalar: whether \code{state$expression} has
 #'   been log transformed. Defaults to \code{config$is_log_transformed}, which
-#'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+#'   \code{h0testr::init_state()} and \code{h0testr::normalize()} maintain;
 #'   passing both is an error unless they agree.
 #' @param f_imp Function to use for initial rough imputation.
 #' @param ntree Numeric (greater than 0) number of trees in random forest.
@@ -970,7 +970,7 @@ impute_rf <- function(state, config, is_log_transformed=NULL,
 #' @param config List with configuration values. Does not use any keys so can pass empty list.
 #' @param is_log_transformed Logical scalar: whether \code{state$expression} has
 #'   been log transformed. Defaults to \code{config$is_log_transformed}, which
-#'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+#'   \code{h0testr::init_state()} and \code{h0testr::normalize()} maintain;
 #'   passing both is an error unless they agree.
 #' @param f_imp Function to use for initial rough imputation.
 #' @param alpha Numeric (between 0 and 1) number of trees in random forest.
@@ -1276,7 +1276,7 @@ impute_min_det <- function(state, config, impute_quantile=NULL) {
 #'   can pass empty list.
 #' @param is_log_transformed Logical scalar: whether \code{state$expression} has
 #'   been log transformed. Defaults to \code{config$is_log_transformed}, which
-#'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+#'   \code{h0testr::init_state()} and \code{h0testr::normalize()} maintain;
 #'   passing both is an error unless they agree.
 #' @param impute_quantile Quantile to use for imputation; scalar with 
 #'   \code{0 <= impute_quantile < 1.0}. Default: \code{0.01}.
@@ -1369,7 +1369,7 @@ impute_min_prob <- function(state, config, is_log_transformed=NULL,
 #'   pass empty list.
 #' @param is_log_transformed Logical scalar: whether \code{state$expression} has
 #'   been log transformed. Defaults to \code{config$is_log_transformed}, which
-#'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+#'   \code{h0testr::init_state()} and \code{h0testr::normalize()} maintain;
 #'   passing both is an error unless they agree.
 #' @param scale. Scaling parameter for normal distribution; numeric scalar 
 #'   with \code{0 < scale.}. Default: \code{1.0}.
@@ -1463,7 +1463,7 @@ impute_qrilc <- function(state, config, is_log_transformed=NULL, scale.=NULL) {
 #' @param config List with configuration values. Does not use any keys so can pass empty list.
 #' @param is_log_transformed Logical scalar: whether \code{state$expression} has
 #'   been log transformed. Defaults to \code{config$is_log_transformed}, which
-#'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+#'   \code{h0testr::init_state()} and \code{h0testr::normalize()} maintain;
 #'   passing both is an error unless they agree.
 #' @param n_pcs Number (scalar numeric >= 1) of principle components to compute. Default: \code{5}.
 #' @param method Method to use. Scalar character in \code{c("bpca", "ppca", "svdImpute")}.
@@ -1581,7 +1581,7 @@ impute_pca <- function(state, config, is_log_transformed=NULL,
 #'   pass empty list.
 #' @param is_log_transformed Logical scalar: whether \code{state$expression} has
 #'   been log transformed. Defaults to \code{config$is_log_transformed}, which
-#'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+#'   \code{h0testr::init_state()} and \code{h0testr::normalize()} maintain;
 #'   passing both is an error unless they agree.
 #' @param method Name of correlation method; scalar character in 
 #'   \code{c("pearson", "kendall", "spearman")}
@@ -1758,14 +1758,14 @@ impute_methods <- function() {
 #'   Imputes missing values using a method and parameters specified in
 #'     \code{config}. The scale of the data is not assumed: it comes from the
 #'     \code{is_log_transformed} argument or from
-#'     \code{config$is_log_transformed}, which \code{h0testr::initialize()} sets
+#'     \code{config$is_log_transformed}, which \code{h0testr::init_state()} sets
 #'     and \code{h0testr::normalize()} updates, and whichever answers is recorded
 #'     in the returned \code{config} and passed to the method, so that methods
 #'     without an \code{is_log_transformed} argument of their own still see it.
 #'   Only \code{NA} is missing. If you want \code{0} to be considered missing,
 #'     and have \code{0} in the data, do something like
 #'     \code{exprs[exprs \%in\% 0] <- NA} prior to imputing;
-#'     \code{h0testr::initialize()} does this for raw input.
+#'     \code{h0testr::init_state()} does this for raw input.
 #'   An imputed value that cannot be a measurement is an error.
 #'   See documentation for \code{h0testr::new_config()} 
 #'     for more detailed description of configuration parameters. 
@@ -1793,7 +1793,7 @@ impute_methods <- function() {
 #'   returned by \code{h0testr::impute_methods()}.
 #' @param is_log_transformed Logical scalar: whether \code{state$expression} has
 #'   been log transformed. Defaults to \code{config$is_log_transformed}, which
-#'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+#'   \code{h0testr::init_state()} and \code{h0testr::normalize()} maintain;
 #'   passing both is an error unless they agree. It is an error for both to be
 #'   unset.
 #' @param k Number of nearest neighbors passed to methods for 

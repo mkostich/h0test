@@ -1,15 +1,15 @@
 ## Tests what an exported h0testr::test_*() engine does when it is called directly
-##   rather than through h0testr::test(), on a state whose factor covariates arrive as
+##   rather than through h0testr::test_h0(), on a state whose factor covariates arrive as
 ##   character columns. That is the ordinary shape of a state read back from the .tsv
 ##   files h0testr writes, since utils::read.table() returns character.
 ##   h0testr::f.design_X() hands state$samples to stats::model.matrix() as they are, and
 ##   a character column there is levelled by sorting, so config$reference_levels reached
-##   the design only through h0testr::initialize() or h0testr::test(): a direct caller
+##   the design only through h0testr::init_state() or h0testr::test_h0(): a direct caller
 ##   got coefficients named for the alphabetically first level instead of the declared
 ##   reference, with the sign of every effect flipped and nothing said about it.
 ##   The central assertion is therefore an invariance: for each engine, the result of a
 ##   call on character covariates equals the result of the same call on the factor
-##   columns initialize() resolves, and the reported effect has the sign the declared
+##   columns init_state() resolves, and the reported effect has the sign the declared
 ##   reference level implies rather than the one sorting implies.
 ##   Also checks that every exported engine validates its config and state, and that a
 ##   config naming one column as both the feature and the gene id is refused by the
@@ -21,8 +21,8 @@ usage <- function(msg=NULL) {
   cat(
     "Test the exported h0testr::test_*() engines under direct calls: that",
     "config$reference_levels reaches the design when the covariates arrive as",
-    "character columns rather than as the factors h0testr::initialize() resolves, so",
-    "that a direct call agrees with h0testr::test() about which level is the reference",
+    "character columns rather than as the factors h0testr::init_state() resolves, so",
+    "that a direct call agrees with h0testr::test_h0() about which level is the reference",
     "and about the sign of the effect; that each engine validates its config and state",
     "instead of failing further in; and that an already aggregated config is refused by",
     "the engine's own message rather than by the state check.",
@@ -157,12 +157,12 @@ cfg0$log_file <- log_file
 cfg0$frm <- ~grp + sex
 cfg0$test_term <- "grp"
 
-out <- suppressMessages(initialize(list(expression=exprs, features=feats,
+out <- suppressMessages(init_state(list(expression=exprs, features=feats,
   samples=samps), cfg0, minimal=TRUE))
 state_fac <- out$state
 config0 <- out$config
 
-## initialize() resolved the declared reference level into the factor columns; the
+## init_state() resolved the declared reference level into the factor columns; the
 ##   direct-call state is the same data with those columns back as character, which is
 ##   what read.table() hands back and what an assembled state usually carries:
 
@@ -172,7 +172,7 @@ for(nom in c("grp", "sex")) {
 }
 
 report(identical(levels(state_fac$samples$grp), c("trt", "ctl")),
-  "initialize() puts the declared reference level first")
+  "init_state() puts the declared reference level first")
 report(is.character(state_chr$samples$grp),
   "the direct-call state carries grp as character")
 report(identical(sort(unique(state_chr$samples$grp)), c("ctl", "trt")),

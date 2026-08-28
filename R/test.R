@@ -1,6 +1,6 @@
-#' Get vector of \code{test(method=)} method options
+#' Get vector of \code{test_h0(method=)} method options
 #' @description
-#'   Get a vector with acceptable values of \code{method} parameter for \code{h0testr::test()}.
+#'   Get a vector with acceptable values of \code{method} parameter for \code{h0testr::test_h0()}.
 #' @return
 #'   Character vector with names of acceptable values for \code{h0testr::normalize(method=)}.
 #' @examples
@@ -17,7 +17,7 @@ test_methods <- function() {
   )
 }
 
-## helper for test(): settings only some engines read:
+## helper for test_h0(): settings only some engines read:
 
 f.note_ignored_settings <- function(method, config) {
 
@@ -57,7 +57,7 @@ f.trend_methods <- function() {
   return("prolfqua")
 }
 
-## helper for test(): a request to trend that the resolved method cannot honor:
+## helper for test_h0(): a request to trend that the resolved method cannot honor:
 
 f.note_trend <- function(method, trend, given, config) {
 
@@ -81,7 +81,7 @@ f.note_trend <- function(method, trend, given, config) {
 
     f.msg("WARNING: test:", src, "is TRUE, and test_deqms() passes it to",
       "limma::eBayes(), but DEqMS refits the prior from the spectra counts, so ",
-      "p-value test() reports the one a FALSE would have given;", "\n",
+      "p-value test_h0() reports the one a FALSE would have given;", "\n",
       " what changes is P.Value, t, B, s2.prior and s2.post of the returned table, not",
       "any sca. column;", "\n",
       " for a trended prior use test_method 'trend'",
@@ -157,7 +157,7 @@ f.note_trend <- function(method, trend, given, config) {
 #' @param is_log_transformed Logical scalar: whether \code{state$expression} has
 #'   been log transformed. Only consulted for \code{method \%in\% c("proda",
 #'   "prolfqua", "prolfqua_lmer")}. Defaults to \code{config$is_log_transformed}, which
-#'   \code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+#'   \code{h0testr::init_state()} and \code{h0testr::normalize()} maintain;
 #'   passing both is an error unless they agree.
 #' @param prior_df Prior degrees of freedom for method \code{proda};
 #'   where \code{2 <= prior_df <= n_features}.
@@ -257,14 +257,14 @@ f.note_trend <- function(method, trend, given, config) {
 #' rm(samps, sim)
 #' 
 #' ## set up and check covariates and parameters:
-#' out <- h0testr::initialize(state, config, minimal=TRUE)
+#' out <- h0testr::init_state(state, config, minimal=TRUE)
 #' 
-#' out <- h0testr::test(out$state, out$config, method="trend")
+#' out <- h0testr::test_h0(out$state, out$config, method="trend")
 #' head(out$original)
 #' head(out$standard)
 #' summary(out$fit)
 
-test <- function(state, config, method=NULL,
+test_h0 <- function(state, config, method=NULL,
     is_log_transformed=NULL, prior_df=NULL, trend=NULL) {
 
   if(is.null(method) || method %in% "") method <- config$test_method

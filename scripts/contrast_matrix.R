@@ -190,7 +190,7 @@ methods <- c("lm", "trend", "voom", "deqms", "msqrob", "msqrob_agg", "proda",
 ## deqms and msqrob take peptide-level input, since both moderate on peptide counts, and
 ##   prolfqua_lmer and msqrob_agg take it because they model the peptides of a gene as a
 ##   random effect; the rest are run on the gene-level aggregate, as tune() runs them. The
-##   predicate is the package's own, so this cannot drift from tune(). test() rather than
+##   predicate is the package's own, so this cannot drift from tune(). test_h0() rather than
 ##   test_*() is called, because the identities below are between the standardized pval and
 ##   logfc columns, which is where the contrast's own effect size is reported:
 
@@ -203,7 +203,7 @@ run_test <- function(nm, state, cfg) {
     st <- agg$state
     cf <- agg$config
   }
-  return(try(suppressMessages(test(st, cf, method=nm, is_log_transformed=TRUE,
+  return(try(suppressMessages(test_h0(st, cf, method=nm, is_log_transformed=TRUE,
     prior_df=5)), silent=TRUE))
 }
 
@@ -324,15 +324,15 @@ notes <- character(0)
 
 setup <- function(cfg, what) {
 
-  ## upstream: initialize() classifies the covariates and resolves factor levels, the two
+  ## upstream: init_state() classifies the covariates and resolves factor levels, the two
   ##   filters screen features against this same formula, and f.design_test_cols() is the
   ##   shared derivation, dispatching to f.design_contrast() when config$contrast is set:
 
   n0 <- log_len()
-  ini <- try(suppressMessages(initialize(state_raw, cfg, minimal=TRUE)), silent=TRUE)
+  ini <- try(suppressMessages(init_state(state_raw, cfg, minimal=TRUE)), silent=TRUE)
 
   if(inherits(ini, "try-error")) {
-    return(list(err=paste(what, "initialize()", why(ini, n0), sep="\t")))
+    return(list(err=paste(what, "init_state()", why(ini, n0), sep="\t")))
   }
 
   st <- ini$state
@@ -402,7 +402,7 @@ for(k in seq_along(cases)) {
   cfg$test_term <- ""                    ## mutually exclusive with config$contrast
   cfg$contrast <- cs$con
 
-  ## only the factor variables this formula uses: initialize() rejects a reference level
+  ## only the factor variables this formula uses: init_state() rejects a reference level
   ##   declared for a variable that is not in config$frm:
 
   cfg$reference_levels <- cfg0$reference_levels[names(cfg0$reference_levels) %in%
@@ -438,7 +438,7 @@ for(k in seq_along(cases)) {
   cf_ex$test_moderate <- FALSE
   cf_ex$test_trend <- FALSE
   n0 <- log_len()
-  res_ex <- try(suppressMessages(test(agg$state, cf_ex, method="prolfqua",
+  res_ex <- try(suppressMessages(test_h0(agg$state, cf_ex, method="prolfqua",
     is_log_transformed=TRUE)), silent=TRUE)
 
   if(inherits(res_ex, "try-error")) {
@@ -748,10 +748,10 @@ out <- c(
   "         so the comparison is at the reference level of the other variable rather",
   "         than averaged over it.") else NULL,
   if(up_all_ok) c(
-  "Every case below runs initialize(), filter_features_by_formula() and",
+  "Every case below runs init_state(), filter_features_by_formula() and",
   "  filter_features_by_estimability() without error, so all of them are contrasts",
   "  h0testr accepts upstream of the test.") else
-  "up   = whether initialize() and the two formula-aware filters ran (ok) or not.",
+  "up   = whether init_state() and the two formula-aware filters ran (ok) or not.",
   "",
   "Cells: t   = single-coefficient test (moderated t or Wald), the contrast having been",
   "               made the one coefficient of the fit;",

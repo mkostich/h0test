@@ -72,7 +72,7 @@ f.filter_features_by_term <- function(term, state, config, type="factor",
 #'     the variable takes at least two distinct values across the observations
 #'     where the feature was measured.
 #'   Variables are classified as factor or numeric and checked as described for
-#'     \code{h0testr::initialize()}.
+#'     \code{h0testr::init_state()}.
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -83,7 +83,7 @@ f.filter_features_by_term <- function(term, state, config, type="factor",
 #'   \tabular{ll}{
 #'     \code{frm}             \cr \tab Formula object specifying model to be fitted. \cr
 #'     \code{reference_levels} \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
-#'     \code{covariate_types} \cr \tab Optional; classification of variables in \code{config$frm}, as set by \code{initialize()}. \cr
+#'     \code{covariate_types} \cr \tab Optional; classification of variables in \code{config$frm}, as set by \code{init_state()}. \cr
 #'   }
 #' @param n_non_na_min Minimum number of non-NA values per feature. Non-negative integer.
 #' @param n_distinct_min Minimum number of distinct non-NA values per feature. Non-negative integer.
@@ -158,7 +158,7 @@ filter_features_by_formula <- function(state, config,
 #'     looks at the design matrix as a whole, determining whether the 
 #'     test is estimable for a feature.
 #'   A value is missing if and only if it is \code{NA}; see
-#'     \code{h0testr::initialize()}. For each feature, let \code{S} be the
+#'     \code{h0testr::init_state()}. For each feature, let \code{S} be the
 #'     observations where it is not \code{NA}, \code{X} the design matrix built
 #'     from \code{config$frm}, and \code{X_red} the same matrix with the columns
 #'     of \code{config$test_term} removed. Then:
@@ -169,7 +169,7 @@ filter_features_by_formula <- function(state, config,
 #'       \code{df_deficit} \cr \tab \code{ncol(X) - rank(X[S, ])}; coefficients of the requested model that are not estimable. \cr
 #'     }
 #'   \code{X} is built once over all observations and then subset by row, so 
-#'     factor level ordering set by \code{initialize()} is preserved.
+#'     factor level ordering set by \code{init_state()} is preserved.
 #'   The reduced model is formed by dropping term labels, not by editing the
 #'     formula text.
 #'   \code{config$estimability} selects one of three nested requirements, each
@@ -390,7 +390,7 @@ filter_features_by_estimability <- function(state, config, estimability=NULL,
 #'   Filter features based on number of samples in which feature was measured.
 #' @details
 #'   A value is missing if and only if it is \code{NA}. Raw zeros are converted
-#'     to \code{NA} by \code{h0testr::initialize()}, so a feature is counted as
+#'     to \code{NA} by \code{h0testr::init_state()}, so a feature is counted as
 #'     measured in a sample whenever its value there is not \code{NA},
 #'     regardless of sign.
 #'   Feature constant if \code{length(unique(expression_values)) \%in\% 1}.
@@ -484,7 +484,7 @@ filter_features <- function(state, config,
 #'   Filter samples based on number of features with a non-\code{NA} value.
 #' @details
 #'   A value is missing if and only if it is \code{NA}. Raw zeros are converted
-#'     to \code{NA} by \code{h0testr::initialize()}, so a feature is counted as
+#'     to \code{NA} by \code{h0testr::init_state()}, so a feature is counted as
 #'     measured when its value there is not \code{NA}, regardless of sign.
 #'   Sample constant if \code{length(unique(expression_values)) \%in\% 1)}.
 #'   See documentation for \code{h0testr::new_config()} 
@@ -569,7 +569,7 @@ filter_observations <- function(state, config,
 #' @description
 #'   Calculates the number of samples in which each feature was measured
 #' @details A feature counts as measured in a sample when its value there is
-#'   not \code{NA}; raw zeros are converted to \code{NA} by \code{h0testr::initialize()}.
+#'   not \code{NA}; raw zeros are converted to \code{NA} by \code{h0testr::init_state()}.
 #' @param state A list with elements like that returned by \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -646,7 +646,7 @@ feature_median_expression <- function(state, config) {
 #' @details 
 #'   A feature counts as measured in a sample whenever its value there is not
 #'     \code{NA}, regardless of sign; raw zeros are converted to \code{NA} by
-#'     \code{h0testr::initialize()}.
+#'     \code{h0testr::init_state()}.
 #' @param state A list with elements like that returned by `read_data()`:
 #'   \tabular{ll}{
 #'     \code{expression} \cr \tab Numeric matrix with non-negative expression values. \cr
@@ -709,11 +709,11 @@ f.prefilter_features <- function(state, min1=3, min2=4) {
 #'     two distinct values in one group and two values in another. Removes
 #'     observations with fewer than \code{n_features_min} non-\code{NA} values. 
 #'   \code{config$n_samples_min} and \code{config$n_features_min} are deliberately not
-#'     consulted here. They are the thresholds of \code{h0testr::filter()}, and they are
+#'     consulted here. They are the thresholds of \code{h0testr::filter_state()}, and they are
 #'     meant to be applied to the aggregated data that step sees, not to the precursor
 #'     level table this one gets.
 #'   A value is missing if and only if it is \code{NA}; raw zeros are converted to
-#'     \code{NA} by \code{h0testr::initialize()}, which runs first.
+#'     \code{NA} by \code{h0testr::init_state()}, which runs first.
 #'   Reports the state before and after each of the two screens.
 #'   See documentation for \code{h0testr::new_config()}
 #'     for more detailed description of configuration parameters.
@@ -730,7 +730,7 @@ f.prefilter_features <- function(state, min1=3, min2=4) {
 #'   }
 #' @param n_features_min Minimum number of features with a non-NA value per observation;
 #'   numeric >= 2. This function's own threshold; \code{config$n_features_min} is not
-#'   consulted, being the threshold of \code{h0testr::filter()}. There is no
+#'   consulted, being the threshold of \code{h0testr::filter_state()}. There is no
 #'   corresponding argument for the feature screen, whose thresholds are fixed.
 #' @return A list (the filtered state) with the following elements:
 #'   \tabular{ll}{
@@ -780,7 +780,7 @@ f.check_stat_ids <- function(nms, ids, stat, key, config) {
     f.err("add_filter_stats:", paste0("config$", key), "names no column of the",
       "metadata, so the alignment of", stat, "with it cannot be checked;", "\n",
       " ", paste0("config$", key, ":"), config[[key]], "\n",
-      "  to fix, run h0testr::initialize(), which sets it, or set it yourself",
+      "  to fix, run h0testr::init_state(), which sets it, or set it yourself",
       config=config)
   }
 
@@ -818,7 +818,7 @@ f.check_stat_ids <- function(nms, ids, stat, key, config) {
 #'     \code{colnames(state$expression)} carry, and the two have to agree. A key that
 #'     names no column, which includes the \code{""} that \code{h0testr::new_config()}
 #'     ships, a \code{state$expression} without dimnames, and a genuine mismatch are all
-#'     errors. \code{h0testr::initialize()} sets both keys.
+#'     errors. \code{h0testr::init_state()} sets both keys.
 #'   See documentation for \code{h0testr::new_config()}
 #'     for more detailed description of configuration parameters.
 #' @param state List with elements formatted like the list returned by \code{read_data()}:
@@ -942,11 +942,11 @@ add_filter_stats <- function(state, config) {
 #' config$frm <- ~age
 #' config$test_term <- "age"
 #' config$reference_levels <- c(age="4m")
-#' out <- h0testr::filter(state, config)
+#' out <- h0testr::filter_state(state, config)
 #' print(out$state)
 #' str(out$config)
 
-filter <- function(state, config, remove_constant=TRUE, filter_by_formula=TRUE,
+filter_state <- function(state, config, remove_constant=TRUE, filter_by_formula=TRUE,
     filter_by_estimability=TRUE) {
 
   check_config(config)

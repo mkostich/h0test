@@ -164,7 +164,7 @@ cfg0$impute_method <- "none"
 cfg0$n_features_min <- 5    ## default of 1000 would filter out every observation
 cfg0$log_file <- log_file
 
-out <- initialize(list(expression=exprs, features=feats, samples=samps), cfg0,
+out <- init_state(list(expression=exprs, features=feats, samples=samps), cfg0,
   minimal=TRUE)
 state0 <- out$state
 config0 <- out$config
@@ -718,7 +718,7 @@ mk_ref <- function(ref) {
   cfg$frm <- ~sex + batch
   cfg$test_term <- "sex"
   cfg$reference_levels <- c(sex=ref, batch="b1")
-  return(initialize(list(expression=exprs, features=feats, samples=samps), cfg,
+  return(init_state(list(expression=exprs, features=feats, samples=samps), cfg,
     minimal=TRUE))
 }
 
@@ -826,7 +826,7 @@ cfg_int <- cfg0
 cfg_int$frm <- ~sex * batch
 cfg_int$test_term <- "batch:sex"
 cfg_int$reference_levels <- c(sex="F", batch="b1")
-out_int <- initialize(list(expression=exprs, features=feats, samples=samps),
+out_int <- init_state(list(expression=exprs, features=feats, samples=samps),
   cfg_int, minimal=TRUE)
 res <- try(suppressMessages(test_msqrob(out_int$state, out_int$config)), silent=TRUE)
 report(!inherits(res, "try-error") && !any(is.na(res$hits$logFC)),

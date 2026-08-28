@@ -1,13 +1,13 @@
 ## Tests for the trended variance prior reaching every engine that can honor it.
-##   h0testr::test() gained a trend argument, config$test_trend answers when it is not
+##   h0testr::test_h0() gained a trend argument, config$test_trend answers when it is not
 ##   given, and the resolved value is passed to test_method "deqms", where it sets
 ##   limma::eBayes(trend=) beneath DEqMS's own count-based prior, and to "prolfqua", where
 ##   it fits the prior against mean feature intensity. Before this, config$test_trend was
 ##   read by "prolfqua" alone and the trended DEqMS fit could not be reached through
-##   test() at all. A request that the resolved method cannot honor is a warning rather
+##   test_h0() at all. A request that the resolved method cannot honor is a warning rather
 ##   than a refusal, since h0testr::tune() sets one configuration and varies the method.
 ##   The three methods are therefore in three positions, and this file checks each: only
-##   "prolfqua" trends in a way that moves what test() reports, which is what
+##   "prolfqua" trends in a way that moves what test_h0() reports, which is what
 ##   f.trend_methods() now names; "deqms" honors the argument in limma::eBayes() but
 ##   refits its prior from the spectra counts afterward, so its reported p-value does not
 ##   move and f.note_trend() says so rather than letting the run be silent; and the rest
@@ -19,7 +19,7 @@ usage <- function(msg=NULL) {
   if(!is.null(msg)) cat("ERROR:", msg, "\n\n", file=stderr())
   cat(
     "Test that the trended variance prior reaches the engines that can fit one: that",
-    "h0testr::test(trend=) overrides config$test_trend and config$test_trend answers when",
+    "h0testr::test_h0(trend=) overrides config$test_trend and config$test_trend answers when",
     "the argument is absent, that both reach test_method 'deqms' and 'prolfqua', that",
     "'trend' always trends and only an explicit FALSE draws a remark there, that a",
     "trended 'deqms' run is warned about because DEqMS refits the prior past it, and",
@@ -99,7 +99,7 @@ logged <- function(pat, since=0) any(grepl(pat, log_since(since), fixed=TRUE))
 log_count <- function(pat, since=0) sum(grepl(pat, log_since(since), fixed=TRUE))
 
 ## save_state FALSE and dir_out a temporary directory: new_config() ships save_state TRUE and
-##   dir_out ".", and the fixtures here reach test(), which writes its results table into the
+##   dir_out ".", and the fixtures here reach test_h0(), which writes its results table into the
 ##   working directory named after length(config$run_order) + 3 -- an 8.results.*.tsv pair easy
 ##   to mistake for the output of a real run. Same guard as 1/test_check_config.R:
 
@@ -151,7 +151,7 @@ report(threw(f.is_trend(NULL, cfg)),
 ###############################################################################
 section("f.trend_methods() and f.note_trend(), what is said to the rest")
 
-## the list names the methods where trending moves what test() reports, which is prolfqua
+## the list names the methods where trending moves what test_h0() reports, which is prolfqua
 ##   alone. deqms was here until it was observed that its reported p-value comes from a
 ##   prior refitted past the flag, so a trended deqms run was silent while being no
 ##   different from a flat one; it is now its own case below:
@@ -239,7 +239,7 @@ section("test_method deqms, where the flag could not be reached before")
 
 ## DEqMS fits its variance prior against the number of features behind each gene, so the
 ##   fixture needs that number to vary; limma's prior underneath it is the one this flag
-##   sets. Raw scale, then log2 after initialize(), so that the zeros became NA first, as
+##   sets. Raw scale, then log2 after init_state(), so that the zeros became NA first, as
 ##   normalize() would do in a full workflow:
 
 set.seed(202)
@@ -272,7 +272,7 @@ cfg_a$test_term <- "grp"
 cfg_a$reference_levels <- c(grp="ctl")
 cfg_a$test_method <- "deqms"
 
-out_a <- try(suppressMessages(initialize(state_a, cfg_a, minimal=TRUE)), silent=TRUE)
+out_a <- try(suppressMessages(init_state(state_a, cfg_a, minimal=TRUE)), silent=TRUE)
 report(!inherits(out_a, "try-error"), "the peptide level fixture initializes")
 
 out_a$state$expression <- log2(out_a$state$expression + 1)
@@ -282,7 +282,7 @@ report(length(unique(f.gene_counts(out_a$state, out_a$config))) > 1,
   "and the number of peptides per gene varies, which is what DEqMS needs")
 
 m0 <- mark()
-res_flat <- try(suppressMessages(test(out_a$state, out_a$config)), silent=TRUE)
+res_flat <- try(suppressMessages(test_h0(out_a$state, out_a$config)), silent=TRUE)
 report(!inherits(res_flat, "try-error"), "the untrended fit runs")
 report(logged("(trend=FALSE)", m0),
   "and the log records which limma prior was fitted, the hit table not carrying it")
@@ -292,7 +292,7 @@ report(!logged("WARNING: test:", m0),
 cfg_t <- out_a$config
 cfg_t$test_trend <- TRUE
 m0 <- mark()
-res_cfg <- try(suppressMessages(test(out_a$state, cfg_t)), silent=TRUE)
+res_cfg <- try(suppressMessages(test_h0(out_a$state, cfg_t)), silent=TRUE)
 report(!inherits(res_cfg, "try-error"), "so does the trended one")
 report(logged("(trend=TRUE)", m0),
   "and config$test_trend reaches deqms, which it did not before")
@@ -302,7 +302,7 @@ report(logged("DEqMS refits the prior from the spectra counts", m0),
   "with the reason, rather than the run being silent as it was")
 
 m0 <- mark()
-res_arg <- try(suppressMessages(test(out_a$state, out_a$config, trend=TRUE)),
+res_arg <- try(suppressMessages(test_h0(out_a$state, out_a$config, trend=TRUE)),
   silent=TRUE)
 report(!inherits(res_arg, "try-error") && logged("(trend=TRUE)", m0),
   "the argument reaches it from a config that says otherwise")
@@ -310,7 +310,7 @@ report(logged("the trend argument", m0),
   "and the remark names the argument, that being what there is to change")
 
 m0 <- mark()
-res_off <- try(suppressMessages(test(out_a$state, cfg_t, trend=FALSE)), silent=TRUE)
+res_off <- try(suppressMessages(test_h0(out_a$state, cfg_t, trend=FALSE)), silent=TRUE)
 report(!inherits(res_off, "try-error") && logged("(trend=FALSE)", m0),
   "and turns it back off against a config that asks for it")
 report(!logged("WARNING: test:", m0),
@@ -361,17 +361,17 @@ cfg_b$reference_levels <- c(grp="ctl")
 cfg_b$test_method <- "prolfqua"
 cfg_b$is_log_transformed <- TRUE
 
-out_b <- try(suppressMessages(initialize(state_b, cfg_b, minimal=TRUE)), silent=TRUE)
+out_b <- try(suppressMessages(init_state(state_b, cfg_b, minimal=TRUE)), silent=TRUE)
 report(!inherits(out_b, "try-error"), "the feature level fixture initializes")
 
 m0 <- mark()
-pro_flat <- try(suppressMessages(test(out_b$state, out_b$config)), silent=TRUE)
+pro_flat <- try(suppressMessages(test_h0(out_b$state, out_b$config)), silent=TRUE)
 report(!inherits(pro_flat, "try-error") && !any(pro_flat$original$trend),
   "the flat prior is what a default config asks for")
 report(logged("against a flat prior", m0), "and the log says so")
 
 m0 <- mark()
-pro_arg <- try(suppressMessages(test(out_b$state, out_b$config, trend=TRUE)),
+pro_arg <- try(suppressMessages(test_h0(out_b$state, out_b$config, trend=TRUE)),
   silent=TRUE)
 report(!inherits(pro_arg, "try-error") && all(pro_arg$original$trend),
   "the argument reaches the prior this method was already able to fit")
@@ -380,13 +380,13 @@ report(!logged("WARNING: test:", m0), "with nothing remarked on here either")
 
 cfg_b2 <- out_b$config
 cfg_b2$test_trend <- TRUE
-pro_cfg <- try(suppressMessages(test(out_b$state, cfg_b2)), silent=TRUE)
+pro_cfg <- try(suppressMessages(test_h0(out_b$state, cfg_b2)), silent=TRUE)
 report(!inherits(pro_cfg, "try-error") && all(pro_cfg$original$trend),
   "config$test_trend still reaches it, the argument only overriding")
 report(identical(pro_arg$standard$pval, pro_cfg$standard$pval),
   "by the same route, so the two agree")
 
-pro_off <- try(suppressMessages(test(out_b$state, cfg_b2, trend=FALSE)), silent=TRUE)
+pro_off <- try(suppressMessages(test_h0(out_b$state, cfg_b2, trend=FALSE)), silent=TRUE)
 report(!inherits(pro_off, "try-error") && !any(pro_off$original$trend),
   "and an argument of FALSE overrides a config that asks for the trend")
 report(!isTRUE(all.equal(pro_flat$standard$pval, pro_cfg$standard$pval)),
@@ -402,19 +402,19 @@ section("the methods that cannot trend, and the one that always does")
 cfg_lm <- out_b$config
 cfg_lm$test_trend <- TRUE
 m0 <- mark()
-res_lm <- try(suppressMessages(test(out_b$state, cfg_lm, method="lm")), silent=TRUE)
+res_lm <- try(suppressMessages(test_h0(out_b$state, cfg_lm, method="lm")), silent=TRUE)
 report(!inherits(res_lm, "try-error"), "test_method lm runs with config$test_trend TRUE")
 report(logged("does not fit", m0), "with a warning that the run is unaffected")
 report(logged("config$test_trend", m0), "naming the key to change")
 
 m0 <- mark()
-res_tr <- try(suppressMessages(test(out_b$state, cfg_lm, method="trend")), silent=TRUE)
+res_tr <- try(suppressMessages(test_h0(out_b$state, cfg_lm, method="trend")), silent=TRUE)
 report(!inherits(res_tr, "try-error"), "test_method trend runs with it TRUE as well")
 report(!logged("does not fit", m0),
   "and says nothing, that method already fitting the prior that was asked for")
 
 m0 <- mark()
-res_tr2 <- try(suppressMessages(test(out_b$state, out_b$config, method="trend",
+res_tr2 <- try(suppressMessages(test_h0(out_b$state, out_b$config, method="trend",
   trend=FALSE)), silent=TRUE)
 report(!inherits(res_tr2, "try-error"), "an explicit FALSE there still runs")
 report(logged("regardless", m0), "but is remarked on, the method having no flat prior")

@@ -35,7 +35,7 @@ A list with components:
     \code{hits}  \cr \tab \code{data.frame} of results; columns:
       \code{c("logFC", "AveExpr", "t", "P.Value", "adj.P.Val", "B", "gene", "count", "sca.t", "sca.F", "sca.df.num", "sca.df.den", "sca.P.Value", "sca.adj.pval")}.
       Initial statistics from \code{limma}. Columns beginning with \code{sca.} come from
-      \code{DEqMS}'s variance prior, and are the ones reported by \code{h0testr::test()}.
+      \code{DEqMS}'s variance prior, and are the ones reported by \code{h0testr::test_h0()}.
       \code{sca.t} is \code{NA} when more than one coefficient carries the test, and the
       per-coefficient \code{logFC} column is then replaced by one column per tested
       coefficient, as \code{limma::topTable()} reports them. They are also \code{NA}
@@ -50,9 +50,9 @@ A list with components:
     factor, the difference between its levels, so a log fold change when the input is log
     transformed; for a \strong{continuous} covariate, the change \strong{per unit} of it,
     whose size depends on the units the covariate is recorded in. This is what
-    \code{h0testr::test()} reports as \code{logfc} when one design matrix column carries the
-    test; for a joint test there is no single contrast, and \code{h0testr::test()} reports the
-    total swing instead. See \code{h0testr::test()}.
+    \code{h0testr::test_h0()} reports as \code{logfc} when one design matrix column carries the
+    test; for a joint test there is no single contrast, and \code{h0testr::test_h0()} reports the
+    total swing instead. See \code{h0testr::test_h0()}.
 }
 \description{
 Tests for differential expression using the 
@@ -108,12 +108,12 @@ rm(samps, sim)
 
 ## no grp:sex term here, so that this example shows the single-coefficient case,
 ##   which reports DEqMS's own moderated t:
-out <- h0testr::initialize(state, config, minimal=TRUE)
+out <- h0testr::init_state(state, config, minimal=TRUE)
 
 ## test_deqms() aggregates peptides internally with combine_features(), which
 ##   fits an additive model, and DEqMS is built on limma; both want log scale.
 ##   normalize() does this and sets the flag in a full workflow. Applied after
-##   initialize(), so that the raw zeros became NA first:
+##   init_state(), so that the raw zeros became NA first:
 out$state$expression <- log2(out$state$expression + 1)
 out$config$is_log_transformed <- TRUE
 
@@ -122,7 +122,7 @@ result <- h0testr::test_deqms(out$state, out$config)
 head(result$hits)
 
 ## same fit with limma's prior fitted against mean gene intensity instead of
-##   flat. Equivalently config$test_trend <- TRUE, which h0testr::test(method="deqms")
+##   flat. Equivalently config$test_trend <- TRUE, which h0testr::test_h0(method="deqms")
 ##   passes through. limma's P.Value moves and DEqMS's sca.P.Value does not, the
 ##   count-based prior the latter comes from being fitted from quantities
 ##   limma::eBayes() leaves alone; see the note on the trend argument:

@@ -7,7 +7,7 @@ usage <- function(msg=NULL) {
   if(!is.null(msg)) cat("ERROR:", msg, "\n\n", file=stderr())
   cat(
     "Test scale tracking in h0testr: the config$is_log_transformed default and",
-    "validation, initialize() filling it in, normalize() setting it and",
+    "validation, init_state() filling it in, normalize() setting it and",
     "config$log_from_raw, the f.check_state() tripwire against zeros used as a",
     "missingness sentinel, and resolution of the is_log_transformed argument",
     "against the config value in impute() and the test functions.",
@@ -147,22 +147,22 @@ cfg$impute_floor_offset <- -2.5
 report(isTRUE(check_config(cfg)), "check_config() accepts a negative offset")
 
 ###############################################################################
-section("initialize() records the scale")
+section("init_state() records the scale")
 
-out <- initialize(mk_state(exprs), cfg0, minimal=TRUE)
+out <- init_state(mk_state(exprs), cfg0, minimal=TRUE)
 report(identical(out$config$is_log_transformed, FALSE),
-  "initialize() fills in is_log_transformed when unset")
+  "init_state() fills in is_log_transformed when unset")
 
 cfg <- cfg0
 cfg$is_log_transformed <- TRUE
-out <- initialize(mk_state(exprs), cfg, minimal=TRUE)
+out <- init_state(mk_state(exprs), cfg, minimal=TRUE)
 report(identical(out$config$is_log_transformed, TRUE),
-  "initialize() leaves a declared TRUE alone")
+  "init_state() leaves a declared TRUE alone")
 
 ###############################################################################
 section("normalize() sets the scale and the zero guarantee")
 
-out <- initialize(mk_state(exprs), cfg0, minimal=TRUE)
+out <- init_state(mk_state(exprs), cfg0, minimal=TRUE)
 st0 <- out$state
 cf0 <- out$config
 
@@ -343,7 +343,7 @@ for(bad in list("TRUE", 1, NA, c(TRUE, TRUE))) {
 }
 
 ###############################################################################
-section("impute() and test() read the scale from config")
+section("impute() and test_h0() read the scale from config")
 
 cf <- cf_log
 cf$n_samples_min <- 2
@@ -351,7 +351,7 @@ cf$n_features_min <- 5
 cf$impute_method <- "unif_sample_lod"
 cf$impute_quantile <- 0
 
-out <- filter(st_log, cf)
+out <- filter_state(st_log, cf)
 st_f <- out$state
 cf_f <- out$config
 
@@ -735,13 +735,13 @@ cf$n_samples_min <- 2
 cf$n_features_min <- 5
 cf$feature_aggregation <- "none"
 
-out <- initialize(mk_state(exprs), cf, minimal=TRUE)
+out <- init_state(mk_state(exprs), cf, minimal=TRUE)
 out$state <- add_filter_stats(out$state, out$config)
 out <- normalize(out$state, out$config)
 out <- combine_replicates(out$state, out$config, fn=sum)
-out <- filter(out$state, out$config)
+out <- filter_state(out$state, out$config)
 out <- impute(out$state, out$config)
-result <- try(test(out$state, out$config), silent=TRUE)
+result <- try(test_h0(out$state, out$config), silent=TRUE)
 
 report(!inherits(result, "try-error"), "pipeline completes with no scale argument")
 if(!inherits(result, "try-error")) {

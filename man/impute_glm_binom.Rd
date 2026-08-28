@@ -30,7 +30,7 @@ It is assumed that state$expression has been previously \code{log2(x+1)} transfo
 
 \item{is_log_transformed}{Logical scalar: whether \code{state$expression} has
 been log transformed. Defaults to \code{config$is_log_transformed}, which
-\code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+\code{h0testr::init_state()} and \code{h0testr::normalize()} maintain;
 passing both is an error unless they agree.}
 
 \item{n_pts}{Numeric greater than one. Granularity of prediction 

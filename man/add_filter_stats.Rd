@@ -41,7 +41,7 @@ Wrapper for \code{samples_per_feature()}, \code{feature_median_expression()},
     \code{colnames(state$expression)} carry, and the two have to agree. A key that
     names no column, which includes the \code{""} that \code{h0testr::new_config()}
     ships, a \code{state$expression} without dimnames, and a genuine mismatch are all
-    errors. \code{h0testr::initialize()} sets both keys.
+    errors. \code{h0testr::init_state()} sets both keys.
   See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.
 }

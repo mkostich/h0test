@@ -17,7 +17,7 @@ usage <- function(msg=NULL) {
     "aggregate-then-fit path, that a gene with a single observed feature falls back to",
     "a gene level fit rather than being reported as NA, that already aggregated input",
     "is refused, that nNonZero is the gene's count of observations for both paths,",
-    "that test() and tune() carry the results at gene level, and that a continuous",
+    "that test_h0() and tune() carry the results at gene level, and that a continuous",
     "config$test_term is recovered as a slope per unit of the covariate.",
     "",
     "Usage: Rscript test_msqrob_agg.R <r_dir>",
@@ -142,7 +142,7 @@ cfg0 <- list(
   log_file=log_file, is_log_transformed=TRUE
 )
 
-init <- function(state=state0, cfg=cfg0) initialize(state, cfg, minimal=TRUE)
+init <- function(state=state0, cfg=cfg0) init_state(state, cfg, minimal=TRUE)
 agg <- function(o) test_msqrob(o$state, o$config, aggregate=TRUE)
 plain <- function(o) test_msqrob(o$state, o$config)
 
@@ -183,7 +183,7 @@ got <- res$hits$nNonZero[match(names(want), res$hits$gene)]
 report(isTRUE(all.equal(as.numeric(want), as.numeric(got))),
   "nNonZero counts the observations in which the gene was measured at all")
 ## .n is what QFeatures::aggregateFeatures() counted, the features of the gene that
-##   reached the fit; initialize() prefilters some away, so it is 2 or 3 here and sums
+##   reached the fit; init_state() prefilters some away, so it is 2 or 3 here and sums
 ##   to the number of rows the test was handed:
 report(all(res$hits$.n %in% 2:3) &&
   sum(res$hits$.n) %in% nrow(o$state$expression),
@@ -476,11 +476,11 @@ report(logged("use that instead", m0),
 report(!inherits(try(suppressMessages(plain(o12)), silent=TRUE), "try-error"),
   "and that recommendation works on the same state")
 
-## the same refusal by way of test():
+## the same refusal by way of test_h0():
 cfg$test_method <- "msqrob_agg"
 o13 <- init(cfg=cfg)
-report(threw(suppressMessages(test(o13$state, o13$config))),
-  "test() refuses it too")
+report(threw(suppressMessages(test_h0(o13$state, o13$config))),
+  "test_h0() refuses it too")
 
 ###############################################################################
 section("registration and the predicates")
@@ -494,15 +494,15 @@ report(!("msqrob_agg" %in% eval(formals(tune)$test_methods)),
   "and it is deliberately not in tune()'s default test_methods vector")
 
 ###############################################################################
-section("test() integration")
+section("test_h0() integration")
 
 cfg <- cfg0
 cfg$test_method <- "msqrob_agg"
 o14 <- init(cfg=cfg)
-out <- suppressMessages(test(o14$state, o14$config))
+out <- suppressMessages(test_h0(o14$state, o14$config))
 
 report(all(c("original", "standard", "fit") %in% names(out)),
-  "test() returns original, standard and fit")
+  "test_h0() returns original, standard and fit")
 report(nrow(out$standard) %in% n_gene, "one standard row per gene")
 report(setequal(as.character(out$standard$feature), unique(gene)),
   "keyed by gene id, not by feature id")
@@ -528,7 +528,7 @@ report(isTRUE(all.equal(as.numeric(want), as.numeric(got))),
 ###############################################################################
 section("f.tune2() records an unusable combination rather than failing")
 
-## a full config, since f.tune2() runs filter() and impute() before the test and those
+## a full config, since f.tune2() runs filter_state() and impute() before the test and those
 ##   read many more keys than the tests above need; the count minima are lowered from
 ##   the defaults, which are meant for real data and would filter this fixture away:
 
@@ -586,7 +586,7 @@ state_ct$expression <- log2(state_ct$expression + 1)
 cfg_ct <- sim_ct$config
 cfg_ct$is_log_transformed <- TRUE          ## simulated raw; normalize() is not called here
 cfg_ct$log_file <- log_file
-out_ct <- suppressMessages(initialize(state_ct, cfg_ct, minimal=TRUE))
+out_ct <- suppressMessages(init_state(state_ct, cfg_ct, minimal=TRUE))
 
 tru_ct <- sim_ct$truth[, "age"]            ## dropout can cost a gene all of its peptides
 slope_ct <- 1 / stats::sd(out_ct$state$samples$age)      ## the expected logFC, per year
@@ -607,7 +607,7 @@ report(mean(abs(fc_ct[t_ct == 0])) < 0.1 * slope_ct,
 report(sum(q_ct[t_ct != 0] < 0.05) >= 11 && sum(q_ct[t_ct == 0] < 0.05) <= 2,
   "and the planted genes are the ones that reject at q < 0.05")
 
-## test() is not called on this fixture, since one msqrobAggregate() pass over 24 genes is
+## test_h0() is not called on this fixture, since one msqrobAggregate() pass over 24 genes is
 ##   half a minute and the standardized logfc of a single column continuous term is asserted
 ##   in 1/test_msqrob_joint.R, 1/test_deqms.R and 1/test_prolfqua_lmer.R.
 

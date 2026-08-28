@@ -408,7 +408,7 @@ f.set_covariate_factor_levels <- function(state, config, types=NULL) {
 #'   test_term="condition",
 #'   reference_levels=c(condition="ctl")
 #' )
-#' out <- h0testr::initialize(state, config, minimal=TRUE)
+#' out <- h0testr::init_state(state, config, minimal=TRUE)
 #' print(out$state)
 #' str(out$config)
 #'
@@ -424,11 +424,11 @@ f.set_covariate_factor_levels <- function(state, config, types=NULL) {
 #'   median_raw_col="median_raw",
 #'   n_features_expr_col="n_features_exprs"
 #' )
-#' out <- h0testr::initialize(state, config)
+#' out <- h0testr::init_state(state, config)
 #' print(out$state)
 #' str(out$config)
 
-initialize <- function(state, config, initialized=F, minimal=F) {
+init_state <- function(state, config, initialized=F, minimal=F) {
   
   f.log("initializing", config=config)
   check_config(config)
@@ -502,7 +502,7 @@ initialize <- function(state, config, initialized=F, minimal=F) {
   f.check_covariate_values(state, config, types=types)
   config$covariate_types <- types
 
-  ## initialize() is authoritative:
+  ## init_state() is authoritative:
   config$factor_levels <- NULL
 
   state <- f.set_covariate_factor_levels(state, config, types=types)
@@ -642,7 +642,7 @@ load_data <- function(config) {
   report_config(config)
   
   state <- read_data(config)
-  out <- initialize(state, config)
+  out <- init_state(state, config)
   state <- out$state
   config <- out$config
   f.check_state(state, config)

@@ -46,7 +46,7 @@
 #'     which is why it is referred to an F rather than a chi-square.
 #'   A gene whose model could not be fit is reported as \code{NA}.
 #'   The reported contrast is the tested coefficient under the factor level ordering
-#'     \code{config$reference_levels} declares and \code{h0testr::initialize()}
+#'     \code{config$reference_levels} declares and \code{h0testr::init_state()}
 #'     resolves, so for a two level factor \code{logFC} is the non-reference level
 #'     minus the reference level. \code{msqrob2::msqrob()} builds its own design, so
 #'     that ordering is carried through to it explicitly.
@@ -67,8 +67,8 @@
 #'     \code{test_term}        \cr \tab Term (character) to be tested for non-zero coefficient. \cr
 #'     \code{contrast}      \cr \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
 #'     \code{reference_levels} \cr \tab Named character vector with the reference level of each factor variable in \code{config$frm}. \cr
-#'     \code{covariate_types}  \cr \tab Optional; classification of variables in \code{config$frm}, as set by \code{initialize()}. \cr
-#'     \code{factor_levels}    \cr \tab Optional; resolved levels of each factor variable, as set by \code{initialize()}. \cr
+#'     \code{covariate_types}  \cr \tab Optional; classification of variables in \code{config$frm}, as set by \code{init_state()}. \cr
+#'     \code{factor_levels}    \cr \tab Optional; resolved levels of each factor variable, as set by \code{init_state()}. \cr
 #'     \code{feat_id_col}      \cr \tab Name of column in \code{state$features} with unique feature ids; must differ from \code{config$gene_id_col} when \code{aggregate=TRUE}. \cr
 #'     \code{test_random_obs}  \cr \tab Optional logical; whether the \code{aggregate=TRUE} fit includes a random observation effect alongside the random feature effect. Defaults to \code{TRUE} when absent, which is the calibrated model; see Details. Ignored when \code{aggregate=FALSE}. \cr
 #'     \code{test_ridge}       \cr \tab Optional logical; whether the \code{aggregate=TRUE} fit penalizes the fixed effects. Defaults to \code{FALSE} when absent, which is \code{msqrob2}'s own default; see Details. Ignored when \code{aggregate=FALSE}. \cr
@@ -99,8 +99,8 @@
 #'     factor, the difference between its levels, so a log fold change when the input is log
 #'     transformed; for a \strong{continuous} covariate, the change \strong{per unit} of it,
 #'     whose size depends on the units the covariate is recorded in. The joint test reports no 
-#'     effect size, since no single contrast to report, and \code{h0testr::test()} reports the 
-#'     total swing instead. See \code{h0testr::test()}.
+#'     effect size, since no single contrast to report, and \code{h0testr::test_h0()} reports the 
+#'     total swing instead. See \code{h0testr::test_h0()}.
 #' @examples
 #' set.seed(101)
 #' samps <- h0testr::sim_samples(factors=list(grp=c("ctl", "trt"), sex=c("F", "M")),
@@ -111,7 +111,7 @@
 #' config <- sim$config
 #' rm(samps, sim)
 #'
-#' out <- h0testr::initialize(state, config, minimal=TRUE)
+#' out <- h0testr::init_state(state, config, minimal=TRUE)
 #'
 #' ## actual test:
 #' result <- h0testr::test_msqrob(out$state, out$config)

@@ -3,7 +3,7 @@
 ##   keyed by it whether the state holds precursors or has been through
 ##   combine_features(); only deqms and msqrob, which aggregate for themselves, are
 ##   keyed by config$gene_id_col. f.format_lm() used to read config$gene_id_col for an
-##   engine that is row-wise, so test(method="lm") failed outright on precursor-level
+##   engine that is row-wise, so test_h0(method="lm") failed outright on precursor-level
 ##   data. Runs all seven engines at both levels, and checks not only that they run but
 ##   that each result row is joined to the metadata of the feature it actually describes.
 
@@ -12,7 +12,7 @@ usage <- function(msg=NULL) {
   cat(
     "Test feature/gene id handling in h0testr: f.gene_ids(), f.gene_features(),",
     "f.gene_counts(), f.test_id_col(), the gene-level form of a feature metadata",
-    "table, and all seven test_method engines run through test() twice, once on",
+    "table, and all seven test_method engines run through test_h0() twice, once on",
     "precursor-level data with config$feat_id_col != config$gene_id_col and once on",
     "the same data after combine_features(). Also checks that test_deqms() refuses a",
     "run in which every gene has the same number of features, and that f.tune2()",
@@ -189,7 +189,7 @@ cfg0$n_features_min <- 5
 cfg0$test_prior_df <- 5
 cfg0$log_file <- log_file
 
-out <- initialize(list(expression=exprs, features=feats, samples=samps), cfg0,
+out <- init_state(list(expression=exprs, features=feats, samples=samps), cfg0,
   minimal=TRUE)
 state_pep <- out$state
 config_pep <- out$config
@@ -346,12 +346,12 @@ report(nrow(state_agg$expression) %in% length(unique(genes_all)),
   "the aggregated state has one row per gene")
 
 ###############################################################################
-## The bug itself: every engine run through test() on precursor-level data, where
+## The bug itself: every engine run through test_h0() on precursor-level data, where
 ##   config$feat_id_col and config$gene_id_col are different columns. Before the fix
-##   test(method="lm") failed here, because f.format_lm() labelled its rows with gene
-##   ids while test() checked them against config$feat_col.
+##   test_h0(method="lm") failed here, because f.format_lm() labelled its rows with gene
+##   ids while test_h0() checked them against config$feat_col.
 
-section("test() on precursor-level data: all seven engines")
+section("test_h0() on precursor-level data: all seven engines")
 
 pep_means <- rowMeans(state_pep$expression, na.rm=TRUE)
 gene_means <- tapply(pep_means, genes_all, mean, na.rm=TRUE)
@@ -360,9 +360,9 @@ res_pep <- list()
 
 for(m in methods) {
 
-  ok <- try(suppressMessages(test(state_pep, config_pep, method=m)), silent=TRUE)
+  ok <- try(suppressMessages(test_h0(state_pep, config_pep, method=m)), silent=TRUE)
   report(!inherits(ok, "try-error"),
-    paste("test() runs method", m, "on precursor-level data"))
+    paste("test_h0() runs method", m, "on precursor-level data"))
   if(inherits(ok, "try-error")) next
   res_pep[[m]] <- ok
 
@@ -426,13 +426,13 @@ if(!is.null(res_pep$lm)) {
 }
 
 ###############################################################################
-section("test() on aggregated data: all seven engines")
+section("test_h0() on aggregated data: all seven engines")
 
 for(m in methods) {
 
-  ok <- try(suppressMessages(test(state_agg, config_agg, method=m)), silent=TRUE)
+  ok <- try(suppressMessages(test_h0(state_agg, config_agg, method=m)), silent=TRUE)
   report(!inherits(ok, "try-error"),
-    paste("test() runs method", m, "on aggregated data"))
+    paste("test_h0() runs method", m, "on aggregated data"))
   if(inherits(ok, "try-error")) next
 
   report(setequal(ok$standard$feature, unique(genes_all)) &&
@@ -468,7 +468,7 @@ rownames(exprs2) <- pep2
 colnames(exprs2) <- samps$obs
 feats2 <- data.frame(pep=pep2, gene=gene2, stringsAsFactors=FALSE)
 
-out <- initialize(list(expression=exprs2, features=feats2, samples=samps), cfg0,
+out <- init_state(list(expression=exprs2, features=feats2, samples=samps), cfg0,
   minimal=TRUE)
 state_u <- out$state
 config_u <- out$config
@@ -477,9 +477,9 @@ report(errs_with(test_deqms(state_u, config_u),
   "every gene has the same number of features"),
   "test_deqms() refuses a run in which every gene has the same feature count")
 
-report(errs_with(test(state_u, config_u, method="deqms"),
+report(errs_with(test_h0(state_u, config_u, method="deqms"),
   "every gene has the same number of features"),
-  "the refusal reaches test() rather than being swallowed")
+  "the refusal reaches test_h0() rather than being swallowed")
 
 ## f.tune2() checks the same condition and returns the row shape a real result has, so
 ##   the sweep carries on and tune_check() reads the combination as never tested:
@@ -500,7 +500,7 @@ report(!inherits(row_u, "try-error") &&
 
 ## and any other failure of the test step is caught the same way, so that one engine
 ##   that cannot fit a combination costs that cell and not the rest of the sweep. The
-##   failure used here is a missing config$test_prior_df, which test() needs for
+##   failure used here is a missing config$test_prior_df, which test_h0() needs for
 ##   test_method "proda" and refuses without: an unpredicted failure of the test step
 ##   that no guard above sees coming. It used to be a test_method that does not exist,
 ##   which check_config() now refuses at the first step of the sweep instead; see below:

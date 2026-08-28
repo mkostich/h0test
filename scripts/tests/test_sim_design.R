@@ -19,7 +19,7 @@ usage <- function(msg=NULL) {
     "continuous effect appears as a slope per SD of that covariate, that continuous variables",
     "are scaled for the model matrix but kept raw in the samples table, that effects and",
     "n_genes_signif honor their per-term specification, that the expression matrix, features",
-    "and samples it returns line up with each other and run through initialize(), that a",
+    "and samples it returns line up with each other and run through init_state(), that a",
     "design which cannot be fitted is passed through rather than refused, and that every",
     "documented argument constraint is enforced with a message naming the argument and the",
     "offending value.",
@@ -33,7 +33,7 @@ usage <- function(msg=NULL) {
     "Optional named arguments: none.",
     "",
     "Needs the packages h0testr itself needs, one assertion running a simulation through",
-    "  initialize(), normalize(), filter(), impute() and test() to confirm the returned",
+    "  init_state(), normalize(), filter_state(), impute() and test_h0() to confirm the returned",
     "  configuration matches the returned state.",
     "",
     "Output: one PASS/FAIL line per assertion to stdout, then a count of passes and",
@@ -427,37 +427,37 @@ report(isFALSE(cfg$save_state),
 report(identical(cfg$n_features_min, 1),
   "n_features_min is 1, its default of 1000 being meant for a real dataset")
 report(is.null(cfg$covariate_types) || !length(cfg$covariate_types),
-  "covariate_types is left unset, being initialize()'s to derive")
+  "covariate_types is left unset, being init_state()'s to derive")
 
-out <- quiet(initialize(sim$state, cfg))
+out <- quiet(init_state(sim$state, cfg))
 report(!inherits(out, "try-error") && is.matrix(out$state$expression),
-  "the state and the configuration go through initialize() as they come")
+  "the state and the configuration go through init_state() as they come")
 report(identical(out$config$covariate_types[["sex"]], "factor") &&
   identical(out$config$covariate_types[["age"]], "numeric"),
-  "and initialize() reads sex as a factor and age as continuous, unprompted")
+  "and init_state() reads sex as a factor and age as continuous, unprompted")
 
 out$state <- quiet(add_filter_stats(out$state, out$config))
 out$state <- quiet(prefilter(out$state, out$config))
 out <- quiet(normalize(out$state, out$config))
-out <- quiet(filter(out$state, out$config))
+out <- quiet(filter_state(out$state, out$config))
 out <- quiet(impute(out$state, out$config))
-res <- quiet(test(out$state, out$config))
+res <- quiet(test_h0(out$state, out$config))
 tbl <- res$standard
 i_true <- tbl$feature %in% rownames(sim$truth)[sim$truth[, "sexM"] != 0]
 report(nrow(tbl) > 100 && all(c("logfc", "pval", "adj_pval") %in% names(tbl)),
-  "and all the way through test(), so the returned config really does match the state")
+  "and all the way through test_h0(), so the returned config really does match the state")
 report(stats::median(tbl$pval[i_true]) < stats::median(tbl$pval[!i_true]),
   "the planted genes come out with smaller p values than the untouched ones")
 report(mean(sign(tbl$logfc[i_true]) == sign(sim$truth[tbl$feature[i_true], "sexM"])) > 0.8,
-  "and test()'s logfc agrees in sign with the planted coefficient")
+  "and test_h0()'s logfc agrees in sign with the planted coefficient")
 
 set.seed(13)
 samps <- sim_samples(covariates=list(age=c(20, 60)), n=8)
 sim <- clean(samps, frm=~age, test_term="age", n_genes=6, n_genes_signif=2)
 report(is.character(sim$config$reference_levels) && !length(sim$config$reference_levels),
   "a design of continuous terms only leaves reference_levels empty rather than absent")
-report(!threw(quiet(initialize(sim$state, sim$config))),
-  "and initialize() accepts that")
+report(!threw(quiet(init_state(sim$state, sim$config))),
+  "and init_state() accepts that")
 
 ###############################################################################
 section("designs that cannot be fitted are passed through, not refused")
@@ -470,7 +470,7 @@ sim <- out$val
 report(is.matrix(sim$state$expression) && nrow(sim$state$expression) == 8,
   "an empty cell makes the design rank deficient, which sim_design() simulates anyway")
 report(qr(sim$x)$rank < ncol(sim$x),
-  "the rank deficiency being real, and left for test() to have an opinion about")
+  "the rank deficiency being real, and left for test_h0() to have an opinion about")
 report(all(sim$x[, "sexM:genoKO"] == 0) && all(sim$truth[, "sexM:genoKO"] == 0) &&
   sum(sim$truth[, "sexM"] != 0) == 2 && grepl("no effect planted on term sex:geno", out$msg),
   "an empty cell being also why the interaction column is constant, so nothing is planted on it")
@@ -612,7 +612,7 @@ section("treatment contrasts, without which truth means something else")
 ##   says, a contrasts attribute on the variable is honored the same way, and the option itself
 ##   can be set session-wide; each would leave truth's column names, and the reference level
 ##   config$reference_levels names, describing something the data does not carry. Refusing is
-##   deliberate rather than passing contrasts.arg: test() reads the same option, so pinning it in
+##   deliberate rather than passing contrasts.arg: test_h0() reads the same option, so pinning it in
 ##   the simulator alone would score truth in one parameterization against a fit in another:
 
 samps_c <- sim_samples(factors=list(geno=c("WT", "KO", "HET")), n_per_cell=3)

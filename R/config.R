@@ -10,7 +10,7 @@
 #'     simpler config as a list containing only the needed parameters. See 
 #'     documentation of the function of interest for the minimal 
 #'     configuration needed and relevant examples.
-#'   For hypothesis testing or calls to \code{h0testr::initialize()},
+#'   For hypothesis testing or calls to \code{h0testr::init_state()},
 #'     customize \code{frm}, \code{test_term}, and \code{reference_levels}.
 #'   \code{contrast} is the alternative to \code{test_term}: it names a weighted
 #'     sum of the coefficients of \code{frm} to test within the full model, written
@@ -26,7 +26,7 @@
 #'     using \code{test_method="deqms"}, which cannot run a joint test at all.
 #'   When using the config to load data from files (e.g. by calling 
 #'     \code{h0testr::load_data(config)}), calling 
-#'     \code{h0testr::initialize()}, or for aggregating multiple 
+#'     \code{h0testr::init_state()}, or for aggregating multiple 
 #'     observations per sample (e.g. by calling \code{h0testr::combine_replicates()}),
 #'     or for aggregating precursors into gene/protein groups (e.g. by calling 
 #'     \code{h0testr::combine_precursors()}), you should customize 
@@ -38,7 +38,7 @@
 #'     see examples in documentation of the function of interest.
 #'   \code{is_log_transformed} declares the scale of \code{state$expression} and
 #'     is the single place the rest of the package looks to find it out. The
-#'     default \code{FALSE} says the input is raw, so \code{h0testr::initialize()}
+#'     default \code{FALSE} says the input is raw, so \code{h0testr::init_state()}
 #'     converts zeros to \code{NA} and rejects negative values. Set it to \code{TRUE} for
 #'     input that has already been log transformed or otherwise put on a log-like
 #'     scale: zeros and negative values are then left alone, \code{h0testr::normalize()} 
@@ -127,7 +127,7 @@ new_config <- function() {
     ## tunable options: defaults are usually ok, except:
     ##   for dia: usually works ok: RLE:unif_sample_lod:0.05 for normalization_method:impute_method:impute_quantile
     ##   for dda: usually works ok: quantile:0.75:unif_sample_lod:0 for normalization_method:normalization_quantile:impute_method:impute_quantile
-    is_log_transformed=FALSE,            ## whether state$expression is already on a log-like scale; FALSE means raw, so initialize() converts zeros to NA and rejects negative values; set TRUE by normalize()
+    is_log_transformed=FALSE,            ## whether state$expression is already on a log-like scale; FALSE means raw, so init_state() converts zeros to NA and rejects negative values; set TRUE by normalize()
     normalization_method="RLE",          ## normalization method; h0testr::normalize_methods() retuns options.
     normalization_quantile=0.75,         ## for quantile normalization; 0.5 is median; 0.75 is upper quartile;
     normalization_span=0.7,              ## span for normalize_loess()
@@ -148,8 +148,8 @@ new_config <- function() {
     impute_aug_steps=3,                  ## data augmentation iterations for impute_rf() and impute_glmnet()
     test_method="trend",                 ## hypothesis test method; h0testr::test_methods() returns options; also "none", which skips the test step so that run() returns the processed state with no result, and which test_methods() deliberately does not list since it names the engines and is looped over
     test_prior_df=3,                     ## prior df for test_proda()
-    test_moderate=TRUE,                  ## whether to shrink the per-feature error variance across features before testing; used by test_prolfqua(), which is the only method here that can be told not to; the limma-based methods always moderate and proda always shrinks, and test() notes a FALSE that the resolved method will not read rather than refusing it
-    test_trend=FALSE,                    ## whether the prior variance of that shrinkage is fitted against mean feature intensity instead of being flat; honored by test_method "prolfqua", where it makes the prior the one test_method="trend" uses, and by "deqms", where it sets the limma prior beneath DEqMS's count-based one and so moves the limma columns of the returned table but no column test() reports, which test() warns about; "trend" always trends and the remaining methods cannot, which test() also warns about rather than refusing; overridden by test(trend=); unrelated to test_method
+    test_moderate=TRUE,                  ## whether to shrink the per-feature error variance across features before testing; used by test_prolfqua(), which is the only method here that can be told not to; the limma-based methods always moderate and proda always shrinks, and test_h0() notes a FALSE that the resolved method will not read rather than refusing it
+    test_trend=FALSE,                    ## whether the prior variance of that shrinkage is fitted against mean feature intensity instead of being flat; honored by test_method "prolfqua", where it makes the prior the one test_method="trend" uses, and by "deqms", where it sets the limma prior beneath DEqMS's count-based one and so moves the limma columns of the returned table but no column test_h0() reports, which test_h0() warns about; "trend" always trends and the remaining methods cannot, which test_h0() also warns about rather than refusing; overridden by test_h0(trend=); unrelated to test_method
     test_random_obs=TRUE,                ## whether the feature level mixed model paths, test_method %in% c("prolfqua_lmer", "msqrob_agg"), add a random observation effect to the random feature effect; TRUE is the calibrated model; FALSE gives the feature-only structure both packages document, which is anti-conservative; see test_prolfqua() and test_msqrob()
     test_ridge=FALSE,                    ## whether test_method="msqrob_agg" penalizes the fixed effects, msqrob2::msqrobAggregate(ridge=TRUE); FALSE is msqrob2's own default throughout; TRUE shrinks the coefficients toward zero, so the reported logFC is not comparable to what the other methods report, renames the fitted parameters, and refuses a mean model with fewer than two non-intercept columns; see test_msqrob()
 
@@ -205,7 +205,7 @@ f.frm_min_noint_cols <- function(config) {
 #'     \code{NaN} are refused. An infinite proportion is refused as out of
 #'     range rather than as not finite, which says more about a proportion.
 #'   A setting that the chosen method does not consult is not refused and is not
-#'     reported here: it is a \code{NOTE} from \code{h0testr::test()}, which every
+#'     reported here: it is a \code{NOTE} from \code{h0testr::test_h0()}, which every
 #'     workflow calls once, this function being called once per step.
 #'   See documentation for \code{h0testr::new_config()}
 #'     for more detailed description of configuration parameters.
@@ -240,7 +240,7 @@ f.frm_min_noint_cols <- function(config) {
 #' try(h0testr::check_config(config))
 #'
 #' ## invalid: the penalty needs at least two non-intercept columns, and a two level
-#' ##   factor with an intercept gives one; throws an error once initialize() has
+#' ##   factor with an intercept gives one; throws an error once init_state() has
 #' ##   resolved the levels:
 #' config <- h0testr::new_config()
 #' config$test_method <- "msqrob_agg"
@@ -255,7 +255,7 @@ f.frm_min_noint_cols <- function(config) {
 #' h0testr::check_config(config)
 #'
 #' ## ok: a setting the chosen method does not consult is not this function's business;
-#' ##   h0testr::test() notes it instead:
+#' ##   h0testr::test_h0() notes it instead:
 #' config <- h0testr::new_config()
 #' config$test_method <- "trend"
 #' config$test_ridge <- TRUE
@@ -267,7 +267,7 @@ f.frm_min_noint_cols <- function(config) {
 #' config$run_order <- c("normalize", "combine_featurez", "filter")
 #' try(h0testr::check_config(config))
 #'
-#' ## ok: no steps at all, meaning load_data() and then test(), for data that arrives
+#' ## ok: no steps at all, meaning load_data() and then test_h0(), for data that arrives
 #' ##   already normalized, aggregated and complete:
 #' config$run_order <- character(0)
 #' h0testr::check_config(config)
@@ -303,11 +303,11 @@ check_config <- function(config) {
     "is_log_transformed", "log_from_raw", "test_moderate", "test_trend",
     "test_random_obs", "test_ridge")
   scalar_formula <- c("frm")
-  ## covariate_types is set by initialize(), not by the user; see
+  ## covariate_types is set by init_state(), not by the user; see
   ##   f.covariate_types():
   vector_character <- c("run_order", "covariate_types", "reference_levels")
   vector_props <- c("probs")
-  ## factor_levels is set by initialize(), not by the user; see
+  ## factor_levels is set by init_state(), not by the user; see
   ##   f.set_covariate_factor_levels():
   list_character <- c("factor_levels")
   
@@ -504,14 +504,14 @@ check_config <- function(config) {
     }
   }
 
-  ## config$test_method names the engine test() will dispatch to:
+  ## config$test_method names the engine test_h0() will dispatch to:
 
   if("test_method" %in% names(config)) {
     if(is.na(config$test_method) ||
         !(config$test_method %in% c(test_methods(), "", "none"))) {
       f.err("check_config: unexpected test_method:", config$test_method, "\n",
         "allowed:", test_methods(), "\n",
-        "or \"\", meaning unset, with test(method=) naming the engine instead,",
+        "or \"\", meaning unset, with test_h0(method=) naming the engine instead,",
         "or \"none\", meaning skip the test step and return the processed state",
         config=config)
     }

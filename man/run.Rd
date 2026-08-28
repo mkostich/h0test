@@ -25,14 +25,14 @@ A list with the following elements:
 Run basic workflow according to: \code{config$run_order}.
 }
 \details{
-Run a basic workflow: \code{load_data() -> config$run_order -> test()},
+Run a basic workflow: \code{load_data() -> config$run_order -> test_h0()},
     where \code{config$run_order} is vector of functions which are run in
     the specified order.
   Each name in \code{config$run_order} must be one of \code{"normalize"},
     \code{"combine_replicates"}, \code{"combine_features"}, \code{"filter"} and
     \code{"impute"}; \code{h0testr::check_config()} refuses anything else before the
     workflow starts. A zero length \code{config$run_order} runs
-    \code{h0testr::load_data()} and then \code{h0testr::test()}. Naming a step twice
+    \code{h0testr::load_data()} and then \code{h0testr::test_h0()}. Naming a step twice
     runs it twice, which is allowed but warned about, since \code{f.save_state()} names
     its output files after the first occurrence of a step and the later one overwrites
     them.

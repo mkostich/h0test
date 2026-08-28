@@ -34,9 +34,9 @@ A list with components:
     factor, the difference between its levels, or log fold change when the input is log
     transformed; for a \strong{continuous} covariate, the change \strong{per unit} of it,
     whose size depends on the units the covariate is recorded in. This is what
-    \code{h0testr::test()} reports as \code{logfc}. A joint test has no \code{logFC}
-    column at all, having no single fold change to report, and \code{h0testr::test()}
-    reports the total swing instead. See \code{h0testr::test()}.
+    \code{h0testr::test_h0()} reports as \code{logfc}. A joint test has no \code{logFC}
+    column at all, having no single fold change to report, and \code{h0testr::test_h0()}
+    reports the total swing instead. See \code{h0testr::test_h0()}.
 }
 \description{
 Test for differential expression using \code{limma::eBayes(trend=TRUE)}.
@@ -84,7 +84,7 @@ config$is_log_transformed <- TRUE   ## normalize() would; logged just above
 rm(samps, sim)
 
 ## set up and check covariates and parameters:
-out <- h0testr::initialize(state, config, minimal=TRUE)
+out <- h0testr::init_state(state, config, minimal=TRUE)
 
 tbl <- h0testr::test_trend(out$state, out$config)
 print(tbl)

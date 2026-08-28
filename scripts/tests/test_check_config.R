@@ -3,7 +3,7 @@
 ##   config$test_method that is not one of h0testr::test_methods(), and
 ##   config$test_ridge=TRUE on a mean model whose non-intercept column count the config
 ##   already settles as fewer than two. Also covers f.frm_min_noint_cols(), the helper that
-##   bounds that column count, and f.note_ignored_settings(), the note h0testr::test()
+##   bounds that column count, and f.note_ignored_settings(), the note h0testr::test_h0()
 ##   makes about a setting the method it resolved does not consult, which lives there
 ##   rather than in check_config() so that it is said once per run and not once per step.
 ##   The refusals that depend on the data rather than on the configuration stay with the
@@ -16,7 +16,7 @@ usage <- function(msg=NULL) {
     "outside h0testr::test_methods() is refused, that config$test_ridge=TRUE is refused",
     "on a mean model the config already settles as having fewer than two non-intercept",
     "columns and accepted when the count is two or unknown, that a setting the method",
-    "h0testr::test() resolved does not consult is reported by it as a NOTE rather than",
+    "h0testr::test_h0() resolved does not consult is reported by it as a NOTE rather than",
     "refused and only when it differs from the h0testr::new_config() default, that a",
     "config$run_order naming a step h0testr::run() has no function for is refused while a",
     "step named twice is warned about by run() instead, and that the checks that were",
@@ -101,7 +101,7 @@ log_count <- function(pat, since=0) sum(grepl(pat, log_since(since), fixed=TRUE)
 
 ## save_state FALSE and dir_out a temporary directory for every fixture here, not just the
 ##   ones that run a workflow: new_config() ships save_state TRUE and dir_out ".", so a
-##   fixture that reaches test() writes its results table into the working directory, named
+##   fixture that reaches test_h0() writes its results table into the working directory, named
 ##   after length(config$run_order) + 3 and so easy to mistake for a real run's output:
 
 base_cfg <- function() {
@@ -128,7 +128,7 @@ report(ok, "every name h0testr::test_methods() offers passes")
 cfg <- base_cfg()
 cfg$test_method <- ""
 report(isTRUE(check_config(cfg)),
-  "an empty test_method passes, meaning unset for test(method=) to supply")
+  "an empty test_method passes, meaning unset for test_h0(method=) to supply")
 
 cfg <- base_cfg()
 cfg$test_method <- "trrend"
@@ -220,7 +220,7 @@ cfg <- ridge_cfg(~grp + sex)
 cfg$covariate_types <- c(grp="factor", sex="factor")
 report(isTRUE(check_config(cfg)), "and accepted on a second term, whatever its levels")
 
-## before initialize() has classified the covariates the count is not knowable from the
+## before init_state() has classified the covariates the count is not knowable from the
 ##   config, so the combination is left to msqrob2 rather than refused on a guess:
 
 cfg <- ridge_cfg(~grp)
@@ -253,7 +253,7 @@ m0 <- mark()
 report(isTRUE(check_config(cfg)),
   "test_ridge on a method that does not read it is not a refusal")
 report(!logged("does not consult", m0),
-  "and check_config() says nothing about it either, that being test()'s to say")
+  "and check_config() says nothing about it either, that being test_h0()'s to say")
 report(length(f.note_ignored_settings("msqrob", cfg)) %in% 1,
   "which it does, as a note that the setting has no effect")
 
@@ -262,15 +262,15 @@ section("settings the chosen method does not consult")
 
 ## a setting only some engines read is not refused, and is not check_config()'s business:
 ##   every step of the workflow calls check_config(), which would repeat the note once per
-##   step, so test() makes it once per run instead. f.note_ignored_settings() returns what
-##   it said, so most of this needs no fit; the run of test() at the end of the section
+##   step, so test_h0() makes it once per run instead. f.note_ignored_settings() returns what
+##   it said, so most of this needs no fit; the run of test_h0() at the end of the section
 ##   confirms that the note reaches the log from there:
 
 cfg <- base_cfg()
 report(length(f.note_ignored_settings("trend", cfg)) %in% 0,
   "a default config has nothing to say")
 
-## config$test_trend is deliberately not in this table: test() resolves it for every
+## config$test_trend is deliberately not in this table: test_h0() resolves it for every
 ##   method, its trend argument overriding it, so what to say about a method that cannot
 ##   honor it depends on the resolved value rather than on the config alone. That is
 ##   f.note_trend()'s, and 1/test_trend_flag.R covers it:
@@ -278,7 +278,7 @@ report(length(f.note_ignored_settings("trend", cfg)) %in% 0,
 cfg <- base_cfg()
 cfg$test_trend <- TRUE
 report(length(f.note_ignored_settings("lm", cfg)) %in% 0,
-  "test_trend is not this note's business, being resolved by test() instead")
+  "test_trend is not this note's business, being resolved by test_h0() instead")
 
 cfg <- base_cfg()
 report(length(f.note_ignored_settings("trend", cfg)) %in% 0,
@@ -344,8 +344,8 @@ cfg$test_trend <- NULL
 report(length(f.note_ignored_settings("trend", cfg)) %in% 0,
   "and a config that never mentioned the settings says nothing")
 
-## the note is keyed on the method test() resolved rather than on config$test_method,
-##   test(method=) overriding it, and this is where it is said:
+## the note is keyed on the method test_h0() resolved rather than on config$test_method,
+##   test_h0(method=) overriding it, and this is where it is said:
 
 set.seed(101)
 exprs <- sim1(n_obs=12, n_feats=30)$mat
@@ -373,15 +373,15 @@ cfg$test_method <- "prolfqua_lmer"       ## a method that does read test_random_
 cfg$test_random_obs <- FALSE
 cfg$is_log_transformed <- TRUE
 
-out_t <- try(suppressMessages(initialize(state_t, cfg, minimal=TRUE)), silent=TRUE)
+out_t <- try(suppressMessages(init_state(state_t, cfg, minimal=TRUE)), silent=TRUE)
 report(!inherits(out_t, "try-error"), "the fixture for the run below initializes")
 
 m0 <- mark()
-res_t <- try(suppressMessages(test(out_t$state, out_t$config, method="trend")),
+res_t <- try(suppressMessages(test_h0(out_t$state, out_t$config, method="trend")),
   silent=TRUE)
 
 report(!inherits(res_t, "try-error") && nrow(res_t$standard) %in% nrow(exprs),
-  "test(method=) overriding config$test_method still runs")
+  "test_h0(method=) overriding config$test_method still runs")
 report(logged("config$test_random_obs=FALSE", m0),
   "and notes the setting against the method it resolved, not the one configured")
 report(logged("NOTE: test:", m0), "the note saying which function it comes from")
@@ -437,7 +437,7 @@ report(threw(check_config(cfg)),
 cfg <- base_cfg()
 cfg$run_order <- character(0)
 report(isTRUE(check_config(cfg)),
-  "no steps at all is a workflow, being load_data() and then test()")
+  "no steps at all is a workflow, being load_data() and then test_h0()")
 
 cfg <- base_cfg()
 cfg$run_order <- c("normalize", "combine_features", "normalize")
@@ -496,7 +496,7 @@ report(logged("overwrites the files", m0),
 ###############################################################################
 section("test_method 'none', which skips the test step")
 
-## "none" was reachable by an explicit test(method="none") and by no configuration:
+## "none" was reachable by an explicit test_h0(method="none") and by no configuration:
 ##   check_config() allowed test_method only in c(test_methods(), ""), and test_methods()
 ##   does not name it. It is now a legal key value, so that run() can be used as a
 ##   preprocessing workflow, and it is still not one of test_methods(), which names the
@@ -518,7 +518,7 @@ report(logged("meaning skip the test step", m0),
   "and the refusal says what 'none' is for, that being where a reader would look")
 
 ## the value returns before anything is read from state. It used to be the last branch of
-##   test()'s dispatch chain, by which point a design had been built and rank checked, so
+##   test_h0()'s dispatch chain, by which point a design had been built and rank checked, so
 ##   a state whose test term is not estimable failed at the step it was told to skip --
 ##   which is exactly the state someone would want to stop before testing:
 
@@ -538,17 +538,17 @@ cfg_n$test_term <- "grp"
 cfg_n$test_method <- "none"
 
 m0 <- mark()
-res_n <- try(suppressMessages(test(state_n, cfg_n)), silent=TRUE)
+res_n <- try(suppressMessages(test_h0(state_n, cfg_n)), silent=TRUE)
 report(!inherits(res_n, "try-error") && is.null(res_n),
-  "test() returns NULL for it, on a state whose test term cannot be estimated")
+  "test_h0() returns NULL for it, on a state whose test term cannot be estimated")
 report(logged("skipping testing", m0), "saying so in the log")
 
 cfg_n2 <- cfg_n
 cfg_n2$test_method <- "trend"
-report(threw(suppressMessages(test(state_n, cfg_n2))),
+report(threw(suppressMessages(test_h0(state_n, cfg_n2))),
   "the same state under a real method fails, which is what 'none' steps around")
 
-res_a <- try(suppressMessages(test(state_n, cfg_n2, method="none")), silent=TRUE)
+res_a <- try(suppressMessages(test_h0(state_n, cfg_n2, method="none")), silent=TRUE)
 report(!inherits(res_a, "try-error") && is.null(res_a),
   "the argument reaches it too, overriding a config that names an engine")
 

@@ -25,7 +25,7 @@ can pass empty list.}
 
 \item{is_log_transformed}{Logical scalar: whether \code{state$expression} has
 been log transformed. Defaults to \code{config$is_log_transformed}, which
-\code{h0testr::initialize()} and \code{h0testr::normalize()} maintain;
+\code{h0testr::init_state()} and \code{h0testr::normalize()} maintain;
 passing both is an error unless they agree.}
 
 \item{impute_quantile}{Quantile to use for imputation; scalar with 

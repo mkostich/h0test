@@ -9,7 +9,7 @@
 #'     Such groups are therefore identified before \code{fn} runs and set to
 #'     \code{NA} afterwards, whatever \code{fn} returned, so that a missing value
 #'     is never recorded as a measurement of zero. \code{NA} is the only indicator
-#'     of a missing value; see \code{h0testr::initialize()}.
+#'     of a missing value; see \code{h0testr::init_state()}.
 #'   Deletes \code{state$samples[, config$obs_id_col} if not same as
 #'     \code{config$sample_id_col}.
 #'   Sets \code{config$obs_col} and \code{config$obs_id_col} to 
@@ -440,7 +440,7 @@ f.combine_features_robust_summary <- function(state, config, maxit=30) {
 #' config <- sim$config
 #' config$is_log_transformed <- TRUE
 #' config$feature_aggregation <- "medianPolish"
-#' config$feat_col <- config$feat_id_col   ## initialize() sets these two
+#' config$feat_col <- config$feat_id_col   ## init_state() sets these two
 #' config$obs_col <- config$obs_id_col
 #' rm(samps, sim)
 #' print(state)

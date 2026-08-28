@@ -10,7 +10,7 @@
 ##   Checked here: that the features held out are exactly the incomplete ones, that the
 ##   log names how many and the first few of them, that the tested count is reported
 ##   against the number of features that went in, that the same holds through
-##   h0testr::test(), and that a matrix in which nothing is complete is refused with a
+##   h0testr::test_h0(), and that a matrix in which nothing is complete is refused with a
 ##   message saying what to do instead.
 
 usage <- function(msg=NULL) {
@@ -20,7 +20,7 @@ usage <- function(msg=NULL) {
     "the incomplete features are the ones held out of the limma::voom() fit, that",
     "the log says how many were held out and names the first few, that the tested",
     "count is reported against the number of features handed in, that the result of",
-    "h0testr::test(method='voom') carries only the tested features, and that a state",
+    "h0testr::test_h0(method='voom') carries only the tested features, and that a state",
     "in which no feature is complete is refused with a message naming what to do",
     "instead rather than failing inside limma::voom().",
     "",
@@ -100,7 +100,7 @@ logged <- function(pat, since=0) {
 ## shared data: 20 count-like features over 12 observations in two groups of six, with
 ##   a crossed second covariate. limma::voom() models a count mean-variance
 ##   relationship, so the fixture is counts rather than log abundances. Counts are kept
-##   above zero because initialize() reads a raw zero as a missing value, and this file
+##   above zero because init_state() reads a raw zero as a missing value, and this file
 ##   is about missing values that are put in deliberately:
 
 set.seed(seed)
@@ -136,7 +136,7 @@ cfg0$log_file <- log_file
 cfg0$frm <- ~grp + sex
 cfg0$test_term <- "grp"
 
-out <- suppressMessages(initialize(list(expression=exprs, features=feats,
+out <- suppressMessages(init_state(list(expression=exprs, features=feats,
   samples=samps), cfg0, minimal=TRUE))
 state_full <- out$state
 config0 <- out$config
@@ -202,18 +202,18 @@ report(logged("tested 20 of 20 features", since=m),
   "and reports the tested count against the same number")
 
 ###############################################################################
-section("the same holds through test()")
+section("the same holds through test_h0()")
 
 m <- mark()
-res_t <- try(suppressMessages(test(state_na, config0, method="voom")), silent=TRUE)
+res_t <- try(suppressMessages(test_h0(state_na, config0, method="voom")), silent=TRUE)
 
-report(!inherits(res_t, "try-error"), "test(method='voom') returns on such a state")
+report(!inherits(res_t, "try-error"), "test_h0(method='voom') returns on such a state")
 
 if(!inherits(res_t, "try-error")) {
   report(setequal(as.character(res_t$standard$feature), kept),
     "the standardized table carries exactly the complete features")
   report(logged("WARNING: test_voom: dropping 5 of 20 features", since=m),
-    "and the warning reaches the log of a test() run too")
+    "and the warning reaches the log of a test_h0() run too")
 }
 
 ###############################################################################

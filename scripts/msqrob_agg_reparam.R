@@ -195,19 +195,19 @@ for(nm in names(runs)) {
   cf$test_term <- runs[[nm]]$term
   cf$contrast <- runs[[nm]]$con
 
-  ini <- try(suppressMessages(initialize(state_raw, cf, minimal=TRUE)), silent=TRUE)
+  ini <- try(suppressMessages(init_state(state_raw, cf, minimal=TRUE)), silent=TRUE)
 
   if(inherits(ini, "try-error")) {
-    cat("ERROR: msqrob_agg_reparam.R: initialize() failed for run ", nm, ": ",
+    cat("ERROR: msqrob_agg_reparam.R: init_state() failed for run ", nm, ": ",
       trimws(conditionMessage(attr(ini, "condition"))), "\n", sep="", file=stderr())
     quit(save="no", status=1)
   }
 
-  res <- try(suppressMessages(test(ini$state, ini$config, method="msqrob_agg",
+  res <- try(suppressMessages(test_h0(ini$state, ini$config, method="msqrob_agg",
     is_log_transformed=TRUE, prior_df=5)), silent=TRUE)
 
   if(inherits(res, "try-error")) {
-    cat("ERROR: msqrob_agg_reparam.R: test() failed for run ", nm, ": ",
+    cat("ERROR: msqrob_agg_reparam.R: test_h0() failed for run ", nm, ": ",
       trimws(conditionMessage(attr(res, "condition"))), "\n", sep="", file=stderr())
     quit(save="no", status=1)
   }
@@ -232,7 +232,7 @@ emit("  under the null, seed 101; the fixture 1/capability_matrix.R and",
 emit("Run A: ", runs$A$lab)
 emit("Run B: ", runs$B$lab)
 emit("")
-emit("Step 1. What test() reports, over all ", length(genes), " genes:")
+emit("Step 1. What test_h0() reports, over all ", length(genes), " genes:")
 emit("")
 emit(sprintf("  %-28s %12s", "quantity", "deviation"))
 emit(sprintf("  %-28s %12s", strrep("-", 28), strrep("-", 12)))
@@ -309,7 +309,7 @@ emit("")
 
 if(is.null(pa) || is.null(pb)) {
 
-  emit("Step 2. The fitted models could not be read back out of test()$fit, so the")
+  emit("Step 2. The fitted models could not be read back out of test_h0()$fit, so the")
   emit("  localization below is not available. Nothing is concluded from that.")
 
 } else {

@@ -108,7 +108,7 @@ state$expression <- log2(state$expression + 1)
 config <- sim$config
 config$is_log_transformed <- TRUE
 config$feature_aggregation <- "medianPolish"
-config$feat_col <- config$feat_id_col   ## initialize() sets these two
+config$feat_col <- config$feat_id_col   ## init_state() sets these two
 config$obs_col <- config$obs_id_col
 rm(samps, sim)
 print(state)

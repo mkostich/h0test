@@ -52,7 +52,7 @@ This is the last and most expensive of three filtering tiers. This function
     looks at the design matrix as a whole, determining whether the 
     test is estimable for a feature.
   A value is missing if and only if it is \code{NA}; see
-    \code{h0testr::initialize()}. For each feature, let \code{S} be the
+    \code{h0testr::init_state()}. For each feature, let \code{S} be the
     observations where it is not \code{NA}, \code{X} the design matrix built
     from \code{config$frm}, and \code{X_red} the same matrix with the columns
     of \code{config$test_term} removed. Then:
@@ -63,7 +63,7 @@ This is the last and most expensive of three filtering tiers. This function
       \code{df_deficit} \cr \tab \code{ncol(X) - rank(X[S, ])}; coefficients of the requested model that are not estimable. \cr
     }
   \code{X} is built once over all observations and then subset by row, so 
-    factor level ordering set by \code{initialize()} is preserved.
+    factor level ordering set by \code{init_state()} is preserved.
   The reduced model is formed by dropping term labels, not by editing the
     formula text.
   \code{config$estimability} selects one of three nested requirements, each

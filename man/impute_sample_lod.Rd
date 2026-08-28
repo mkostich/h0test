@@ -21,7 +21,7 @@ impute_sample_lod(state, config)
 This function has no \code{is_log_transformed} argument of its own, the
   minimum of an observation being its minimum on either scale, so the key
   is the only place the scale can come from and must be set.
-  \code{h0testr::initialize()} sets it and \code{h0testr::normalize()}
+  \code{h0testr::init_state()} sets it and \code{h0testr::normalize()}
   updates it.}
 }
 \value{
@@ -43,7 +43,7 @@ Missing values are set to an estimate observation limit of
   something like \code{exprs[exprs \%in\% 0] <- NA} prior to imputing.
   An observation with no measured value has no minimum to stand in, so it
     cannot be imputed and is an error rather than a column of \code{Inf}.
-    \code{h0testr::filter()} removes such observations, so this normally only
+    \code{h0testr::filter_state()} removes such observations, so this normally only
     arises when the imputer is called on its own.
 }
 \examples{

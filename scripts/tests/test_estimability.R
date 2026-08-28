@@ -1,6 +1,6 @@
 ## Tests for h0testr::filter_features_by_estimability(): the degrees of freedom
 ##   it computes per feature, the three nested config$estimability levels, the
-##   df_resid_min screen, and its placement within h0testr::filter().
+##   df_resid_min screen, and its placement within h0testr::filter_state().
 
 usage <- function(msg=NULL) {
   if(!is.null(msg)) cat("ERROR:", msg, "\n\n", file=stderr())
@@ -8,7 +8,7 @@ usage <- function(msg=NULL) {
     "Test h0testr::filter_features_by_estimability(): df_test and df_resid per",
     "feature, the nested config$estimability levels ('test', 'term', 'full'),",
     "the df_resid_min screen, the drop-reason accounting, and the call from",
-    "h0testr::filter().",
+    "h0testr::filter_state().",
     "",
     "Usage: Rscript test_estimability.R <r_dir>",
     "",
@@ -111,13 +111,13 @@ cfg0 <- list(
   log_file=log_file
 )
 
-out <- initialize(list(expression=exprs, features=feats, samples=samps), cfg0,
+out <- init_state(list(expression=exprs, features=feats, samples=samps), cfg0,
   minimal=TRUE)
 state0 <- out$state
 config0 <- out$config
 
 report(identical(levels(state0$samples$grp), c("a", "b", "c")),
-  "initialize() ordered grp levels as declared")
+  "init_state() ordered grp levels as declared")
 
 ###############################################################################
 section("degrees of freedom per feature")
@@ -358,7 +358,7 @@ report(!inherits(res, "try-error") &&
   "coefficients of higher-order terms under test are reported")
 
 ###############################################################################
-section("called from filter()")
+section("called from filter_state()")
 
 cfg <- config0
 cfg$n_samples_min <- 2
@@ -370,13 +370,13 @@ cfg$save_state <- FALSE
 cfg$feat_col <- "pep"
 cfg$obs_col <- "obs"
 
-out <- filter(state0, cfg)
+out <- filter_state(state0, cfg)
 report(all(c("df_test", "df_resid") %in% names(out$state$features)),
-  "filter() writes the df columns into state$features")
+  "filter_state() writes the df columns into state$features")
 report(all(out$state$features$df_resid >= 2),
-  "filter() applied the df_resid_min screen")
+  "filter_state() applied the df_resid_min screen")
 
-out2 <- filter(state0, cfg, filter_by_estimability=FALSE)
+out2 <- filter_state(state0, cfg, filter_by_estimability=FALSE)
 report(!any(c("df_test", "df_resid") %in% names(out2$state$features)),
   "filter_by_estimability=FALSE skips the filter")
 report(nrow(out2$state$features) >= nrow(out$state$features),

@@ -1,5 +1,5 @@
 ## Tests for covariate handling in h0testr::test_prolfqua(): which covariates
-##   are accepted, and whether the level ordering set by initialize() (declared
+##   are accepted, and whether the level ordering set by init_state() (declared
 ##   reference level first) survives into the fitted model.
 
 usage <- function(msg=NULL) {
@@ -132,9 +132,9 @@ cfg0 <- list(
 ###############################################################################
 section("declared reference level survives into the fit")
 
-out <- initialize(mk_state(samps0), cfg0, minimal=TRUE)
+out <- init_state(mk_state(samps0), cfg0, minimal=TRUE)
 report(identical(levels(out$state$samples$grp), c("trt", "ctl")),
-  "initialize() puts declared reference level first")
+  "init_state() puts declared reference level first")
 
 res <- test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
 report(identical(cols(res), c("(Intercept)", "grpctl")),
@@ -154,7 +154,7 @@ samps$flag <- rep(c(TRUE, FALSE), nsamps)
 cfg <- cfg0
 cfg$frm <- ~grp + flag
 
-out <- initialize(mk_state(samps), cfg, minimal=TRUE)
+out <- init_state(mk_state(samps), cfg, minimal=TRUE)
 report(identical(unname(out$config$covariate_types[["flag"]]), "factor"),
   "undeclared logical covariate classified as factor")
 
@@ -172,7 +172,7 @@ samps$sex <- factor(rep(c("M", "F"), nsamps), levels=c("M", "F"))
 cfg <- cfg0
 cfg$frm <- ~grp + sex
 
-out <- initialize(mk_state(samps), cfg, minimal=TRUE)
+out <- init_state(mk_state(samps), cfg, minimal=TRUE)
 res <- try(test_prolfqua(out$state, out$config, is_log_transformed=FALSE),
   silent=TRUE)
 report(!inherits(res, "try-error"),
@@ -190,7 +190,7 @@ samps$age <- seq(2, 24, length.out=nrow(samps0))
 cfg <- cfg0
 cfg$frm <- ~grp + age
 
-out <- initialize(mk_state(samps), cfg, minimal=TRUE)
+out <- init_state(mk_state(samps), cfg, minimal=TRUE)
 report(identical(unname(out$config$covariate_types[["age"]]), "numeric"),
   "undeclared numeric covariate classified as numeric")
 
@@ -221,7 +221,7 @@ if(!inherits(res, "try-error")) {
 
 cfg_age <- cfg
 cfg_age$test_term <- "age"
-out <- initialize(mk_state(samps), cfg_age, minimal=TRUE)
+out <- init_state(mk_state(samps), cfg_age, minimal=TRUE)
 res <- try(test_prolfqua(out$state, out$config, is_log_transformed=FALSE),
   silent=TRUE)
 report(!inherits(res, "try-error"),
@@ -244,7 +244,7 @@ cfg <- cfg0
 cfg$frm <- ~grp + dose
 cfg$reference_levels <- c(grp="trt", dose="4")
 
-out <- initialize(mk_state(samps), cfg, minimal=TRUE)
+out <- init_state(mk_state(samps), cfg, minimal=TRUE)
 res <- try(test_prolfqua(out$state, out$config, is_log_transformed=FALSE),
   silent=TRUE)
 report(!inherits(res, "try-error"),
@@ -267,7 +267,7 @@ cfg <- cfg0
 cfg$frm <- ~grp * age
 cfg$test_term <- "grp:age"
 
-out <- initialize(mk_state(samps), cfg, minimal=TRUE)
+out <- init_state(mk_state(samps), cfg, minimal=TRUE)
 res <- try(test_prolfqua(out$state, out$config, is_log_transformed=FALSE),
   silent=TRUE)
 report(!inherits(res, "try-error"),
@@ -293,7 +293,7 @@ if(!inherits(res, "try-error")) {
 
 cfg_main <- cfg
 cfg_main$test_term <- "grp"
-out <- initialize(mk_state(samps), cfg_main, minimal=TRUE)
+out <- init_state(mk_state(samps), cfg_main, minimal=TRUE)
 res <- try(test_prolfqua(out$state, out$config, is_log_transformed=FALSE),
   silent=TRUE)
 report(!inherits(res, "try-error"),
@@ -329,7 +329,7 @@ if(!inherits(res, "try-error")) {
 cfg_one <- cfg0
 cfg_one$frm <- ~grp + age
 cfg_one$test_term <- "age"
-out <- initialize(mk_state(samps), cfg_one, minimal=TRUE)
+out <- init_state(mk_state(samps), cfg_one, minimal=TRUE)
 res <- test_prolfqua(out$state, out$config, is_log_transformed=FALSE)
 
 ref <- sapply(rownames(exprs), function(f) {
@@ -413,7 +413,7 @@ wald_p <- function(Y, X, cols_test) {
   stats::pf(num / sv$var.post, q, dfr + sv$df.prior, lower.tail=FALSE)
 }
 
-out2 <- initialize(mk_state(samps), cfg_main, minimal=TRUE)     ## ~grp*age, 'grp'
+out2 <- init_state(mk_state(samps), cfg_main, minimal=TRUE)     ## ~grp*age, 'grp'
 res2 <- test_prolfqua(out2$state, out2$config, is_log_transformed=FALSE)
 h2 <- res2$hits
 X2 <- res2$design$X
@@ -433,7 +433,7 @@ report(isTRUE(all.equal(h2$p.value,
 
 cfg_nm <- cfg_one
 cfg_nm$test_moderate <- FALSE
-out_nm <- initialize(mk_state(samps), cfg_nm, minimal=TRUE)
+out_nm <- init_state(mk_state(samps), cfg_nm, minimal=TRUE)
 res_nm <- test_prolfqua(out_nm$state, out_nm$config, is_log_transformed=FALSE)
 hn <- res_nm$hits
 
@@ -464,7 +464,7 @@ section("the prior variance can be fitted against mean intensity")
 
 cfg_tr <- cfg_one
 cfg_tr$test_trend <- TRUE
-out_tr <- initialize(mk_state(samps), cfg_tr, minimal=TRUE)
+out_tr <- init_state(mk_state(samps), cfg_tr, minimal=TRUE)
 res_tr <- test_prolfqua(out_tr$state, out_tr$config, is_log_transformed=FALSE)
 ht <- res_tr$hits
 
@@ -525,12 +525,12 @@ report(isTRUE(all.equal(ht$p.value.unmod, h$p.value.unmod[match(ht$pep, h$pep)])
 cfg_few <- cfg_tr
 few <- list(expression=exprs[1:4, , drop=FALSE], features=feats[1:4, , drop=FALSE],
   samples=samps)
-out_few <- initialize(few, cfg_few, minimal=TRUE)
+out_few <- init_state(few, cfg_few, minimal=TRUE)
 res_few <- test_prolfqua(out_few$state, out_few$config, is_log_transformed=FALSE)
 
 cfg_few2 <- cfg_few
 cfg_few2$test_trend <- FALSE
-out_few2 <- initialize(few, cfg_few2, minimal=TRUE)
+out_few2 <- init_state(few, cfg_few2, minimal=TRUE)
 res_few2 <- test_prolfqua(out_few2$state, out_few2$config, is_log_transformed=FALSE)
 
 report(nrow(res_few$hits) %in% 4 && !any(is.na(res_few$hits$p.value)),
@@ -545,7 +545,7 @@ report(isTRUE(all.equal(res_few$hits$p.value, res_few2$hits$p.value)),
 
 cfg_both <- cfg_tr
 cfg_both$test_moderate <- FALSE
-out_both <- initialize(mk_state(samps), cfg_both, minimal=TRUE)
+out_both <- init_state(mk_state(samps), cfg_both, minimal=TRUE)
 res_both <- test_prolfqua(out_both$state, out_both$config, is_log_transformed=FALSE)
 hb <- res_both$hits
 
@@ -592,7 +592,7 @@ e[f_short, c(3, 9)] <- NA                     ## merely two observations short
 
 report(sum(is.na(e)) > 0, "the missingness fixture does have missing values")
 
-out <- initialize(list(expression=e, features=feats, samples=samps_m), cfg_m,
+out <- init_state(list(expression=e, features=feats, samples=samps_m), cfg_m,
   minimal=TRUE)
 m_miss <- mark()
 res <- try(test_prolfqua(out$state, out$config, is_log_transformed=FALSE),
