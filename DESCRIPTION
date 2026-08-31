@@ -5,9 +5,9 @@ Title: Hypothesis Testing for Proteomics
 Authors@R: person("Mitch", "Kostich", email="mitch.kostich@jax.org", role=c("aut", "cre"))
 Depends: R (>= 4.0)
 Imports: utils, stats, limma, edgeR, MsCoreUtils
-Suggests: DEqMS, glmnet, impute, imputeLCMD, knitr, lme4, lmerTest, missForest,
-  msqrob2, pcaMethods, proDA, prolfqua, QFeatures, randomForest, rmarkdown,
-  SummarizedExperiment, vsn
+Suggests: DEqMS, glmnet, impute, imputeLCMD, knitr, lme4, lmerTest, lmtest,
+  missForest, msqrob2, pcaMethods, proDA, prolfqua (>= 1.7.0), QFeatures,
+  randomForest, rmarkdown, SummarizedExperiment, vsn
 VignetteBuilder: knitr
 Description: Toolkit providing R-based functionality for analyzing 
   non-negative numeric expression matrices. Supplies functions to normalize, 
