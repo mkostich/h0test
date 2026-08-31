@@ -1,15 +1,16 @@
 Package: h0testr
 Version: 0.1.8
-Date: 2026-08-28
+Date: 2026-08-31
 Title: Hypothesis Testing for Proteomics
 Authors@R: person("Mitch", "Kostich", email="mitch.kostich@jax.org", role=c("aut", "cre"))
 Depends: R (>= 4.0)
 Imports: utils, stats, limma, edgeR, MsCoreUtils
-Suggests: DEqMS, glmnet, impute, imputeLCMD, lme4, lmerTest, missForest,
-  msqrob2, pcaMethods, proDA, prolfqua, QFeatures, randomForest,
+Suggests: DEqMS, glmnet, impute, imputeLCMD, knitr, lme4, lmerTest, missForest,
+  msqrob2, pcaMethods, proDA, prolfqua, QFeatures, randomForest, rmarkdown,
   SummarizedExperiment, vsn
+VignetteBuilder: knitr
 Description: Toolkit providing R-based functionality for analyzing 
-  non-negative numeric expression matrices. Provides functions to normalize, 
+  non-negative numeric expression matrices. Supplies functions to normalize, 
   transform, combine technical replicates, impute and perform hypothesis 
   testing. Also has higher level functions to run whole workflows, as well 
   as function to tune workflow configuration and parameterization.
