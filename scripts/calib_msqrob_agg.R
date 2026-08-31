@@ -74,8 +74,8 @@ mk <- function(y) {
   x <- as.data.frame(y)
   x <- cbind(fnames=rownames(x), x)
   rownames(x) <- NULL
-  o <- QFeatures::readQFeatures(table=x, ecol=2:ncol(x), fnames="fnames",
-    name="features")
+  o <- QFeatures::readQFeatures(assayData=x, quantCols=2:ncol(x), fnames="fnames",
+    name="features", verbose=FALSE)
   for(nm in names(feats)) {
     SummarizedExperiment::rowData(o[["features"]])[[nm]] <- feats[[nm]]
   }

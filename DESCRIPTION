@@ -1,5 +1,5 @@
 Package: h0testr
-Version: 0.1.8
+Version: 0.1.9
 Date: 2026-08-31
 Title: Hypothesis Testing for Proteomics
 Authors@R: person("Mitch", "Kostich", email="mitch.kostich@jax.org", role=c("aut", "cre"))
@@ -18,4 +18,4 @@ Encoding: UTF-8
 License: GPL-3
 URL: https://github.com/mkostich/h0test
 BugReports: https://github.com/mkostich/h0test/issues
-RoxygenNote: 7.3.3
+Config/roxygen2/version: 8.1.0

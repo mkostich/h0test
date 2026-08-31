@@ -159,8 +159,8 @@ test_msqrob <- function(state, config, maxit=100, aggregate=FALSE) {
   n_non0 <- apply(exprs, 1, function(v) sum(!is.na(v)))
   exprs <- cbind(fnames=rownames(exprs), exprs)
   rownames(exprs) <- NULL
-  obj <- QFeatures::readQFeatures(table=exprs, ecol=2:ncol(exprs), 
-    fnames="fnames", name="features")  
+  obj <- QFeatures::readQFeatures(assayData=exprs, quantCols=2:ncol(exprs),
+    fnames="fnames", name="features", verbose=FALSE)
 
   feats <- state$features
   feats[[config$gene_id_col]] <- f.gene_ids(feats, config, "test_msqrob")

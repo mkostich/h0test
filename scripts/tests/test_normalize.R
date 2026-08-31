@@ -356,7 +356,8 @@ report(!is.null(out) && !any(is.nan(out$state$expression)),
 report(!is.null(out) && sum(is.na(out$state$expression)) == n_na0,
   "and no measurement was lost: the gaps are the ones it started with")
 report(!is.null(out) && isTRUE(all.equal(out$state$expression,
-  limma::normalizeCyclicLoess(log2(m0 + 1), span=0.7, method="fast"))),
+  limma::normalizeCyclicLoess(log2(m0 + 1), adaptive.span=TRUE,
+    method="fast"))),
   "and the result is limma's fit of the transformed matrix")
 
 i <- mark()
@@ -709,9 +710,9 @@ for(x in list(NULL, numeric(0))) {
       " means unset, so 0.75 is used"))
   out <- val(normalize_loess(mk_state(mfull), cfg0, span=x))
   report(!is.null(out) && isTRUE(all.equal(out$expression,
-      normalize_loess(mk_state(mfull), cfg0, span=0.7)$expression,
+      limma::normalizeCyclicLoess(mfull, adaptive.span=TRUE, method="fast"),
       tolerance=0)),
-    paste0("span of length ", length(x), " means unset, so 0.7 is used"))
+    paste0("span of length ", length(x), " means unset, so the span is adaptive"))
 }
 
 for(x in list(NULL, character(0))) {

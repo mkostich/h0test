@@ -21,7 +21,9 @@ normalize_loess(state, config, span = NULL, method = "fast")
 
 \item{span}{Single number between 0 and 1 specifying span for loess fit.
 Higher numbers result in smoother (less localized) fit. Defaults to
-\code{config$normalization_span}, or to \code{0.7} when that is unset as well.}
+\code{config$normalization_span}. When both are unset, the span is adaptive:
+\code{limma::chooseLowessSpan()} sets it from the number of features, giving
+about \code{0.74} at 200 features, \code{0.56} at 1000 and \code{0.42} at 10000.}
 
 \item{method}{Character in \code{c("fast", "affy", "pairs")}. Default:
 \code{"fast"}, the only one usable on data with missing values; see details.}

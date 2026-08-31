@@ -466,7 +466,9 @@ normalize_vsn <- function(state, config, n_pts=42L) {
 #'   }
 #' @param span Single number between 0 and 1 specifying span for loess fit.
 #'   Higher numbers result in smoother (less localized) fit. Defaults to
-#'   \code{config$normalization_span}, or to \code{0.7} when that is unset as well.
+#'   \code{config$normalization_span}. When both are unset, the span is adaptive:
+#'   \code{limma::chooseLowessSpan()} sets it from the number of features, giving
+#'   about \code{0.74} at 200 features, \code{0.56} at 1000 and \code{0.42} at 10000.
 #' @param method Character in \code{c("fast", "affy", "pairs")}. Default:
 #'   \code{"fast"}, the only one usable on data with missing values; see details.
 #' @return A list (the processed state) with the following elements:
@@ -527,22 +529,34 @@ normalize_loess <- function(state, config, span=NULL, method="fast") {
   }
 
   if(length(span) %in% 0) span <- config$normalization_span
-  if(length(span) %in% 0) span <- 0.7
+
+  ## no span given: limma picks one from the feature count, which suits the
+  ##   feature counts of proteomics better than any fixed value:
+
+  adaptive <- length(span) %in% 0
 
   ## as with method above: !is.numeric() let a span of length 2 and an NA
   ##   through to the range check, which is where R reported them:
 
-  if(!(length(span) %in% 1 && is.numeric(span) && !is.na(span))) {
-    f.err("normalize_loess: span has to be a single number;", "\n",
-      " span:", span, "; class:", class(span), "; length:", length(span),
-      config=config)
+  if(!adaptive) {
+
+    if(!(length(span) %in% 1 && is.numeric(span) && !is.na(span))) {
+      f.err("normalize_loess: span has to be a single number;", "\n",
+        " span:", span, "; class:", class(span), "; length:", length(span),
+        config=config)
+    }
+    if(span < 0 || span > 1) {
+      f.err("normalize_loess: span < 0 || span > 1; span:", span, config=config)
+    }
   }
-  if(span < 0 || span > 1) {
-    f.err("normalize_loess: span < 0 || span > 1; span:", span, config=config)
+
+  state$expression <- if(adaptive) {
+    limma::normalizeCyclicLoess(state$expression, adaptive.span=TRUE,
+      method=method)
+  } else {
+    limma::normalizeCyclicLoess(state$expression, span=span,
+      adaptive.span=FALSE, method=method)
   }
-  
-  state$expression <- limma::normalizeCyclicLoess(state$expression, 
-    span=span, method=method)
     
   return(state)
 }
@@ -908,7 +922,8 @@ normalize <- function(state, config, method=NULL,
   
   f.msg("normalize: normalization_method:", method,
     "; normalization_quantile:", normalization_quantile,
-    "; normalization_span:", span, config=config)
+    "; normalization_span:", if(length(span) %in% 0) "adaptive" else span,
+    config=config)
 
   ## every method other than "none" ends by transforming data:
 

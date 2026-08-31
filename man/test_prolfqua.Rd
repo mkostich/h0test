@@ -102,7 +102,7 @@ A list with components:
   No effect size is reported here: the test is an F test of the columns carrying
     \code{config$test_term}, whatever their number, so there is no coefficient to report
     alongside it. \code{h0testr::test_h0()} fills its \code{logfc} column from the fitted
-    coefficients instead, taken from \code{fit$modelDF} or, with \code{mixed=TRUE}, from
+    coefficients instead, taken from \code{fit$model_df} or, with \code{mixed=TRUE}, from
     \code{coefs}: the signed coefficient when one column carries the test, which for a
     \strong{continuous} covariate is a change \strong{per unit} of it rather than a fold
     change between groups, and the total swing when several do. See \code{h0testr::test_h0()}.
@@ -122,8 +122,7 @@ Uses the \code{prolfqua::build_model()} function. Returns results sorted by p-va
     under \code{test_method} \code{"lm"}, \code{"trend"} and \code{"voom"}.
   The error variance of each feature is shrunk toward a common prior across
     features before the F is formed, unless \code{config$test_moderate} is
-    \code{FALSE}. The shrinkage is \code{prolfqua::squeezeVarRob(robust=FALSE)},
-    which returns exactly what \code{limma::squeezeVar()} returns.
+    \code{FALSE}. The shrinkage is \code{limma::squeezeVar(robust=FALSE)}.
   The prior that variance is shrunk toward is one number shared by every feature
     unless the \code{trend} argument, or \code{config$test_trend} when it is not
     given, is \code{TRUE}, which fits it against the mean
@@ -155,13 +154,13 @@ Uses the \code{prolfqua::build_model()} function. Returns results sorted by p-va
       1. Reshape data into long format with intensities, feature meta, and sample meta. \cr
       2. Build the design with \code{f.design_test_cols()} and add its columns to
            the long data as numeric columns. \cr
-      3. Make \code{prolfqua::AnalysisTableAnnotation} and \code{prolfqua::LFQData}
+      3. Make \code{prolfqua::AnalysisConfiguration} and \code{prolfqua::LFQData}
            objects. \cr
       4. Make two \code{prolfqua::strategy_lm} objects, for the full design and for
            the design without the columns carrying \code{config$test_term}. \cr
       5. Build a \code{prolfqua} model from each. \cr
       6. Moderate the per-feature error variance across features with
-           \code{prolfqua::squeezeVarRob()}, toward a flat prior or, with
+           \code{limma::squeezeVar()}, toward a flat prior or, with
            \code{trend}, one fitted against mean feature intensity. \cr
       7. Return the per-feature F-test comparing the two fits, dropping features
            for which the test is not estimable. \cr

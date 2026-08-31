@@ -148,7 +148,7 @@ f.moderate_var <- function(s2, df_resid, config, covariate=NULL,
     }
   }
 
-  sv <- prolfqua::squeezeVarRob(s2, df=df_resid, covariate=covariate, robust=FALSE)
+  sv <- limma::squeezeVar(s2, df=df_resid, covariate=covariate, robust=FALSE)
 
   if(any(is.infinite(sv$df.prior))) {
     f.msg("WARNING:", who, ": the prior degrees of freedom of the moderated error",

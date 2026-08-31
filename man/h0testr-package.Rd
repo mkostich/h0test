@@ -6,7 +6,7 @@
 \alias{h0testr-package}
 \title{h0testr: Hypothesis Testing for Proteomics}
 \description{
-Toolkit providing R-based functionality for analyzing non-negative numeric expression matrices. Provides functions to normalize, transform, combine technical replicates, impute and perform hypothesis testing. Also has higher level functions to run whole workflows, as well as function to tune workflow configuration and parameterization.
+Toolkit providing R-based functionality for analyzing non-negative numeric expression matrices. Supplies functions to normalize, transform, combine technical replicates, impute and perform hypothesis testing. Also has higher level functions to run whole workflows, as well as function to tune workflow configuration and parameterization.
 }
 \seealso{
 \code{\link{run}} to execute a whole workflow,
@@ -14,6 +14,11 @@ Toolkit providing R-based functionality for analyzing non-negative numeric expre
 }
 \author{
 \strong{Maintainer}: Mitch Kostich \email{mitch.kostich@jax.org}
+
+Authors:
+\itemize{
+  \item Mitch Kostich \email{mitch.kostich@jax.org}
+}
 
 }
 \keyword{internal}

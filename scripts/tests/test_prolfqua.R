@@ -94,7 +94,7 @@ logged <- function(pat, since=0) {
 }
 
 ## first per-feature lm fit from a test_prolfqua() result:
-lm1 <- function(res) res$fit$modelDF$linear_model[[1]]
+lm1 <- function(res) res$fit$model_df$linear_model[[1]]
 
 ## the covariates reach the fit as numeric design matrix columns, so the fit has no
 ##   xlevels; the level ordering shows up instead as which columns model.matrix()
@@ -350,7 +350,7 @@ section("the error variance is moderated across features")
 ##   test of 'age' from just above, so one degree of freedom:
 
 h <- res$hits
-md <- res$fit$modelDF
+md <- res$fit$model_df
 dfr <- md$df.residual[match(h$pep, md$pep)]
 sig2 <- md$sigma[match(h$pep, md$pep)]^2
 
@@ -359,10 +359,7 @@ report(all(c("moderated", "s2.denom", "df.denom", "df.prior", "F.value.unmod",
   "hits carries the moderation columns")
 report(all(h$moderated), "moderation is on by default")
 
-sv <- prolfqua::squeezeVarRob(sig2, df=dfr, robust=FALSE)
-report(isTRUE(all.equal(sv$var.post, limma::squeezeVar(sig2, df=dfr)$var.post)) &&
-  isTRUE(all.equal(sv$df.prior, limma::squeezeVar(sig2, df=dfr)$df.prior)),
-  "prolfqua's shrinkage is limma::squeezeVar()'s, the one test_trend() uses")
+sv <- limma::squeezeVar(sig2, df=dfr)
 report(isTRUE(all.equal(h$s2.denom, sv$var.post)),
   "the denominator variance is the posterior variance, not the feature's own")
 report(all(h$s2.denom >= pmin(sig2, sv$var.prior)) &&
@@ -483,15 +480,11 @@ report(length(unique(h$s2.prior)) %in% 1,
 ##   observations where the feature was seen, and the shrinkage is again limma's:
 
 amean <- rowMeans(exprs[ht$pep, , drop=FALSE], na.rm=TRUE)
-mdt <- res_tr$fit$modelDF
+mdt <- res_tr$fit$model_df
 dfr_t <- mdt$df.residual[match(ht$pep, mdt$pep)]
 sig2_t <- mdt$sigma[match(ht$pep, mdt$pep)]^2
-svt <- prolfqua::squeezeVarRob(sig2_t, df=dfr_t, covariate=amean, robust=FALSE)
 svl <- limma::squeezeVar(sig2_t, df=dfr_t, covariate=amean)
 
-report(isTRUE(all.equal(svt$var.post, svl$var.post)) &&
-  isTRUE(all.equal(svt$df.prior, svl$df.prior)),
-  "prolfqua's trended shrinkage is limma::squeezeVar(covariate=)'s")
 report(isTRUE(all.equal(ht$s2.prior, as.numeric(svl$var.prior))),
   "the reported prior variance is that fitted trend, evaluated per feature")
 report(isTRUE(all.equal(ht$s2.denom, svl$var.post)),
@@ -603,7 +596,7 @@ report(!inherits(res, "try-error"),
 if(!inherits(res, "try-error")) {
 
   h <- res$hits
-  md <- res$fit$modelDF
+  md <- res$fit$model_df
   dfr <- function(f) md$df.residual[md$pep %in% f]
 
   report(f_short %in% h$pep,

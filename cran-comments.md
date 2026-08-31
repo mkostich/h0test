@@ -2,11 +2,12 @@
 
 ## Test environments
 
+- Debian GNU/Linux 13 (trixie), R 4.6.1 (apptainer container, `--as-cran --no-manual`)
 - Windows 11, R 4.3.1 (local)
 
 ## R CMD check results
 
-0 errors | 0 warnings | 3 notes
+0 errors | 0 warnings | 2 notes
 
 ### Note: New submission
 
@@ -30,15 +31,11 @@ It is used conditionally throughout, as required by the CRAN policy on Suggests:
   default testing engine is `limma`, which is a hard dependency.
 
 The same pattern covers every other optional engine (DEqMS, glmnet, impute, imputeLCMD,
-lme4, lmerTest, missForest, msqrob2, pcaMethods, proDA, QFeatures, randomForest,
+lme4, lmerTest, lmtest, missForest, msqrob2, pcaMethods, proDA, QFeatures, randomForest,
 SummarizedExperiment, vsn); those are all in mainstream repositories and so are not flagged.
-
-### Note: unable to verify current time
-
-The check machine has no network time source. This is a property of the local environment,
-not of the package.
 
 ### Note: examples with elapsed time > 5s
 
-The flagged examples exercise the slower optional engines and the configuration-tuning
-function, which fits many workflow combinations by design.
+One example is flagged: `test_msqrob` at 12.2s user, 11.8s elapsed. It fits one mixed model
+per gene through `msqrob2`, which is the slowest of the optional engines. The example is
+already reduced to the smallest input that exercises both of its paths.

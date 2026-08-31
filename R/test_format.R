@@ -104,7 +104,7 @@ f.test_coefs <- function(result, method, design, config) {
 
   ## prolfqua::strategy_lm() fits a plain stats::lm() of response on columns
   ##   of design$X, under the make.names() forms of their names that test_prolfqua()
-  ##   built, one model per feature in fit$modelDF. A model that could not be fit, or
+  ##   built, one model per feature in fit$model_df. A model that could not be fit, or
   ##   that dropped a column as non-estimable for that feature, yields NA:
 
   ## mixed path fits one model per gene; falls back to stats::lm() for a gene
@@ -118,7 +118,7 @@ f.test_coefs <- function(result, method, design, config) {
 
   if(method %in% "prolfqua") {
 
-    mdf <- as.data.frame(result$fit$modelDF)
+    mdf <- as.data.frame(result$fit$model_df)
     id_col <- intersect(c(config$feat_col, config$gene_id_col, config$feat_id_col),
       names(mdf))
     if(!length(id_col) || !("linear_model" %in% names(mdf))) return(NULL)
