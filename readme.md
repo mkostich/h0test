@@ -78,7 +78,7 @@ install.packages(c(
 ))
 
 ## test_method "prolfqua" and "prolfqua_lmer"; github only:
-remotes::install_github("wolski/prolfqua")
+remotes::install_github("fgcz/prolfqua")
 ```
 
 ---
