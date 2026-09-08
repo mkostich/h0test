@@ -130,6 +130,59 @@ f.log_obj <- function(obj, config) {
   invisible(NULL)
 }
 
+f.append_notice <- local({
+  seen <- character(0)
+  function(file) {
+    if(file %in% seen) return(invisible(NULL))
+    seen <<- c(seen, file)
+    warning("h0testr: cannot append to '", file, "'; the sweep continues and still ",
+      "returns its results, but rows are no longer being saved as cells finish",
+      call.=FALSE)
+    invisible(NULL)
+  }
+})
+
+## Append one row to a tab delimited file, writing the header if the file is new.
+##   Unlike f.save_tsv() this does not stage through a temporary file: the point is
+##   that the bytes are on disk before the next cell starts, so a run killed by the
+##   scheduler still leaves every cell it finished. write.table(append=TRUE) opens,
+##   writes and closes per call, so nothing waits in a buffer:
+
+f.append_tsv <- function(dat, file_out, config) {
+
+  ## an existing empty file counts as new, so a touched file does not lose its header:
+  have <- file.exists(file_out) && isTRUE(file.size(file_out) > 0)
+
+  ## the header came from the first row, so every later row has to carry the same
+  ##   columns. f.tune2() and f.tune2_na_row() are separate producers of that frame
+  ##   and rbind() is what currently keeps them in step; appending has no such check,
+  ##   and a misaligned column is worse than a stopped sweep:
+
+  if(have) {
+    hdr <- tryCatch(scan(file_out, what="", nlines=1, sep="\t", quiet=T),
+      error=function(msg) NULL)
+
+    if(!identical(hdr, names(dat))) {
+      f.err("f.append_tsv: this row does not match the header already in", file_out,
+        "\n", " header:", hdr, "\n", " row:", names(dat), config=config)
+    }
+  }
+
+  ok <- tryCatch({
+      utils::write.table(dat, file=file_out, append=have, quote=F, sep="\t",
+        row.names=F, col.names=!have)
+      TRUE
+    },
+    error=function(msg) FALSE,
+    warning=function(msg) FALSE
+  )
+
+  ## an unwritable progress file must not cost the sweep the work it has left to do:
+  if(!ok) f.append_notice(file_out)
+
+  return(invisible(ok))
+}
+
 ## Write one table to file_out as a tab delimited file:
 
 f.save_tsv <- function(dat, file_out, config, row.names=T, col.names=T) {

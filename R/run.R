@@ -330,6 +330,14 @@ f.tune2 <- function(state, config) {
 #'   \code{h0testr::test_methods()} is refused. That includes
 #'   \code{"none"}, which is interpreted as "skip the test step": a
 #'   sweep over not testing has nothing to compare.
+#' @param file_out Character scalar path. When it is not \code{""}, each cell's row is
+#'   appended to this file as that cell completes, header first, in the same tab
+#'   delimited layout as the returned table. The default \code{""} turns this off and
+#'   the sweep behaves exactly as before. A sweep is a long serial run whose result is
+#'   assembled in memory and returned only at the end, so a scheduler killing it for
+#'   memory or wall time otherwise loses every cell it had finished; with
+#'   \code{file_out} set it loses only the cell in flight. An existing file is refused
+#'   rather than appended to, since that would mix two sweeps in one table.
 #' @return A data.frame with the following columns:
 #'   \tabular{ll}{
 #'     \code{norm}   \tab Normalization method (character). \cr
@@ -428,7 +436,8 @@ tune <- function(
     impute_spans=0.5,
     impute_npcs=c(3, 10),
     impute_ks=c(5, 20),
-    test_methods=c("lm", "trend", "deqms", "msqrob", "proda", "prolfqua")) {
+    test_methods=c("lm", "trend", "deqms", "msqrob", "proda", "prolfqua"),
+    file_out="") {
 
   ## the sweep assigns each of these to config$test_method in turn:
   bad <- setdiff(test_methods, test_methods())
@@ -455,6 +464,21 @@ tune <- function(
       "allowed:", norm_ok, config=config)
   }
 
+  if(!(length(file_out) %in% 1 && is.character(file_out) && !is.na(file_out))) {
+    f.err("tune: file_out has to be a single character value, \"\" to switch it off;",
+      "\n", " class:", class(file_out), "; length:", length(file_out), config=config)
+  }
+
+  ## rows are appended as cells finish, so an existing file would silently merge this
+  ##   sweep with whatever ran before it:
+
+  if(nzchar(file_out) && file.exists(file_out)) {
+    f.err("tune: file_out already exists:", file_out, "\n",
+      " rows are appended as each cell completes, so this sweep would be mixed into",
+      "the results already there; move that file aside or name another",
+      config=config)
+  }
+
   ## the loop below assigns all three method keys, and tune()'s step sequence is
   ##   the default one, so a stale value in any of them should not refuse the sweep:
 
@@ -468,6 +492,16 @@ tune <- function(
   state1 <- out$state                   ## save for subsequent iterations
   config1 <- out$config                 ## save for subsequent iterations
   rslt <- NULL
+
+  ## the one place a finished cell is recorded: kept for the return value, logged,
+  ##   and, when file_out is set, put on disk before the next cell starts:
+
+  f.emit <- function(rslt_i, config) {
+    rslt <<- rbind(rslt, rslt_i)
+    f.log_obj(rslt_i, config=config)
+    if(nzchar(file_out)) f.append_tsv(rslt_i, file_out, config=config)
+    invisible(NULL)
+  }
 
   for(normalization_method in normalization_methods) {
     
@@ -564,9 +598,7 @@ tune <- function(
             config3$impute_quantile <- impute_quantile
             
             f.log_block("filter, impute, and test", config=config3)
-            rslt_i <- f.cell(state3, config3)
-            rslt <- rbind(rslt, rslt_i)
-            f.log_obj(rslt_i, config=config3)
+            f.emit(f.cell(state3, config3), config3)
           }
         } else if(impute_method %in% c("qrilc", "rnorm_feature")) {
           for(impute_scale in impute_scales) {
@@ -577,9 +609,7 @@ tune <- function(
             config3$impute_scale <- impute_scale
             
             f.log_block("filter, impute, and test", config=config3)
-            rslt_i <- f.cell(state3, config3)
-            rslt <- rbind(rslt, rslt_i)
-            f.log_obj(rslt_i, config=config3)
+            f.emit(f.cell(state3, config3), config3)
           }
         } else if(impute_method %in% c("min_prob")) {
           for(impute_quantile in impute_quantiles) {
@@ -593,9 +623,7 @@ tune <- function(
               config3$impute_scale <- impute_scale
               
               f.log_block("filter, impute, and test", config=config3)
-              rslt_i <- f.cell(state3, config3)
-              rslt <- rbind(rslt, rslt_i)
-              f.log_obj(rslt_i, config=config3)
+              f.emit(f.cell(state3, config3), config3)
             }
           }
         } else if(impute_method %in% c("loess_logit")) {
@@ -607,9 +635,7 @@ tune <- function(
             config3$impute_span <- impute_span
             
             f.log_block("filter, impute, and test", config=config3)
-            rslt_i <- f.cell(state3, config3)
-            rslt <- rbind(rslt, rslt_i)
-            f.log_obj(rslt_i, config=config3)
+            f.emit(f.cell(state3, config3), config3)
           }
         } else if(impute_method %in% c("bpca", "ppca", "svdImpute")) {
           for(npcs in impute_npcs) {
@@ -620,9 +646,7 @@ tune <- function(
             config3$impute_npcs <- npcs
             
             f.log_block("filter, impute, and test", config=config3)
-            rslt_i <- f.cell(state3, config3)
-            rslt <- rbind(rslt, rslt_i)
-            f.log_obj(rslt_i, config=config3)
+            f.emit(f.cell(state3, config3), config3)
           }
         } else if(impute_method %in% c("knn", "lls")) {
           for(impute_k in impute_ks) {
@@ -633,9 +657,7 @@ tune <- function(
             config3$impute_k <- impute_k
             
             f.log_block("filter, impute, and test", config=config3)
-            rslt_i <- f.cell(state3, config3)
-            rslt <- rbind(rslt, rslt_i)
-            f.log_obj(rslt_i, config=config3)
+            f.emit(f.cell(state3, config3), config3)
           }
         } else if(impute_method %in% c("sample_lod", "glm_binom", "glmnet", 
             "rf", "missforest", "none")) {
@@ -645,9 +667,7 @@ tune <- function(
             config=config3)
 
           f.log_block("filter, impute, and test", config=config3)
-          rslt_i <- f.cell(state3, config3)
-          rslt <- rbind(rslt, rslt_i)
-          f.log_obj(rslt_i, config=config3)
+          f.emit(f.cell(state3, config3), config3)
         } else {
           f.err("tune: unexpected impute_method:", 
             impute_method, config=config3)

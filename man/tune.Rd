@@ -16,7 +16,8 @@ tune(
   impute_spans = 0.5,
   impute_npcs = c(3, 10),
   impute_ks = c(5, 20),
-  test_methods = c("lm", "trend", "deqms", "msqrob", "proda", "prolfqua")
+  test_methods = c("lm", "trend", "deqms", "msqrob", "proda", "prolfqua"),
+  file_out = ""
 )
 }
 \arguments{
@@ -61,6 +62,15 @@ data. Name any of the three explicitly to include. A name not returned by
 \code{h0testr::test_methods()} is refused. That includes
 \code{"none"}, which is interpreted as "skip the test step": a
 sweep over not testing has nothing to compare.}
+
+\item{file_out}{Character scalar path. When it is not \code{""}, each cell's row is
+appended to this file as that cell completes, header first, in the same tab
+delimited layout as the returned table. The default \code{""} turns this off and
+the sweep behaves exactly as before. A sweep is a long serial run whose result is
+assembled in memory and returned only at the end, so a scheduler killing it for
+memory or wall time otherwise loses every cell it had finished; with
+\code{file_out} set it loses only the cell in flight. An existing file is refused
+rather than appended to, since that would mix two sweeps in one table.}
 }
 \value{
 A data.frame with the following columns:
