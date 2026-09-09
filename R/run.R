@@ -734,8 +734,11 @@ tune <- function(
 #' @param suffix Character scalar with distinctive suffix (required) of tuning results filenames.
 #' @param config List with at least \code{log_file} defined (can be \code{""}).
 #' @param fdr_cutoff Numeric scalar between \code{0} and \code{1.0} specifying 
-#'   cutoff for false discovery rate. Trials not meeting cutoff are moved to the 
+#'   cutoff for false discovery rate. Trials not meeting cutoff are moved to the
 #'   bottom of the output \code{data.frame}.
+#' @param fdr_stat Character scalar, one of \code{"max"} (default), \code{"mean"} or
+#'   \code{"median"}, selecting the summary of permuted hit counts used as the
+#'   numerator of \code{fdr}.
 #' @return A \code{data.frame} with the following columns:
 #'   \tabular{ll}{
 #'     \code{nhits}      \tab Number of significant hits. \cr
@@ -766,7 +769,12 @@ tune <- function(
 #' print(tbl)
 #' @export
 
-tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05) {
+tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05, fdr_stat="max") {
+
+  if(!(length(fdr_stat) %in% 1) || !(fdr_stat %in% c("max", "mean", "median"))) {
+    f.err("tune_check: fdr_stat must be one of 'max', 'mean' or 'median'; got:",
+      paste(fdr_stat, collapse=" "), config=config)
+  }
 
   sfx_re <- gsub("(\\W)", "\\\\\\1", suffix)
   prfx_re <- gsub("(\\W)", "\\\\\\1", prefix)
@@ -791,8 +799,6 @@ tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05) {
   perm_files <- files[!i0]
   f.msg("found 1 unpermuted file and", length(perm_files), "permuted files\n",
     config=config)
-
-  ## with no permuted file there is no null to estimate an fdr against:
 
   if(length(perm_files) < 1) {
     f.err("tune_check: found the unpermuted file", unperm_file, "but no permuted results",
@@ -832,14 +838,15 @@ tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05) {
   dat1 <- dat1[i_run, , drop=F]
 
   if(nrow(dat1) < 1) {
-    f.err("tune_check: no permuted result row has ntests above 0, so there is nothing",
-      "to estimate an fdr from; permuted files read:", length(perm_files), config=config)
+    f.err("tune_check: no permuted result has ntests >0, so nothing",
+      "to estimate fdr from; permuted files read:", length(perm_files), config=config)
   }
 
   dat1$nhits[is.na(dat1$nhits)] <- 0
 
-  key_cols <- c("norm", "nquant", "impute", "iquant", "scale", "span", "npcs", "k",
-    "test")
+  id_cols <- intersect(c("input", "formula", "agg"), names(dat0))
+  key_cols <- c(id_cols, "norm", "nquant", "impute", "iquant", "scale", "span", "npcs",
+    "k", "test")
 
   bad <- setdiff(key_cols, names(dat0))
 
@@ -858,7 +865,7 @@ tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05) {
   k0 <- apply(dat0[, key_cols, drop=F], 1, paste, collapse=":")
   k1 <- apply(dat1[, key_cols, drop=F], 1, paste, collapse=":")
 
-  ## perm_max[k0] below is NA for unpermuted combinations with no permuted counterparts:
+  ## perm_max[k0] below is NA for unpermuted combinations with no permutations:
 
   miss0 <- setdiff(unique(k0), unique(k1))
   miss1 <- setdiff(unique(k1), unique(k0))
@@ -872,31 +879,29 @@ tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05) {
 
   if(length(miss1)) {
     f.msg("WARNING: tune_check:", length(miss1), "of", length(unique(k1)),
-      "permuted combination(s) are absent from", unperm_file,
-      "and are ignored; first few:", utils::head(miss1, 3), config=config)
+      "permuted combination(s) absent from", unperm_file,
+      "and ignored; first few:", utils::head(miss1, 3), config=config)
   }
 
-  ## permuted results in dat1; summarize hits per combination over however many
-  ##   permuted files were read:
+  ## permuted results in dat1; summarize hits per combination:
   perm_max <- tapply(dat1$nhits, k1, max, na.rm=T)
   perm_mid <- tapply(dat1$nhits, k1, stats::median, na.rm=T)
   perm_avg <- tapply(dat1$nhits, k1, mean, na.rm=T)
   perm_sd  <- tapply(dat1$nhits, k1, stats::sd, na.rm=T)
   
-  ## get them in same order as dat1 (k1 made from dat1):
-  dat0$max1 <- perm_max[k0]   ## max number of hits in permutations
-  dat0$mid1 <- perm_mid[k0]   ## median number of hits in permutations
-  dat0$avg1 <- perm_avg[k0]   ## mean number of hits in permutations
+  ## get same order as dat1 (k1 made from dat1):
+  dat0$max1 <- perm_max[k0]   ## max num hits in permutations
+  dat0$mid1 <- perm_mid[k0]   ## median num hits in permutations
+  dat0$avg1 <- perm_avg[k0]   ## mean num hits in permutations
   dat0$sd1  <- perm_sd[k0]    ## sd(nhits) in permutations
   dat0$perm <- NULL
 
-  ## worst case false positive rate: the most hits any single permutation gave,
-  ##   over the observed hits, capped at 1:
-
+  ## (permuted hits) / (observed hits), capped at 1; max is worst case, but grows with
+  ##   the number of permutations, so mean or median compare better across sweeps:
 
   nhits <- dat0$nhits
   nhits[nhits %in% 0] <- 1
-  dat0$fdr <- dat0$max1 / nhits
+  dat0$fdr <- switch(fdr_stat, max=dat0$max1, mean=dat0$avg1, median=dat0$mid1) / nhits
   dat0$fdr[dat0$fdr > 1] <- 1.0
 
   ## a combination f.tune2() skipped, or that lost every feature to filtering, has
@@ -905,10 +910,8 @@ tune_check <- function(dir_in, prefix, suffix, config, fdr_cutoff=0.05) {
 
   dat0$fdr[dat0$ntests %in% 0] <- NA
 
-  keep <- c("nhits", "ntests", "fdr", "max1", "mid1", "avg1", "sd1", "norm",
+  keep <- c(id_cols, "nhits", "ntests", "fdr", "max1", "mid1", "avg1", "sd1", "norm",
     "nquant", "impute", "iquant", "scale", "span", "npcs", "k", "test")
-
-  ## step and reason are absent from tsv files written before they existed:
 
   dat0 <- dat0[, c(keep, intersect(c("step", "reason"), names(dat0)))]
 
