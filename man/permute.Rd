@@ -7,7 +7,7 @@
 permute(state, config, variable = NULL)
 }
 \arguments{
-\item{state}{List with elements formatted like the list returned by 
+\item{state}{List with elements formatted like the list returned by
 \code{read_data()}:
 \tabular{ll}{
   \code{expression} \tab Numeric matrix with non-negative expression values. \cr
@@ -17,8 +17,11 @@ permute(state, config, variable = NULL)
 
 \item{config}{List with configuration values. Requires the following keys:
 \tabular{ll}{
-  \code{obs_col}        \tab Name of column in \code{feature_file_in} that corresponds to columns of \code{data_file_in}. \cr
-  \code{sample_id_col}  \tab Name of column in \code{sample_file_in} with unique sample identifiers. \cr
+  \code{obs_col}               \tab Name of column in \code{feature_file_in} that corresponds to columns of \code{data_file_in}. \cr
+  \code{sample_id_col}         \tab Name of column in \code{sample_file_in} with unique sample identifiers. \cr
+  \code{permute_within}        \tab Strata column to permute within, or \code{""} for a free shuffle. \cr
+  \code{permute_inflation_max} \tab Largest acceptable inflation of the test-term coefficient variance. \cr
+  \code{permute_force}         \tab TRUE permutes even where that is exceeded. \cr
 }}
 
 \item{variable}{Character name of variable (column in samples) to permute.}
@@ -35,10 +38,19 @@ A list (the permuted state) with the following elements:
 Permute observation covariate.
 }
 \details{
-If \code{variable} is \code{NULL}, uses \code{config$permute_var} 
-  instead. If \code{variable} is \code{NULL} and 
+If \code{variable} is \code{NULL}, uses \code{config$permute_var}
+  instead. If \code{variable} is \code{NULL} and
   \code{config$permute_var == ""}, skips permutation (normal execution).
-  See documentation for \code{h0testr::new_config()} 
+  The shuffle is over unique \code{config$sample_id_col}, so technical replicates of one
+    sample keep a single label.
+  \code{config$permute_within} names a column of strata to shuffle within, leaving the
+    blocking structure of a paired or blocked design intact; \code{""}, the default,
+    shuffles freely over all samples. Before shuffling, \code{h0testr::check_permutation()}
+    prices the scheme and the call fails if it inflates the variance of the
+    \code{config$test_term} coefficient by more than \code{config$permute_inflation_max},
+    naming the column that would fix it. Set \code{config$permute_force} to permute
+    regardless.
+  See documentation for \code{h0testr::new_config()}
     for more detailed description of configuration parameters.
 }
 \examples{

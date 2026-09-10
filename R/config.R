@@ -100,8 +100,11 @@ new_config <- function() {
     ## formula for testing: actual formula can have '+' and ':'; not tested w/ e.g. '*' yet.
     frm=~age+gender+age:gender,          ## formula with variable of interest and covariates
     test_term="age:gender",              ## term (scalar character) in $frm on which test is to be performed; "" iff $contrast is set
-    contrast="",                         ## weighted sum (scalar character) of coefficients of $frm to test, e.g. "grpb - grpc"; "" for none (test $test_term instead)
+    contrast="",                         ## weighted sum (scalar character) of coefs of $frm to test, e.g. "grpb - grpc"; "" for none (test $test_term instead)
     permute_var="",                      ## name (scalar character) of variable to permute; "" for no permutation (normal execution)
+    permute_within="",                   ## column (scalar character) of strata to permute $permute_var within; "" for free permute
+    permute_inflation_max=1.2,           ## refuse shuffle that inflates variance of $test_term coefficient by more than this
+    permute_force=FALSE,                 ## TRUE downgrades refusal above to warning and permutes anyway
     reference_levels=c(                  ## reference level of each factor variable in $frm
       age="young",                       ## numeric variable treated as continuous unless named here
       gender="Male"                      ## character variable must be named here; else error
@@ -282,7 +285,7 @@ check_config <- function(config) {
   }
   
   scalar_character <- c("feature_file_in", "sample_file_in", "data_file_in", 
-    "dir_in", "dir_out", "test_term", "contrast", "permute_var",
+    "dir_in", "dir_out", "test_term", "contrast", "permute_var", "permute_within",
     "feat_id_col", "gene_id_col", "feat_col",
     "obs_id_col", "sample_id_col", "obs_col", "n_samples_expr_col",
     "median_raw_col", "n_features_expr_col", "n_feats_col", "combine_method_col",
@@ -298,10 +301,10 @@ check_config <- function(config) {
   
   scalar_props <- c("normalization_quantile", "impute_quantile", "impute_span",
     "impute_alpha", "normalization_span")
-  scalar_positive <- c("impute_scale")
+  scalar_positive <- c("impute_scale", "permute_inflation_max")
   scalar_nonpositive <- c("impute_floor_offset")
   ## log_from_raw is set by normalize(), not by the user; see f.check_state():
-  scalar_logical <- c("save_state", "verbose",
+  scalar_logical <- c("save_state", "verbose", "permute_force",
     "is_log_transformed", "log_from_raw", "test_moderate", "test_trend",
     "test_random_obs", "test_ridge")
   scalar_formula <- c("frm")

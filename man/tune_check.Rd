@@ -4,7 +4,7 @@
 \alias{tune_check}
 \title{Check tuning results}
 \usage{
-tune_check(dir_in, prefix, suffix, config, fdr_cutoff = 0.05)
+tune_check(dir_in, prefix, suffix, config, fdr_cutoff = 0.05, fdr_stat = "max")
 }
 \arguments{
 \item{dir_in}{Character scalar with path to directory containing tuning results.}
@@ -20,8 +20,12 @@ how many files were passed over. \code{""} reads every file ending in
 \item{config}{List with at least \code{log_file} defined (can be \code{""}).}
 
 \item{fdr_cutoff}{Numeric scalar between \code{0} and \code{1.0} specifying 
-cutoff for false discovery rate. Trials not meeting cutoff are moved to the 
+cutoff for false discovery rate. Trials not meeting cutoff are moved to the
 bottom of the output \code{data.frame}.}
+
+\item{fdr_stat}{Character scalar, one of \code{"max"} (default), \code{"mean"} or
+\code{"median"}, selecting the summary of permuted hit counts used as the
+numerator of \code{fdr}.}
 }
 \value{
 A \code{data.frame} with the following columns:

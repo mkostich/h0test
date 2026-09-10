@@ -2,6 +2,7 @@
 
 export(add_filter_stats)
 export(check_config)
+export(check_permutation)
 export(combine_features)
 export(combine_replicates)
 export(feature_median_expression)

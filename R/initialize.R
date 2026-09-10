@@ -108,7 +108,7 @@ f.check_parameters <- function(state, config, initialized=F, minimal=F) {
           nom, "; names(state$features):", names(state$features), config=config)
       }
     }
-    ## NOTE: n_features_expr_col not required param when minimal, so can be
+    ## n_features_expr_col not required param when minimal, so can be
     ##   unset here; NULL %in% x is logical(0), which if() cannot handle:
     if(length(config$n_features_expr_col) %in% 1 &&
       config$n_features_expr_col %in% names(state$samples)) {
@@ -156,8 +156,7 @@ f.check_parameters <- function(state, config, initialized=F, minimal=F) {
   return(TRUE)
 }
 
-## Establish missingness contract on state$expression: NA is only
-##   indicator of a missing value everywhere downstream:
+## for state$expression: ensure NA is only indicator of missing value:
 
 f.zeros_to_na <- function(state, config) {
 
@@ -243,7 +242,7 @@ f.subset_covariates <- function(state, config) {
   return(state)
 }
 
-## uses config$reference_levels and config$frm; sets levels of the factor
+## uses config$reference_levels and config$frm; sets levels of factor
 ##   covariates in config$frm:
 
 f.set_covariate_factor_levels <- function(state, config, types=NULL) {
@@ -317,11 +316,11 @@ f.set_covariate_factor_levels <- function(state, config, types=NULL) {
 #'     \code{NA}. When \code{config$is_log_transformed} is \code{TRUE} the input
 #'     is already on a log-like scale, in which case zeros and negative values
 #'     are legitimate and no conversion is done; the caller is then responsible
-#'     for having marked non-detections as \code{NA}. The conversion is skipped
+#'     for having marked non-detections as \code{NA}. Conversion is skipped
 #'     when \code{initialized=TRUE}, since an already initialized state may
 #'     legitimately hold negative (transformed) values, but
-#'     \code{config$is_log_transformed} is filled in either way if it was unset,
-#'     so that every downstream step finds the scale recorded there. Unset means
+#'     \code{config$is_log_transformed} is filled in if it was unset,
+#'     so that every downstream step finds scale recorded there. Unset means
 #'     raw.
 #'   Checks that the metadata lines up with \code{state$expression}: 
 #'     \code{state$features} must have one row per row of the matrix and 
@@ -332,9 +331,9 @@ f.set_covariate_factor_levels <- function(state, config, types=NULL) {
 #'   Flow is:
 #'     \tabular{l}{
 #'       1. \code{check_config()}. \cr
-#'       2. Check parameters and ids, and that the metadata lines up with the matrix. \cr
+#'       2. Check parameters and ids, and that metadata lines up with the matrix. \cr
 #'       3. Settle missingness: raw zeros to \code{NA}; negative raw value is an error. \cr
-#'       4. Drop any dependent variable given on the left-hand side of \code{config$frm}. \cr
+#'       4. Drop any dependent variable given on left-hand side of \code{config$frm}. \cr
 #'       5. Set \code{config$feat_col} and \code{config$obs_col}, if unset. \cr
 #'       6. Subset covariates of interest. \cr
 #'       7. Classify covariates and check their values. \cr
@@ -372,11 +371,11 @@ f.set_covariate_factor_levels <- function(state, config, types=NULL) {
 #'     \code{n_features_expr_col}  \tab Column in \code{state$samples} that corresponds to columns of \code{data_file_in}. \cr
 #'   }
 #' @param initialized Logical scalar indicating if \code{state} has already
-#'   had filter statistics initialized. \code{TRUE} only relaxes checking: the
-#'   three statistic columns are no longer required to be absent, and the
-#'   missingness conversion is skipped, since the values may by then legitimately
+#'   had filter statistics initialized. \code{TRUE} relaxes checking only: the
+#'   three statistic columns are no longer required to be absent, and 
+#'   missingness conversion is skipped, since values may by then legitimately
 #'   be negative. \code{config$is_log_transformed} is still filled in if unset,
-#'   and the alignment of the metadata with \code{state$expression} is checked
+#'   and alignment of the metadata with \code{state$expression} is checked
 #'   either way.
 #' @param minimal Logical scalar indicating whether only minimal set of 
 #'   parameters needed for formula processing should be required.
@@ -456,7 +455,7 @@ init_state <- function(state, config, initialized=F, minimal=F) {
     config$is_log_transformed <- FALSE
   }
 
-  ## dependent variable is always the expression values of one feature:
+  ## dependent variable is always expression values of one feature:
 
   parsed <- f.parse_frm(config$frm, config)
   if(parsed$two_sided) {
@@ -503,7 +502,7 @@ init_state <- function(state, config, initialized=F, minimal=F) {
   f.check_covariate_values(state, config, types=types)
   config$covariate_types <- types
 
-  ## init_state() is authoritative:
+  ## init_state() authoritative:
   config$factor_levels <- NULL
 
   state <- f.set_covariate_factor_levels(state, config, types=types)
@@ -521,24 +520,196 @@ init_state <- function(state, config, initialized=F, minimal=F) {
 
 ###############################################################################
 
+## shuffle x within each level of g, by index; sample() on a length-1 numeric would
+##   return permutation of seq_len(x) rather than x itself:
+
+f.shuffle_within <- function(x, g) {
+  i <- unsplit(lapply(split(seq_along(x), g), function(k) k[sample.int(length(k))]), g)
+  return(x[i])
+}
+
+## shuffle `variable` across unique sample ids, optionally within strata, and map 
+##   result back onto observations, so tech reps of one sample keep one label:
+
+f.permute_col <- function(samples, config, variable, within="") {
+
+  id <- config$sample_id_col
+  cols <- unique(c(id, variable, if(nzchar(within)) within else NULL))
+  tmp <- samples[!duplicated(samples[[id]]), cols, drop=F]
+  rownames(tmp) <- tmp[[id]]
+
+  tmp[[variable]] <- if(nzchar(within)) {
+    f.shuffle_within(tmp[[variable]], tmp[[within]])
+  } else tmp[[variable]][sample.int(nrow(tmp))]
+
+  samples[[variable]] <- tmp[samples[[id]], variable]
+  return(samples)
+}
+
+## variance of test-term coefficient up to sigma^2, from design alone; NA if the
+##   term is absent from the formula or shuffle makes design singular:
+
+f.perm_var <- function(samples, frm, term) {
+
+  mm <- try(stats::model.matrix(frm, data=samples), silent=T)
+  if(inherits(mm, "try-error")) return(NA_real_)
+
+  k <- match(term, attr(stats::terms(frm), "term.labels"))
+  if(is.na(k)) return(NA_real_)
+  j <- which(attr(mm, "assign") %in% k)
+  if(!length(j)) return(NA_real_)
+
+  v <- try(solve(crossprod(mm)), silent=T)
+  if(inherits(v, "try-error")) return(NA_real_)
+  return(mean(diag(v)[j]))
+}
+
+## how many strata hold more than one level of the test term; a stratum holding one level
+##   contributes an identity permutation and so no null at all:
+
+f.n_informative <- function(samples, term, within) {
+  n <- tapply(samples[[term]], samples[[within]], function(v) length(unique(v)))
+  return(sum(n > 1, na.rm=T))
+}
+
+#' Check that a permutation scheme preserves design
+#' @description
+#'   Reports whether shuffling \code{config$test_term} degrades precision with which
+#'     that term is estimated, and if so which column of \code{samples} to permute within
+#'     to avoid it.
+#' @details
+#'   Unresricted permutation is only valid where the observations are exchangeable. In a blocked or
+#'     paired design they are not: shuffling the test term across blocks breaks the
+#'     pairing, so the term is estimated from fewer informative units, its standard error
+#'     inflates, and permuted results carry systematically fewer hits than they should.
+#'     Where those permuted hits are used to estimate an FDR, as in
+#'     \code{h0testr::tune_check()}, the FDR comes out too low.
+#'   The statistic is the variance of the test-term coefficient up to \code{sigma^2},
+#'     \code{(X'X)^-1}, which needs the design matrix only and no expression data. It is
+#'     computed for the design as given and for \code{n_shuffles} shuffles of it; the
+#'     inflation is the ratio of the median shuffled value to the unshuffled one. A ratio
+#'     near 1 means the shuffle costs nothing.
+#'   Suggestions are drawn from the variables of \code{config$frm} only, since a blocking
+#'     factor that is not in the model is not one this check can price. A candidate is
+#'     suggested when permuting within it brings the inflation back under
+#'     \code{config$permute_inflation_max} and leaves at least two strata holding more
+#'     than one level of the test term.
+#'   See documentation for \code{h0testr::new_config()}
+#'     for more detailed description of configuration parameters.
+#' @param config List with configuration values. Requires the following keys:
+#'   \tabular{ll}{
+#'     \code{frm}                   \tab Formula with the variable of interest and covariates. \cr
+#'     \code{test_term}             \tab Term in \code{frm} that is tested and permuted. \cr
+#'     \code{sample_id_col}         \tab Name of column in \code{samples} with sample identifiers. \cr
+#'     \code{permute_within}        \tab Strata column, or \code{""} for a free shuffle. \cr
+#'     \code{permute_inflation_max} \tab Largest inflation ratio treated as acceptable. \cr
+#'   }
+#' @param samples A data.frame of observation meta-data, like \code{state$samples}.
+#' @param variable Character name of the variable that will be shuffled. \code{NULL} uses
+#'   \code{config$permute_var}, falling back to \code{config$test_term} where that is
+#'   \code{""}. The variance priced is always that of \code{config$test_term}.
+#' @param n_shuffles Number of shuffles to median over. Default 20.
+#' @return A list with the following elements:
+#'   \tabular{ll}{
+#'     \code{inflation}     \tab Ratio of median shuffled to unshuffled coefficient variance (numeric). \cr
+#'     \code{threshold}     \tab \code{config$permute_inflation_max} (numeric). \cr
+#'     \code{within}        \tab Strata column the ratio was computed for (character). \cr
+#'     \code{ok}            \tab TRUE if \code{inflation} is at or under \code{threshold} (logical). \cr
+#'     \code{suggest}       \tab Columns that would bring the ratio under it (character). \cr
+#'     \code{n_informative} \tab Strata holding more than one level of the test term (integer). \cr
+#'   }
+#' @examples
+#' ## a paired design: one case, two conditions, is not freely exchangeable
+#' samps <- data.frame(
+#'   sample_id=paste0("s", 1:12),
+#'   case=rep(paste0("c", 1:6), each=2),
+#'   grp=rep(c("ctl", "trt"), 6))
+#' config <- h0testr::new_config()
+#' config$frm <- ~grp+case
+#' config$test_term <- "grp"
+#' config$sample_id_col <- "sample_id"
+#' set.seed(101)
+#' out <- h0testr::check_permutation(config, samps)
+#' out$inflation                        ## well above 1: a free shuffle costs precision
+#' out$suggest                          ## "case"
+#' @export
+
+check_permutation <- function(config, samples, variable=NULL, n_shuffles=20) {
+
+  check_config(config)
+
+  term <- config$test_term
+  within <- if(is.null(config$permute_within)) "" else config$permute_within
+  thr <- if(is.null(config$permute_inflation_max)) 1.2 else config$permute_inflation_max
+
+  out <- list(inflation=NA_real_, threshold=thr, within=within, ok=T,
+    suggest=character(0), n_informative=NA_integer_)
+
+  ## with $contrast set in place of $test_term there is no single term to price:
+  if(is.null(term) || !nzchar(term)) return(out)
+
+  if(is.null(variable)) variable <- config$permute_var
+  if(is.null(variable) || !nzchar(variable)) variable <- term
+
+  vars <- all.vars(config$frm)
+  if(!all(c(vars, variable, config$sample_id_col) %in% colnames(samples))) return(out)
+
+  v0 <- f.perm_var(samples, config$frm, term)
+  if(is.na(v0) || v0 <= 0) return(out)
+
+  f.ratio <- function(g) {
+    v <- replicate(n_shuffles,
+      f.perm_var(f.permute_col(samples, config, variable, g), config$frm, term))
+    return(stats::median(v, na.rm=T) / v0)
+  }
+
+  out$inflation <- f.ratio(within)
+  if(nzchar(within)) out$n_informative <- f.n_informative(samples, variable, within)
+  out$ok <- !is.na(out$inflation) && out$inflation <= thr
+  if(out$ok) return(out)
+
+  for(nom in setdiff(vars, variable)) {
+    if(!(is.character(samples[[nom]]) || is.factor(samples[[nom]]))) next
+    if(f.n_informative(samples, variable, nom) < 2) next
+    r <- f.ratio(nom)
+    if(!is.na(r) && r <= thr) out$suggest <- c(out$suggest, nom)
+  }
+
+  return(out)
+}
+
+###############################################################################
+
 #' Permute data
 #' @description Permute observation covariate.
-#' @details If \code{variable} is \code{NULL}, uses \code{config$permute_var} 
-#'   instead. If \code{variable} is \code{NULL} and 
+#' @details If \code{variable} is \code{NULL}, uses \code{config$permute_var}
+#'   instead. If \code{variable} is \code{NULL} and
 #'   \code{config$permute_var == ""}, skips permutation (normal execution).
-#'   See documentation for \code{h0testr::new_config()} 
-#'     for more detailed description of configuration parameters. 
-#' @param state List with elements formatted like the list returned by 
+#'   The shuffle is over unique \code{config$sample_id_col}, so technical replicates of one
+#'     sample keep a single label.
+#'   \code{config$permute_within} names a column of strata to shuffle within, leaving the
+#'     blocking structure of a paired or blocked design intact; \code{""}, the default,
+#'     shuffles freely over all samples. Before shuffling, \code{h0testr::check_permutation()}
+#'     prices the scheme and the call fails if it inflates the variance of the
+#'     \code{config$test_term} coefficient by more than \code{config$permute_inflation_max},
+#'     naming the column that would fix it. Set \code{config$permute_force} to permute
+#'     regardless.
+#'   See documentation for \code{h0testr::new_config()}
+#'     for more detailed description of configuration parameters.
+#' @param state List with elements formatted like the list returned by
 #'   \code{read_data()}:
 #'   \tabular{ll}{
 #'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
 #'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
 #'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
-#'   } 
+#'   }
 #' @param config List with configuration values. Requires the following keys:
 #'   \tabular{ll}{
-#'     \code{obs_col}        \tab Name of column in \code{feature_file_in} that corresponds to columns of \code{data_file_in}. \cr
-#'     \code{sample_id_col}  \tab Name of column in \code{sample_file_in} with unique sample identifiers. \cr
+#'     \code{obs_col}               \tab Name of column in \code{feature_file_in} that corresponds to columns of \code{data_file_in}. \cr
+#'     \code{sample_id_col}         \tab Name of column in \code{sample_file_in} with unique sample identifiers. \cr
+#'     \code{permute_within}        \tab Strata column to permute within, or \code{""} for a free shuffle. \cr
+#'     \code{permute_inflation_max} \tab Largest acceptable inflation of the test-term coefficient variance. \cr
+#'     \code{permute_force}         \tab TRUE permutes even where that is exceeded. \cr
 #'   }
 #' @param variable Character name of variable (column in samples) to permute.
 #' @return A list (the permuted state) with the following elements:
@@ -577,17 +748,61 @@ permute <- function(state, config, variable=NULL) {
         config=config
       )
     }
-    f.log_block("permuting", variable, config=config)
-    tmp <- state$samples[
-      !duplicated(state$samples[, config$sample_id_col, drop=T]), 
-      c(config$sample_id_col, variable), 
-      drop=T
-    ]
-    rownames(tmp) <- tmp[, config$sample_id_col, drop=T]
-    tmp[, variable] <- sample(tmp[[variable]], nrow(tmp), replace=F)
-    state$samples[, variable] <- tmp[state$samples[[config$sample_id_col]], variable, drop=T]
-  } 
-  
+    within <- if(is.null(config$permute_within)) "" else config$permute_within
+
+    if(nzchar(within)) {
+      if(!(within %in% colnames(state$samples))) {
+        f.err(
+          "permute: !(config$permute_within %in% colnames(state$samples))", "\n",
+          "config$permute_within:", within, "\n",
+          "colnames(state$samples):", colnames(state$samples),
+          config=config
+        )
+      }
+      if(any(is.na(state$samples[[within]]))) {
+        f.err("permute: config$permute_within has", sum(is.na(state$samples[[within]])),
+          "NA value(s), so those observations belong to no stratum; column:", within,
+          config=config)
+      }
+      ## shuffle is over unique sample ids, so a stratum has to be a property of 
+      ## sample and not of observation:
+      n_str <- tapply(state$samples[[within]], state$samples[[config$sample_id_col]],
+        function(v) length(unique(v)))
+      if(any(n_str > 1)) {
+        f.err("permute: config$permute_within is not constant within",
+          paste0("config$sample_id_col; ", sum(n_str > 1)), "sample(s) span more than one",
+          "stratum; permute_within:", within, "; sample_id_col:", config$sample_id_col,
+          config=config)
+      }
+      if(f.n_informative(state$samples, variable, within) < 1) {
+        f.err("permute: no stratum holds more than one level of", variable, "so permuting",
+          "within", within, "returns the data unchanged and estimates no null;",
+          variable, "is nested in", within, config=config)
+      }
+    }
+
+    chk <- check_permutation(config, state$samples, variable=variable)
+    if(!chk$ok) {
+      fix <- if(length(chk$suggest)) {
+        paste0("set config$permute_within to one of: ", paste(chk$suggest, collapse=", "))
+      } else "no column of config$frm restores it; consider a different test"
+      msg <- c("permuting", variable,
+        if(nzchar(within)) paste("within", within) else "over all samples",
+        "inflates the variance of the", config$test_term, "coefficient",
+        paste0(signif(chk$inflation, 3), "x,"), "above config$permute_inflation_max",
+        paste0(chk$threshold, ";"), "permuted results will carry too few hits and any fdr",
+        "estimated from them will be too low;", fix,
+        "\n  to permute anyway, set config$permute_force=TRUE")
+      if(isTRUE(config$permute_force)) {
+        f.msg("WARNING: permute:", f.cat_args(msg), config=config)
+      } else f.err(msg, config=config)
+    }
+
+    f.log_block("permuting", variable,
+      if(nzchar(within)) paste("within", within) else "over all samples", config=config)
+    state$samples <- f.permute_col(state$samples, config, variable, within)
+  }
+
   f.check_state(state, config)
   return(state)
 }

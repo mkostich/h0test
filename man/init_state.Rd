@@ -34,11 +34,11 @@ init_state(state, config, initialized = F, minimal = F)
 }}
 
 \item{initialized}{Logical scalar indicating if \code{state} has already
-had filter statistics initialized. \code{TRUE} only relaxes checking: the
-three statistic columns are no longer required to be absent, and the
-missingness conversion is skipped, since the values may by then legitimately
+had filter statistics initialized. \code{TRUE} relaxes checking only: the
+three statistic columns are no longer required to be absent, and 
+missingness conversion is skipped, since values may by then legitimately
 be negative. \code{config$is_log_transformed} is still filled in if unset,
-and the alignment of the metadata with \code{state$expression} is checked
+and alignment of the metadata with \code{state$expression} is checked
 either way.}
 
 \item{minimal}{Logical scalar indicating whether only minimal set of 
@@ -96,11 +96,11 @@ Checks to make sure columns specified in \code{config} parameters are
     \code{NA}. When \code{config$is_log_transformed} is \code{TRUE} the input
     is already on a log-like scale, in which case zeros and negative values
     are legitimate and no conversion is done; the caller is then responsible
-    for having marked non-detections as \code{NA}. The conversion is skipped
+    for having marked non-detections as \code{NA}. Conversion is skipped
     when \code{initialized=TRUE}, since an already initialized state may
     legitimately hold negative (transformed) values, but
-    \code{config$is_log_transformed} is filled in either way if it was unset,
-    so that every downstream step finds the scale recorded there. Unset means
+    \code{config$is_log_transformed} is filled in if it was unset,
+    so that every downstream step finds scale recorded there. Unset means
     raw.
   Checks that the metadata lines up with \code{state$expression}: 
     \code{state$features} must have one row per row of the matrix and 
@@ -111,9 +111,9 @@ Checks to make sure columns specified in \code{config} parameters are
   Flow is:
     \tabular{l}{
       1. \code{check_config()}. \cr
-      2. Check parameters and ids, and that the metadata lines up with the matrix. \cr
+      2. Check parameters and ids, and that metadata lines up with the matrix. \cr
       3. Settle missingness: raw zeros to \code{NA}; negative raw value is an error. \cr
-      4. Drop any dependent variable given on the left-hand side of \code{config$frm}. \cr
+      4. Drop any dependent variable given on left-hand side of \code{config$frm}. \cr
       5. Set \code{config$feat_col} and \code{config$obs_col}, if unset. \cr
       6. Subset covariates of interest. \cr
       7. Classify covariates and check their values. \cr
