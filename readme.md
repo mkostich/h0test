@@ -1,23 +1,21 @@
-# h0testR
+# h0testr
 ## Hypothesis testing for ms-based proteomics
 
-This package contains functions and workflows for analysis of non-negative 
-continuous expression matrices, such as those produced by mass-spec-based 
-proteomics.
+Functions and workflows for analysis of non-negative continuous expression matrices, 
+such as those produced by mass-spec-based proteomics.
 
-In the proteomics field, there are many methods available for inter-sample 
+In the proteomics field, many methods are available for inter-sample 
 normalization, feature aggregation, missing value imputation, and hypothesis 
 testing. Many of the same methods are also applicable to, or have been 
 borrowed from, other fields of expression data analysis, such as RNA-seq data. 
-Many of these methods have parameters whose settings can affect the quality of 
-the results.
+Many of these methods have parameters whose settings can substantially affect the 
+quality of the results.
 
-This package was initially developed as a test platform for evaluating 
-performance of different workflow configurations and parameter settings.
-To facilitate achievement of this goal, it was designed to provide a uniform 
-higher-level interface to a wide variety of potential methods, as well as a 
-wrapper-based building-block design, which abstracts away many differences in 
-native user interfaces between methods.
+This package was initially developed for evaluating performance of different workflow 
+configurations and parameter settings. To facilitate achievement of this goal, it was 
+designed to provide a uniform higher-level interface to a wide variety of potential 
+methods, as well as a wrapper-based building-block design, which abstracts away many 
+differences in native user interfaces between methods.
 
 This building-block design facilitates use of individual methods, or 
 configuring and running whole workflows. The workflow approach and the tuning 
@@ -28,6 +26,26 @@ documentation for individual methods to see how to use them on their own.
 
 ## Install
 
+The default workflow needs only `limma`, `edgeR` and `MsCoreUtils` beyond base R, so that
+is all the install pulls in. Every alternative normalization, imputation and testing engine
+is optional: ask for one whose package is missing, and the run stops with the install command
+for that package.
+
+```
+## in R: some dependencies are on Bioconductor, so add its repositories first:
+
+install.packages(c("BiocManager", "remotes"))
+options(repos=BiocManager::repositories())
+
+## install h0testr and its required dependencies:
+
+install.packages("h0testr")                   ## released version
+remotes::install_github("mkostich/h0test")    ## development version
+help(package="h0testr")
+```
+
+To install from a local clone instead:
+
 ```
 ## in bash: download under ~/opt/h0test:
 mkdir -p ~/opt
@@ -35,19 +53,32 @@ cd ~/opt
 git clone https://github.com/mkostich/h0test
 R
 
-## in R: install dependencies: 
+## in R, with repos set as above:
+install.packages("~/opt/h0test", repos=NULL, type="source")
+```
 
-install.packages(c("BiocManager", "glmnet", "imputeLCMD", "lmtest", 
-  "missForest", "randomForest", "remotes"), dependencies=TRUE)
+### Optional engines
 
-BiocManager::install(c("DEqMS", "edgeR", "limma", "impute", "MsCoreUtils", 
-  "msqrob2", "pcaMethods", "proDA", "QFeatures", "SummarizedExperiment"))
+Install only the ones you plan to use. With `options(repos=BiocManager::repositories())`
+set as above, `install.packages()` finds the Bioconductor ones too:
 
-remotes::install_github('fgcz/prolfqua', dependencies=TRUE)
+```
+install.packages(c(
+  "glmnet",                        ## impute_method "glmnet"
+  "imputeLCMD",                    ## impute_method "min_det", "min_prob", "qrilc"
+  "missForest",                    ## impute_method "missforest"
+  "randomForest",                  ## impute_method "rf"
+  "DEqMS",                         ## test_method "deqms"
+  "impute",                        ## impute_method "knn"
+  "pcaMethods",                    ## impute_method "bpca", "ppca", "svdImpute", "lls"
+  "vsn",                           ## normalization_method "vsn"
+  "proDA", "SummarizedExperiment", ## test_method "proda"
+  "msqrob2", "QFeatures",          ## test_method "msqrob", "msqrob_agg"
+  "lme4", "lmerTest"               ## test_method "msqrob_agg", "prolfqua_lmer"
+))
 
-## install h0testr package and view documentation:
-install.packages("~/opt/h0test/h0testr", repo=NULL, type="source")
-help(package="h0testr")
+## test_method "prolfqua" and "prolfqua_lmer"; github only:
+remotes::install_github("fgcz/prolfqua")
 ```
 
 ---
@@ -60,11 +91,11 @@ config <- h0testr::new_config()
 str(config)                                          ## view default settings
 
 ## customize input/output files:
-config$out_dir <- "."                                ## directory for output
-config$in_dir <- "/path/to/input/file/dir"           ## directory to input
-config$feature_file_in <- "my_feature_metadata.tsv"  ## feature metadata in config$in_dir
-config$sample_file_in <- "my_sample_metadata.tsv"    ## sample metadata in config$in_dir
-config$data_file_in <- "my_signal_data.tsv"          ## measurement data in config$in_dir
+config$dir_out <- "."                                ## directory for output
+config$dir_in <- "/path/to/input/file/dir"           ## directory to input
+config$feature_file_in <- "my_feature_metadata.tsv"  ## feature metadata in config$dir_in
+config$sample_file_in <- "my_sample_metadata.tsv"    ## sample metadata in config$dir_in
+config$data_file_in <- "my_signal_data.tsv"          ## measurement data in config$dir_in
 
 ## customize file cross-referencing; sample_id_col becomes colnames of data_file_in
 ##   after aggregation of technical replicates; set obs_id_col == sample_id_col if 
@@ -74,11 +105,11 @@ config$obs_id_col <- "replicate_id"   ## column in sample file matching colnames
 config$sample_id_col <- "sample_id"   ## column in sample file identifying samples
 
 ## customize testing configuration:
-config$frm <- ~ age + gender + age:gender    ## formula to fit ('~+:' ok; '*' not tested)
+config$frm <- ~ age + gender + age:gender    ## formula to fit ('+', ':', '*', '~0 +' all ok)
 config$test_term <- "age:gender"             ## term in config$frm to test
-config$sample_factors=list(                  ## levels of factor variables in sample metadata
-  age=c("young", "old"),    
-  gender=c("Male", "Female")
+config$reference_levels=c(                   ## reference level of each factor variable
+  age="young",
+  gender="Male"
 )
 
 ## run workflow, generating hit table:
@@ -90,10 +121,11 @@ head(result$standard)
 
 ## Dependencies
 
-- R, with standard packages: utils, stats, methods; and add on packages: 
-  DEqMS, edgeR, glmnet, impute, imputeLCMD, limma, missForest, MsCoreUtils, 
-  msqrob2, pcaMethods, proDA, prolfqua, QFeatures, randomForest, and 
-  SummarizedExperiment.
+- The hard requirements for the default workflow include R, with standard packages 
+  utils and stats, plus add on packages limma, edgeR and MsCoreUtils. 
+- Optional, one per engine: DEqMS, glmnet, impute, imputeLCMD, lme4, lmerTest, 
+  missForest, msqrob2, pcaMethods, proDA, prolfqua, QFeatures, randomForest, 
+  SummarizedExperiment and vsn. See Install above for which method needs which.
 - Developed and tested with R 4.3.1.
 - Expected to work on Linux, Mac, or Windows; tested on Rocky Linux 9.5 and 
   Windows 11.
@@ -109,7 +141,7 @@ default, the names of these files are `features.tsv`, `samples.tsv`, and
 respectively. You can place symbolic links to the input files, with these
 default names in `config$dir_in` to reduce configuration customization.
 
-Example input files can be found in `h0testr/inst/extdata`.
+Example input files can be found in `system.file("extdata", package="h0testr")`.
 
 The `config$data_file_in` should contain non-negative raw (not 
 log-transformed) expression data, with rows representing features (precursor, 
@@ -150,7 +182,7 @@ unique observation identifiers.
     with feature rownames and observation colnames. `0`s and `NA`s are treated 
     as missing values.
   - rownames match the `config$feat_id_col` of `config$feature_file_in`.
-  - colnames match the `config$obs_id_col` of `config$sample_file_in'.
+  - colnames match the `config$obs_id_col` of `config$sample_file_in`.
 
 ---
 
@@ -160,7 +192,7 @@ Runs are configured by editing the list object returned by the
 `new_config()` function, which contains the default configuration. The most 
 frequently changed settings are towards the top of the returned list of 
 defaults, and are briefly described below. **At a minimum**: edit the
-the `frm`, `test_term`, and `sample_factors`, as the defaults are almost 
+the `frm`, `test_term`, and `reference_levels`, as the defaults are almost 
 certainly wrong for your experiment.
 
 ```
@@ -179,15 +211,27 @@ sample_id_col="sample_id"           ## column (scalar character) in sample_file_
 obs_col=""                          ## for internal use; leave ""; samps[, obs_col] == colnames(exprs) throughout script
 feat_col=""                         ## for internal use; leave ""; feats[, feat_col] == rownames(exprs) throughout script
 
-## formula for testing: actual formula can have '+' and ':'; not tested w/ e.g. '*' yet.
+## formula for testing: '+', ':' and '*' are all fine, as is '~0 +' to drop the intercept;
+##   I(), poly(), splines and random effect terms '(1|x)' are out of scope.
 frm=~age+gender+age:gender          ## formula with variable of interest and covariates
 test_term="age:gender"              ## term (scalar character) in $frm on which test is to be performed
+contrast=""                         ## weighted sum (scalar character) of coefficients of $frm to test instead of $test_term, e.g. "grpb - grpc"; "" for none
 permute_var=""                      ## name (scalar character) of variable to permute; "" for no permutation (normal execution)
-sample_factors=list(                 ## set levels of factor variables in $frm
-  age=c("young", "old"),             ## by default, numeric treated as numeric; if levels set here, treated as factor
-  gender=c("Male", "Female")         ## by default, character treated as factor with alphabetically ordered levels
+reference_levels=c(                  ## reference level of each factor variable in $frm
+  age="young",                       ## numeric variable treated as continuous unless named here
+  gender="Male"                      ## character variable must be named here; else error
 )
+n_distinct_numeric_warn=5            ## warn if continuous variable in $frm has this few distinct values
 ```
+
+Only the reference level of each factor variable is declared; the remaining
+levels are sorted. So a variable that is not named in `reference_levels` is
+continuous if it is numeric, and an error if it is character: its reference
+level, and hence the meaning of its coefficients, would otherwise be decided by
+locale dependent sorting. Logical variables need no declaration, since they are
+always ordered `FALSE`, `TRUE`. The resolved level ordering of each factor
+variable is written to the log, and returned in `config$factor_levels` by
+`h0testr::init_state()`.
 
 Here are the rest of the configuration options. The normalization, imputaton, 
 filtering and testing options can be set further down in the list:
@@ -197,9 +241,13 @@ filtering and testing options can be set further down in the list:
 n_samples_expr_col="n_samps_expr"   ## new col (scalar character) for feature metadata; n samples expressing feature
 median_raw_col="median_raw"         ## new col (scalar character) for feature metadata; median feature expression in expressing samples
 n_features_expr_col="n_feats_expr"  ## new col (scalar character) for sample metadata; n features expressed
+n_feats_col="n_feats"               ## new col (scalar character) for gene-level feature metadata; n features aggregated into each gene
+combine_method_col="combine_method" ## new col (scalar character) for gene-level feature metadata; which aggregator summarized each gene
+df_test_col="df_test"               ## new col (scalar character) for feature metadata; estimable df for $test_term
+df_resid_col="df_resid"             ## new col (scalar character) for feature metadata; residual df of model fitted to feature
 
 ## output file naming:
-log_file=""                         ## log file path (character); or "" for log to console                 
+log_file=""                         ## log file path; "" sends messages to stderr
 feature_mid_out=".features"         ## midfix for output feature files
 sample_mid_out=".samples"           ## midfix for output samples file
 data_mid_out=".expression"          ## midfix for output expression files
@@ -212,12 +260,15 @@ suffix_out=".tsv"                   ## suffix for output files
 normalization_method="RLE"          ## normalization method; h0testr::normalize_methods() to see available choices.
 normalization_quantile=0.75         ## for quantile normalization; 0.5 is median; 0.75 is upper quartile
 normalization_span=0.7              ## span for normalization_method %in% "loess"
+is_log_transformed=FALSE            ## whether $expression is already on a log-like scale; FALSE means raw, so init_state() converts zeros to NA and rejects negatives; set TRUE by normalize()
 n_samples_min=2                     ## min(samples/feature w/ feature expression > 0) to keep feature
 n_features_min=1000                 ## min(features/sample w/ expression > 0) to keep sample
+estimability="test"                 ## estimability required of $test_term; in c("test", "term", "full")
+df_resid_min=2                      ## min residual degrees of freedom per feature to keep feature
 feature_aggregation="medianPolish"  ## in c("medianPolish", "robustSummary", "none")
-feature_aggregation_scaled=FALSE    ## whether to rescale peptide features prior to aggregation into protein/gene group.
 impute_method="sample_lod"          ## imputation method; h0testr::impute_methods() to see available choices.
 impute_quantile=0.01                ## quantile for unif_* imputation methods
+impute_floor_offset=-1              ## offset (non-positive; log2 units) from the global observed minimum giving the lower bound of the unif_ interval, when is_log_transformed is TRUE
 impute_scale=1                      ## for rnorm_feature, adjustment on sd of distribution [1: no change];
 impute_span=0.5                     ## loess span for impute_method %in% "loess_logit"
 impute_k=7                          ## k for impute_method %in% c("knn", "lls")
@@ -227,14 +278,18 @@ impute_n_pts=1e7                    ## granularity of imputed values for impute_
 impute_aug_steps=3                  ## data augmentation iterations for impute_rf() and impute_glmnet()
 test_method="trend"                 ## hypothesis test; h0testr::test_methods() to see available choices.
 test_prior_df=3                     ## prior df for test_method %in% "proda"
-## run_order character vector with elements from {"normalize", "combine_replicates", "combine_features", "filter", "impute"}:
-run_order=c("normalize", "combine_replicates", "combine_features", "filter", "impute")   ## order of workflow operations
+test_moderate=TRUE                  ## whether to shrink the per-feature error variance across features before testing; only test_method "prolfqua" can be told not to
+test_trend=FALSE                    ## whether that shrinkage prior is fitted against mean feature intensity rather than being flat; honored by test_method %in% c("prolfqua", "deqms"); unrelated to test_method="trend", which always trends
+test_random_obs=TRUE                ## whether test_method %in% c("prolfqua_lmer", "msqrob_agg") add a random observation effect to the random feature effect; TRUE is the calibrated model
+test_ridge=FALSE                    ## whether test_method="msqrob_agg" penalizes the fixed effects; TRUE shrinks coefficients toward zero, so its logFC is not comparable with the other methods'
+## run_order character vector with elements from {"normalize", "combine_replicates", "combine_features", "filter_state", "impute"}:
+run_order=c("normalize", "combine_replicates", "combine_features", "filter_state", "impute")   ## order of workflow operations
 
 ## misc; 
-save_state=TRUE                     ## whether to save output files; recommend FALSE for tuning/testing
+save_state=FALSE                    ## whether to write state files to dir_out; set TRUE to save
 probs=c(0, 0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1.0)
 width=110                           ## controls print width
-verbose=T                           ## controls how much gets printed out during progress
+verbose=TRUE                        ## controls how much gets printed out during progress
 ```
 
 ---
@@ -244,8 +299,8 @@ verbose=T                           ## controls how much gets printed out during
 The workflow always begins with loading data and ends with testing of 
 hypotheses. Intermediate steps can be configured using `config$run_order`. 
 The default `config$run_order` of 
-`c("normalize", "combine_replicates", "filter", "impute")` yields the following
-workflow:
+`c("normalize", "combine_replicates", "combine_features", "filter_state", "impute")` 
+yields the following workflow:
 
 1) Load data: read files `config$feature_file_in`, `config$sample_file_in`, 
    and `config$data_file_in` from the filesystem directory `config$dir_in`, 
@@ -255,14 +310,19 @@ workflow:
    `log2(x+1)` transform or equivalent (e.g. for `vsn`), unless 
    `config$normalization_method %in% "none"`.
 3) Combine technical replicates: using median.
-4) Unless `test_method %in% c("deqms", "msqrob")`, combine peptide signals 
-   using method specified by `config$feature_aggregation`.
-4) Filter features and samples: based on expression levels and cutoffs 
-   specified by `config$n_samples_min` and `config$n_features_min`.
-5) Impute missing values using method `config$impute_method`. Values `0` and 
+4) Unless `test_method %in% c("deqms", "msqrob", "msqrob_agg", 
+   "prolfqua_lmer")`, which report one row per gene whatever level the input is 
+   at, combine peptide signals using the method specified by 
+   `config$feature_aggregation`.
+5) Filter features and samples: based on expression levels and cutoffs 
+   specified by `config$n_samples_min`, `config$n_features_min` and 
+   `config$df_resid_min`.
+6) Impute missing values using method `config$impute_method`. Values `0` and 
    `NA` are treated as missing. 
-6) Test null hypotheses that the effect of the term `config$test_term` in the 
-   formula `config$frm` is `0` using the method `config$test_method`.
+7) Test null hypotheses that the effect of the term `config$test_term` in the 
+   formula `config$frm` is `0` using the method `config$test_method`; or, when 
+   `config$contrast` is not `""`, that the weighted sum of coefficients it names 
+   is `0`.
 
 ---
 
@@ -329,7 +389,7 @@ The `results.tsv` with `config$test_method` set to `trend`, and
   `config$test_term` set to `age` would look something like this:
 
 ```
-results <- read.table("7.results.tsv", header=T, sep="\t", quote="", as.is=T)
+results <- read.table("8.results.tsv", header=T, sep="\t", quote="", as.is=T)
 
 > head(results)
    accession ... n_samps_expr median_raw     age12     age24  AveExpr        F      P.Value    adj.P.Val
@@ -347,23 +407,30 @@ results <- read.table("7.results.tsv", header=T, sep="\t", quote="", as.is=T)
 
 ## NORMALIZATION_METHOD
 
-Itersample normalization method. Values returned by each `config$normalization_method` 
-are `log2(x+1)` transformed unless `config$normalization_method %in% "none"`:
+Intersample normalization method. Values returned by each `config$normalization_method` 
+are `log2(x+1)` transformed, with three exceptions: `"none"`, which returns the input 
+untouched and on whatever scale it arrived; `"vsn"`, whose own output is arsinh-scaled 
+and so is not transformed again; and `"loess"`, whose input is transformed before it is 
+normalized rather than after (see below). Either way, every method other than `"none"` 
+leaves the data on a log-like scale:
 
 **cpm**: Counts per million; for each sample: 
   `multiplier * (intensities / sum(intensities, na.rm=T))`
   
-**div.mean**: Subtract an observation's mean intensity across features from 
-  each feature intensity for that observation. Uses 
+**div.mean**: Divide each feature intensity for an observation by that 
+  observation's mean intensity across features. Uses 
   `MsCoreUtils::normalize_matrix(..., method="div.mean")`.
 
-**div.median**: Subtract an observation's median intensity across features 
-  from each feature intensity for that observation. Uses 
+**div.median**: Divide each feature intensity for an observation by that 
+  observation's median intensity across features. Uses 
   `MsCoreUtils::normalize_matrix(..., method="div.median")`.
 
-**loess**: Cyclic loess normalization. Uses `limma::normalizeCyclicLoess()`.
+**loess**: Cyclic loess normalization. Uses `limma::normalizeCyclicLoess()`. The one 
+  method whose input is transformed *before* it is normalized rather than after: cyclic 
+  loess is an additive correction, so on raw intensities it returns negative fitted 
+  values for the smallest measurements, and `log2(x+1)` of those would be `NaN`.
 
-**log2**: Values are simply `log(x+1)` transformed.
+**log2**: Values are simply `log2(x+1)` transformed.
 
 **max**: Divide each feature's intensities by the max for that feature. 
   Uses `MsCoreUtils::normalize_matrix(..., method="max")`.
@@ -382,11 +449,14 @@ are `log2(x+1)` transformed unless `config$normalization_method %in% "none"`:
 
 **RLE**: Relative log expression, using `edgeR::calcNormFactors()` then `edgeR::cpm()`. 
   See [https://doi.org/10.1038/npre.2010.4282.1](https://doi.org/10.1038/npre.2010.4282.1 "Anders and Huber, 2010")
+  Needs at least one feature measured in every observation, since that is where it 
+  takes its reference from; that is not always the case in data with high 
+  missingness, and `TMM`, `TMMwsp` and `upperquartile` do not need one.
   
 **sum**: Divide each feature's intensities by the sum of intensities for that 
   feature. Uses `MsCoreUtils::normalize_matrix(..., method="sum")`.
   
-**TMM**: Trimmed mean of medians normalization, using `edgeR::calcNormFactors()` then `edgeR::cpm()`. 
+**TMM**: Trimmed mean of M-values normalization, using `edgeR::calcNormFactors()` then `edgeR::cpm()`. 
   See [https://doi.org/10.1186/gb-2010-11-3-r25](https://doi.org/10.1186/gb-2010-11-3-r25 "Robinson and Oshlack, 2010")
   
 **TMMwsp**: TMM with singleton pairing, using `edgeR::calcNormFactors()` then `edgeR::cpm()`. 
@@ -458,7 +528,7 @@ Zero and `NA` values are both treated as missing. Methods `glmnet` and
 
 **svdImpute**: Imputation with the svdImpute algorithm 
   (https://dx.doi.org/10.1093/bioinformatics/17.6.520).
-  Uses `pcaMethods::pca(..., method="ppca")`.
+  Uses `pcaMethods::pca(..., method="svdImpute")`.
 
 **unif_global_lod**: For each feature remaining after filtering, calculate the 
   lowest observed value. Calculate the `config$impute_quantile` quantile `q` 
@@ -477,18 +547,43 @@ Method used for hypothesis testing.
 
 **deqms**: Uses `DEqMS` package for peptide-based protein/gene-group analysis.
   Flow is: `limma::lmFit() -> limma::eBayes() -> DEqMS::spectraCounteBayes() 
-  -> DEqMS::outputResult()`.
+  -> limma::topTable()`. A `config$test_term` resolving to one coefficient is reported
+  as `DEqMS`'s own moderated t; one spanning several is reported as a moderated F
+  formed from the same per-gene variance prior, which `DEqMS` has no function of its
+  own for. `DEqMS::outputResult()` built the hit table until that was added, and takes
+  a single coefficient.
+
+**lm**: One `stats::lm()` per feature, with no shrinkage of the error variance 
+  across features: a full and a reduced model are fitted from columns of the 
+  same design matrix and compared by `lmtest::lrtest()`. The unmoderated 
+  reference point the other methods are worth comparing against; it returns no 
+  fitted model, a separate one being fitted to every feature.
 
 **msqrob**: Uses `msqrob2` package for peptide-based protein/gene-group analysis.
   Flow is: `QFeatures::readQFeatures() -> SummarizedExperiment object -> 
   QFeatures::zeroIsNA() -> QFeatures::aggregateFeatures() -> 
   msqrob2::msqrob() -> msqrob2::makeContrast() -> msqrob2::hypothesisTest()`.
 
+**msqrob_agg**: The same `msqrob2` flow, but with the peptide-level fit of 
+  `msqrob2::msqrobAggregate()` in place of the aggregate-then-fit of `msqrob`, 
+  so the peptides of a gene are modelled together with a random feature effect. 
+  `config$test_random_obs` adds a random observation effect to that, and 
+  `config$test_ridge` penalizes the fixed effects. Like `deqms`, `msqrob` and 
+  `prolfqua_lmer`, it reports one row per gene whatever level the input is at, 
+  so `combine_features()` should not be run before it.
+
 **proda**: Uses `proDA::proDA()` for hypothesis testing.
 
 **prolfqua**: Flow: `prolfqua::AnalysisTableAnnotation$new() -> 
   prolfqua::LFQData$new() -> prolfqua::strategy_lm() -> prolfqua::build_model() 
-  -> model$get_anova()`.
+  -> model$get_anova()`. Moderation of the error variance is controlled by 
+  `config$test_moderate` and `config$test_trend`.
+
+**prolfqua_lmer**: The peptide-level counterpart of `prolfqua`: 
+  `prolfqua::strategy_lmer()` fits one mixed model per gene over the rows of its 
+  features, with a random feature effect and, when `config$test_random_obs` is 
+  `TRUE`, a random observation effect, falling back to `stats::lm()` for a gene 
+  with a single feature. Denominator degrees of freedom are Satterthwaite.
 
 **trend**: Flow: `limma::lmFit() -> limma::eBayes(trend=T) -> limma::topTable()`
 
@@ -512,7 +607,6 @@ rm(list=ls())
 
 ## set up configuration:
 config <- h0testr::new_config()   ## defaults
-config$save_state <- FALSE          ## default is TRUE
 config$dir_in <- system.file("extdata", package="h0testr")  ## where example data 
 config$feature_file_in <- "features2.tsv"
 config$sample_file_in <- "samples2.tsv"
@@ -524,7 +618,7 @@ config$n_features_min <- 10         ## default 1000 too big for small demo datas
 config$frm <- ~grp
 config$test_term <- "grp"
 config$test_method <- "trend"
-config$sample_factors <- list(grp=c("ctl", "trt"))
+config$reference_levels <- c(grp="ctl")
 
 ## one run with unpermuted data:
 config$permute_var <- ""            ## no permutation
@@ -612,11 +706,13 @@ Collect results. From parent directory, in R (only base packages required for th
 ```
 rm(list=ls())
 
-tbl <- h0testr::tune_check(dir_in="/path/to/tuning/results", prefix="", suffix=".grp.tune.tsv")
+tbl <- h0testr::tune_check(dir_in="/path/to/tuning/results", prefix="", 
+  suffix=".grp.tune.tsv", config=h0testr::new_config())
 
 ## tbl has a bunch of statistics that can be used to evaluate option combinations;
 ##   nhits: number of hits in unpermuted data
-##   fdr: avg0 / nhits
+##   ntests: number of tests performed in unpermuted data
+##   fdr: max1 / nhits, capped at 1; NA when the combination never ran
 ##   max1: maximum number of hits in any permutation
 ##   mid1: median number of hits across permutations
 ##   avg1: mean number of hits across permutations
@@ -714,9 +810,9 @@ config$sample_id_col <- "SampleId"
 config$frm <- ~age + sex + age:sex
 config$test_term <- "age:sex"
 config$permute_var <- ""
-config$sample_factors <- list(
-  age=c("4mo", "12mo", "24mo"),
-  sex=c("female", "male")  
+config$reference_levels <- c(
+  age="4mo",                        ## remaining levels sorted: "12mo", "24mo"
+  sex="female"
 )
 
 ## a reasonable setup when replication is limited:
@@ -727,18 +823,18 @@ config$impute_quantile <- 0
 config$test_method <- "trend"
 
 ## run workflow step-by-step, instead of simply calling 
-##   h0testr::run(state, config):
+##   h0testr::run(config):
 
-out <- h0testr::initialize(state, config)
+out <- h0testr::init_state(state, config)
 out$state <- h0testr::add_filter_stats(out$state, out$config)
 out$state <- h0testr::prefilter(out$state, out$config)
 out$state <- h0testr::permute(out$state, out$config)
 out <- h0testr::normalize(out$state, out$config)
 out <- h0testr::combine_replicates(out$state, out$config)
 out <- h0testr::combine_features(out$state, out$config)
-out <- h0testr::filter(out$state, out$config)
+out <- h0testr::filter_state(out$state, out$config)
 out <- h0testr::impute(out$state, out$config, is_log_transformed=TRUE)
-result <- h0testr::test(out$state, out$config)
+result <- h0testr::test_h0(out$state, out$config)
 
 ## hits in format returned by underlying test method:
 head(result$original)

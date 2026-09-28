@@ -1,0 +1,444 @@
+#' Get vector of \code{test_h0(method=)} method options
+#' @description
+#'   Get a vector with acceptable values of \code{method} parameter for \code{h0testr::test_h0()}.
+#' @return
+#'   Character vector with names of acceptable values for \code{h0testr::normalize(method=)}.
+#' @examples
+#' test_methods <- h0testr::test_methods()
+#' cat("Available test methods:\n")
+#' for(method in test_methods) {
+#'   cat("method:", method, "\n")
+#' }
+#' @export
+
+test_methods <- function() {
+  return(
+    c("lm", "trend", "deqms", "msqrob", "msqrob_agg", "proda", "prolfqua",
+      "prolfqua_lmer", "voom")
+  )
+}
+
+## helper for test_h0(): settings only some engines read:
+
+f.note_ignored_settings <- function(method, config) {
+
+  ## config$test_moderate is read by least squares prolfqua path only:
+
+  knobs <- list(
+    test_random_obs=list(default=TRUE, methods=c("prolfqua_lmer", "msqrob_agg")),
+    test_ridge=list(default=FALSE, methods="msqrob_agg"),
+    test_moderate=list(default=TRUE, methods="prolfqua")
+  )
+
+  ignored <- character(0)
+
+  for(nom in names(knobs)) {
+    if(!(nom %in% names(config)) || !(length(config[[nom]]) %in% 1)) next
+    if(is.na(config[[nom]]) || config[[nom]] %in% knobs[[nom]]$default) next
+    if(method %in% knobs[[nom]]$methods) next
+    ignored <- c(ignored, paste0("config$", nom, "=", config[[nom]],
+      " (read by test_method ", paste(knobs[[nom]]$methods, collapse=", "), ")"))
+  }
+
+  if(length(ignored)) {
+    f.msg("NOTE: test: method", method, "does not consult",
+      paste(ignored, collapse="; "), "\n",
+      " so", if(length(ignored) > 1) "those settings have" else "that setting has",
+      "no effect on this run", config=config)
+  }
+
+  return(ignored)
+}
+
+## Test methods where fitting variance prior against mean feature intensity, 
+##   (what limma::eBayes(trend=TRUE) does). prolfqua: uses trended prior 
+##   from limma::eBayes(trend=TRUE):
+
+f.trend_methods <- function() {
+  return("prolfqua")
+}
+
+## helper for test_h0(): a request to trend that the resolved method cannot honor:
+
+f.note_trend <- function(method, trend, given, config) {
+
+  src <- if(given) "the trend argument" else "config$test_trend"
+
+  if(method %in% "trend") {
+    if(given && !trend) {
+      f.msg("WARNING: test: trend is FALSE but test_method 'trend' is",
+        "limma::eBayes(trend=TRUE), so the prior is fitted against mean gene",
+        "intensity regardless;", "\n",
+        " for a flat prior use test_method 'deqms', whose limma prior this argument",
+        "does set, or 'lm', which does not moderate at all", config=config)
+      return(TRUE)
+    }
+    return(FALSE)
+  }
+
+  if(method %in% "deqms") {
+
+    if(!trend) return(FALSE)
+
+    f.msg("WARNING: test:", src, "is TRUE, and test_deqms() passes it to",
+      "limma::eBayes(), but DEqMS refits the prior from the spectra counts, so ",
+      "p-value test_h0() reports the one a FALSE would have given;", "\n",
+      " what changes is P.Value, t, B, s2.prior and s2.post of the returned table, not",
+      "any sca. column;", "\n",
+      " for a trended prior use test_method 'trend'",
+      config=config)
+
+    return(TRUE)
+  }
+
+  if(!trend || method %in% f.trend_methods()) return(FALSE)
+
+  f.msg("WARNING: test:", src, "is TRUE, but test_method", method, "does not fit",
+    "its variance prior against mean feature intensity",
+    "\n", " the methods that do are", paste(f.trend_methods(), collapse=", "),
+    "and 'trend', which always does", config=config)
+
+  return(TRUE)
+}
+
+#' Hypothesis testing
+#' @description
+#'   Wrapper for various hypothesis testing methods.
+#' @details
+#'   Tests for differential expression using method specified in config. 
+#'   See invididual \code{test_*} methods for more details. 
+#'   The \code{method} setting meanings are: 
+#'   \tabular{ll}{
+#'     \code{lm}     \tab Use \code{stats::lm()} on each feature. \cr
+#'     \code{trend}  \tab Use \code{limma::eBayes(trend=TRUE)}. \cr
+#'     \code{deqms}  \tab Use \code{DEqMS::spectraCounteBayes()}. \cr
+#'     \code{msqrob} \tab Use \code{msqrob2::msqrob()}. \cr
+#'     \code{msqrob_agg} \tab Use \code{msqrob2::msqrobAggregate()}: one mixed model per gene over the rows of its features, with the feature and the observation as random effects. \cr
+#'     \code{proda}  \tab Use \code{proDA::proDA()}. \cr
+#'     \code{prolfqua} \tab Use \code{prolfqua::strategy_lm()} on each feature. \cr
+#'     \code{prolfqua_lmer} \tab Use \code{prolfqua::strategy_lmer()}: one mixed model per gene over the rows of its features, with the feature and the observation as random effects. \cr
+#'     \code{voom}   \tab Use \code{limma::voom()}. \cr
+#'   }
+#'   Two feature level mixed model paths fit the same random structure by different
+#'     engines. \code{"prolfqua_lmer"} takes Satterthwaite degrees of freedom for the
+#'     tested contrast and is the better calibrated of the two; \code{"msqrob_agg"}
+#'     reports \code{msqrob2}'s moderated t against \code{dfPosterior}, which is
+#'     generous, and is mildly anti-conservative as a result. See
+#'     \code{h0testr::test_msqrob()} for the simulated rejection rates.
+#'   Several settings are read by some engines and not by others, so one set on a run
+#'     whose method does not consult it does nothing at all:
+#'   See documentation for \code{h0testr::new_config()}
+#'     for more detailed description of configuration parameters.
+#' @param state List with elements formatted like the list returned by \code{read_data()}:
+#'   \tabular{ll}{
+#'     \code{expression} \tab Numeric matrix with non-negative expression values. \cr
+#'     \code{features}   \tab A data.frame with feature meta-data for rows of expression. \cr
+#'     \code{samples}    \tab A data.frame with observation meta-data for columns of expression. \cr
+#'   } 
+#' @param config List with configuration values. Uses the following keys:
+#'   \tabular{ll}{
+#'     \code{feat_col}       \tab Name of column in \code{state$fetaures} matching \code{rownames(state$expression)}. \cr
+#'     \code{obs_col}        \tab Name of column in \code{state$samples} matching \code{colnames(state$expression)}. \cr
+#'     \code{gene_id_col}    \tab Name of column in \code{state$fetaures} with gene/protein-group ids. \cr
+#'     \code{frm}            \tab Formula (formula) to be fit. \cr
+#'     \code{test_term}      \tab Term (character scalar) to be tested for non-zero coefficient. \cr
+#'     \code{contrast}      \tab Weighted sum (character scalar) of coefficients of \code{config$frm} to test instead of \code{config$test_term}; "" for none. \cr
+#'     \code{reference_levels} \tab Named character vector with the reference level of each factor variable in \code{config$frm} (see examples). \cr
+#'     \code{test_method}    \tab Character scalar in \code{h0testr::test_methods()}. \cr
+#'   }
+#' @param method Name of test method where
+#'   \code{method \%in\% h0testr::test_methods()}. Defaults to
+#'   \code{config$test_method}, and either being \code{""} counts as unset; both unset
+#'   is an error. Also accepts \code{"none"}, which skips the test step and returns
+#'   \code{NULL} without reading \code{state}; that is what
+#'   \code{config$test_method="none"} is for in \code{h0testr::run()}, whose result then
+#'   carries the processed state and \code{NULL} in place of a test. \code{"none"} is
+#'   deliberately not one of \code{h0testr::test_methods()}, which names the engines;
+#'   \code{h0testr::check_config()} lists what the key may hold.
+#' @param is_log_transformed Logical scalar: whether \code{state$expression} has
+#'   been log transformed. Only consulted for \code{method \%in\% c("proda",
+#'   "prolfqua", "prolfqua_lmer")}. Defaults to \code{config$is_log_transformed}, which
+#'   \code{h0testr::init_state()} and \code{h0testr::normalize()} maintain;
+#'   passing both is an error unless they agree.
+#' @param prior_df Prior degrees of freedom for method \code{proda};
+#'   where \code{2 <= prior_df <= n_features}.
+#' @param trend Logical scalar: whether the variance prior of the moderation is fitted
+#'   against mean feature intensity rather than being flat. Changes the reported answer
+#'   only for \code{method="prolfqua"}; \code{"trend"} always trends; \code{"deqms"}
+#'   accepts it, and it moves the \code{limma} columns of \code{original}, but
+#'   \code{DEqMS} refits the prior from the spectra counts afterward so the reported
+#'   p-value is the one a \code{FALSE} gives; and the rest cannot trend at all. 
+#' @return A list with the following elements: \cr
+#'   \tabular{ll}{
+#'     \code{original} \tab A \code{data.frame} with results in native format returned by test. \cr
+#'     \code{standard} \tab A \code{data.frame} with results in a standardized format. \cr
+#'     \code{fit}      \tab Fitted model returned by the selected testing procedure. \cr
+#'   }
+#'   Or \code{NULL} for \code{method="none"}, which skips the test step. \cr
+#'   The \code{standard} \code{data.frame} has the following fields: \cr
+#'   \tabular{ll}{
+#'     \code{feature}   \tab Name of feature tested. \cr
+#'     \code{expr}      \tab Average feature expression. \cr
+#'     \code{logfc}     \tab Estimated effect size; see below. \cr
+#'     \code{stat}      \tab Value of test statistic. \cr
+#'     \code{lod}       \tab Log-odds of differential expression, which only
+#'                              \code{trend} and \code{voom} report, from limma's
+#'                              \code{B}; \code{NA} for every other method. \cr
+#'     \code{pval}      \tab Raw p-value resulting from test. \cr
+#'     \code{adj_pval}  \tab Adjusted (for multiple testing) p-value. \cr
+#'   }
+#'   What \code{logfc} holds depends on how many design matrix columns
+#'     \code{config$test_term} resolves to, which is a property of
+#'     \code{config$frm} and \code{config$test_term}; same for every
+#'     row of one result:
+#'   \itemize{
+#'     \item One column: the coefficient of that column, signed. For a two level
+#'       factor that is the difference between its levels on the scale of
+#'       \code{state$expression}; a log fold change when the input is log
+#'       transformed. For a \strong{continuous} covariate it is the change
+#'       \strong{per unit} of that covariate, whose size depends on the units the covariate:
+#'       an effect per month is a twelfth of the same effect per year. Thresholds
+#'       on \code{abs(logfc)} therefore have to be chosen with the covariate's
+#'       units in mind, although rankings and p-values are unaffected.
+#'     \item More than one column: a joint test of several coefficients has no
+#'       single contrast to report, so what is reported is the total swing, the
+#'       range over the observations of the fitted contribution of the terms under
+#'       test. This is the largest difference those terms can account for between
+#'       any two observations: for a factor, the largest
+#'       difference between any two levels; for a continuous covariate, the
+#'       slope times the range of the covariate. It is unsigned, since several coefficients 
+#'       have no single direction, and is on same scale as the single coefficient case.
+#'     \item \code{config$contrast}: the weighted sum of the coefficients it names,
+#'       signed, which is the quantity being tested and is on the same scale as the
+#'       single coefficient case. A contrast is one degree of freedom however many
+#'       coefficients it weights, so unlike a joint test it always has one number to
+#'       report. See \code{h0testr::new_config()} for how to write one.
+#'   }
+#'   \code{lod}: it is \code{limma}'s \code{B}, the log-odds
+#'     that a feature is differentially expressed. Only \code{method} \code{"trend"}
+#'     and \code{"voom"} report it, and only on a one column test. Every other method
+#'     leaves it \code{NA}, as does any joint test.
+#'   \code{feature} holds the value of \code{config$feat_col} identifying the row
+#'     of \code{state$expression} the result describes, except for the gene level
+#'     methods, \code{method \%in\% c("deqms", "msqrob", "msqrob_agg",
+#'     "prolfqua_lmer")}, which report one row per value of
+#'     \code{config$gene_id_col} whatever level the input is at. 
+#'   \code{expr} is the mean of the values handed to the test, over the
+#'     observations where the feature was seen; for the gene level methods, which
+#'     take feature level input and report gene level results, it
+#'     is also over the features of each gene.
+#'   \code{stat} is the statistic the engine itself reports, with two exceptions, both
+#'     for a joint test and both for the same reason, that the engine's API answers one
+#'     coefficient at a time while its fit supports the joint test.
+#'     \code{method \%in\% c("msqrob", "msqrob_agg")} reports an F computed by
+#'     \code{h0testr} from the fitted \code{msqrob2} models, since
+#'     \code{msqrob2::hypothesisTest()} answers one contrast at a time; see
+#'     \code{h0testr::test_msqrob()}. \code{method="deqms"} reports an F computed from
+#'     the per-gene variance \code{DEqMS::spectraCounteBayes()} fits, since
+#'     \code{DEqMS} moderates one coefficient's t-statistic and has no F-analogue; see
+#'     \code{h0testr::test_deqms()}. Both reduce to the engine's own statistic at one
+#'     numerator degree of freedom.
+#'   A \code{config$contrast} run has no such exception: every engine reports its
+#'     own statistic for a contrast, the two \code{msqrob} methods with
+#'     \code{msqrob2::hypothesisTest()} and \code{"deqms"} with the single coefficient
+#'     \code{limma::contrasts.fit()} leaves it.
+#' @examples
+#' set.seed(101)
+#' ## no missing values: mnar_c0=-Inf, mnar_c1=0, mcar_p=0
+#' samps <- h0testr::sim_samples(factors=list(condition=c("placebo", "drug")),
+#'   n_per_cell=6)
+#' sim <- h0testr::sim_design(samps, frm=~condition, test_term="condition", n_genes=25,
+#'   n_genes_signif=5, effects=2, mnar_c0=-Inf, mnar_c1=0, mcar_p=0)
+#' state <- sim$state
+#' state$expression <- log2(state$expression + 1)
+#' 
+#' config <- sim$config   ## frm, test_term, the id columns and reference_levels, set
+#'                        ##   to match what was simulated; save_state is FALSE
+#' config$is_log_transformed <- TRUE   ## normalize() would; logged just above
+#' rm(samps, sim)
+#' 
+#' ## set up and check covariates and parameters:
+#' out <- h0testr::init_state(state, config, minimal=TRUE)
+#' 
+#' out <- h0testr::test_h0(out$state, out$config, method="trend")
+#' head(out$original)
+#' head(out$standard)
+#' summary(out$fit)
+#' @export
+
+test_h0 <- function(state, config, method=NULL,
+    is_log_transformed=NULL, prior_df=NULL, trend=NULL) {
+
+  if(is.null(method) || method %in% "") method <- config$test_method
+  if(is.null(method) || method %in% "") {
+    f.err("test: method and config$test_method both unset", config=config)
+  }
+
+  ## "none" skips test step, and returns before anything read from state:
+
+  if(method %in% "none") {
+    f.msg("skipping testing: method %in% 'none'", config=config)
+    return(NULL)
+  }
+
+  if(is.null(prior_df)) prior_df <- config$test_prior_df
+  if(method %in% "proda" && is.null(prior_df)) {
+    f.err("test: method %in% 'proda' && is.null(prior_df)", config=config)
+  }
+  
+  ## only these two methods told scale:
+
+  if(method %in% c("proda", "prolfqua", "prolfqua_lmer")) {
+    is_log_transformed <- f.is_log_transformed(is_log_transformed, config,
+      "test")
+  }
+  
+  ## resolved for every method:
+
+  trend_given <- !(is.null(trend) || (is.character(trend) && all(trend %in% "")))
+  trend <- f.is_trend(trend, config, "test")
+
+  f.msg("test: method:", method, "; is_log_transformed:", is_log_transformed,
+    "; prior_df:", prior_df, "; trend:", trend, config=config)
+
+  ## setting resolved method does not read:
+
+  f.note_ignored_settings(method, config)
+  f.note_trend(method, trend, trend_given, config)
+
+  ## factor covariates of config$frm rebuilt with level ordering
+  ##   config declares, before design is derived and before state reaches
+  ##   an engine. Drops factor levels no observation is at. See
+  ##   f.relevel_state_covariates():
+
+  state <- f.relevel_state_covariates(state, config, caller="test")
+
+  ## every method below tests config$test_term against a reduced model, whether
+  ##   by dropping terms or by contrasting coefficients:
+
+  design <- f.design_test_cols(state, config)
+
+  ## the column of state$features that identifies the rows the engine will return. 
+  ##   See f.test_id_col():
+
+  test_col <- f.test_id_col(method, config)
+
+  if(method %in% "lm") {
+    result <- test_lm(state, config)
+    tbl2 <- f.format_lm(result$hits, test_col, config)
+  } else if(method %in% "trend") {
+    result <- test_trend(state, config)
+    tbl2 <- f.format_limma(result$hits, config)
+  } else if(method %in% "deqms") {
+    result <- test_deqms(state, config, trend=trend)
+    tbl2 <- f.format_deqms(result$hits, config)
+  } else if(method %in% "msqrob") {
+    result <- test_msqrob(state, config)
+    tbl2 <- f.format_msqrob(result$hits, test_col, config)
+  } else if(method %in% "msqrob_agg") {
+    result <- test_msqrob(state, config, aggregate=TRUE)
+    tbl2 <- f.format_msqrob(result$hits, test_col, config)
+  } else if(method %in% "proda") {
+    result <- test_proda(state, config,
+      is_log_transformed=is_log_transformed, prior_df=prior_df)
+    tbl2 <- f.format_proda(result$hits, config)
+  } else if(method %in% "prolfqua") {
+    result <- test_prolfqua(state, config,
+      is_log_transformed=is_log_transformed, trend=trend)
+    tbl2 <- f.format_prolfqua(result$hits, test_col, config)
+  } else if(method %in% "prolfqua_lmer") {
+    result <- test_prolfqua(state, config,
+      is_log_transformed=is_log_transformed, mixed=TRUE)
+    tbl2 <- f.format_prolfqua(result$hits, test_col, config)
+  } else if(method %in% "voom") {
+    result <- test_voom(state, config)
+    tbl2 <- f.format_limma(result$hits, config)
+  } else f.err("test: unexpected method:", method, config=config)
+
+  ## effect size and average expression; see f.logfc_effect() for logfc from joint test:
+
+  tbl2 <- f.fill_standard(tbl2, result, state, design, method, config)
+
+  ## the feature metadata to report alongside the result:
+
+  feats <- state$features
+  if(f.gene_level_method(method)) {
+    feats <- f.gene_features(feats, config, "test")$features
+  }
+  rownames(feats) <- feats[[test_col]]
+
+  if(!all(tbl2$feature %in% rownames(feats))) {
+    i <- !(tbl2$feature %in% rownames(feats))
+    f.err("test: method", method, "returned", sum(i), "of", nrow(tbl2), "results",
+      "whose feature id is not in state$features[[", test_col, "]], so they cannot",
+      "be matched back to the feature metadata;", "\n",
+      "  first few returned:", utils::head(tbl2$feature[i], 5), "\n",
+      "  first few available:", utils::head(rownames(feats), 5), "\n",
+      "  config$feat_col:", config$feat_col,
+      "; config$gene_id_col:", config$gene_id_col, config=config)
+  }
+
+  ## where the feature id sits in result$hits:
+
+  o <- NULL
+  for(key in list(rownames(result$hits), result$hits[["feature"]],
+    result$hits[["name"]], result$hits[[test_col]])) {
+
+    if(is.null(key)) next
+    o2 <- match(tbl2$feature, as.character(key))
+    if(!any(is.na(o2))) {
+      o <- o2
+      break
+    }
+  }
+
+  if(is.null(o)) {
+    f.err("test: cannot match the standardized results back to the results",
+      method, "returned, so the original results cannot be reported;", "\n",
+      "feature ids:", utils::head(tbl2$feature, 5), "\n",
+      "columns of the returned results:", names(result$hits), config=config)
+  }
+
+  tbl <- cbind(feats[tbl2$feature, , drop=F], result$hits[o, , drop=F])
+  rownames(tbl) <- NULL
+
+  ## a method that attaches state$features itself, as test_lm() does, leaves the
+  ##   metadata here twice, which makes the saved header ambiguous; the copy from
+  ##   feats is kept, and a dropped column that disagrees with it is reported:
+
+  i_dup <- duplicated(names(tbl))
+
+  if(any(i_dup)) {
+    noms <- unique(names(tbl)[i_dup])
+    bad <- noms[!sapply(noms, function(nom) {
+      j <- which(names(tbl) %in% nom)
+      all(sapply(j[-1], function(k) isTRUE(all.equal(tbl[[j[1]]], tbl[[k]]))))
+    })]
+
+    if(length(bad)) {
+      f.msg("WARNING: test: method", method, "returned", length(bad),
+        if(length(bad) > 1) "columns" else "a column", "named for feature metadata",
+        "but holding different values, and the metadata copy is the one kept;", "\n",
+        " columns:", bad, config=config)
+    }
+
+    f.log("dropping", sum(i_dup), "duplicated result columns:",
+      paste(unique(names(tbl)[i_dup]), collapse=", "), config=config)
+    tbl <- tbl[, !i_dup, drop=FALSE]
+  }
+
+  if((!is.null(config$save_state)) && config$save_state) {
+    
+    file_out <- paste0(config$dir_out, "/", length(config$run_order) + 3, 
+      config$result_mid_out, ".reformat", config$suffix_out)
+    f.log("writing reformatted results to", file_out, config=config)
+    f.save_tsv(tbl2, file_out, config)
+
+    file_out <- paste0(config$dir_out, "/", length(config$run_order) + 3,
+      config$result_mid_out, ".original", config$suffix_out)
+    f.log("writing original results to", file_out, config=config)
+    f.save_tsv(tbl, file_out, config)
+  }
+  
+  return(list(original=tbl, standard=tbl2, fit=result$fit))
+}
